@@ -45,32 +45,55 @@ object SetAlarm : Tool(
     title = "Alarms",
     description = "Set an alarm in the clock app, at a time of day.",
     onByDefault = true,
-    examples = listOf("Wake me up at 6:45", "Set an alarm for 7 pm called gym"),
+    examples = listOf("Wake me up at 6:45", "Alarms at 8 and 9 am"),
 ) {
+    // The time as text, parsed by the app. On the desktop check, separate hour and minute fields
+    // turned "alarms at 8 and 9 am" into one alarm at 08:09 and scored single alarms around 0.3;
+    // one time string got every request right (two alarms included) and scored higher. A label
+    // parameter made the model invent labels ("Tomorrow morning"), so there isn't one.
     override val schema = """
         {"name": "set_alarm",
-         "description": "Set an alarm to ring at a time of day, such as wake me up at 6:45",
+         "description": "Set an alarm for a time, such as wake me up at 6:45 tomorrow",
          "parameters": {"type": "object", "properties": {
-           "hour": {"type": "integer", "minimum": 0, "maximum": 23, "description": "Hour in 24-hour time: 6:45 am is 6, 7 pm is 19"},
-           "minute": {"type": "integer", "minimum": 0, "maximum": 59, "description": "Minute past the hour"},
-           "label": {"type": "string", "description": "A name for the alarm, only if the request gives one"}},
-           "required": ["hour", "minute"]}}
+           "time": {"type": "string", "description": "The time, such as 6:45 am or 7 pm"}},
+           "required": ["time"]}}
     """.trimIndent()
 
     override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps): Prepared {
-        val hour = arguments.int("hour")
-        val minute = arguments.int("minute") ?: 0
-        if (hour == null || hour !in 0..23) return Prepared.Invalid("Hour $hour isn't 0–23")
-        if (minute !in 0..59) return Prepared.Invalid("Minute $minute isn't 0–59")
-        val label = arguments.text("label")
+        val said = arguments.text("time") ?: return Prepared.Invalid("No time given")
+        val (hour, minute) = TimeOfDay.parse(said) ?: return Prepared.Invalid("\"$said\" isn't a time of day")
         val time = String.format(Locale.US, "%02d:%02d", hour, minute)
-        return Prepared.Ready("Set an alarm for $time" + (label?.let { " ($it)" } ?: "")) { context ->
+        // The clock app sets the next time it's that time of day: today if it's still ahead, else tomorrow.
+        return Prepared.Ready("Set an alarm for $time") { context ->
             Tools.start(context, Intent(AlarmClock.ACTION_SET_ALARM)
                 .putExtra(AlarmClock.EXTRA_HOUR, hour)
                 .putExtra(AlarmClock.EXTRA_MINUTES, minute)
-                .apply { label?.let { putExtra(AlarmClock.EXTRA_MESSAGE, it) } }
                 .putExtra(AlarmClock.EXTRA_SKIP_UI, true), "Alarm set for $time")
         }
+    }
+}
+
+/** A spoken or written time of day as hour (0–23) and minute. */
+object TimeOfDay {
+    private val PATTERN = Regex("""^(\d{1,2})(?:\s*[:.h]\s*(\d{2}))?\s*(am|a\.m\.|pm|p\.m\.)?$""")
+
+    /**
+     * "8:00 AM", "08:00", "7 pm", "19:30", "6.45", "8" → (hour, minute); null if it isn't one.
+     * Without am or pm, an hour up to 12 is taken as written (so "8" is 8 am, "12" noon).
+     */
+    fun parse(text: String): Pair<Int, Int>? {
+        val t = text.trim().lowercase().let { if (it == "noon") "12" else if (it == "midnight") "0" else it }
+        val m = PATTERN.matchEntire(t) ?: return null
+        var hour = m.groupValues[1].toInt()
+        val minute = m.groupValues[2].ifEmpty { "0" }.toInt()
+        val period = m.groupValues[3].replace(".", "")
+        if (minute > 59) return null
+        when (period) {
+            "am" -> { if (hour !in 1..12) return null; if (hour == 12) hour = 0 }
+            "pm" -> { if (hour !in 1..12) return null; if (hour != 12) hour += 12 }
+            else -> if (hour > 23) return null
+        }
+        return hour to minute
     }
 }
 

@@ -2,6 +2,9 @@
 set_alarm | Wake me up at 6:45
 set_alarm | Set an alarm for 7 pm called gym
 set_alarm | alarm at 5:30 tomorrow morning
+set_alarm | set an alarm for 8 am
+set_alarm | set two alarms, one for 8 am and another for 9 am
+set_alarm | alarms at 8 and 9 am
 set_timer | Timer for 10 minutes
 set_timer | Set a 90 second timer for the eggs
 set_timer | countdown 1 hour 15 minutes

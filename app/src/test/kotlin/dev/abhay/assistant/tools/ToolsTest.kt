@@ -18,11 +18,23 @@ class ToolsTest {
     private fun reason(prepared: Prepared) = (prepared as? Prepared.Invalid)?.reason
 
     @Test
-    fun alarmsTakeA24HourTime() {
-        assertThat(summary(SetAlarm.prepare(mapOf("hour" to 19, "minute" to 0, "label" to "Gym"), apps))).isEqualTo("Set an alarm for 19:00 (Gym)")
-        assertThat(summary(SetAlarm.prepare(mapOf("hour" to "6", "minute" to 45), apps))).isEqualTo("Set an alarm for 06:45")
-        assertThat(reason(SetAlarm.prepare(mapOf("hour" to 24, "minute" to 0), apps))).contains("Hour")
-        assertThat(reason(SetAlarm.prepare(mapOf("minute" to 5), apps))).isNotNull()
+    fun alarmsTakeTheTimeAsWritten() {
+        assertThat(summary(SetAlarm.prepare(mapOf("time" to "7 pm"), apps))).isEqualTo("Set an alarm for 19:00")
+        assertThat(summary(SetAlarm.prepare(mapOf("time" to "6:45"), apps))).isEqualTo("Set an alarm for 06:45")
+        assertThat(reason(SetAlarm.prepare(mapOf("time" to "soon"), apps))).contains("soon")
+        assertThat(reason(SetAlarm.prepare(emptyMap(), apps))).isNotNull()
+    }
+
+    @Test
+    fun timesOfDayAsTheModelWritesThem() {
+        // Forms seen from Needle 3 on the desktop check, and a few more.
+        val cases = mapOf(
+            "8:00 AM" to (8 to 0), "08:00" to (8 to 0), "9:00" to (9 to 0), "8" to (8 to 0), "6:45" to (6 to 45),
+            "7 pm" to (19 to 0), "7:30 p.m." to (19 to 30), "12 am" to (0 to 0), "12 pm" to (12 to 0), "19:30" to (19 to 30),
+            "6.45" to (6 to 45), "noon" to (12 to 0), "midnight" to (0 to 0),
+        )
+        cases.forEach { (text, expected) -> assertThat(TimeOfDay.parse(text)).isEqualTo(expected) }
+        listOf("25:00", "13 pm", "8:75", "tomorrow", "").forEach { assertThat(TimeOfDay.parse(it)).isNull() }
     }
 
     @Test

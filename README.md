@@ -15,7 +15,7 @@ Phase 1 is a normal app with a text box. Voice and becoming the phone's default 
 
 | Tool | On by default | How |
 |---|---|---|
-| Alarms (`set_alarm`) | ✓ | `AlarmClock.ACTION_SET_ALARM`, skipping the clock app's UI |
+| Alarms (`set_alarm`) | ✓ | `AlarmClock.ACTION_SET_ALARM`, skipping the clock app's UI; the next time it's that time of day |
 | Timers (`set_timer`) | ✓ | `AlarmClock.ACTION_SET_TIMER` |
 | Open apps (`open_app`) | ✓ | Launch intent; the name is matched against the launcher's apps by the app, not the model |
 | Settings pages (`open_settings`) | ✓ | `Settings.ACTION_*` (Wi-Fi, Bluetooth, battery, display…, or Settings itself) |
@@ -41,8 +41,9 @@ text box ─► AssistantViewModel ─► AssistantEngine ─► Needle.kt ─JN
 
 ## Tuning the tools: `mise run tool-check`
 
-Needle 3's choices and confidence depend heavily on the tool descriptions. `mise run tool-check [all|default]` runs Cactus's Linux build of the same engine on the desktop, with the app's own tool JSON (exported by a unit test), against `tool-check/requests.txt`: requests whose right tool is known. On 2026-10-06, with the default tools: 23 of 26 right, 15 sure enough to run without asking. Lessons from it are in the comments in `Tools.kt`:
+Needle 3's choices and confidence depend heavily on the tool descriptions. `mise run tool-check [all|default]` runs Cactus's Linux build of the same engine on the desktop, with the app's own tool JSON (exported by a unit test), against `tool-check/requests.txt`: requests whose right tool is known. On 2026-10-07, with the default tools: 25 of 29 right, 19 sure enough to run without asking. Lessons from it are in the comments in `Tools.kt`:
 - one total in seconds beats separate hours, minutes and seconds fields, which turned "10 minutes" into 10 h 10 min;
+- an alarm time as text ("8:00 AM", parsed by the app) beats hour and minute fields, which turned "alarms at 8 and 9 am" into one alarm at 08:09;
 - "wi-fi" rather than "wifi" in the enum;
 - a photo/video choice was picked backwards about half the time, so the camera tool has none.
 
