@@ -1,0 +1,110 @@
+[tools]
+java = "temurin-21"   # JDK for Gradle/AGP
+gradle = "9.8.0"      # only used to bootstrap the wrapper; builds use ./gradlew
+
+[env]
+ANDROID_HOME = "{{env.HOME}}/Android/Sdk"
+_.path = [
+  "{{env.HOME}}/Android/Sdk/cmdline-tools/latest/bin",
+  "{{env.HOME}}/Android/Sdk/platform-tools",
+]
+
+[tasks.bootstrap]
+description = "Generate local.properties (the Gradle wrapper is committed)"
+run = "echo \"sdk.dir=$ANDROID_HOME\" > local.properties"
+
+[tasks.fetch]
+description = "Download the Needle engine and the Needle 3 model the app bundles (pinned, SHA-256 checked)"
+run = '''
+set -euo pipefail
+NEEDLE=https://huggingface.co/Cactus-Compute/needle3/resolve/c7c415a3d1b3d929014bc6e866d51ebb971f7089
+fetch() { # url path sha256
+  if [ -f "$2" ] && echo "$3  $2" | sha256sum -c --quiet 2>/dev/null; then return; fi
+  mkdir -p "$(dirname "$2")"
+  curl -fL --progress-bar -o "$2.part" "$1"
+  echo "$3  $2.part" | sha256sum -c --quiet
+  mv "$2.part" "$2"
+}
+fetch $NEEDLE/android-arm64/libneedle.a third_party/needle/android-arm64/libneedle.a 16752fb75adea7af89bbc435a97d1cda7e71bc74d04578d551d0d3bbd5f9e633
+fetch $NEEDLE/android-arm64/needle.h third_party/needle/android-arm64/needle.h 90f347f9dca1199de79967ab199a56e0588bd473fe306051f8d80d146976a324
+fetch $NEEDLE/needle3.cact app/src/main/assets/needle3.cact c9d915eca282ed42d1a09b143b592adb4cc6744ffe2d294adf5cfc5548170c38
+echo "All files present and verified."
+'''
+
+[tasks.tool-check]
+description = "Run Needle 3 on the desktop with the app's tools against tool-check/requests.txt: mise run tool-check [all|default]"
+usage = 'arg "[set]" help="Which tools: all (default) or default (the ones on by default)" default="all"'
+run = """
+set -euo pipefail
+NEEDLE=https://huggingface.co/Cactus-Compute/needle3/resolve/c7c415a3d1b3d929014bc6e866d51ebb971f7089
+DIR=build/tool-check
+mkdir -p "$DIR"
+fetch() { # url path sha256
+  if [ -f "$2" ] && echo "$3  $2" | sha256sum -c --quiet 2>/dev/null; then return; fi
+  curl -fsL -o "$2.part" "$1"
+  echo "$3  $2.part" | sha256sum -c --quiet
+  mv "$2.part" "$2"
+}
+# Cactus's Linux build of the same engine. It's built against LLVM's libc++, which Zig bundles.
+fetch $NEEDLE/linux-x86_64/libneedle.a "$DIR/libneedle.a" 5c0ff309dcf9c2238bd07986d9d100069d568596c2378f0bfedc1677cc02f756
+fetch $NEEDLE/linux-x86_64/needle.h "$DIR/needle.h" 90f347f9dca1199de79967ab199a56e0588bd473fe306051f8d80d146976a324
+if [ ! -x "$DIR/tool_check" ] || [ tool-check/tool_check.cpp -nt "$DIR/tool_check" ]; then
+  uvx --from ziglang python -m ziglang c++ -O2 -std=c++17 -w -I "$DIR" tool-check/tool_check.cpp "$DIR/libneedle.a" -lpthread -o "$DIR/tool_check"
+fi
+./gradlew -q testDebugUnitTest --tests '*ToolSchemasTest*'
+"$DIR/tool_check" app/src/main/assets/needle3.cact "app/build/tool-check/${usage_set}.json" tool-check/requests.txt
+"""
+
+[tasks.check-offline]
+description = "Fail if the built APK can use the network: an INTERNET permission, or networking calls in its native code"
+depends = ["build"]
+run = """
+set -euo pipefail
+APK=app/build/outputs/apk/debug/app-debug.apk
+AAPT=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)aapt2
+if "$AAPT" dump permissions "$APK" | grep -q 'android.permission.INTERNET'; then echo "FAIL: INTERNET permission"; exit 1; fi
+TMP=$(mktemp -d)
+unzip -q -o "$APK" 'lib/*' -d "$TMP"
+NM=$(ls -d "$ANDROID_HOME"/ndk/*/ | sort -V | tail -1)toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-nm
+for so in "$TMP"/lib/*/*.so; do
+  if "$NM" -D --undefined-only "$so" | grep -Ew 'socket|connect|getaddrinfo|gethostbyname|sendto|recvfrom'; then echo "FAIL: networking symbols in $so"; exit 1; fi
+done
+rm -rf "$TMP"
+echo "Offline: no INTERNET permission, no networking calls in native code."
+"""
+
+[tasks.build]
+description = "Build the debug APK"
+depends = ["fetch"]
+run = "./gradlew assembleDebug"
+
+[tasks.test]
+description = "JVM unit tests"
+run = "./gradlew testDebugUnitTest"
+
+[tasks.device-test]
+description = "Run the device tests on the connected phone"
+depends = ["fetch"]
+run = "./gradlew connectedDebugAndroidTest"
+
+[tasks.install]
+depends = ["fetch"]
+run = "./gradlew installDebug"
+
+[tasks.run]
+description = "Install and launch on the connected phone"
+depends = ["install"]
+run = "adb shell am start -n dev.abhay.assistant/.MainActivity"
+
+[tasks.send-over-tailscale]
+description = "Build the debug APK and send it to a device with Taildrop: mise run send-over-tailscale <device>"
+usage = 'arg "<device>" help="The Tailscale device to send to, e.g. poco-f5-1"'
+depends = ["build"]
+run = """
+set -euo pipefail
+# Always the same name. Tailscale on Android never overwrites: a repeat send arrives as
+# Assistant-<uuid>.apk, so old copies have to be deleted on the phone.
+cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/Assistant.apk
+tailscale file cp app/build/outputs/apk/debug/Assistant.apk "${usage_device}:"
+echo "Sent Assistant.apk ($(git rev-parse --short HEAD)) to ${usage_device}"
+"""

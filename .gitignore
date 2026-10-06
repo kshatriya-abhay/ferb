@@ -1,0 +1,15 @@
+.gradle/
+.kotlin/
+build/
+local.properties
+.idea/
+*.iml
+captures/
+.cxx/
+*.apk
+
+# Fetched by `mise run fetch` (pinned and SHA-256 checked), not committed
+third_party/
+app/src/main/assets/
+*.cact
+*.part

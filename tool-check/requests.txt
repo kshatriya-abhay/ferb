@@ -1,0 +1,27 @@
+# expected_tool | request. "none": no tool should be called; "a/b": either, the first one turned on.
+set_alarm | Wake me up at 6:45
+set_alarm | Set an alarm for 7 pm called gym
+set_alarm | alarm at 5:30 tomorrow morning
+set_timer | Timer for 10 minutes
+set_timer | Set a 90 second timer for the eggs
+set_timer | countdown 1 hour 15 minutes
+open_app | Open the calculator
+open_settings/open_app | Launch Settings
+open_app | open whatsapp
+open_settings | Open Wi-Fi settings
+open_settings | Show me the battery settings
+open_settings | take me to bluetooth settings
+set_flashlight | Turn on the flashlight
+set_flashlight | Torch off
+set_flashlight | I need some light
+show_alarms | Show my alarms
+set_volume | Set the media volume to 30 percent
+set_volume | Mute the ringer
+control_media | Pause the music
+control_media | Next song
+open_camera/open_app | Take a picture
+open_camera/open_app | Open the camera
+open_camera/open_app | Record a video
+none | What's the weather like?
+none | Tell me a joke
+none | Who won the match yesterday?

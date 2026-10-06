@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A speech bubble with a padlock cut into it: an assistant that keeps what you say on the phone.
+     Centred in the adaptive icon's 66dp safe zone; also used as the monochrome (themed) icon. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Bubble with a tail at the bottom left; the padlock (shackle and body) is cut out, the keyhole filled back in. -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M38,30h32a8,8 0 0 1 8,8v24a8,8 0 0 1 -8,8h-20l-10,9v-9h-2a8,8 0 0 1 -8,-8v-24a8,8 0 0 1 8,-8z M47,49v-4a7,7 0 0 1 14,0v4h-3.5v-4a3.5,3.5 0 0 0 -7,0v4z M47,49h14a2,2 0 0 1 2,2v10a2,2 0 0 1 -2,2h-14a2,2 0 0 1 -2,-2v-10a2,2 0 0 1 2,-2z M54,53.5a2,2 0 1 1 0,4a2,2 0 1 1 0,-4z M53.2,56h1.6v3.5h-1.6z" />
+</vector>
