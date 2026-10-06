@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.abhay.assistant.engine.AssistantEngine
 import dev.abhay.assistant.tools.Tools
+import java.util.Locale
 
 /**
  * Which tools the assistant has. Switches change a draft; Save keeps it and gives the new tools to
@@ -101,7 +102,10 @@ fun SettingsScreen(viewModel: AssistantViewModel, onBack: () -> Unit) {
                 val on = tool.name in draft
                 ListItem(
                     headlineContent = { Text(tool.title) },
-                    supportingContent = { Text(tool.description + "\n“${tool.examples.first()}”") },
+                    supportingContent = {
+                        Text(tool.description + "\n“${tool.examples.first()}”\n" +
+                            String.format(Locale.US, "Runs without asking from confidence %.1f", tool.runFrom))
+                    },
                     trailingContent = {
                         Switch(checked = on, onCheckedChange = { checked ->
                             draft = if (checked) Tools.all.map { it.name }.filter { it in draft || it == tool.name }

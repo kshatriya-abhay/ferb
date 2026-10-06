@@ -6,10 +6,14 @@ Phase 1 is a normal app with a text box. Voice and becoming the phone's default 
 
 ## What it does
 
+- **A chat:** your requests on the right, the assistant's replies on the left, newest at the bottom; scroll up for the history. A request shows at once, with a "Thinking…" bubble until Needle 3 answers.
 - **Requests to tool calls:** Needle 3 gets the tools that are turned on (as JSON schemas) and returns the calls a request needs, with a confidence. The app checks every argument itself, then:
-  - runs the calls straight away at confidence ≥ 0.7;
+  - runs the calls straight away when the confidence clears the bar for the tools called;
   - asks first ("Do it" / "Skip") below that;
   - says so when no tool fits.
+- **A bar per tool**, by how easy the action is to undo: 0.3 for harmless ones a tap reverses (flashlight, volume, media, opening an app, settings page or camera), 0.4 for alarms and timers (they create something, shown on the card). Cactus's general advice is 0.7; Needle 3's confidence varies a lot with phrasing (the same alarm request scores 0.3–0.9), so a single 0.7 bar asked about most good requests.
+- **Buttons on results:** "Turn off" / "Turn on" for the flashlight, "Undo" / "Redo" for volume, the opposite media action, "Show alarms" and "Show timers" (to change or delete them in the clock app), "Open again" for apps and pages.
+- **Calls that open another app run one at a time**, each after the assistant is back in front: two alarm intents 14 ms apart set only the first on HyperOS.
 - **Configurable tools:** the Tools screen (top-bar icon) turns tools on and off. **Save** gives the new set to the loaded model: a second `needle_init` replaces the tools without reloading the model (checked on the desktop; answers match a fresh start).
 - **Tools** (all offline, none needs the assistant role):
 
@@ -69,6 +73,7 @@ mise run send-over-tailscale poco-f5-1   # or send the APK with Taildrop
 | [Needle 3](https://huggingface.co/Cactus-Compute/needle3) by Cactus Compute | Apache-2.0 | The tool-calling model, bundled |
 | [Needle engine](https://github.com/cactus-compute/needle) by Cactus Compute | Apache-2.0 | Runs Needle 3 (`libneedle.a`, linked prebuilt; Linux build for `tool-check`) |
 | [AndroidX](https://developer.android.com/jetpack/androidx) (Compose, Material 3, Lifecycle) | Apache-2.0 | UI |
+| [Material Components for Android](https://github.com/material-components/material-components-android) | Apache-2.0 | The Material 3 window theme behind Compose |
 | [Kotlin coroutines](https://github.com/Kotlin/kotlinx.coroutines) | Apache-2.0 | Background work |
 | [Material Icons](https://github.com/google/material-design-icons) | Apache-2.0 | Icons |
 | [Zig](https://ziglang.org) (via the `ziglang` Python package) | MIT | Builds the desktop `tool-check` against libc++ (not shipped) |

@@ -8,6 +8,8 @@ coreKtx = "1.19.1"
 coroutines = "1.11.0"
 # Material 3 Expressive (LoadingIndicator, wavy progress, flexible app bars) is only in the 1.5 alphas.
 material3 = "1.5.0-alpha29"
+# Only for the Material 3 window theme (status bar, navigation bar, launch frame), behind Compose.
+materialComponents = "1.14.0"
 junit = "4.13.2"
 truth = "1.4.5"
 orgJson = "20250517"
@@ -24,6 +26,7 @@ compose-ui = { module = "androidx.compose.ui:ui" }
 compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
 compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
 compose-material3 = { module = "androidx.compose.material3:material3", version.ref = "material3" }
+material-components = { module = "com.google.android.material:material", version.ref = "materialComponents" }
 compose-material-icons-core = { module = "androidx.compose.material:material-icons-core" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }

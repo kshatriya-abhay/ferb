@@ -45,6 +45,14 @@ class NeedleReplyTest {
     }
 
     @Test
+    fun theBarCanBeLowered() {
+        val reply = NeedleReply.parse(twoCalls.replace("0.8487", "0.45"))
+        assertThat(Decision.of(reply)).isEqualTo(Decision.Confirm)
+        assertThat(Decision.of(reply, runAt = 0.4)).isEqualTo(Decision.Run)
+        assertThat(Decision.of(NeedleReply.parse(refused), runAt = 0.0)).isEqualTo(Decision.Refuse)
+    }
+
+    @Test
     fun engineFailureIsReported() {
         assertThat(NeedleReply.parse("""{"success":false,"error":"context overflow"}""").error).isEqualTo("context overflow")
     }

@@ -54,11 +54,15 @@ data class NeedleReply(
     }
 }
 
-/** What the assistant does with a reply, using the thresholds Cactus recommends. */
+/**
+ * What the assistant does with a reply. Cactus recommends running at 0.7; the assistant uses a bar
+ * per tool ([dev.abhay.assistant.tools.Tool.runFrom]), and a reply runs when it clears the highest
+ * bar among the tools it calls.
+ */
 enum class Decision {
-    /** Confidence ≥ 0.7: run the calls straight away. */
+    /** Confident enough: run the calls straight away. */
     Run,
-    /** Confidence between the engine's 0.1 floor and 0.7: show the calls and ask before running. */
+    /** Below the bar (and above the engine's 0.1 floor): show the calls and ask before running. */
     Confirm,
     /** No call: no tool fits, or the engine withheld everything. */
     Refuse;
@@ -66,9 +70,9 @@ enum class Decision {
     companion object {
         const val RUN_AT = 0.7
 
-        fun of(reply: NeedleReply): Decision = when {
+        fun of(reply: NeedleReply, runAt: Double = RUN_AT): Decision = when {
             reply.calls.isEmpty() -> Refuse
-            (reply.confidence ?: 0.0) >= RUN_AT -> Run
+            (reply.confidence ?: 0.0) >= runAt -> Run
             else -> Confirm
         }
     }

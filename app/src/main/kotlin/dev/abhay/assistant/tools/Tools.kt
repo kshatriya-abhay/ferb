@@ -10,6 +10,8 @@ import android.provider.AlarmClock
 import android.provider.MediaStore
 import android.provider.Settings
 import android.view.KeyEvent
+import dev.abhay.assistant.tools.Tools.again
+import dev.abhay.assistant.tools.Tools.withActions
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -29,6 +31,15 @@ object Tools {
     /** The JSON array Needle 3 gets for [tools]. */
     fun json(tools: List<Tool>): String = tools.joinToString(",\n", prefix = "[\n", postfix = "\n]") { it.schema }
 
+    /** [this] with [actions] as buttons, if it succeeded. */
+    internal fun Outcome.withActions(vararg actions: FollowUp): Outcome = if (this is Outcome.Done) copy(actions = actions.toList()) else this
+
+    /** [this] with an "Open again" button that starts [intent] once more. */
+    internal fun Outcome.again(intent: Intent): Outcome {
+        val message = (this as? Outcome.Done)?.message ?: return this
+        return withActions(FollowUp("Open again") { start(it, Intent(intent), message).again(intent) })
+    }
+
     /** Starts [intent] as a new task (the app's own screen is in front, so Android allows it). */
     internal fun start(context: Context, intent: Intent, done: String): Outcome = try {
         context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
@@ -45,6 +56,7 @@ object SetAlarm : Tool(
     title = "Alarms",
     description = "Set an alarm in the clock app, at a time of day.",
     onByDefault = true,
+    runFrom = 0.4,
     examples = listOf("Wake me up at 6:45", "Alarms at 8 and 9 am"),
 ) {
     // The time as text, parsed by the app. On the desktop check, separate hour and minute fields
@@ -69,6 +81,7 @@ object SetAlarm : Tool(
                 .putExtra(AlarmClock.EXTRA_HOUR, hour)
                 .putExtra(AlarmClock.EXTRA_MINUTES, minute)
                 .putExtra(AlarmClock.EXTRA_SKIP_UI, true), "Alarm set for $time")
+                .withActions(FollowUp("Show alarms") { Tools.start(it, Intent(AlarmClock.ACTION_SHOW_ALARMS), "Opened the alarms") })
         }
     }
 }
@@ -102,6 +115,7 @@ object SetTimer : Tool(
     title = "Timers",
     description = "Start a countdown timer in the clock app.",
     onByDefault = true,
+    runFrom = 0.4,
     examples = listOf("Timer for 10 minutes", "Set a 90 second timer for the eggs"),
 ) {
     const val MAX_SECONDS = 24 * 60 * 60
@@ -125,6 +139,7 @@ object SetTimer : Tool(
                 .putExtra(AlarmClock.EXTRA_LENGTH, total)
                 .apply { label?.let { putExtra(AlarmClock.EXTRA_MESSAGE, it) } }
                 .putExtra(AlarmClock.EXTRA_SKIP_UI, true), "Timer started: $length")
+                .withActions(FollowUp("Show timers") { Tools.start(it, Intent(AlarmClock.ACTION_SHOW_TIMERS), "Opened the timers") })
         }
     }
 
@@ -141,6 +156,7 @@ object ShowAlarms : Tool(
     title = "Show alarms",
     description = "Open the clock app's list of alarms.",
     onByDefault = false,
+    runFrom = 0.3,
     examples = listOf("Show my alarms"),
 ) {
     override val schema = """
@@ -158,6 +174,7 @@ object OpenApp : Tool(
     title = "Open apps",
     description = "Open an app on this phone by its name.",
     onByDefault = true,
+    runFrom = 0.3,
     examples = listOf("Open the calculator", "Launch WhatsApp"),
 ) {
     override val schema = """
@@ -176,7 +193,7 @@ object OpenApp : Tool(
         return Prepared.Ready("Open ${app.label}") { context ->
             val launch = context.packageManager.getLaunchIntentForPackage(app.packageName)
                 ?: return@Ready Outcome.Failed("${app.label} can't be opened")
-            Tools.start(context, launch, "Opened ${app.label}")
+            Tools.start(context, launch, "Opened ${app.label}").again(launch)
         }
     }
 }
@@ -186,6 +203,7 @@ object OpenSettings : Tool(
     title = "Settings pages",
     description = "Open a page of the phone's settings, such as Wi-Fi, Bluetooth or battery.",
     onByDefault = true,
+    runFrom = 0.3,
     examples = listOf("Open Wi-Fi settings", "Show me the battery settings"),
 ) {
     /** The page names Needle 3 can pick, and the Settings action for each. */
@@ -230,11 +248,11 @@ object OpenSettings : Tool(
         val page = arguments.text("page")?.let(::pageFor) ?: arguments.text("page")
         val action = PAGES[page] ?: return Prepared.Invalid("\"$page\" isn't a settings page this assistant knows")
         val name = page!!.replace('_', ' ')
-        if (page == "main") return Prepared.Ready("Open Settings") { context -> Tools.start(context, Intent(action), "Opened Settings") }
+        if (page == "main") return Prepared.Ready("Open Settings") { context -> Tools.start(context, Intent(action), "Opened Settings").again(Intent(action)) }
         return Prepared.Ready("Open the $name settings") { context ->
             val intent = Intent(action)
             // Some pages don't exist on every phone; the main settings screen is the fallback.
-            if (intent.resolveActivity(context.packageManager) != null) Tools.start(context, intent, "Opened the $name settings")
+            if (intent.resolveActivity(context.packageManager) != null) Tools.start(context, intent, "Opened the $name settings").again(intent)
             else Tools.start(context, Intent(Settings.ACTION_SETTINGS), "This phone has no $name page; opened Settings")
         }
     }
@@ -245,6 +263,7 @@ object Flashlight : Tool(
     title = "Flashlight",
     description = "Turn the flashlight (torch) on or off.",
     onByDefault = true,
+    runFrom = 0.3,
     examples = listOf("Turn on the flashlight", "Torch off"),
 ) {
     override val schema = """
@@ -257,18 +276,21 @@ object Flashlight : Tool(
 
     override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps): Prepared {
         val on = arguments.bool("on") ?: return Prepared.Invalid("On or off wasn't given")
-        return Prepared.Ready("Turn the flashlight ${if (on) "on" else "off"}", opensApp = false) { context ->
-            val cameras = context.getSystemService(CameraManager::class.java)
-            val withFlash = cameras.cameraIdList.firstOrNull {
-                cameras.getCameraCharacteristics(it).get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
-            } ?: return@Ready Outcome.Failed("This phone has no flashlight")
-            try {
-                cameras.setTorchMode(withFlash, on)
-                Outcome.Done("Flashlight ${if (on) "on" else "off"}")
-            } catch (e: Exception) {
-                // e.g. the camera is in use by another app.
-                Outcome.Failed("Couldn't switch the flashlight: ${e.message}")
-            }
+        return Prepared.Ready("Turn the flashlight ${if (on) "on" else "off"}", opensApp = false) { context -> torch(context, on) }
+    }
+
+    /** Switches the torch, offering to switch it back. */
+    fun torch(context: Context, on: Boolean): Outcome {
+        val cameras = context.getSystemService(CameraManager::class.java)
+        val withFlash = cameras.cameraIdList.firstOrNull {
+            cameras.getCameraCharacteristics(it).get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
+        } ?: return Outcome.Failed("This phone has no flashlight")
+        return try {
+            cameras.setTorchMode(withFlash, on)
+            Outcome.Done("Flashlight ${if (on) "on" else "off"}", listOf(FollowUp(if (on) "Turn off" else "Turn on") { torch(it, !on) }))
+        } catch (e: Exception) {
+            // e.g. the camera is in use by another app.
+            Outcome.Failed("Couldn't switch the flashlight: ${e.message}")
         }
     }
 }
@@ -278,6 +300,7 @@ object SetVolume : Tool(
     title = "Volume",
     description = "Set the volume of media, ringtone, alarms or notifications.",
     onByDefault = false,
+    runFrom = 0.3,
     examples = listOf("Set the media volume to 30 percent", "Mute the ringer"),
 ) {
     val STREAMS = linkedMapOf(
@@ -304,13 +327,24 @@ object SetVolume : Tool(
         return Prepared.Ready("Set the $name volume to $percent %", opensApp = false) { context ->
             val audio = context.getSystemService(AudioManager::class.java)
             val max = audio.getStreamMaxVolume(stream)
-            try {
-                audio.setStreamVolume(stream, (max * percent / 100.0).roundToInt(), AudioManager.FLAG_SHOW_UI)
-                Outcome.Done("$name volume $percent %")
-            } catch (e: SecurityException) {
-                // Changing the ringer while Do Not Disturb is on needs Do Not Disturb access.
-                Outcome.Failed("Not allowed while Do Not Disturb is on")
-            }
+            volume(context, name, stream, (max * percent / 100.0).roundToInt(), undoLabel = "Undo")
+        }
+    }
+
+    /** Sets [stream] to [level] (of its own steps), offering to put back the level it had. */
+    private fun volume(context: Context, name: String, stream: Int, level: Int, undoLabel: String): Outcome {
+        val audio = context.getSystemService(AudioManager::class.java)
+        val before = audio.getStreamVolume(stream)
+        val max = audio.getStreamMaxVolume(stream)
+        return try {
+            audio.setStreamVolume(stream, level, AudioManager.FLAG_SHOW_UI)
+            val percent = (level * 100.0 / max).roundToInt()
+            Outcome.Done("$name volume $percent %", listOf(FollowUp(undoLabel) {
+                volume(it, name, stream, before, undoLabel = if (undoLabel == "Undo") "Redo" else "Undo")
+            }))
+        } catch (e: SecurityException) {
+            // Changing the ringer while Do Not Disturb is on needs Do Not Disturb access.
+            Outcome.Failed("Not allowed while Do Not Disturb is on")
         }
     }
 }
@@ -320,6 +354,7 @@ object MediaControl : Tool(
     title = "Media controls",
     description = "Play, pause or skip whatever music or video is playing.",
     onByDefault = false,
+    runFrom = 0.3,
     examples = listOf("Pause the music", "Next song"),
 ) {
     val ACTIONS = linkedMapOf(
@@ -340,12 +375,19 @@ object MediaControl : Tool(
     override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps): Prepared {
         val action = arguments.text("action")?.lowercase()
         val key = ACTIONS[action] ?: return Prepared.Invalid("\"$action\" isn't one of ${ACTIONS.keys.joinToString()}")
-        return Prepared.Ready("Media: $action", opensApp = false) { context ->
-            val audio = context.getSystemService(AudioManager::class.java)
-            audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, key))
-            audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, key))
-            Outcome.Done("Sent $action to the media player")
-        }
+        return Prepared.Ready("Media: $action", opensApp = false) { context -> press(context, action!!) }
+    }
+
+    /** What undoes each action, as a button. */
+    private val OPPOSITE = mapOf("play" to "pause", "pause" to "play", "next" to "previous", "previous" to "next")
+
+    private fun press(context: Context, action: String): Outcome {
+        val key = ACTIONS.getValue(action)
+        val audio = context.getSystemService(AudioManager::class.java)
+        audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, key))
+        audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, key))
+        val back = OPPOSITE.getValue(action)
+        return Outcome.Done("Sent $action to the media player", listOf(FollowUp(back.replaceFirstChar { it.uppercase() }) { press(it, back) }))
     }
 }
 
@@ -354,6 +396,7 @@ object TakePhoto : Tool(
     title = "Camera",
     description = "Open the camera app, ready to take a photo.",
     onByDefault = false,
+    runFrom = 0.3,
     examples = listOf("Take a picture", "Open the camera"),
 ) {
     // No photo/video choice: on the desktop check, Needle 3 picked the mode backwards about half the
@@ -366,5 +409,6 @@ object TakePhoto : Tool(
 
     override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps) = Prepared.Ready("Open the camera") { context ->
         Tools.start(context, Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA), "Opened the camera")
+            .again(Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA))
     }
 }

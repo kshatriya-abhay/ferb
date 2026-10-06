@@ -4,8 +4,14 @@ import android.content.Context
 
 /** What running a call did, shown under it. */
 sealed interface Outcome {
-    data class Done(val message: String) : Outcome
+    /** [actions] are buttons offered next to the result, e.g. "Turn off" after turning the torch on. */
+    data class Done(val message: String, val actions: List<FollowUp> = emptyList()) : Outcome
     data class Failed(val reason: String) : Outcome
+}
+
+/** A button on a result: [run] does it and gives the new result (with its own buttons, e.g. "Turn on" again). */
+class FollowUp(val label: String, val run: (Context) -> Outcome) {
+    override fun toString() = "FollowUp($label)"
 }
 
 /**
@@ -33,6 +39,11 @@ abstract class Tool(
     val onByDefault: Boolean,
     /** Requests to try, for the empty assistant screen. */
     val examples: List<String>,
+    /**
+     * The confidence from which its calls run without asking. Lower for harmless actions that a tap
+     * undoes (the app checks the arguments either way); Cactus's general advice is 0.7.
+     */
+    val runFrom: Double = 0.7,
 ) {
     /** The JSON schema object Needle 3 gets: {"name", "description", "parameters"}. */
     abstract val schema: String
