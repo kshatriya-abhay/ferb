@@ -234,7 +234,7 @@ object Flashlight : Tool(
 
     override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps): Prepared {
         val on = arguments.bool("on") ?: return Prepared.Invalid("On or off wasn't given")
-        return Prepared.Ready("Turn the flashlight ${if (on) "on" else "off"}") { context ->
+        return Prepared.Ready("Turn the flashlight ${if (on) "on" else "off"}", opensApp = false) { context ->
             val cameras = context.getSystemService(CameraManager::class.java)
             val withFlash = cameras.cameraIdList.firstOrNull {
                 cameras.getCameraCharacteristics(it).get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
@@ -278,7 +278,7 @@ object SetVolume : Tool(
         val stream = STREAMS[name] ?: return Prepared.Invalid("\"$name\" isn't one of ${STREAMS.keys.joinToString()}")
         val percent = arguments.int("percent") ?: return Prepared.Invalid("No volume given")
         if (percent !in 0..100) return Prepared.Invalid("$percent % isn't 0–100")
-        return Prepared.Ready("Set the $name volume to $percent %") { context ->
+        return Prepared.Ready("Set the $name volume to $percent %", opensApp = false) { context ->
             val audio = context.getSystemService(AudioManager::class.java)
             val max = audio.getStreamMaxVolume(stream)
             try {
@@ -317,7 +317,7 @@ object MediaControl : Tool(
     override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps): Prepared {
         val action = arguments.text("action")?.lowercase()
         val key = ACTIONS[action] ?: return Prepared.Invalid("\"$action\" isn't one of ${ACTIONS.keys.joinToString()}")
-        return Prepared.Ready("Media: $action") { context ->
+        return Prepared.Ready("Media: $action", opensApp = false) { context ->
             val audio = context.getSystemService(AudioManager::class.java)
             audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, key))
             audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, key))

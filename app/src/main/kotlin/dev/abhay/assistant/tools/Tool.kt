@@ -8,9 +8,13 @@ sealed interface Outcome {
     data class Failed(val reason: String) : Outcome
 }
 
-/** A call's arguments, checked: ready to run (with what it will do, in words), or why not. */
+/**
+ * A call's arguments, checked: ready to run (with what it will do, in words), or why not.
+ * [Ready.opensApp] is true when running it starts another app's screen (an intent), so the next
+ * call must wait for the assistant to be back in front.
+ */
 sealed interface Prepared {
-    class Ready(val summary: String, val run: (Context) -> Outcome) : Prepared
+    class Ready(val summary: String, val opensApp: Boolean = true, val run: (Context) -> Outcome) : Prepared
     data class Invalid(val reason: String) : Prepared
 }
 

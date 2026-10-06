@@ -207,6 +207,7 @@ private fun CallRow(state: AssistantViewModel.CallState) {
         }
         Status.Skipped -> Triple("Skipped: ${summary(state.prepared)}", MaterialTheme.colorScheme.onSurfaceVariant, true)
         Status.Waiting -> Triple(summary(state.prepared), MaterialTheme.colorScheme.onSurface, false)
+        Status.Queued -> Triple("… ${summary(state.prepared)}", MaterialTheme.colorScheme.onSurfaceVariant, false)
     }
     Column {
         Text(title, style = MaterialTheme.typography.titleMedium, color = color, textDecoration = if (struck) TextDecoration.LineThrough else null)

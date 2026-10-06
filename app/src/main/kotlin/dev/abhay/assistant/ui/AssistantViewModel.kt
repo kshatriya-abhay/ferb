@@ -9,6 +9,7 @@ import dev.abhay.assistant.engine.AssistantEngine
 import dev.abhay.assistant.engine.Decision
 import dev.abhay.assistant.engine.NeedleReply
 import dev.abhay.assistant.engine.ToolCall
+import dev.abhay.assistant.tools.CallRunner
 import dev.abhay.assistant.tools.Outcome
 import dev.abhay.assistant.tools.Prepared
 import dev.abhay.assistant.tools.Tools
@@ -18,6 +19,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * The assistant: loads Needle 3 with the tools turned on in settings, sends each request to it,
@@ -32,6 +35,8 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
     sealed interface Status {
         /** Waiting for the user's Run or Skip. */
         data object Waiting : Status
+        /** About to run, after the calls before it. */
+        data object Queued : Status
         data object Skipped : Status
         data class Finished(val outcome: Outcome) : Status
     }
@@ -107,15 +112,38 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         return tool.prepare(call.arguments, assistant.apps)
     }
 
-    /** Runs an exchange's waiting calls, in order; a call that failed its checks reports why instead. */
-    fun run(exchangeId: Long) = updateExchange(exchangeId) { exchange ->
-        exchange.copy(calls = exchange.calls.map { state ->
-            if (state.status != Status.Waiting) state
-            else state.copy(status = Status.Finished(when (val p = state.prepared) {
-                is Prepared.Ready -> p.run(getApplication())
-                is Prepared.Invalid -> Outcome.Failed(p.reason)
-            }))
-        })
+    private val runner by lazy { CallRunner(assistant.foreground.inFront) }
+    private val running = Mutex()
+
+    /**
+     * Runs an exchange's waiting calls, one at a time (see [CallRunner]); a call that failed its
+     * checks reports why instead. Each outcome shows as soon as it's known.
+     */
+    fun run(exchangeId: Long) {
+        val waiting = _state.value.history.firstOrNull { it.id == exchangeId }?.calls?.indices
+            ?.filter { i -> _state.value.history.first { it.id == exchangeId }.calls[i].status == Status.Waiting }.orEmpty()
+        if (waiting.isEmpty()) return
+        updateExchange(exchangeId) { e -> e.copy(calls = e.calls.mapIndexed { i, c -> if (i in waiting) c.copy(status = Status.Queued) else c }) }
+        viewModelScope.launch {
+            running.withLock {
+                fun call(i: Int) = _state.value.history.first { it.id == exchangeId }.calls[i]
+                runner.run(
+                    calls = waiting,
+                    opensApp = { i -> (call(i).prepared as? Prepared.Ready)?.opensApp == true },
+                    execute = { i ->
+                        when (val p = call(i).prepared) {
+                            is Prepared.Ready -> p.run(getApplication())
+                            is Prepared.Invalid -> Outcome.Failed(p.reason)
+                        }
+                    },
+                    report = { i, outcome ->
+                        updateExchange(exchangeId) { e ->
+                            e.copy(calls = e.calls.mapIndexed { j, c -> if (j == i) c.copy(status = Status.Finished(outcome)) else c })
+                        }
+                    },
+                )
+            }
+        }
     }
 
     fun skip(exchangeId: Long) = updateExchange(exchangeId) { e ->

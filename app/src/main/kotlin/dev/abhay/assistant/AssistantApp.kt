@@ -10,4 +10,12 @@ class AssistantApp : Application() {
     val engine by lazy { AssistantEngine(this) }
     val toolSettings by lazy { ToolSettings(this) }
     val apps by lazy { InstalledApps.from(this) }
+    lateinit var foreground: ForegroundTracker
+        private set
+
+    override fun onCreate() {
+        super.onCreate()
+        // Before any activity starts, so the first resume is seen.
+        foreground = ForegroundTracker(this)
+    }
 }
