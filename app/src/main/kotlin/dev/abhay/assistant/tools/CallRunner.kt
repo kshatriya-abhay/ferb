@@ -17,6 +17,12 @@ class CallRunner(
     private val leaveTimeoutMs: Long = 1_500,
     private val returnTimeoutMs: Long = 6_000,
 ) {
+    /** After starting another app's screen: waits for it to come up and hand back. False if the assistant isn't back in time. */
+    suspend fun awaitBack(): Boolean {
+        withTimeoutOrNull(leaveTimeoutMs) { inFront.first { !it } }
+        return withTimeoutOrNull(returnTimeoutMs) { inFront.first { it } } != null
+    }
+
     /**
      * Runs [calls] in order, reporting each outcome through [report] as it happens. [execute] runs
      * one call. A call that can't run because the assistant isn't back in front fails, as do the rest.

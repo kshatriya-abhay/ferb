@@ -11,6 +11,7 @@ import dev.abhay.assistant.engine.NeedleReply
 import dev.abhay.assistant.engine.ToolCall
 import dev.abhay.assistant.tools.CallRunner
 import dev.abhay.assistant.tools.FollowUp
+import dev.abhay.assistant.tools.FollowUpEnv
 import dev.abhay.assistant.tools.Outcome
 import dev.abhay.assistant.tools.Prepared
 import dev.abhay.assistant.tools.Tools
@@ -165,11 +166,24 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Runs a result's button: e.g. "Turn off" after the torch went on. The call's result becomes the new one. */
+    /**
+     * Runs a result's button: e.g. "Turn off" after the torch went on. The call shows as queued
+     * while it runs (an Undo may wait for another app), then its result becomes the new one.
+     */
     fun followUp(exchangeId: Long, callIndex: Int, action: FollowUp) {
-        val outcome = action.run(getApplication())
-        updateExchange(exchangeId) { e ->
-            e.copy(calls = e.calls.mapIndexed { i, c -> if (i == callIndex) c.copy(status = Status.Finished(outcome)) else c })
+        fun set(status: Status) = updateExchange(exchangeId) { e ->
+            e.copy(calls = e.calls.mapIndexed { i, c -> if (i == callIndex) c.copy(status = status) else c })
+        }
+        set(Status.Queued)
+        viewModelScope.launch {
+            val outcome = try {
+                action.run(FollowUpEnv(getApplication(), awaitBack = runner::awaitBack))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Outcome.Failed(e.message ?: e.toString())
+            }
+            set(Status.Finished(outcome))
         }
     }
 

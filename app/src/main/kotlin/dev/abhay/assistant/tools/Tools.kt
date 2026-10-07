@@ -1,5 +1,6 @@
 package dev.abhay.assistant.tools
 
+import android.app.AlarmManager
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -12,8 +13,11 @@ import android.provider.Settings
 import android.view.KeyEvent
 import dev.abhay.assistant.tools.Tools.again
 import dev.abhay.assistant.tools.Tools.withActions
+import java.time.Instant
+import java.time.ZoneId
 import java.util.Locale
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 
 /**
  * The assistant's tools. Each is one narrow action, with bounds and enums in its schema and formats
@@ -37,7 +41,7 @@ object Tools {
     /** [this] with an "Open again" button that starts [intent] once more. */
     internal fun Outcome.again(intent: Intent): Outcome {
         val message = (this as? Outcome.Done)?.message ?: return this
-        return withActions(FollowUp("Open again") { start(it, Intent(intent), message).again(intent) })
+        return withActions(FollowUp("Open again") { start(it.context, Intent(intent), message).again(intent) })
     }
 
     /** Starts [intent] as a new task (the app's own screen is in front, so Android allows it). */
@@ -81,8 +85,41 @@ object SetAlarm : Tool(
                 .putExtra(AlarmClock.EXTRA_HOUR, hour)
                 .putExtra(AlarmClock.EXTRA_MINUTES, minute)
                 .putExtra(AlarmClock.EXTRA_SKIP_UI, true), "Alarm set for $time")
-                .withActions(FollowUp("Show alarms") { Tools.start(it, Intent(AlarmClock.ACTION_SHOW_ALARMS), "Opened the alarms") })
+                .withActions(undo(hour, minute, time), SHOW_ALARMS)
         }
+    }
+
+    private val SHOW_ALARMS = FollowUp("Show alarms") { Tools.start(it.context, Intent(AlarmClock.ACTION_SHOW_ALARMS), "Opened the alarms") }
+
+    /**
+     * Undo: asks the clock app to dismiss the alarm at that time (`ACTION_DISMISS_ALARM`, searching
+     * by time). Android has no request to delete another app's alarm; clock apps that support this
+     * one switch the alarm off. Whether it worked is checked afterwards with the phone's next alarm
+     * clock: if that was this alarm before and isn't after, it's off. Otherwise the app can't tell.
+     */
+    private fun undo(hour: Int, minute: Int, time: String) = FollowUp("Undo") { env ->
+        val wasNext = nextAlarmIs(env.context, hour, minute)
+        val sent = Tools.start(env.context, Intent(AlarmClock.ACTION_DISMISS_ALARM)
+            .putExtra(AlarmClock.EXTRA_ALARM_SEARCH_MODE, AlarmClock.ALARM_SEARCH_MODE_TIME)
+            .putExtra(AlarmClock.EXTRA_HOUR, hour)
+            .putExtra(AlarmClock.EXTRA_MINUTES, minute)
+            .putExtra(AlarmClock.EXTRA_IS_PM, false)
+            .putExtra(AlarmClock.EXTRA_SKIP_UI, true), "")
+        if (sent is Outcome.Failed) return@FollowUp Outcome.Done("The clock app can't turn alarms off for other apps", listOf(SHOW_ALARMS))
+        env.awaitBack()
+        delay(300) // the clock reschedules the next alarm just after its screen goes
+        when {
+            wasNext && !nextAlarmIs(env.context, hour, minute) -> Outcome.Done("Alarm for $time turned off", listOf(SHOW_ALARMS))
+            wasNext -> Outcome.Done("The clock app didn't turn off the $time alarm", listOf(SHOW_ALARMS))
+            else -> Outcome.Done("Asked the clock app to turn off the $time alarm (it can't be checked)", listOf(SHOW_ALARMS))
+        }
+    }
+
+    /** Whether the phone's next alarm clock (from any app) rings at [hour]:[minute]. */
+    private fun nextAlarmIs(context: Context, hour: Int, minute: Int): Boolean {
+        val next = context.getSystemService(AlarmManager::class.java).nextAlarmClock ?: return false
+        val at = Instant.ofEpochMilli(next.triggerTime).atZone(ZoneId.systemDefault())
+        return at.hour == hour && at.minute == minute
     }
 }
 
@@ -139,7 +176,7 @@ object SetTimer : Tool(
                 .putExtra(AlarmClock.EXTRA_LENGTH, total)
                 .apply { label?.let { putExtra(AlarmClock.EXTRA_MESSAGE, it) } }
                 .putExtra(AlarmClock.EXTRA_SKIP_UI, true), "Timer started: $length")
-                .withActions(FollowUp("Show timers") { Tools.start(it, Intent(AlarmClock.ACTION_SHOW_TIMERS), "Opened the timers") })
+                .withActions(FollowUp("Show timers") { Tools.start(it.context, Intent(AlarmClock.ACTION_SHOW_TIMERS), "Opened the timers") })
         }
     }
 
@@ -287,7 +324,7 @@ object Flashlight : Tool(
         } ?: return Outcome.Failed("This phone has no flashlight")
         return try {
             cameras.setTorchMode(withFlash, on)
-            Outcome.Done("Flashlight ${if (on) "on" else "off"}", listOf(FollowUp(if (on) "Turn off" else "Turn on") { torch(it, !on) }))
+            Outcome.Done("Flashlight ${if (on) "on" else "off"}", listOf(FollowUp(if (on) "Turn off" else "Turn on") { torch(it.context, !on) }))
         } catch (e: Exception) {
             // e.g. the camera is in use by another app.
             Outcome.Failed("Couldn't switch the flashlight: ${e.message}")
@@ -340,7 +377,7 @@ object SetVolume : Tool(
             audio.setStreamVolume(stream, level, AudioManager.FLAG_SHOW_UI)
             val percent = (level * 100.0 / max).roundToInt()
             Outcome.Done("$name volume $percent %", listOf(FollowUp(undoLabel) {
-                volume(it, name, stream, before, undoLabel = if (undoLabel == "Undo") "Redo" else "Undo")
+                volume(it.context, name, stream, before, undoLabel = if (undoLabel == "Undo") "Redo" else "Undo")
             }))
         } catch (e: SecurityException) {
             // Changing the ringer while Do Not Disturb is on needs Do Not Disturb access.
@@ -387,7 +424,7 @@ object MediaControl : Tool(
         audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, key))
         audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, key))
         val back = OPPOSITE.getValue(action)
-        return Outcome.Done("Sent $action to the media player", listOf(FollowUp(back.replaceFirstChar { it.uppercase() }) { press(it, back) }))
+        return Outcome.Done("Sent $action to the media player", listOf(FollowUp(back.replaceFirstChar { it.uppercase() }) { press(it.context, back) }))
     }
 }
 

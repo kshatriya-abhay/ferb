@@ -10,9 +10,15 @@ sealed interface Outcome {
 }
 
 /** A button on a result: [run] does it and gives the new result (with its own buttons, e.g. "Turn on" again). */
-class FollowUp(val label: String, val run: (Context) -> Outcome) {
+class FollowUp(val label: String, val run: suspend (FollowUpEnv) -> Outcome) {
     override fun toString() = "FollowUp($label)"
 }
+
+/**
+ * What a button's action can use: [awaitBack] waits until another app the action opened has handed
+ * back to the assistant (false if it didn't within a few seconds), e.g. to check what it did.
+ */
+class FollowUpEnv(val context: Context, val awaitBack: suspend () -> Boolean)
 
 /**
  * A call's arguments, checked: ready to run (with what it will do, in words), or why not.
