@@ -1,5 +1,6 @@
 package dev.abhay.assistant.tools
 
+import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -40,9 +41,17 @@ object Tools {
         return withActions(FollowUp("Open again") { start(it.context, Intent(intent), message).again(intent) })
     }
 
-    /** Starts [intent] as a new task (the app's own screen is in front, so Android allows it). */
-    internal fun start(context: Context, intent: Intent, done: String): Outcome = try {
-        context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    /**
+     * Starts [intent] (the assistant's screen is in front, so Android allows it). By default in a
+     * task of its own, for switching to another app. With [quietly], from the assistant's screen in
+     * the assistant's own task, for requests another app handles without showing anything (set an
+     * alarm, start a timer): its handler finishes back into the assistant. In a new task, HyperOS's
+     * clock left the Clock app on screen after setting an alarm; Google's assistant, which doesn't,
+     * starts it from its own screen.
+     */
+    internal fun start(context: Context, intent: Intent, done: String, quietly: Boolean = false): Outcome = try {
+        if (quietly && context is Activity) context.startActivity(intent)
+        else context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         Outcome.Done(done)
     } catch (e: ActivityNotFoundException) {
         Outcome.Failed("No app on this phone handles that")
@@ -80,7 +89,7 @@ object SetAlarm : Tool(
             Tools.start(context, Intent(AlarmClock.ACTION_SET_ALARM)
                 .putExtra(AlarmClock.EXTRA_HOUR, hour)
                 .putExtra(AlarmClock.EXTRA_MINUTES, minute)
-                .putExtra(AlarmClock.EXTRA_SKIP_UI, true), "Alarm set for $time")
+                .putExtra(AlarmClock.EXTRA_SKIP_UI, true), "Alarm set for $time", quietly = true)
                 .withActions(SHOW_ALARMS)
         }
     }
@@ -144,7 +153,7 @@ object SetTimer : Tool(
             Tools.start(context, Intent(AlarmClock.ACTION_SET_TIMER)
                 .putExtra(AlarmClock.EXTRA_LENGTH, total)
                 .apply { label?.let { putExtra(AlarmClock.EXTRA_MESSAGE, it) } }
-                .putExtra(AlarmClock.EXTRA_SKIP_UI, true), "Timer started: $length")
+                .putExtra(AlarmClock.EXTRA_SKIP_UI, true), "Timer started: $length", quietly = true)
                 .withActions(FollowUp("Show timers") { Tools.start(it.context, Intent(AlarmClock.ACTION_SHOW_TIMERS), "Opened the timers") })
         }
     }

@@ -1,6 +1,7 @@
 package dev.abhay.assistant.ui
 
 import android.app.Application
+import android.content.Context
 import android.os.SystemClock
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -152,7 +153,7 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
                     opensApp = { i -> (call(i).prepared as? Prepared.Ready)?.opensApp == true },
                     execute = { i ->
                         when (val p = call(i).prepared) {
-                            is Prepared.Ready -> p.run(getApplication())
+                            is Prepared.Ready -> p.run(launchContext())
                             is Prepared.Invalid -> Outcome.Failed(p.reason)
                         }
                     },
@@ -177,7 +178,7 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         set(Status.Queued)
         viewModelScope.launch {
             val outcome = try {
-                action.run(FollowUpEnv(getApplication(), awaitBack = runner::awaitBack))
+                action.run(FollowUpEnv(launchContext(), awaitBack = runner::awaitBack))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -186,6 +187,9 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
             set(Status.Finished(outcome))
         }
     }
+
+    /** The assistant's screen if it's in front (so a quiet request runs in its task), else the app. */
+    private fun launchContext(): Context = assistant.foreground.activity ?: getApplication()
 
     fun skip(exchangeId: Long) = updateExchange(exchangeId) { e ->
         e.copy(calls = e.calls.map { if (it.status == Status.Waiting) it.copy(status = Status.Skipped) else it })
