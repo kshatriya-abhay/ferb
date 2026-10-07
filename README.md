@@ -11,10 +11,17 @@ Phase 1 is a normal app with a text box. Voice and becoming the phone's default 
   - runs the calls straight away when the confidence clears the bar for the tools called;
   - asks first ("Do it" / "Skip") below that;
   - says so when no tool fits.
-- **A bar per tool**, by how easy the action is to undo: 0.3 for harmless ones a tap reverses (flashlight, volume, media, opening an app, settings page or camera), 0.4 for alarms and timers (they create something, shown on the card). Cactus's general advice is 0.7; Needle 3's confidence varies a lot with phrasing (the same alarm request scores 0.3–0.9), so a single 0.7 bar asked about most good requests.
+- **A default bar per tool**, by how easy the action is to undo (adjustable per tool): 0.3 for harmless ones a tap reverses (flashlight, volume, media, opening an app, settings page or camera), 0.4 for alarms and timers (they create something, shown on the card). Cactus's general advice is 0.7; Needle 3's confidence varies a lot with phrasing (the same alarm request scores 0.3–0.9), so a single 0.7 bar asked about most good requests.
 - **Buttons on results:** "Turn off" / "Turn on" for the flashlight, "Undo" / "Redo" for volume, the opposite media action, "Show alarms" and "Show timers" (to change or delete them in the clock app), "Open again" for apps and pages.
 - **Calls that open another app run one at a time**, each after the assistant is back in front: two alarm intents 14 ms apart set only the first on HyperOS.
-- **Configurable tools:** the Tools screen (top-bar icon) turns tools on and off. **Save** gives the new set to the loaded model: a second `needle_init` replaces the tools without reloading the model (checked on the desktop; answers match a fresh start).
+- **Every tool is configurable:** Settings → Tools lists them; each row's switch turns the tool on or off, and the rest of the row opens its page:
+  - on or off;
+  - **always confirm before running**;
+  - a **confidence slider** (0.10–1.00, steps of 0.05) from which it runs without asking, with a reset to its default;
+  - the tool's own options, e.g. **which clock** alarms and timers go to (the phone's clock app for now; more providers later);
+  - examples, and the schema Needle 3 gets.
+  
+  Changes across the Tools list and the tools' pages are one draft with one **Save**; leaving with unsaved changes asks. Saving a different set of tools re-runs `needle_init` on the loaded model, which replaces the tools without reloading it (checked on the desktop; answers match a fresh start); other changes need no reload.
 - **Tools** (all offline, none needs the assistant role):
 
 | Tool | On by default | How |

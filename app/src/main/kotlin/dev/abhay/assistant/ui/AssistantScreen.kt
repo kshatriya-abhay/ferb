@@ -245,7 +245,7 @@ private fun ReplyBubble(
                     OutlinedButton(onClick = onSkip) { Text("Skip") }
                 }
             }
-            Confidence(reply.confidence, exchange.runAt, exchange.decision, hasCalls = exchange.calls.isNotEmpty())
+            Confidence(reply.confidence, exchange.runAt, exchange.decision, hasCalls = exchange.calls.isNotEmpty(), alwaysConfirm = exchange.alwaysConfirm)
             if (reply.reasoning.isNotBlank()) {
                 Text(reply.reasoning, style = MaterialTheme.typography.bodySmall, fontStyle = FontStyle.Italic,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -289,7 +289,7 @@ private fun summary(prepared: Prepared) = when (prepared) {
 
 /** The confidence as a bar, and the bar it needed to run without asking (each tool has its own). */
 @Composable
-private fun Confidence(confidence: Double?, runAt: Double, decision: Decision, hasCalls: Boolean) {
+private fun Confidence(confidence: Double?, runAt: Double, decision: Decision, hasCalls: Boolean, alwaysConfirm: Boolean) {
     if (confidence == null) return
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -303,7 +303,11 @@ private fun Confidence(confidence: Double?, runAt: Double, decision: Decision, h
         }
         if (hasCalls) {
             Text(
-                String.format(Locale.US, if (decision == Decision.Run) "Ran without asking (needs %.2f)" else "Asked first (runs without asking from %.2f)", runAt),
+                when {
+                    alwaysConfirm -> "Asked first: this tool is set to always ask"
+                    decision == Decision.Run -> String.format(Locale.US, "Ran without asking (needs %.2f)", runAt)
+                    else -> String.format(Locale.US, "Asked first (runs without asking from %.2f)", runAt)
+                },
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

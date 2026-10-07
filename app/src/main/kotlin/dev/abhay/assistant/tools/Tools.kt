@@ -65,9 +65,11 @@ object SetAlarm : Tool(
     title = "Alarms",
     description = "Set an alarm in the clock app, at a time of day.",
     onByDefault = true,
-    runFrom = 0.4,
+    defaultRunFrom = 0.4,
     examples = listOf("Wake me up at 6:45", "Alarms at 8 and 9 am"),
 ) {
+    override val options = listOf(ClockProviders.option)
+
     // The time as text, parsed by the app. On the desktop check, separate hour and minute fields
     // turned "alarms at 8 and 9 am" into one alarm at 08:09 and scored single alarms around 0.3;
     // one time string got every request right (two alarms included) and scored higher. A label
@@ -130,9 +132,11 @@ object SetTimer : Tool(
     title = "Timers",
     description = "Start a countdown timer in the clock app.",
     onByDefault = true,
-    runFrom = 0.4,
+    defaultRunFrom = 0.4,
     examples = listOf("Timer for 10 minutes", "Set a 90 second timer for the eggs"),
 ) {
+    override val options = listOf(ClockProviders.option)
+
     const val MAX_SECONDS = 24 * 60 * 60
 
     override val schema = """
@@ -171,9 +175,11 @@ object ShowAlarms : Tool(
     title = "Show alarms",
     description = "Open the clock app's list of alarms.",
     onByDefault = false,
-    runFrom = 0.3,
+    defaultRunFrom = 0.3,
     examples = listOf("Show my alarms"),
 ) {
+    override val options = listOf(ClockProviders.option)
+
     override val schema = """
         {"name": "show_alarms",
          "description": "Open the list of alarms in the clock app",
@@ -189,7 +195,7 @@ object OpenApp : Tool(
     title = "Open apps",
     description = "Open an app on this phone by its name.",
     onByDefault = true,
-    runFrom = 0.3,
+    defaultRunFrom = 0.3,
     examples = listOf("Open the calculator", "Launch WhatsApp"),
 ) {
     override val schema = """
@@ -218,7 +224,7 @@ object OpenSettings : Tool(
     title = "Settings pages",
     description = "Open a page of the phone's settings, such as Wi-Fi, Bluetooth or battery.",
     onByDefault = true,
-    runFrom = 0.3,
+    defaultRunFrom = 0.3,
     examples = listOf("Open Wi-Fi settings", "Show me the battery settings"),
 ) {
     /** The page names Needle 3 can pick, and the Settings action for each. */
@@ -278,7 +284,7 @@ object Flashlight : Tool(
     title = "Flashlight",
     description = "Turn the flashlight (torch) on or off.",
     onByDefault = true,
-    runFrom = 0.3,
+    defaultRunFrom = 0.3,
     examples = listOf("Turn on the flashlight", "Torch off"),
 ) {
     override val schema = """
@@ -315,7 +321,7 @@ object SetVolume : Tool(
     title = "Volume",
     description = "Set the volume of media, ringtone, alarms or notifications.",
     onByDefault = false,
-    runFrom = 0.3,
+    defaultRunFrom = 0.3,
     examples = listOf("Set the media volume to 30 percent", "Mute the ringer"),
 ) {
     val STREAMS = linkedMapOf(
@@ -369,7 +375,7 @@ object MediaControl : Tool(
     title = "Media controls",
     description = "Play, pause or skip whatever music or video is playing.",
     onByDefault = false,
-    runFrom = 0.3,
+    defaultRunFrom = 0.3,
     examples = listOf("Pause the music", "Next song"),
 ) {
     val ACTIONS = linkedMapOf(
@@ -411,7 +417,7 @@ object TakePhoto : Tool(
     title = "Camera",
     description = "Open the camera app, ready to take a photo.",
     onByDefault = false,
-    runFrom = 0.3,
+    defaultRunFrom = 0.3,
     examples = listOf("Take a picture", "Open the camera"),
 ) {
     // No photo/video choice: on the desktop check, Needle 3 picked the mode backwards about half the

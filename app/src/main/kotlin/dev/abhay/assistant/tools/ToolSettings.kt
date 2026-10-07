@@ -5,26 +5,51 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** Which tools the user has turned on, kept in preferences; before any save, the tools on by default. */
+/**
+ * Every tool's configuration, kept in preferences as JSON per tool. Before any save, each tool's
+ * defaults; an older install's list of tools turned on is carried over.
+ */
 class ToolSettings(context: Context) {
     private val prefs = context.getSharedPreferences("tools", Context.MODE_PRIVATE)
-    private val _enabled = MutableStateFlow(read())
+
+    private val _configs = MutableStateFlow(read())
+    /** By tool name, for every tool in [Tools.all]. */
+    val configs: StateFlow<Map<String, ToolConfig>> = _configs.asStateFlow()
+
+    private val _enabled = MutableStateFlow(enabledNames(_configs.value))
     /** Names of the tools turned on, in [Tools.all] order. */
     val enabled: StateFlow<List<String>> = _enabled.asStateFlow()
 
-    private fun read(): List<String> = normalise(prefs.getStringSet(ENABLED, null) ?: defaults())
+    private fun read(): Map<String, ToolConfig> {
+        val legacyEnabled = prefs.getStringSet(LEGACY_ENABLED, null)
+        return Tools.all.associate { tool ->
+            val json = prefs.getString(KEY_PREFIX + tool.name, null)
+            tool.name to when {
+                json != null -> ToolConfig.fromJson(json, tool)
+                legacyEnabled != null -> ToolConfig.defaults(tool).copy(enabled = tool.name in legacyEnabled)
+                else -> ToolConfig.defaults(tool)
+            }
+        }
+    }
 
-    fun save(names: Set<String>) {
-        prefs.edit().putStringSet(ENABLED, names).apply()
-        _enabled.value = normalise(names)
+    fun save(configs: Map<String, ToolConfig>) {
+        val complete = Tools.all.associate { it.name to (configs[it.name] ?: _configs.value.getValue(it.name)) }
+        prefs.edit().apply {
+            complete.forEach { (name, config) -> putString(KEY_PREFIX + name, config.toJson()) }
+            remove(LEGACY_ENABLED)
+        }.apply()
+        _configs.value = complete
+        _enabled.value = enabledNames(complete)
     }
 
     companion object {
-        private const val ENABLED = "enabled"
+        private const val KEY_PREFIX = "tool."
+        /** Phase 1 kept only a set of the tools turned on. */
+        private const val LEGACY_ENABLED = "enabled"
 
-        fun defaults(): Set<String> = Tools.all.filter { it.onByDefault }.map { it.name }.toSet()
+        fun defaults(): Map<String, ToolConfig> = Tools.all.associate { it.name to ToolConfig.defaults(it) }
 
-        /** [names] that are real tools, in the catalogue's order (dropping any a newer version removed). */
-        fun normalise(names: Set<String>): List<String> = Tools.all.map { it.name }.filter { it in names }
+        /** The tools turned on in [configs], in the catalogue's order. */
+        fun enabledNames(configs: Map<String, ToolConfig>): List<String> = Tools.all.map { it.name }.filter { configs[it]?.enabled == true }
     }
 }

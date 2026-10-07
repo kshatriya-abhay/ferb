@@ -46,11 +46,15 @@ abstract class Tool(
     /** Requests to try, for the empty assistant screen. */
     val examples: List<String>,
     /**
-     * The confidence from which its calls run without asking. Lower for harmless actions that a tap
-     * undoes (the app checks the arguments either way); Cactus's general advice is 0.7.
+     * The confidence from which its calls run without asking, until the user changes it. Lower for
+     * harmless actions that a tap undoes (the app checks the arguments either way); Cactus's general
+     * advice is 0.7.
      */
-    val runFrom: Double = 0.7,
+    val defaultRunFrom: Double = 0.7,
 ) {
+    /** Settings of this tool's own, on its settings page, beyond the ones every tool has. */
+    open val options: List<ToolOption> = emptyList()
+
     /** The JSON schema object Needle 3 gets: {"name", "description", "parameters"}. */
     abstract val schema: String
 

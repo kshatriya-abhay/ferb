@@ -16,6 +16,7 @@ import dev.abhay.assistant.tools.FollowUpEnv
 import dev.abhay.assistant.tools.Outcome
 import dev.abhay.assistant.tools.Prepared
 import dev.abhay.assistant.tools.Tools
+import dev.abhay.assistant.tools.Verdict
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,7 +29,7 @@ import kotlinx.coroutines.sync.withLock
 /**
  * The assistant: loads Needle 3 with the tools turned on in settings, sends each request to it,
  * checks the calls it returns, and runs them: at once when it's sure enough for the tools it calls
- * (each tool has its own bar, [dev.abhay.assistant.tools.Tool.runFrom]), after the user's OK when
+ * (each tool has its own bar and can be set to always ask: [dev.abhay.assistant.tools.Verdict]), after the user's OK when
  * it's less sure, never when it found no tool for the request. Results can offer buttons (Turn off,
  * Undo…), which run follow-up actions.
  */
@@ -46,13 +47,17 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         data class Finished(val outcome: Outcome) : Status
     }
 
-    /** [runAt] is the confidence the reply needed to run without asking: the highest bar among the tools it calls. */
+    /**
+     * [runAt] is the confidence the reply needed to run without asking: the highest bar among the
+     * tools it calls. [alwaysConfirm] is set when one of them is set to always ask.
+     */
     data class Exchange(
         val id: Long,
         val request: String,
         val reply: NeedleReply,
         val decision: Decision,
         val runAt: Double,
+        val alwaysConfirm: Boolean,
         val calls: List<CallState>,
         val wallMs: Long,
     )
@@ -76,14 +81,14 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
     private var nextId = 0L
 
     init {
-        // Loads the model on first use in this process; afterwards it only re-applies the tools.
-        if (engine.value !is AssistantEngine.State.Ready) viewModelScope.launch { applyTools(enabledTools.value) }
-    }
-
-    /** Saves the tools turned on, and gives them to Needle 3 (the loaded model, re-initialised). */
-    fun saveTools(names: Set<String>) {
-        assistant.toolSettings.save(names)
-        viewModelScope.launch { applyTools(enabledTools.value) }
+        // Loads the model on first use in this process, then gives it the tools turned on, again
+        // whenever that set changes (saved on the Tools screens); other settings need no reload.
+        viewModelScope.launch {
+            enabledTools.collect { names ->
+                val ready = engine.value as? AssistantEngine.State.Ready
+                if (ready == null || ready.tools != names) applyTools(names)
+            }
+        }
     }
 
     fun retry() {
@@ -106,12 +111,11 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
                 val started = SystemClock.elapsedRealtime()
                 val reply = NeedleReply.parse(assistant.engine.complete(request))
                 val wallMs = SystemClock.elapsedRealtime() - started
-                val runAt = runAt(reply.calls)
-                val decision = if (reply.error != null) Decision.Refuse else Decision.of(reply, runAt)
+                val verdict = Verdict.of(reply, assistant.toolSettings.configs.value)
                 val calls = reply.calls.map { call -> CallState(call, prepare(call), Status.Waiting) }
-                val exchange = Exchange(nextId++, request, reply, decision, runAt, calls, wallMs)
+                val exchange = Exchange(nextId++, request, reply, verdict.decision, verdict.runAt, verdict.alwaysConfirm, calls, wallMs)
                 _state.update { it.copy(history = it.history + exchange, pending = null) }
-                if (decision == Decision.Run) run(exchange.id)
+                if (verdict.decision == Decision.Run) run(exchange.id)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -121,10 +125,6 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
-
-    /** The highest bar among the tools [calls] name (an unknown tool counts as Cactus's 0.7). */
-    private fun runAt(calls: List<ToolCall>): Double =
-        calls.maxOfOrNull { Tools.byName(it.name)?.runFrom ?: Decision.RUN_AT } ?: Decision.RUN_AT
 
     /** Checks a call before anything runs: the tool must be turned on, and its arguments valid. */
     private fun prepare(call: ToolCall): Prepared {

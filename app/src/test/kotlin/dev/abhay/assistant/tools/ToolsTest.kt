@@ -90,15 +90,15 @@ class ToolsTest {
     }
 
     @Test
-    fun settingsKeepOnlyRealToolsInCatalogueOrder() {
-        assertThat(ToolSettings.normalise(setOf("set_flashlight", "gone_tool", "set_alarm"))).containsExactly("set_alarm", "set_flashlight").inOrder()
-        assertThat(ToolSettings.defaults()).containsExactly("set_alarm", "set_timer", "open_app", "open_settings", "set_flashlight")
+    fun fiveToolsAreOnByDefault() {
+        assertThat(ToolSettings.enabledNames(ToolSettings.defaults()))
+            .containsExactly("set_alarm", "set_timer", "open_app", "open_settings", "set_flashlight").inOrder()
     }
 
     @Test
     fun harmlessToolsRunFromALowerBar() {
         // Undone in a tap: from 0.3. Alarms and timers create something: from 0.4. Nothing above Cactus's 0.7.
-        assertThat(Tools.all.filter { it.runFrom == 0.4 }.map { it.name }).containsExactly("set_alarm", "set_timer")
-        Tools.all.forEach { assertThat(it.runFrom).isIn(com.google.common.collect.Range.closed(0.3, 0.7)) }
+        assertThat(Tools.all.filter { it.defaultRunFrom == 0.4 }.map { it.name }).containsExactly("set_alarm", "set_timer")
+        Tools.all.forEach { assertThat(it.defaultRunFrom).isIn(com.google.common.collect.Range.closed(0.3, 0.7)) }
     }
 }

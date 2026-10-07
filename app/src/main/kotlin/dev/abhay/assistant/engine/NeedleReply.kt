@@ -56,7 +56,7 @@ data class NeedleReply(
 
 /**
  * What the assistant does with a reply. Cactus recommends running at 0.7; the assistant uses a bar
- * per tool ([dev.abhay.assistant.tools.Tool.runFrom]), and a reply runs when it clears the highest
+ * per tool ([dev.abhay.assistant.tools.ToolConfig.runFrom]), and a reply runs when it clears the highest
  * bar among the tools it calls.
  */
 enum class Decision {

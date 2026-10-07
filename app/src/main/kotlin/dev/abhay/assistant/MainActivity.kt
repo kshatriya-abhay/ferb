@@ -15,12 +15,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.abhay.assistant.ui.AssistantScreen
 import dev.abhay.assistant.ui.AssistantViewModel
 import dev.abhay.assistant.ui.SettingsScreen
+import dev.abhay.assistant.ui.SettingsViewModel
+import dev.abhay.assistant.ui.ToolConfigScreen
+import dev.abhay.assistant.ui.ToolsScreen
 
-/** Two screens, the assistant and its tool settings; the navigation state is just which one is open. */
+/**
+ * The assistant, and its settings: Settings → Tools → one tool's page. The navigation state is a
+ * small back stack of screen names ("tool:<name>" for a tool's page).
+ */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -32,9 +39,17 @@ class MainActivity : ComponentActivity() {
             val colors = if (isSystemInDarkTheme()) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
             MaterialExpressiveTheme(colorScheme = colors, motionScheme = MotionScheme.expressive()) {
                 val viewModel: AssistantViewModel = viewModel()
-                var settingsOpen by rememberSaveable { mutableStateOf(false) }
-                if (settingsOpen) SettingsScreen(viewModel, onBack = { settingsOpen = false })
-                else AssistantScreen(viewModel, onOpenSettings = { settingsOpen = true })
+                val settings: SettingsViewModel = viewModel()
+                var stack by rememberSaveable { mutableStateOf(listOf("assistant")) }
+                val open = { screen: String -> stack = stack + screen }
+                val back = { stack = stack.dropLast(1) }
+                val engine by viewModel.engine.collectAsStateWithLifecycle()
+                when (val screen = stack.last()) {
+                    "assistant" -> AssistantScreen(viewModel, onOpenSettings = { open("settings") })
+                    "settings" -> SettingsScreen(settings, engine, onOpenTools = { open("tools") }, onBack = back)
+                    "tools" -> ToolsScreen(settings, onOpenTool = { open("tool:$it") }, onBack = back)
+                    else -> ToolConfigScreen(settings, screen.removePrefix("tool:"), onBack = back)
+                }
             }
         }
     }

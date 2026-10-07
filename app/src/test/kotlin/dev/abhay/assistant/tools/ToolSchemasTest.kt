@@ -36,6 +36,6 @@ class ToolSchemasTest {
     @Test
     fun aboutFiveToolsAreOnByDefault() {
         // Five or fewer: Needle 3 considers every one for every request.
-        assertThat(ToolSettings.defaults().size).isAtMost(5)
+        assertThat(ToolSettings.enabledNames(ToolSettings.defaults()).size).isAtMost(5)
     }
 }
