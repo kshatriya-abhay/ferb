@@ -79,10 +79,10 @@ object ClockProviders {
         key = "clock",
         title = "Clock",
         items = listOf(
-            ToolOption.Choice.Item(SYSTEM_CLOCK, "The phone's clock app", "Alarms and timers are set in the clock app (HyperOS Clock on this phone), where you can also change and delete them."),
+            ToolOption.Choice.Item(SYSTEM_CLOCK, "Clock app", "Change or delete them there"),
         ),
         default = SYSTEM_CLOCK,
-        note = "More providers later, e.g. alarms the assistant keeps itself, which it could also list, change and delete.",
+        note = "More clocks coming later.",
     )
 }
 

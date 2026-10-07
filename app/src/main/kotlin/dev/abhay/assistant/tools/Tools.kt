@@ -11,6 +11,7 @@ import android.provider.AlarmClock
 import android.provider.MediaStore
 import android.provider.Settings
 import android.view.KeyEvent
+import dev.abhay.assistant.R
 import dev.abhay.assistant.tools.Tools.again
 import dev.abhay.assistant.tools.Tools.withActions
 import java.util.Locale
@@ -63,6 +64,7 @@ object Tools {
 object SetAlarm : Tool(
     name = "set_alarm",
     title = "Alarms",
+    icon = R.drawable.ic_alarm,
     description = "Set an alarm in the clock app, at a time of day.",
     onByDefault = true,
     defaultRunFrom = 0.4,
@@ -130,6 +132,7 @@ object TimeOfDay {
 object SetTimer : Tool(
     name = "set_timer",
     title = "Timers",
+    icon = R.drawable.ic_timer,
     description = "Start a countdown timer in the clock app.",
     onByDefault = true,
     defaultRunFrom = 0.4,
@@ -173,6 +176,7 @@ object SetTimer : Tool(
 object ShowAlarms : Tool(
     name = "show_alarms",
     title = "Show alarms",
+    icon = R.drawable.ic_alarm_list,
     description = "Open the clock app's list of alarms.",
     onByDefault = false,
     defaultRunFrom = 0.3,
@@ -193,6 +197,7 @@ object ShowAlarms : Tool(
 object OpenApp : Tool(
     name = "open_app",
     title = "Open apps",
+    icon = R.drawable.ic_apps,
     description = "Open an app on this phone by its name.",
     onByDefault = true,
     defaultRunFrom = 0.3,
@@ -222,6 +227,7 @@ object OpenApp : Tool(
 object OpenSettings : Tool(
     name = "open_settings",
     title = "Settings pages",
+    icon = R.drawable.ic_settings,
     description = "Open a page of the phone's settings, such as Wi-Fi, Bluetooth or battery.",
     onByDefault = true,
     defaultRunFrom = 0.3,
@@ -282,6 +288,7 @@ object OpenSettings : Tool(
 object Flashlight : Tool(
     name = "set_flashlight",
     title = "Flashlight",
+    icon = R.drawable.ic_flashlight,
     description = "Turn the flashlight (torch) on or off.",
     onByDefault = true,
     defaultRunFrom = 0.3,
@@ -319,6 +326,7 @@ object Flashlight : Tool(
 object SetVolume : Tool(
     name = "set_volume",
     title = "Volume",
+    icon = R.drawable.ic_volume,
     description = "Set the volume of media, ringtone, alarms or notifications.",
     onByDefault = false,
     defaultRunFrom = 0.3,
@@ -373,6 +381,7 @@ object SetVolume : Tool(
 object MediaControl : Tool(
     name = "control_media",
     title = "Media controls",
+    icon = R.drawable.ic_music,
     description = "Play, pause or skip whatever music or video is playing.",
     onByDefault = false,
     defaultRunFrom = 0.3,
@@ -415,6 +424,7 @@ object MediaControl : Tool(
 object TakePhoto : Tool(
     name = "open_camera",
     title = "Camera",
+    icon = R.drawable.ic_photo_camera,
     description = "Open the camera app, ready to take a photo.",
     onByDefault = false,
     defaultRunFrom = 0.3,

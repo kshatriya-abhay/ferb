@@ -1,6 +1,7 @@
 package dev.abhay.assistant.tools
 
 import android.content.Context
+import androidx.annotation.DrawableRes
 
 /** What running a call did, shown under it. */
 sealed interface Outcome {
@@ -40,6 +41,8 @@ abstract class Tool(
     val name: String,
     /** For the settings screen. */
     val title: String,
+    /** A drawable for the tool, in its row, its page and its results. */
+    @param:DrawableRes val icon: Int,
     val description: String,
     /** On until the user changes it. */
     val onByDefault: Boolean,

@@ -29,7 +29,7 @@ class AssistantEngineDeviceTest {
 
     @Test
     fun savingNewToolsReplacesTheOldOnes() = runBlocking {
-        val defaults = Tools.all.filter { it.name in ToolSettings.defaults() }
+        val defaults = Tools.all.filter { it.name in ToolSettings.enabledNames(ToolSettings.defaults()) }
         app.engine.configure(defaults.map { it.name }, Tools.json(defaults))
         val ready = app.engine.state.value as AssistantEngine.State.Ready
         Log.i("AssistantEngineDeviceTest", "loaded in ${ready.loadMs} ms; ${ready.tools.size} tools, ${ready.prefixTokens} tokens in ${ready.initMs} ms")

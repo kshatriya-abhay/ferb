@@ -1,22 +1,32 @@
 package dev.abhay.assistant.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.annotation.DrawableRes
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -31,6 +41,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderState
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -42,13 +53,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import dev.abhay.assistant.engine.AssistantEngine
+import dev.abhay.assistant.R
 import dev.abhay.assistant.tools.Tool
 import dev.abhay.assistant.tools.ToolConfig
 import dev.abhay.assistant.tools.ToolOption
@@ -60,38 +73,24 @@ import kotlin.math.roundToInt
 /** Above this many tools turned on, Needle 3 only considers the best matches for each request. */
 private const val MAX_ALWAYS_SEEN = 5
 
-/** The settings home: the tools (a page of their own), and what runs the assistant. */
+/** The settings home: the tools (a page of their own), and the model, which runs on the phone. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(settings: SettingsViewModel, engine: AssistantEngine.State, onOpenTools: () -> Unit, onBack: () -> Unit) {
+fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onBack: () -> Unit) {
     val saved by settings.saved.collectAsStateWithLifecycle()
     BackHandler(onBack = onBack)
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Settings") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
-            )
-        },
-    ) { padding ->
+    Scaffold(topBar = { TopBar("Settings", onBack = onBack) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
             ListItem(
                 onClick = onOpenTools,
-                supportingContent = { Text("${ToolSettings.enabledNames(saved).size} of ${Tools.all.size} on · what the assistant can do, and when it asks first") },
+                leadingContent = { IconBadge(R.drawable.ic_tune) },
+                supportingContent = { Text("${ToolSettings.enabledNames(saved).size} of ${Tools.all.size} on") },
                 trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
             ) { Text("Tools") }
-            HorizontalDivider()
             ListItem(
-                overlineContent = { Text("Model") },
-                supportingContent = {
-                    Text(
-                        "Bundled in the app (35 MB) and run on this phone's CPU. The app has no internet access: nothing you type leaves the phone." +
-                            ((engine as? AssistantEngine.State.Ready)?.let {
-                                "\nLoaded in ${it.loadMs} ms; tools set up in ${it.initMs} ms (${it.prefixTokens} tokens)."
-                            } ?: ""),
-                    )
-                },
-            ) { Text("Needle 3 by Cactus Compute") }
+                leadingContent = { IconBadge(R.drawable.ic_lock) },
+                supportingContent = { Text("Needle 3 runs on this phone. The app has no internet access.") },
+            ) { Text("Private by design") }
         }
     }
 }
@@ -112,27 +111,12 @@ fun ToolsScreen(settings: SettingsViewModel, onOpenTool: (String) -> Unit, onBac
     val on = ToolSettings.enabledNames(draft).size
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Tools") },
-                subtitle = { Text("Tap a tool to set it up") },
-                navigationIcon = { IconButton(onClick = back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
-            )
-        },
+        topBar = { TopBar("Tools", subtitle = "$on of ${Tools.all.size} on", onBack = back) },
         bottomBar = { SaveBar(settings) },
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(vertical = 8.dp)) {
-            item {
-                Text(
-                    when {
-                        on == 0 -> "Turn on at least one tool."
-                        on <= MAX_ALWAYS_SEEN -> "$on on: Needle 3 considers all of them for every request."
-                        else -> "$on on: Needle 3 considers the $MAX_ALWAYS_SEEN that best match each request, so some requests may reach the wrong tool."
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
+            if (on > MAX_ALWAYS_SEEN) {
+                item { Hint("Needle 3 weighs the $MAX_ALWAYS_SEEN best-matching tools per request. With $on on, some requests may reach the wrong one.") }
             }
             items(Tools.all, key = { it.name }) { tool ->
                 val config = draft.getValue(tool.name)
@@ -144,11 +128,12 @@ fun ToolsScreen(settings: SettingsViewModel, onOpenTool: (String) -> Unit, onBac
     if (confirmLeave) UnsavedDialog(settings, onDone = { confirmLeave = false; onBack() }, onCancel = { confirmLeave = false })
 }
 
-/** Material 3's split list item: the text part opens the tool's page, the switch (past a divider) toggles it. */
+/** Material 3's split list item: the row opens the tool's page; the switch, past a divider, toggles it. */
 @Composable
 private fun ToolRow(tool: Tool, config: ToolConfig, onOpen: () -> Unit, onToggle: (Boolean) -> Unit) {
     ListItem(
         onClick = onOpen,
+        leadingContent = { IconBadge(tool.icon, active = config.enabled) },
         supportingContent = { Text(policy(config)) },
         trailingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -161,13 +146,13 @@ private fun ToolRow(tool: Tool, config: ToolConfig, onOpen: () -> Unit, onToggle
 
 private fun policy(config: ToolConfig) = when {
     !config.enabled -> "Off"
-    config.alwaysConfirm -> "On · always asks first"
-    else -> String.format(Locale.US, "On · runs without asking from %.2f", config.runFrom)
+    config.alwaysConfirm -> "Always asks first"
+    else -> String.format(Locale.US, "Runs from %.2f", config.runFrom)
 }
 
 /**
  * One tool's page: on or off, always confirm, the confidence from which it runs without asking,
- * its own options (e.g. which clock), examples, and the schema Needle 3 gets.
+ * its own options (e.g. which clock), examples, and, on request, the schema Needle 3 gets.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -185,27 +170,16 @@ fun ToolConfigScreen(settings: SettingsViewModel, name: String, onBack: () -> Un
     BackHandler(onBack = onBack)
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(tool.title) },
-                subtitle = { Text(tool.description) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
-            )
-        },
+        topBar = { TopBar(tool.title, onBack = onBack) },
         bottomBar = { SaveBar(settings) },
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(bottom = 16.dp)) {
-            SwitchRow("Use this tool", "Off: Needle 3 isn't told about it.", config.enabled) { on -> change { it.copy(enabled = on) } }
-            SwitchRow(
-                "Always confirm before running",
-                "Ask Do it / Skip every time, whatever the confidence.",
-                config.alwaysConfirm,
-                enabled = config.enabled,
-            ) { on -> change { it.copy(alwaysConfirm = on) } }
+        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
+            Header(tool)
+            SwitchRow("Use this tool", checked = config.enabled) { on -> change { it.copy(enabled = on) } }
+            SwitchRow("Always ask first", checked = config.alwaysConfirm, enabled = config.enabled) { on -> change { it.copy(alwaysConfirm = on) } }
             ConfidenceSetting(config, default, enabled = config.enabled && !config.alwaysConfirm) { value -> change { it.copy(runFrom = value) } }
 
             tool.options.forEach { option ->
-                HorizontalDivider(Modifier.padding(vertical = 8.dp))
                 when (option) {
                     is ToolOption.Choice -> ChoiceSetting(option, config.choice(option), enabled = config.enabled) { id ->
                         change { it.copy(options = it.options + (option.key to id)) }
@@ -213,44 +187,88 @@ fun ToolConfigScreen(settings: SettingsViewModel, name: String, onBack: () -> Un
                 }
             }
 
-            HorizontalDivider(Modifier.padding(vertical = 8.dp))
-            SectionTitle("Try")
-            tool.examples.forEach { Text("“$it”", Modifier.padding(horizontal = 16.dp, vertical = 2.dp), style = MaterialTheme.typography.bodyLarge) }
-            SectionTitle("What Needle 3 sees")
-            Card(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-            ) {
-                Text(tool.schema, Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+            SectionTitle("Try saying")
+            FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                tool.examples.forEach { SuggestionChip(onClick = {}, enabled = false, label = { Text(it) }) }
             }
+            Schema(tool)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TopBar(title: String, subtitle: String? = null, onBack: () -> Unit) {
+    val navigation = @Composable { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } }
+    if (subtitle == null) TopAppBar(title = { Text(title) }, navigationIcon = navigation)
+    else TopAppBar(title = { Text(title) }, subtitle = { Text(subtitle) }, navigationIcon = navigation)
+}
+
+/** An icon in a tonal circle, for list rows; muted when [active] is false (a tool that's off). */
+@Composable
+private fun IconBadge(@DrawableRes icon: Int, active: Boolean = true, size: Int = 40) {
+    Surface(
+        shape = CircleShape,
+        color = if (active) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+        contentColor = if (active) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.size(size.dp),
+    ) { Box(contentAlignment = Alignment.Center) { Icon(painterResource(icon), contentDescription = null, Modifier.size((size * 0.5).dp)) } }
+}
+
+@Composable
+private fun Header(tool: Tool) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        IconBadge(tool.icon, size = 56)
+        Text(tool.description, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun Hint(text: String) {
+    Card(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+    ) {
+        Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onTertiaryContainer)
+            Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onTertiaryContainer)
         }
     }
 }
 
 @Composable
 private fun SectionTitle(text: String) {
-    Text(text, Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
+    Text(text, Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 8.dp),
         style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
 }
 
+/** A row that toggles as a whole; the switch only shows the state. */
 @Composable
-private fun SwitchRow(title: String, description: String, checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
+private fun SwitchRow(title: String, checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
     ListItem(
         checked = checked,
         onCheckedChange = onChange,
         enabled = enabled,
-        supportingContent = { Text(description) },
-        // The whole row toggles; the switch only shows the state.
         trailingContent = { Switch(checked = checked, onCheckedChange = null, enabled = enabled) },
     ) { Text(title) }
 }
 
-/** The confidence slider, in steps of 0.05, with a way back to the tool's default. */
+/** The confidence slider, in steps of 0.05, with the value in a badge and a way back to the default. */
 @Composable
 private fun ConfidenceSetting(config: ToolConfig, default: ToolConfig, enabled: Boolean, onChange: (Double) -> Unit) {
-    Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(String.format(Locale.US, "Run without asking from confidence %.2f", config.runFrom), style = MaterialTheme.typography.bodyLarge,
-            color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
+    Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Run without asking from", style = MaterialTheme.typography.bodyLarge,
+                    color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Lower means fewer questions", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Surface(shape = CircleShape, color = if (enabled) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest) {
+                Text(String.format(Locale.US, "%.2f", config.runFrom), Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    style = MaterialTheme.typography.labelLarge)
+            }
+        }
         val slider = remember {
             SliderState(
                 value = config.runFrom.toFloat(),
@@ -260,15 +278,9 @@ private fun ConfidenceSetting(config: ToolConfig, default: ToolConfig, enabled: 
         }
         slider.value = config.runFrom.toFloat() // follows the draft, e.g. after Reset or Discard
         Slider(state = slider, onValueChange = { onChange((it * 20).roundToInt() / 20.0) }, enabled = enabled)
-        Text(
-            "Needle 3 gives each answer a confidence from 0 to 1. Lower: fewer questions, more mistakes run without asking. " +
-                "Its confidence varies a lot with wording, so a good request can score anywhere from 0.3 to 0.9.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
         if (config.runFrom != default.runFrom) {
-            TextButton(onClick = { onChange(default.runFrom) }, enabled = enabled) {
-                Text(String.format(Locale.US, "Reset to %.2f (default)", default.runFrom))
+            TextButton(onClick = { onChange(default.runFrom) }, enabled = enabled, modifier = Modifier.align(Alignment.End)) {
+                Text(String.format(Locale.US, "Reset to %.2f", default.runFrom))
             }
         }
     }
@@ -287,35 +299,49 @@ private fun ChoiceSetting(option: ToolOption.Choice, chosen: String, enabled: Bo
         ) { Text(item.label) }
     }
     option.note?.let {
-        Text(it, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(it, Modifier.padding(horizontal = 16.dp, vertical = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** The JSON schema Needle 3 gets, behind a toggle: useful when tuning, noise otherwise. */
+@Composable
+private fun Schema(tool: Tool) {
+    var shown by rememberSaveable { mutableStateOf(false) }
+    TextButton(onClick = { shown = !shown }, modifier = Modifier.padding(start = 8.dp, top = 16.dp)) {
+        Text(if (shown) "Hide what Needle 3 sees" else "Show what Needle 3 sees")
+    }
+    AnimatedVisibility(shown, enter = expandVertically(), exit = shrinkVertically()) {
+        Card(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        ) {
+            Text(tool.schema, Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+        }
     }
 }
 
 /**
- * Save, at the bottom of the Tools screens, for the whole draft. Edge to edge, its colour runs
- * behind the navigation buttons and its contents stay above them.
+ * Save and Discard, only while there are unsaved changes across the Tools screens. Edge to edge,
+ * its colour runs behind the navigation buttons and its contents stay above them.
  */
 @Composable
 private fun SaveBar(settings: SettingsViewModel) {
     val draft by settings.draft.collectAsStateWithLifecycle()
     val saved by settings.saved.collectAsStateWithLifecycle()
-    val changed = draft != saved
     val valid = ToolSettings.enabledNames(draft).isNotEmpty()
-    Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
-        Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                when {
-                    !valid -> "Turn on at least one tool"
-                    changed -> "Unsaved changes"
-                    else -> "All changes saved"
-                },
-                Modifier.weight(1f),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (changed) TextButton(onClick = settings::discard) { Text("Discard") }
-            Button(onClick = settings::save, enabled = changed && valid) { Text("Save") }
+    AnimatedVisibility(draft != saved, enter = expandVertically(), exit = shrinkVertically()) {
+        Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
+            Column(Modifier.navigationBarsPadding()) {
+                HorizontalDivider()
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(if (valid) "Unsaved changes" else "Turn on at least one tool", Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (valid) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error)
+                    TextButton(onClick = settings::discard) { Text("Discard") }
+                    Spacer(Modifier.size(8.dp))
+                    Button(onClick = settings::save, enabled = valid) { Text("Save") }
+                }
+            }
         }
     }
 }
@@ -325,8 +351,8 @@ private fun UnsavedDialog(settings: SettingsViewModel, onDone: () -> Unit, onCan
     val draft by settings.draft.collectAsStateWithLifecycle()
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text("Save your changes?") },
-        text = { Text("The assistant keeps its current tool settings until you save.") },
+        title = { Text("Save changes?") },
+        text = { Text("The assistant keeps its current settings until you save.") },
         confirmButton = {
             TextButton(onClick = { settings.save(); onDone() }, enabled = ToolSettings.enabledNames(draft).isNotEmpty()) { Text("Save") }
         },

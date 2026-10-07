@@ -15,7 +15,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.abhay.assistant.ui.AssistantScreen
 import dev.abhay.assistant.ui.AssistantViewModel
@@ -43,10 +42,9 @@ class MainActivity : ComponentActivity() {
                 var stack by rememberSaveable { mutableStateOf(listOf("assistant")) }
                 val open = { screen: String -> stack = stack + screen }
                 val back = { stack = stack.dropLast(1) }
-                val engine by viewModel.engine.collectAsStateWithLifecycle()
                 when (val screen = stack.last()) {
                     "assistant" -> AssistantScreen(viewModel, onOpenSettings = { open("settings") })
-                    "settings" -> SettingsScreen(settings, engine, onOpenTools = { open("tools") }, onBack = back)
+                    "settings" -> SettingsScreen(settings, onOpenTools = { open("tools") }, onBack = back)
                     "tools" -> ToolsScreen(settings, onOpenTool = { open("tool:$it") }, onBack = back)
                     else -> ToolConfigScreen(settings, screen.removePrefix("tool:"), onBack = back)
                 }
