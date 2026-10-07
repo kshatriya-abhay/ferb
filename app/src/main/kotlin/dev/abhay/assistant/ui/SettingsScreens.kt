@@ -91,7 +91,7 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onBack:
             ListItem(
                 onClick = { settings.setCheckAllAsFallback(!checkAll) },
                 leadingContent = { IconBadge(R.drawable.ic_search) },
-                supportingContent = { Text("When no tool's words are in a request. Slower with many tools on.") },
+                supportingContent = { Text("When a request names no tool, try every tool instead of the best five. Slower with many tools on.") },
                 trailingContent = { Switch(checked = checkAll, onCheckedChange = null) },
             ) { Text("Check all tools as a fallback") }
             ListItem(

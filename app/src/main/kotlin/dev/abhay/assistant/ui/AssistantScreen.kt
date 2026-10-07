@@ -389,8 +389,11 @@ private fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () ->
             }
             val titles = exchange.routed.mapNotNull { Tools.byName(it)?.title }
             Text(
-                (if (titles.isEmpty()) "No tool's words in this request" else "Checked: ${titles.joinToString()}") +
-                    if (exchange.checkedAll) ", then every tool" else "",
+                when {
+                    titles.isNotEmpty() -> "Checked: ${titles.joinToString()}" + if (exchange.checkedAll) ", then every tool" else ""
+                    exchange.checkedAll -> "No tool's words in this request: checked every tool"
+                    else -> "No tool's words in this request: Needle 3 chose from all tools"
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

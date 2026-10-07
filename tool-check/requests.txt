@@ -135,3 +135,10 @@ open_camera/open_app | open the camera app
 open_camera/open_app | I want to take a photo
 none | how many photos do I have
 none | which camera is better
+# Requests that name no tool's cue words (2026-10-08): with routing, these get every tool and
+# Needle 3's own retrieval; the calls ask first.
+set_flashlight on=true | I can't see a thing
+open_app app_name=youtube | I want to watch youtube
+open_app app_name=gmail | check my email
+open_app app_name=calendar | what's on my calendar today
+open_app app_name=whatsapp | whatsapp

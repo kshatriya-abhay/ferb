@@ -64,7 +64,7 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         val unmentioned: Boolean,
         /** Set when a call has a value the request doesn't say (see [dev.abhay.assistant.tools.Tool.grounded]). */
         val ungrounded: Boolean,
-        /** The tools the request mentioned, which Needle 3 was given ([ToolRouter]); empty: none, so it wasn't asked. */
+        /** The tools the request mentioned, which Needle 3 was given ([ToolRouter]); empty: none, so it got every tool turned on. */
         val routed: List<String>,
         /** Set when every tool was also tried, because the mentioned ones gave no call. */
         val checkedAll: Boolean,
@@ -118,8 +118,15 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
                 val started = SystemClock.elapsedRealtime()
                 val enabled = enabledTools.value.mapNotNull(Tools::byName)
                 val routed = ToolRouter.route(request, enabled)
-                var reply = if (routed.isEmpty()) NO_TOOL_MENTIONED else ask(request, routed)
-                val checkAll = reply.calls.isEmpty() && reply.error == null && assistant.toolSettings.checkAllAsFallback.value
+                val checkAllOn = assistant.toolSettings.checkAllAsFallback.value
+                // No tool mentioned: every tool turned on, and Needle 3 weighs the five that match
+                // best (its own retrieval), unless the user chose to check them all.
+                var reply = when {
+                    routed.isNotEmpty() -> ask(request, routed)
+                    checkAllOn || enabled.isEmpty() -> NO_TOOL_MENTIONED
+                    else -> ask(request, enabled)
+                }
+                val checkAll = reply.calls.isEmpty() && reply.error == null && checkAllOn && enabled.isNotEmpty()
                 if (checkAll) {
                     // Every tool, five at a time; the most confident answer with a call wins.
                     ToolRouter.groups(enabled).filter { it != routed }.forEach { group ->
@@ -222,7 +229,7 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         _state.update { s -> s.copy(history = s.history.map { if (it.id == id) change(it) else it }) }
 
     private companion object {
-        /** The answer when a request mentions no tool turned on: Needle 3 isn't asked. */
+        /** The answer before any is asked for, when a request mentions no tool and the check of all tools follows (or no tool is on). */
         val NO_TOOL_MENTIONED = NeedleReply(
             calls = emptyList(), suppressed = emptyList(), reasoning = "", confidence = null, ungrounded = emptyList(),
             negation = false, prefillTps = 0.0, decodeTps = 0.0, peakRamMb = 0.0, error = null,
