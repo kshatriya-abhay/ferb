@@ -58,6 +58,8 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         val decision: Decision,
         val runAt: Double,
         val alwaysConfirm: Boolean,
+        /** Set when the request doesn't mention a tool it reached (see [dev.abhay.assistant.tools.Tool.cues]). */
+        val unmentioned: Boolean,
         val calls: List<CallState>,
         val wallMs: Long,
     )
@@ -111,9 +113,9 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
                 val started = SystemClock.elapsedRealtime()
                 val reply = NeedleReply.parse(assistant.engine.complete(request))
                 val wallMs = SystemClock.elapsedRealtime() - started
-                val verdict = Verdict.of(reply, assistant.toolSettings.configs.value)
+                val verdict = Verdict.of(reply, assistant.toolSettings.configs.value, request)
                 val calls = reply.calls.map { call -> CallState(call, prepare(call), Status.Waiting) }
-                val exchange = Exchange(nextId++, request, reply, verdict.decision, verdict.runAt, verdict.alwaysConfirm, calls, wallMs)
+                val exchange = Exchange(nextId++, request, reply, verdict.decision, verdict.runAt, verdict.alwaysConfirm, verdict.unmentioned, calls, wallMs)
                 _state.update { it.copy(history = it.history + exchange, pending = null) }
                 if (verdict.decision == Decision.Run) run(exchange.id)
             } catch (e: CancellationException) {

@@ -376,6 +376,7 @@ private fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () ->
                         Text(
                             when {
                                 exchange.alwaysConfirm -> "Asked first: the tool is set to always ask."
+                                exchange.unmentioned -> "Asked first: the request doesn't mention what this tool does."
                                 exchange.decision == Decision.Run -> String.format(Locale.US, "Ran without asking: needed %.2f.", exchange.runAt)
                                 else -> String.format(Locale.US, "Asked first: runs without asking from %.2f.", exchange.runAt)
                             },

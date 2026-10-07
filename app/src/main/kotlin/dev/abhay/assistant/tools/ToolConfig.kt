@@ -87,21 +87,23 @@ object ClockProviders {
 }
 
 /**
- * Whether a reply runs without asking: never if any tool it calls is set to always confirm;
- * otherwise when the confidence reaches the highest bar among those tools. [runAt] is that bar.
+ * Whether a reply runs without asking: never if any tool it calls is set to always confirm, or
+ * isn't mentioned in [request] (its [Tool.cues]); otherwise when the confidence reaches the highest
+ * bar among those tools. [runAt] is that bar.
  */
-data class Verdict(val decision: Decision, val runAt: Double, val alwaysConfirm: Boolean) {
+data class Verdict(val decision: Decision, val runAt: Double, val alwaysConfirm: Boolean, val unmentioned: Boolean = false) {
     companion object {
-        fun of(reply: NeedleReply, configs: Map<String, ToolConfig>): Verdict {
+        fun of(reply: NeedleReply, configs: Map<String, ToolConfig>, request: String): Verdict {
             val called = reply.calls.map { configs[it.name] }
             val runAt = called.maxOfOrNull { it?.runFrom ?: Decision.RUN_AT } ?: Decision.RUN_AT
             val alwaysConfirm = called.any { it?.alwaysConfirm == true }
+            val unmentioned = reply.calls.any { call -> Tools.byName(call.name)?.cues?.containsMatchIn(request) == false }
             val decision = when {
                 reply.error != null -> Decision.Refuse
-                alwaysConfirm && reply.calls.isNotEmpty() -> Decision.Confirm
+                (alwaysConfirm || unmentioned) && reply.calls.isNotEmpty() -> Decision.Confirm
                 else -> Decision.of(reply, runAt)
             }
-            return Verdict(decision, runAt, alwaysConfirm)
+            return Verdict(decision, runAt, alwaysConfirm, unmentioned)
         }
     }
 }

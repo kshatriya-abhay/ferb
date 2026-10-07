@@ -76,6 +76,8 @@ object SetAlarm : Tool(
     // turned "alarms at 8 and 9 am" into one alarm at 08:09 and scored single alarms around 0.3;
     // one time string got every request right (two alarms included) and scored higher. A label
     // parameter made the model invent labels ("Tomorrow morning"), so there isn't one.
+    override val cues = Regex("""\b(alarms?|wake|get up|up at)\b""", RegexOption.IGNORE_CASE)
+
     override val schema = """
         {"name": "set_alarm",
          "description": "Set an alarm for a time, such as wake me up at 6:45 tomorrow",
@@ -103,6 +105,25 @@ object SetAlarm : Tool(
     // No Undo: Android has no request to delete another app's alarm, and ACTION_DISMISS_ALARM
     // (searching by time), which switches alarms off in clock apps that support it, did nothing in
     // HyperOS's clock (2026-10-07). "Show alarms" opens the clock's list, to delete it there.
+}
+
+/** A spoken or written length of time, in seconds. */
+object Durations {
+    private val UNITS = mapOf(
+        "h" to 3600, "hr" to 3600, "hrs" to 3600, "hour" to 3600, "hours" to 3600,
+        "m" to 60, "min" to 60, "mins" to 60, "minute" to 60, "minutes" to 60,
+        "s" to 1, "sec" to 1, "secs" to 1, "second" to 1, "seconds" to 1,
+    )
+    private val PART = Regex("""(\d+(?:\.\d+)?)\s*([a-z]+)""")
+
+    /** "2 hours", "1 hour 15 minutes", "90 seconds", "45 min", "1.5 hours", "1:30" (min:sec) → seconds; null if it isn't one. */
+    fun parse(text: String): Int? {
+        val t = text.trim().lowercase().replace(" and ", " ").replace("half an hour", "30 minutes")
+        Regex("""(\d+):(\d{2})""").matchEntire(t)?.let { return it.groupValues[1].toInt() * 60 + it.groupValues[2].toInt() }
+        val parts = PART.findAll(t).toList()
+        if (parts.isEmpty() || parts.any { it.groupValues[2] !in UNITS }) return null
+        return parts.sumOf { it.groupValues[1].toDouble() * UNITS.getValue(it.groupValues[2]) }.let { Math.round(it).toInt() }
+    }
 }
 
 /** A spoken or written time of day as hour (0–23) and minute. */
@@ -142,24 +163,28 @@ object SetTimer : Tool(
 
     const val MAX_SECONDS = 24 * 60 * 60
 
+    // The length as text, parsed by the app (like alarm times). As a number of seconds, Needle 3
+    // got the arithmetic wrong, confidently: "2 hours" became 120 s at 0.82, "45 min" 45 s. As
+    // text it copied every length right on the desktop check, and scored higher. No label: it
+    // added nothing the clock shows, and the model invents them.
     override val schema = """
         {"name": "set_timer",
-         "description": "Start a countdown timer for a length of time, such as a 10 minute timer",
+         "description": "Start a countdown timer, such as a 10 minute timer",
          "parameters": {"type": "object", "properties": {
-           "seconds": {"type": "integer", "minimum": 1, "maximum": $MAX_SECONDS, "description": "Total length in seconds: 90 seconds is 90, 10 minutes is 600, 1 hour 15 minutes is 4500"},
-           "label": {"type": "string", "description": "What the timer is for, only if the request says"}},
-           "required": ["seconds"]}}
+           "duration": {"type": "string", "description": "The length, such as 10 minutes or 90 seconds"}},
+           "required": ["duration"]}}
     """.trimIndent()
 
+    override val cues = Regex("""\b(timers?|count ?down|remind me in|minutes?|mins?|seconds?|secs?|hours?|hrs?)\b""", RegexOption.IGNORE_CASE)
+
     override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps): Prepared {
-        val total = arguments.int("seconds") ?: return Prepared.Invalid("No length given")
-        if (total !in 1..MAX_SECONDS) return Prepared.Invalid("A timer needs 1 second to 24 hours, not $total s")
-        val label = arguments.text("label")
+        val said = arguments.text("duration") ?: return Prepared.Invalid("No length given")
+        val total = Durations.parse(said) ?: return Prepared.Invalid("\"$said\" isn't a length of time")
+        if (total !in 1..MAX_SECONDS) return Prepared.Invalid("A timer needs 1 second to 24 hours")
         val length = duration(total)
-        return Prepared.Ready("Start a $length timer" + (label?.let { " ($it)" } ?: "")) { context ->
+        return Prepared.Ready("Start a $length timer") { context ->
             Tools.start(context, Intent(AlarmClock.ACTION_SET_TIMER)
                 .putExtra(AlarmClock.EXTRA_LENGTH, total)
-                .apply { label?.let { putExtra(AlarmClock.EXTRA_MESSAGE, it) } }
                 .putExtra(AlarmClock.EXTRA_SKIP_UI, true), "Timer started: $length", quietly = true)
                 .withActions(FollowUp("Show timers") { Tools.start(it.context, Intent(AlarmClock.ACTION_SHOW_TIMERS), "Opened the timers") })
         }
@@ -184,6 +209,8 @@ object ShowAlarms : Tool(
 ) {
     override val options = listOf(ClockProviders.option)
 
+    override val cues = Regex("""\balarms?\b""", RegexOption.IGNORE_CASE)
+
     override val schema = """
         {"name": "show_alarms",
          "description": "Open the list of alarms in the clock app",
@@ -203,6 +230,8 @@ object OpenApp : Tool(
     defaultRunFrom = 0.3,
     examples = listOf("Open the calculator", "Launch WhatsApp"),
 ) {
+    override val cues = Regex("""\b(open|launch|start|go to|run|show)\b""", RegexOption.IGNORE_CASE)
+
     override val schema = """
         {"name": "open_app",
          "description": "Open an app installed on this phone by its name, such as Calculator or WhatsApp. Not for settings pages",
@@ -263,8 +292,11 @@ object OpenSettings : Tool(
     /** The page [name] means ("Bluetooth", "wifi", "Settings"), if it's one. */
     fun pageFor(name: String): String? = name.lowercase().trim().replace(' ', '_').let { ALIASES[it] ?: it }.takeIf { it in PAGES }
 
+    override val cues = Regex("""\b(settings?|wi-?fi|bluetooth|battery|display|brightness|sound|location|storage|security|privacy|notifications?|apps|date|time|language|accessibility|nfc|developer|airplane|aeroplane|flight mode|mobile (network|data))\b""", RegexOption.IGNORE_CASE)
+
     override val schema = """
         {"name": "open_settings",
+         "triggers": ["\\bsettings?\\b"],
          "description": "Open the phone's settings, or one of its pages such as Wi-Fi, Bluetooth, display, sound or battery",
          "parameters": {"type": "object", "properties": {
            "page": {"type": "string", "enum": [${PAGES.keys.joinToString { "\"$it\"" }}], "description": "Which page; main for the settings app itself"}},
@@ -294,9 +326,11 @@ object Flashlight : Tool(
     defaultRunFrom = 0.3,
     examples = listOf("Turn on the flashlight", "Torch off"),
 ) {
+    override val cues = Regex("""\b(torch|flashlight|flash light|light|dark)\b""", RegexOption.IGNORE_CASE)
+
     override val schema = """
         {"name": "set_flashlight",
-         "description": "Turn the phone's flashlight (torch) on or off, for light",
+         "description": "Turn the phone's flashlight (torch) on or off",
          "parameters": {"type": "object", "properties": {
            "on": {"type": "boolean", "description": "true to turn it on, false to turn it off"}},
            "required": ["on"]}}
@@ -338,6 +372,8 @@ object SetVolume : Tool(
         "alarm" to AudioManager.STREAM_ALARM,
         "notification" to AudioManager.STREAM_NOTIFICATION,
     )
+
+    override val cues = Regex("""\b(volume|mute|unmute|louder|quieter|loud|quiet|ring(er|tone)?|silent|sound)\b""", RegexOption.IGNORE_CASE)
 
     override val schema = """
         {"name": "set_volume",
@@ -394,6 +430,8 @@ object MediaControl : Tool(
         "previous" to KeyEvent.KEYCODE_MEDIA_PREVIOUS,
     )
 
+    override val cues = Regex("""\b(play|pause|resume|music|song|track|next|previous|skip|stop)\b""", RegexOption.IGNORE_CASE)
+
     override val schema = """
         {"name": "control_media",
          "description": "Play, pause, or skip to the next or previous song or track of the music playing",
@@ -432,6 +470,8 @@ object TakePhoto : Tool(
 ) {
     // No photo/video choice: on the desktop check, Needle 3 picked the mode backwards about half the
     // time (whether as an enum or a boolean); switching to video in the camera app is one tap.
+    override val cues = Regex("""\b(camera|photo|picture|pic|selfie|video|snap)\b""", RegexOption.IGNORE_CASE)
+
     override val schema = """
         {"name": "open_camera",
          "description": "Open the camera app to take a photo or a video",

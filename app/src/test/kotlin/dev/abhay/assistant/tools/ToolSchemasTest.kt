@@ -31,6 +31,8 @@ class ToolSchemasTest {
             assertThat(JSONArray(json).length()).isEqualTo(tools.size)
             File(dir, "$name.json").writeText(json)
         }
+        // The cue words, for tool-check's scorer to apply the same "asks first" rule as the app.
+        File(dir, "cues.json").writeText(JSONObject(Tools.all.filter { it.cues != null }.associate { it.name to it.cues!!.pattern }).toString(1))
     }
 
     @Test

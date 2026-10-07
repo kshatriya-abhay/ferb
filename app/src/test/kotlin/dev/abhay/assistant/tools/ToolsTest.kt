@@ -38,11 +38,19 @@ class ToolsTest {
     }
 
     @Test
-    fun timersTakeSecondsWithinADay() {
-        assertThat(summary(SetTimer.prepare(mapOf("seconds" to 90, "label" to "Eggs"), apps))).isEqualTo("Start a 1 min 30 s timer (Eggs)")
-        assertThat(summary(SetTimer.prepare(mapOf("seconds" to 4500), apps))).isEqualTo("Start a 1 h 15 min timer")
-        assertThat(reason(SetTimer.prepare(mapOf("seconds" to 0), apps))).isNotNull()
-        assertThat(reason(SetTimer.prepare(mapOf("seconds" to 90_000), apps))).isNotNull()
+    fun timersTakeTheLengthAsWritten() {
+        assertThat(summary(SetTimer.prepare(mapOf("duration" to "90 seconds"), apps))).isEqualTo("Start a 1 min 30 s timer")
+        assertThat(summary(SetTimer.prepare(mapOf("duration" to "1 hour 15 minutes"), apps))).isEqualTo("Start a 1 h 15 min timer")
+        assertThat(reason(SetTimer.prepare(mapOf("duration" to "a while"), apps))).isNotNull()
+        assertThat(reason(SetTimer.prepare(mapOf("duration" to "25 hours"), apps))).isNotNull()
+    }
+
+    @Test
+    fun durationsAsTheModelWritesThem() {
+        val cases = mapOf("10 minutes" to 600, "90 seconds" to 90, "2 hours" to 7200, "45 min" to 2700, "1 hour 15 minutes" to 4500,
+            "1 hour and 30 minutes" to 5400, "1.5 hours" to 5400, "half an hour" to 1800, "5 mins" to 300, "1:30" to 90, "30 secs" to 30)
+        cases.forEach { (text, seconds) -> assertThat(Durations.parse(text)).isEqualTo(seconds) }
+        listOf("soon", "10", "ten minutes", "").forEach { assertThat(Durations.parse(it)).isNull() }
     }
 
     @Test

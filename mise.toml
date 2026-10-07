@@ -52,7 +52,8 @@ if [ ! -x "$DIR/tool_check" ] || [ tool-check/tool_check.cpp -nt "$DIR/tool_chec
   uvx --from ziglang python -m ziglang c++ -O2 -std=c++17 -w -I "$DIR" tool-check/tool_check.cpp "$DIR/libneedle.a" -lpthread -o "$DIR/tool_check"
 fi
 ./gradlew -q testDebugUnitTest --tests '*ToolSchemasTest*'
-"$DIR/tool_check" app/src/main/assets/needle3.cact "app/build/tool-check/${usage_set}.json" tool-check/requests.txt
+TOOL_CHECK_RAW=1 "$DIR/tool_check" app/src/main/assets/needle3.cact "app/build/tool-check/${usage_set}.json" tool-check/requests.txt ${FACTS:+"$FACTS"} \
+  | python3 tool-check/score.py "app/build/tool-check/${usage_set}.json" tool-check/requests.txt 0.4 app/build/tool-check/cues.json
 """
 
 [tasks.check-offline]

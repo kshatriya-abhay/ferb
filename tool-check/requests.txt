@@ -1,30 +1,68 @@
-# expected_tool | request. "none": no tool should be called; "a/b": either, the first one turned on.
-set_alarm | Wake me up at 6:45
-set_alarm | Set an alarm for 7 pm called gym
-set_alarm | alarm at 5:30 tomorrow morning
-set_alarm | set an alarm for 8 am
-set_alarm | set two alarms, one for 8 am and another for 9 am
-set_alarm | alarms at 8 and 9 am
-set_timer | Timer for 10 minutes
-set_timer | Set a 90 second timer for the eggs
-set_timer | countdown 1 hour 15 minutes
-open_app | Open the calculator
+# expected_tool [key=value ...] | request. "none": no tool should be called; "a/b": either, the first one
+# turned on; key=value: arguments that matter (times as HH:MM, durations in seconds; see score.py).
+set_alarm time=06:45 | Wake me up at 6:45
+set_alarm time=19:00 | Set an alarm for 7 pm called gym
+set_alarm time=05:30 | alarm at 5:30 tomorrow morning
+set_alarm time=08:00 | set an alarm for 8 am
+set_alarm time=08:00 | set two alarms, one for 8 am and another for 9 am
+set_alarm time=08:00 | alarms at 8 and 9 am
+set_timer seconds=600 | Timer for 10 minutes
+set_timer seconds=90 | Set a 90 second timer for the eggs
+set_timer seconds=4500 | countdown 1 hour 15 minutes
+open_app app_name=calculator | Open the calculator
 open_settings/open_app | Launch Settings
-open_app | open whatsapp
-open_settings | Open Wi-Fi settings
-open_settings | Show me the battery settings
-open_settings | take me to bluetooth settings
-set_flashlight | Turn on the flashlight
-set_flashlight | Torch off
-set_flashlight | I need some light
+open_app app_name=whatsapp | open whatsapp
+open_settings page=wi-fi | Open Wi-Fi settings
+open_settings page=battery | Show me the battery settings
+open_settings page=bluetooth | take me to bluetooth settings
+set_flashlight on=true | Turn on the flashlight
+set_flashlight on=false | Torch off
+set_flashlight on=true | I need some light
 show_alarms | Show my alarms
-set_volume | Set the media volume to 30 percent
-set_volume | Mute the ringer
-control_media | Pause the music
-control_media | Next song
+set_volume stream=media percent=30 | Set the media volume to 30 percent
+set_volume stream=ring percent=0 | Mute the ringer
+control_media action=pause | Pause the music
+control_media action=next | Next song
 open_camera/open_app | Take a picture
 open_camera/open_app | Open the camera
 open_camera/open_app | Record a video
 none | What's the weather like?
 none | Tell me a joke
 none | Who won the match yesterday?
+# More everyday phrasings (2026-10-07), mostly for the default tools.
+set_alarm time=07:00 | set alarm 7am
+set_alarm time=06:30 | wake me at half past six
+set_alarm time=05:15 | i need to get up at 5:15 tomorrow
+set_alarm time=22:00 | alarm for 10 pm please
+set_alarm time=09:30 | can you set an alarm for 9:30
+set_alarm time=07:45 | set a morning alarm at 7:45
+set_timer seconds=300 | 5 minute timer
+set_timer seconds=30 | start a timer for 30 seconds
+set_timer seconds=7200 | set a timer for 2 hours
+set_timer seconds=900 | remind me in 15 minutes
+set_timer seconds=180 | count down 3 minutes for the tea
+set_timer seconds=2700 | timer 45 min
+open_app app_name=youtube | open youtube
+open_app app_name=spotify | launch spotify
+open_app app_name=camera | start the camera app
+open_app app_name=gmail | open gmail
+open_app app_name=instagram | go to instagram
+open_app app_name=maps | open maps
+open_settings page=wi-fi | wifi settings
+open_settings page=bluetooth | open bluetooth
+open_settings page=display | show display settings
+open_settings page=battery | battery settings please
+open_settings page=sound | open sound settings
+open_settings page=location | take me to location settings
+set_flashlight on=true | flashlight on
+set_flashlight on=true | turn the torch on
+set_flashlight on=false | switch off the flashlight
+set_flashlight on=true | torch please
+set_flashlight on=false | turn off torch
+set_flashlight on=true | it's too dark, turn on the light
+none | what time is it in london
+none | how tall is mount everest
+none | send a message to mom
+none | translate hello to french
+none | thanks
+set_flashlight on=false | don't turn on the flashlight

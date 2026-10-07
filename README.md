@@ -13,6 +13,7 @@ Phase 1 is a normal app with a text box. Voice and becoming the phone's default 
   - says so when no tool fits.
 - **A default bar per tool**, by how easy the action is to undo (adjustable per tool): 0.3 for harmless ones a tap reverses (flashlight, volume, media, opening an app, settings page or camera), 0.4 for alarms and timers (they create something, shown on the card). Cactus's general advice is 0.7; Needle 3's confidence varies a lot with phrasing (the same alarm request scores 0.3–0.9), so a single 0.7 bar asked about most good requests.
 - **Buttons on results:** "Turn off" / "Turn on" for the flashlight, "Undo" / "Redo" for volume, the opposite media action, "Show alarms" and "Show timers" (to change or delete them in the clock app), "Open again" for apps and pages.
+- **Cue words per tool:** a call to a tool the request doesn't mention ("mute the ringer" → flashlight, with the volume tool off) asks first, whatever its confidence. With that safety net, no wrong call runs without asking on the desktop check.
 - **Calls that open another app run one at a time**, each after the assistant is back in front: two alarm intents 14 ms apart set only the first on HyperOS.
 - **Every tool is configurable:** Settings → Tools lists them; each row's switch turns the tool on or off, and the rest of the row opens its page:
   - on or off;
@@ -52,8 +53,8 @@ text box ─► AssistantViewModel ─► AssistantEngine ─► Needle.kt ─JN
 
 ## Tuning the tools: `mise run tool-check`
 
-Needle 3's choices and confidence depend heavily on the tool descriptions. `mise run tool-check [all|default]` runs Cactus's Linux build of the same engine on the desktop, with the app's own tool JSON (exported by a unit test), against `tool-check/requests.txt`: requests whose right tool is known. On 2026-10-07, with the default tools: 25 of 29 right, 19 sure enough to run without asking. Lessons from it are in the comments in `Tools.kt`:
-- one total in seconds beats separate hours, minutes and seconds fields, which turned "10 minutes" into 10 h 10 min;
+Needle 3's choices and confidence depend heavily on the tool descriptions. `mise run tool-check [all|default]` runs Cactus's Linux build of the same engine on the desktop, with the app's own tool JSON and cue words (exported by a unit test), against `tool-check/requests.txt`: 65 requests with the right tool **and arguments** (scored by `tool-check/score.py`, which reads times and durations the way the app does). With the default tools (2026-10-07): 61 of 65 right, no wrong arguments, mean confidence 0.78 on right calls, 49 of 52 calls clear their bar, and no wrong call would run without asking. Lessons from it are in the comments in `Tools.kt`:
+- a timer's length as text ("2 hours", parsed by the app) beats a number of seconds, which the model got confidently wrong ("2 hours" → 120 s at 0.82), and separate fields, which turned "10 minutes" into 10 h 10 min;
 - an alarm time as text ("8:00 AM", parsed by the app) beats hour and minute fields, which turned "alarms at 8 and 9 am" into one alarm at 08:09;
 - "wi-fi" rather than "wifi" in the enum;
 - a photo/video choice was picked backwards about half the time, so the camera tool has none.
