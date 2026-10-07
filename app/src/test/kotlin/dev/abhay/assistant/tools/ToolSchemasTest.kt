@@ -33,6 +33,8 @@ class ToolSchemasTest {
         }
         // The cue words, for tool-check's scorer to apply the same "asks first" rule as the app.
         File(dir, "cues.json").writeText(JSONObject(Tools.all.filter { it.cues != null }.associate { it.name to it.cues!!.pattern }).toString(1))
+        // Each tool's default bar, so the scorer decides "runs" or "asks" per tool the way the app does.
+        File(dir, "bars.json").writeText(JSONObject(Tools.all.associate { it.name to it.defaultRunFrom }).toString(1))
     }
 
     @Test

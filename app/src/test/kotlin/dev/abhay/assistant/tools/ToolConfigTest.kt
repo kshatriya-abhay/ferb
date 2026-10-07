@@ -9,7 +9,15 @@ class ToolConfigTest {
     @Test
     fun configsSurviveTheirJson() {
         val config = ToolConfig(enabled = true, alwaysConfirm = true, runFrom = 0.55, options = mapOf("clock" to ClockProviders.SYSTEM_CLOCK))
-        assertThat(ToolConfig.fromJson(config.toJson(), SetAlarm)).isEqualTo(config)
+        assertThat(ToolConfig.fromJson(config.toJson(SetAlarm), SetAlarm)).isEqualTo(config)
+    }
+
+    @Test
+    fun aBarNobodyMovedFollowsTheDefault() {
+        // Not saved at the default, so a later default applies.
+        assertThat(ToolConfig.defaults(Flashlight).toJson(Flashlight)).doesNotContain("run_from")
+        // A 0.3 saved before the per-tool bars was the old default, not a choice.
+        assertThat(ToolConfig.fromJson("""{"enabled": true, "run_from": 0.3}""", Flashlight).runFrom).isEqualTo(Flashlight.defaultRunFrom)
     }
 
     @Test
@@ -41,8 +49,8 @@ class ToolConfigTest {
 
     @Test
     fun aReplyNeedsTheHighestBarAmongItsTools() {
-        assertThat(Verdict.of(reply(0.35, "set_flashlight"), configs, "torch on").decision).isEqualTo(Decision.Run)
-        val both = Verdict.of(reply(0.35, "set_flashlight", "set_alarm"), configs, "torch on and an alarm at 7")
+        assertThat(Verdict.of(reply(0.35, "open_app"), configs, "open maps").decision).isEqualTo(Decision.Run)
+        val both = Verdict.of(reply(0.35, "open_app", "set_alarm"), configs, "open maps and set an alarm at 7")
         assertThat(both.runAt).isEqualTo(0.4)
         assertThat(both.decision).isEqualTo(Decision.Confirm)
     }
@@ -67,7 +75,18 @@ class ToolConfigTest {
         val verdict = Verdict.of(reply(0.72, "set_flashlight"), configs, "Mute the ringer")
         assertThat(verdict.decision).isEqualTo(Decision.Confirm)
         assertThat(verdict.unmentioned).isTrue()
-        assertThat(Verdict.of(reply(0.72, "set_flashlight"), configs, "it's too dark").decision).isEqualTo(Decision.Run)
+        assertThat(Verdict.of(reply(0.8, "set_flashlight"), configs, "it's too dark").decision).isEqualTo(Decision.Run)
+    }
+
+    @Test
+    fun aTimeTheRequestDoesntSayAsksFirst() {
+        fun alarm(time: String, request: String) = Verdict.of(NeedleReply.parse(
+            """{"success":true,"function_calls":[{"name":"set_alarm","arguments":{"time":"$time"}}],"confidence":0.63}""",
+        ), configs, request)
+        // Needle 3 took 6:45 from the tool's example.
+        assertThat(alarm("6:45", "I hate alarms").let { it.decision to it.ungrounded }).isEqualTo(Decision.Confirm to true)
+        assertThat(alarm("6:30", "wake me at half past six").decision).isEqualTo(Decision.Run)
+        assertThat(alarm("23:30", "alarm at 11:30 at night").decision).isEqualTo(Decision.Run)
     }
 
     @Test

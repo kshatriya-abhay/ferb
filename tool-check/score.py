@@ -21,9 +21,29 @@ def time_of_day(text):
 UNITS = {"h": 3600, "hr": 3600, "hrs": 3600, "hour": 3600, "hours": 3600, "m": 60, "min": 60, "mins": 60,
          "minute": 60, "minutes": 60, "s": 1, "sec": 1, "secs": 1, "second": 1, "seconds": 1}
 
+# As in the app's SaidNumbers.
+WORDS = {"a": 1, "an": 1, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8,
+         "nine": 9, "ten": 10, "eleven": 11, "twelve": 12, "fifteen": 15, "twenty": 20, "thirty": 30, "forty": 40,
+         "fifty": 50, "sixty": 60, "ninety": 90}
+CLOCK_WORDS = {"half": 30, "quarter": 15, "noon": 12, "midnight": 12}
+
+def said_numbers(text):
+    return {int(w) if w.isdigit() else WORDS.get(w, CLOCK_WORDS.get(w)) for w in re.findall(r"\d+|[a-z]+", str(text).lower())} - {None}
+
+# The tools whose argument must use numbers the request says (the app's Tool.grounded), else they ask first.
+GROUNDED = {"set_alarm": "time", "set_timer": "duration"}
+
+def grounded(call, request):
+    key = GROUNDED.get(call["name"])
+    value = (call.get("arguments") or {}).get(key) if key else None
+    if value is None: return True
+    said = said_numbers(request)
+    return all(n == 0 or n in said or (13 <= n <= 23 and n - 12 in said) for n in said_numbers(value))
+
 def duration(text):
-    """'2 hours', '1 hour 15 minutes', '90 seconds', '45 min', '1:30' -> seconds."""
-    t = str(text).strip().lower().replace("and", " ").replace("half an hour", "30 minutes")
+    """'2 hours', '1 hour 15 minutes', '90 seconds', '45 min', '1:30', 'one minute' -> seconds."""
+    t = str(text).strip().lower().replace(" and ", " ").replace("half an hour", "30 minutes")
+    t = re.sub(r"\b(" + "|".join(WORDS) + r")\b", lambda m: str(WORDS[m[1]]), t)
     m = re.fullmatch(r"(\d+):(\d{2})", t)
     if m: return int(m[1]) * 60 + int(m[2])
     parts = re.findall(r"(\d+(?:\.\d+)?)\s*([a-z]+)", t)
@@ -46,11 +66,16 @@ def cued(tool, request, cues):
     pattern = cues.get(tool)
     return pattern is None or re.search(pattern, request, re.IGNORECASE) is not None
 
+def suggest(right, wrong):
+    """The lowest bar that holds back every wrong call that would otherwise run, and how many right ones still run."""
+    bar = max([0.3] + [c + 0.01 for c in wrong])
+    return round(bar, 2), sum(c >= bar for c in right)
+
 def main():
     tools_json = open(sys.argv[1]).read()
+    bars = json.load(open(sys.argv[3])) if len(sys.argv) > 3 else {}
     cues = json.load(open(sys.argv[4])) if len(sys.argv) > 4 else {}
     loaded = {t["name"] for t in json.loads(tools_json)}
-    run_at = float(sys.argv[3]) if len(sys.argv) > 3 else 0.4
     expectations = []
     for line in open(sys.argv[2]):
         line = line.strip()
@@ -64,10 +89,16 @@ def main():
 
     right = wrong_args = calls = runs = wrong_runs = 0
     confidence_sum = 0.0
+    per_tool = {t: ([], []) for t in sorted(loaded)}  # tool -> (confidence of right calls, of wrong calls that skip the cues)
     for request, tool, want in expectations:
         reply = json.loads(answers[request])
         got = reply.get("function_calls") or []
         c = reply.get("confidence") or 0.0
+        # The app's rule: a reply runs when every tool it calls is mentioned (its cues) and the
+        # confidence clears the highest bar among them.
+        bar = max((bars.get(g["name"], 0.7) for g in got), default=0.7)
+        all_cued = all(cued(g["name"], request, cues) and grounded(g, request) for g in got)
+        runs_now = bool(got) and all_cued and c >= bar
         if tool == "none":
             ok = not got
             mark = "OK  " if ok else "MISS"
@@ -75,21 +106,28 @@ def main():
             calls += 1
             match = next((g for g in got if g["name"] == tool), None)
             args = arguments(match) if match else {}
-            args_ok = match is not None and all(args.get(k) == v for k, v in want.items())
-            ok = args_ok
-            if match and not args_ok: wrong_args += 1
+            ok = match is not None and all(args.get(k) == v for k, v in want.items())
+            if match and not ok: wrong_args += 1
             if ok:
                 confidence_sum += c
-                if c >= run_at: runs += 1
-            mark = ("OK  " if c >= run_at else "ok? ") if ok else ("ARGS" if match else "MISS")
+                runs += runs_now
+                per_tool[tool][0].append(c)
+            mark = ("OK  " if runs_now else "ok? ") if ok else ("ARGS" if match else "MISS")
         right += ok
-        # With cues, a call whose tool isn't mentioned asks first, whatever its confidence.
-        would_run = got and c >= 0.3 and all(cued(g["name"], request, cues) for g in got)
-        if not ok and would_run: wrong_runs += 1
-        if ok and tool != "none" and c >= run_at and not would_run: runs -= 1  # a right call the cues held back
+        if not ok:
+            wrong_runs += runs_now
+            for g in got:
+                if g["name"] in per_tool and all_cued: per_tool[g["name"]][1].append(c)
         print(f"{mark} {c:.2f}  {tool:<14} {request:<44} {json.dumps(got)[:110]}")
     print(f"\n{right}/{len(expectations)} right (tool and arguments); wrong arguments: {wrong_args}")
     print(f"calls: mean confidence when right (misses as 0) {confidence_sum / max(calls, 1):.3f}; "
-          f"{runs} of {calls} right and >= {run_at}; wrong calls >= 0.3 (would run at the lowest bar): {wrong_runs}")
+          f"{runs} of {calls} right and run at their tool's bar; wrong calls that would run: {wrong_runs}")
+    print(f"\n{'tool':<15}{'bar':>5}  {'runs':>7}  {'suggest':>7}  right confidences / wrong ones that pass the cues and numbers")
+    for tool, (ok, bad) in per_tool.items():
+        if not ok and not bad: continue
+        bar = bars.get(tool, 0.7)
+        at, n = suggest(ok, bad)
+        print(f"{tool:<15}{bar:>5.2f}  {sum(c >= bar for c in ok):>3}/{len(ok):<3}  {at:>4.2f} {n:>2}  "
+              f"{' '.join(f'{c:.2f}' for c in sorted(ok))}  /  {' '.join(f'{c:.2f}' for c in sorted(bad)) or '-'}")
 
 main()

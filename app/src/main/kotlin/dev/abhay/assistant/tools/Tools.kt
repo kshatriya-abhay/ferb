@@ -67,6 +67,8 @@ object SetAlarm : Tool(
     icon = R.drawable.ic_alarm,
     description = "Set an alarm in the clock app, at a time of day.",
     onByDefault = true,
+    // Bars from tool-check's per-tool table (2026-10-07). Right alarms scored 0.47–0.85 with
+    // five tools, wrong ones that get past the cues and number check at most 0.24.
     defaultRunFrom = 0.4,
     examples = listOf("Wake me up at 6:45", "Alarms at 8 and 9 am"),
 ) {
@@ -100,6 +102,9 @@ object SetAlarm : Tool(
         }
     }
 
+    override fun grounded(arguments: Map<String, Any?>, request: String) =
+        arguments.text("time")?.let { SaidNumbers.grounded(it, request) } ?: true
+
     private val SHOW_ALARMS = FollowUp("Show alarms") { Tools.start(it.context, Intent(AlarmClock.ACTION_SHOW_ALARMS), "Opened the alarms") }
 
     // No Undo: Android has no request to delete another app's alarm, and ACTION_DISMISS_ALARM
@@ -116,13 +121,38 @@ object Durations {
     )
     private val PART = Regex("""(\d+(?:\.\d+)?)\s*([a-z]+)""")
 
-    /** "2 hours", "1 hour 15 minutes", "90 seconds", "45 min", "1.5 hours", "1:30" (min:sec) → seconds; null if it isn't one. */
+    /** "2 hours", "1 hour 15 minutes", "90 seconds", "45 min", "1.5 hours", "1:30" (min:sec), "one minute" → seconds; null if it isn't one. */
     fun parse(text: String): Int? {
         val t = text.trim().lowercase().replace(" and ", " ").replace("half an hour", "30 minutes")
+            .replace(SaidNumbers.WORD) { SaidNumbers.WORDS.getValue(it.value).toString() }
         Regex("""(\d+):(\d{2})""").matchEntire(t)?.let { return it.groupValues[1].toInt() * 60 + it.groupValues[2].toInt() }
         val parts = PART.findAll(t).toList()
         if (parts.isEmpty() || parts.any { it.groupValues[2] !in UNITS }) return null
         return parts.sumOf { it.groupValues[1].toDouble() * UNITS.getValue(it.groupValues[2]) }.let { Math.round(it).toInt() }
+    }
+}
+
+/**
+ * The numbers a request says, as digits or words ("six", "half" past, "quarter" to), so a call's
+ * numbers can be checked against it. Needle 3 sometimes fills a time or length from its examples:
+ * "I hate alarms" became an alarm at 6:45 at 0.63, more than most right alarms.
+ */
+object SaidNumbers {
+    val WORDS = mapOf(
+        "a" to 1, "an" to 1, "one" to 1, "two" to 2, "three" to 3, "four" to 4, "five" to 5, "six" to 6, "seven" to 7,
+        "eight" to 8, "nine" to 9, "ten" to 10, "eleven" to 11, "twelve" to 12, "fifteen" to 15, "twenty" to 20,
+        "thirty" to 30, "forty" to 40, "fifty" to 50, "sixty" to 60, "ninety" to 90,
+    )
+    private val CLOCK_WORDS = mapOf("half" to 30, "quarter" to 15, "noon" to 12, "midnight" to 12)
+    val WORD = Regex("""\b(${WORDS.keys.joinToString("|")})\b""")
+
+    fun of(text: String): Set<Int> = Regex("""\d+|[a-z]+""").findAll(text.lowercase())
+        .mapNotNull { it.value.toIntOrNull() ?: WORDS[it.value] ?: CLOCK_WORDS[it.value] }.toSet()
+
+    /** Whether every number in [argument] is one [request] says. Zeros always are, and 13–23 are when said as 1–11 (pm). */
+    fun grounded(argument: String, request: String): Boolean {
+        val said = of(request)
+        return of(argument).all { it == 0 || it in said || (it in 13..23 && it - 12 in said) }
     }
 }
 
@@ -156,6 +186,7 @@ object SetTimer : Tool(
     icon = R.drawable.ic_timer,
     description = "Start a countdown timer in the clock app.",
     onByDefault = true,
+    // Right timers 0.43–0.88; none wrong once the length's numbers must be said.
     defaultRunFrom = 0.4,
     examples = listOf("Timer for 10 minutes", "Set a 90 second timer for the eggs"),
 ) {
@@ -189,6 +220,9 @@ object SetTimer : Tool(
                 .withActions(FollowUp("Show timers") { Tools.start(it.context, Intent(AlarmClock.ACTION_SHOW_TIMERS), "Opened the timers") })
         }
     }
+
+    override fun grounded(arguments: Map<String, Any?>, request: String) =
+        arguments.text("duration")?.let { SaidNumbers.grounded(it, request) } ?: true
 
     /** "1 h 5 min", "90 s" → "1 min 30 s". */
     fun duration(seconds: Int): String = listOfNotNull(
@@ -227,6 +261,7 @@ object OpenApp : Tool(
     icon = R.drawable.ic_apps,
     description = "Open an app on this phone by its name.",
     onByDefault = true,
+    // Low: opening an app is harmless, and the cues hold back the wrong calls ("uninstall instagram" 0.83).
     defaultRunFrom = 0.3,
     examples = listOf("Open the calculator", "Launch WhatsApp"),
 ) {
@@ -259,7 +294,9 @@ object OpenSettings : Tool(
     icon = R.drawable.ic_settings,
     description = "Open a page of the phone's settings, such as Wi-Fi, Bluetooth or battery.",
     onByDefault = true,
-    defaultRunFrom = 0.3,
+    // Questions about a setting came back as calls: "what's my wifi password" 0.56, a wrong page
+    // 0.41. Right pages mostly score 0.73+.
+    defaultRunFrom = 0.6,
     examples = listOf("Open Wi-Fi settings", "Show me the battery settings"),
 ) {
     /** The page names Needle 3 can pick, and the Settings action for each. */
@@ -323,7 +360,9 @@ object Flashlight : Tool(
     icon = R.drawable.ic_flashlight,
     description = "Turn the flashlight (torch) on or off.",
     onByDefault = true,
-    defaultRunFrom = 0.3,
+    // Talk about the torch reads as "turn it on": "my flashlight is broken" 0.70, "buy a torch" 0.62.
+    // Right calls score 0.82+.
+    defaultRunFrom = 0.75,
     examples = listOf("Turn on the flashlight", "Torch off"),
 ) {
     override val cues = Regex("""\b(torch|flashlight|flash light|light|dark)\b""", RegexOption.IGNORE_CASE)
@@ -363,7 +402,9 @@ object SetVolume : Tool(
     icon = R.drawable.ic_volume,
     description = "Set the volume of media, ringtone, alarms or notifications.",
     onByDefault = false,
-    defaultRunFrom = 0.3,
+    // Right calls 0.59–0.95, none wrong; a little higher than the harmless tools, since a wrong
+    // volume can be loud.
+    defaultRunFrom = 0.5,
     examples = listOf("Set the media volume to 30 percent", "Mute the ringer"),
 ) {
     val STREAMS = linkedMapOf(
@@ -420,7 +461,8 @@ object MediaControl : Tool(
     icon = R.drawable.ic_music,
     description = "Play, pause or skip whatever music or video is playing.",
     onByDefault = false,
-    defaultRunFrom = 0.3,
+    // "resume" became pause at 0.56; right calls 0.53–0.84.
+    defaultRunFrom = 0.6,
     examples = listOf("Pause the music", "Next song"),
 ) {
     val ACTIONS = linkedMapOf(
@@ -465,7 +507,8 @@ object TakePhoto : Tool(
     icon = R.drawable.ic_photo_camera,
     description = "Open the camera app, ready to take a photo.",
     onByDefault = false,
-    defaultRunFrom = 0.3,
+    // "which camera is better" opened it at 0.47; right calls 0.52+.
+    defaultRunFrom = 0.5,
     examples = listOf("Take a picture", "Open the camera"),
 ) {
     // No photo/video choice: on the desktop check, Needle 3 picked the mode backwards about half the

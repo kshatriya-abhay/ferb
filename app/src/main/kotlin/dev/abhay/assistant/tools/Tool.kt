@@ -65,6 +65,12 @@ abstract class Tool(
      */
     open val cues: Regex? = null
 
+    /**
+     * Whether [arguments] come from [request], e.g. an alarm's time is one the request says. A call
+     * that isn't asks first, whatever its confidence. True when the tool doesn't check.
+     */
+    open fun grounded(arguments: Map<String, Any?>, request: String): Boolean = true
+
     /** The JSON schema object Needle 3 gets: {"name", "description", "parameters"}. */
     abstract val schema: String
 

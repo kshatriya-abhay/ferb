@@ -35,7 +35,7 @@ class ToolSettings(context: Context) {
     fun save(configs: Map<String, ToolConfig>) {
         val complete = Tools.all.associate { it.name to (configs[it.name] ?: _configs.value.getValue(it.name)) }
         prefs.edit().apply {
-            complete.forEach { (name, config) -> putString(KEY_PREFIX + name, config.toJson()) }
+            Tools.all.forEach { tool -> putString(KEY_PREFIX + tool.name, complete.getValue(tool.name).toJson(tool)) }
             remove(LEGACY_ENABLED)
         }.apply()
         _configs.value = complete

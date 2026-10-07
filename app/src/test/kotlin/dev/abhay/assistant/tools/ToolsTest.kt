@@ -48,9 +48,10 @@ class ToolsTest {
     @Test
     fun durationsAsTheModelWritesThem() {
         val cases = mapOf("10 minutes" to 600, "90 seconds" to 90, "2 hours" to 7200, "45 min" to 2700, "1 hour 15 minutes" to 4500,
-            "1 hour and 30 minutes" to 5400, "1.5 hours" to 5400, "half an hour" to 1800, "5 mins" to 300, "1:30" to 90, "30 secs" to 30)
+            "1 hour and 30 minutes" to 5400, "1.5 hours" to 5400, "half an hour" to 1800, "5 mins" to 300, "1:30" to 90, "30 secs" to 30,
+            "one minute" to 60, "ten minutes" to 600, "an hour" to 3600)
         cases.forEach { (text, seconds) -> assertThat(Durations.parse(text)).isEqualTo(seconds) }
-        listOf("soon", "10", "ten minutes", "").forEach { assertThat(Durations.parse(it)).isNull() }
+        listOf("soon", "10", "").forEach { assertThat(Durations.parse(it)).isNull() }
     }
 
     @Test
@@ -104,9 +105,18 @@ class ToolsTest {
     }
 
     @Test
-    fun harmlessToolsRunFromALowerBar() {
-        // Undone in a tap: from 0.3. Alarms and timers create something: from 0.4. Nothing above Cactus's 0.7.
-        assertThat(Tools.all.filter { it.defaultRunFrom == 0.4 }.map { it.name }).containsExactly("set_alarm", "set_timer")
-        Tools.all.forEach { assertThat(it.defaultRunFrom).isIn(com.google.common.collect.Range.closed(0.3, 0.7)) }
+    fun barsStayWithinTheSlidersUsefulRange() {
+        // Set per tool from tool-check's table; none needs more than 0.75 to hold back its wrong calls.
+        Tools.all.forEach { assertThat(it.defaultRunFrom).isIn(com.google.common.collect.Range.closed(0.3, 0.75)) }
+    }
+
+    @Test
+    fun numbersCountWhenTheRequestSaysThem() {
+        assertThat(SaidNumbers.of("quarter past eight, or noon")).containsExactly(15, 8, 12)
+        assertThat(SaidNumbers.grounded("90 seconds", "a 90 second timer")).isTrue()
+        assertThat(SaidNumbers.grounded("19:00", "alarm at 7 pm")).isTrue()
+        assertThat(SaidNumbers.grounded("08:00", "alarm at 8")).isTrue()
+        assertThat(SaidNumbers.grounded("90 seconds", "how long should I boil an egg")).isFalse()
+        assertThat(SaidNumbers.grounded("6:45", "set an alarm")).isFalse()
     }
 }
