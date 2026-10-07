@@ -26,7 +26,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
@@ -74,14 +73,12 @@ import java.util.Locale
 import org.json.JSONObject
 import kotlin.math.roundToInt
 
-/** Above this many tools turned on, Needle 3 only considers the best matches for each request. */
-private const val MAX_ALWAYS_SEEN = 5
-
 /** The settings home: the tools (a page of their own), and the model, which runs on the phone. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onBack: () -> Unit) {
     val saved by settings.saved.collectAsStateWithLifecycle()
+    val checkAll by settings.checkAllAsFallback.collectAsStateWithLifecycle()
     BackHandler(onBack = onBack)
     Scaffold(topBar = { TopBar("Settings", onBack = onBack) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
@@ -91,6 +88,12 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onBack:
                 supportingContent = { Text("${ToolSettings.enabledNames(saved).size} of ${Tools.all.size} on") },
                 trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
             ) { Text("Tools") }
+            ListItem(
+                onClick = { settings.setCheckAllAsFallback(!checkAll) },
+                leadingContent = { IconBadge(R.drawable.ic_search) },
+                supportingContent = { Text("When no tool's words are in a request. Slower with many tools on.") },
+                trailingContent = { Switch(checked = checkAll, onCheckedChange = null) },
+            ) { Text("Check all tools as a fallback") }
             ListItem(
                 leadingContent = { IconBadge(R.drawable.ic_lock) },
                 supportingContent = { Text("Needle 3 runs on this phone. The app has no internet access.") },
@@ -119,9 +122,6 @@ fun ToolsScreen(settings: SettingsViewModel, onOpenTool: (String) -> Unit, onBac
         bottomBar = { SaveBar(settings) },
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(vertical = 8.dp)) {
-            if (on > MAX_ALWAYS_SEEN) {
-                item { Hint("Needle 3 weighs the $MAX_ALWAYS_SEEN best-matching tools per request. With $on on, some requests may reach the wrong one.") }
-            }
             items(Tools.all, key = { it.name }) { tool ->
                 val config = draft.getValue(tool.name)
                 ToolRow(tool, config, onOpen = { onOpenTool(tool.name) }, onToggle = { enabled -> settings.update(tool.name) { it.copy(enabled = enabled) } })
@@ -235,19 +235,6 @@ private fun Header(tool: Tool) {
         horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         IconBadge(tool.icon, size = 56)
         Text(tool.description, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@Composable
-private fun Hint(text: String) {
-    Card(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
-    ) {
-        Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onTertiaryContainer)
-            Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onTertiaryContainer)
-        }
     }
 }
 

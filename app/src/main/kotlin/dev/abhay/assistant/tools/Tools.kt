@@ -365,7 +365,7 @@ object Flashlight : Tool(
     defaultRunFrom = 0.75,
     examples = listOf("Turn on the flashlight", "Torch off"),
 ) {
-    override val cues = Regex("""\b(torch|flashlight|flash light|light|dark)\b""", RegexOption.IGNORE_CASE)
+    override val cues = Regex("""\b(torch|flashlight|flash light|lights?|dark)\b""", RegexOption.IGNORE_CASE)
 
     override val schema = """
         {"name": "set_flashlight",
@@ -461,8 +461,8 @@ object MediaControl : Tool(
     icon = R.drawable.ic_music,
     description = "Play, pause or skip whatever music or video is playing.",
     onByDefault = false,
-    // "resume" became pause at 0.56; right calls 0.53–0.84.
-    defaultRunFrom = 0.6,
+    // "resume" became pause at 0.56, and at 0.66 when routed to it alone; right calls 0.69+ when routed.
+    defaultRunFrom = 0.7,
     examples = listOf("Pause the music", "Next song"),
 ) {
     val ACTIONS = linkedMapOf(
@@ -507,8 +507,8 @@ object TakePhoto : Tool(
     icon = R.drawable.ic_photo_camera,
     description = "Open the camera app, ready to take a photo.",
     onByDefault = false,
-    // "which camera is better" opened it at 0.47; right calls 0.52+.
-    defaultRunFrom = 0.5,
+    // "which camera is better" opened it at 0.47, and at 0.64 when routed; right calls 0.80+ when routed.
+    defaultRunFrom = 0.7,
     examples = listOf("Take a picture", "Open the camera"),
 ) {
     // No photo/video choice: on the desktop check, Needle 3 picked the mode backwards about half the

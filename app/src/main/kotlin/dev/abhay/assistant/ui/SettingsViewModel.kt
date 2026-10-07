@@ -11,12 +11,15 @@ import kotlinx.coroutines.flow.update
 
 /**
  * The tool settings being edited: one draft across the Tools list and every tool's page, saved
- * together. Saving a different set of tools makes the assistant give Needle 3 the new set
- * ([AssistantViewModel] watches it); other changes need no reload.
+ * together. Nothing needs reloading: each request gives Needle 3 the tools it mentions, from the
+ * saved set ([dev.abhay.assistant.tools.ToolRouter]).
  */
 class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     private val settings = (app as AssistantApp).toolSettings
     val saved: StateFlow<Map<String, ToolConfig>> = settings.configs
+
+    val checkAllAsFallback: StateFlow<Boolean> = settings.checkAllAsFallback
+    fun setCheckAllAsFallback(on: Boolean) = settings.setCheckAllAsFallback(on)
 
     private val _draft = MutableStateFlow(saved.value)
     val draft: StateFlow<Map<String, ToolConfig>> = _draft.asStateFlow()

@@ -7,13 +7,14 @@ Phase 1 is a normal app with a text box. Voice and becoming the phone's default 
 ## What it does
 
 - **A chat:** your requests on the right, the assistant's replies on the left, newest at the bottom; scroll up for the history. A request shows at once, with a "Thinking…" bubble until Needle 3 answers.
-- **Requests to tool calls:** Needle 3 gets the tools that are turned on (as JSON schemas) and returns the calls a request needs, with a confidence. The app checks every argument itself, then:
+- **Requests to tool calls:** each request goes to Needle 3 with the tools it mentions (see *Routing* below), as JSON schemas, and Needle 3 returns the calls it needs, with a confidence. The app checks every argument itself, then:
   - runs the calls straight away when the confidence clears the bar for the tools called;
   - asks first ("Do it" / "Skip") below that;
   - says so when no tool fits.
-- **A default bar per tool**, by how easy the action is to undo (adjustable per tool): 0.3 for harmless ones a tap reverses (flashlight, volume, media, opening an app, settings page or camera), 0.4 for alarms and timers (they create something, shown on the card). Cactus's general advice is 0.7; Needle 3's confidence varies a lot with phrasing (the same alarm request scores 0.3–0.9), so a single 0.7 bar asked about most good requests.
+- **A default bar per tool**, set from the desktop check (adjustable per tool): just above the confidence of the tool's wrong calls, while letting most right ones run. Opening an app and the alarm list 0.3, alarms and timers 0.4, volume 0.5, settings pages 0.6, media and camera 0.7, flashlight 0.75 (talk about the torch, "my flashlight is broken", reads as "turn it on" at up to 0.70). Cactus's general advice is 0.7 for everything; Needle 3's confidence varies a lot with phrasing (the same alarm request scores 0.3–0.9), so a single 0.7 bar asked about most good requests.
 - **Buttons on results:** "Turn off" / "Turn on" for the flashlight, "Undo" / "Redo" for volume, the opposite media action, "Show alarms" and "Show timers" (to change or delete them in the clock app), "Open again" for apps and pages.
-- **Cue words per tool:** a call to a tool the request doesn't mention ("mute the ringer" → flashlight, with the volume tool off) asks first, whatever its confidence. With that safety net, no wrong call runs without asking on the desktop check.
+- **Cue words per tool** pick the tools a request goes to; a call to a tool the request doesn't mention (possible with the fallback) asks first, whatever its confidence.
+- **Numbers must come from the request:** an alarm time or timer length with a number the request doesn't say asks first ("I hate alarms" became an alarm at 6:45, the tool's example, at 0.63). Number words count ("half past six").
 - **Calls that open another app run one at a time**, each after the assistant is back in front: two alarm intents 14 ms apart set only the first on HyperOS.
 - **Every tool is configurable:** Settings → Tools lists them; each row's switch turns the tool on or off, and the rest of the row opens its page:
   - on or off;
@@ -22,7 +23,7 @@ Phase 1 is a normal app with a text box. Voice and becoming the phone's default 
   - the tool's own options, e.g. **which clock** alarms and timers go to (the phone's clock app for now; more providers later);
   - examples, and the schema Needle 3 gets.
   
-  Changes across the Tools list and the tools' pages are one draft with one **Save**; leaving with unsaved changes asks. Saving a different set of tools re-runs `needle_init` on the loaded model, which replaces the tools without reloading it (checked on the desktop; answers match a fresh start); other changes need no reload.
+  Changes across the Tools list and the tools' pages are one draft with one **Save**; leaving with unsaved changes asks. Nothing needs reloading after a save: each request picks its tools from the saved set.
 - **Tools** (all offline, none needs the assistant role):
 
 | Tool | On by default | How |
@@ -37,7 +38,13 @@ Phase 1 is a normal app with a text box. Voice and becoming the phone's default 
 | Media controls (`control_media`) | | Media key events |
 | Camera (`open_camera`) | | `MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA` |
 
-Five tools are on by default because Needle 3 considers every tool when there are five or fewer; with more, it considers the five that best match each request.
+### Routing
+
+Needle 3 weighs every tool when it has five or fewer; with more, only the five that best match a request, so a right tool can be left out. So the app doesn't give it every tool turned on: each request gets only the tools whose cue words it contains (`ToolRouter`), and `needle_init` re-runs on the loaded model when that set changes (about 0.1 s on the phone; the model isn't reloaded). A request that mentions no tool isn't sent to the model at all. The details sheet shows which tools were checked.
+
+On the desktop check with all nine tools, routing kept as many answers right as giving Needle 3 every tool (111 vs 110 of 132), and raised the confidence of right calls (opening apps: 0.38–0.95 → 0.64–0.96). The confident wrong calls left are harmless: "I hate alarms" shows the alarm list, "what apps do I have" opens the apps settings page.
+
+**Settings → Check all tools as a fallback** (off by default): when the mentioned tools give no call, or none is mentioned, the request is also tried against every tool turned on, five at a time, keeping the most confident answer. One more engine run per five tools, so it's slower with many tools on; on the desktop check it added one right call that runs, and made unrelated requests reach a tool (those ask first).
 
 ## How it works
 
@@ -53,7 +60,7 @@ text box ─► AssistantViewModel ─► AssistantEngine ─► Needle.kt ─JN
 
 ## Tuning the tools: `mise run tool-check`
 
-Needle 3's choices and confidence depend heavily on the tool descriptions. `mise run tool-check [all|default]` runs Cactus's Linux build of the same engine on the desktop, with the app's own tool JSON and cue words (exported by a unit test), against `tool-check/requests.txt`: 65 requests with the right tool **and arguments** (scored by `tool-check/score.py`, which reads times and durations the way the app does). With the default tools (2026-10-07): 61 of 65 right, no wrong arguments, mean confidence 0.78 on right calls, 49 of 52 calls clear their bar, and no wrong call would run without asking. Lessons from it are in the comments in `Tools.kt`:
+Needle 3's choices and confidence depend heavily on the tool descriptions. `mise run tool-check [all|default] [routed|fallback|unrouted]` runs Cactus's Linux build of the same engine on the desktop, with the app's own tool JSON, cue words and bars (exported by a unit test), against `tool-check/requests.txt`: 132 requests with the right tool **and arguments**, including near misses that talk about a tool without asking for it (scored by `tool-check/score.py`, which reads times and durations the way the app does). `routed` (the default) routes each request as the app does (`tool-check/route.py`); `fallback` adds the fallback; `unrouted` gives every tool to every request. The scorer ends with a table per tool: the confidence of its right calls, of its wrong calls that get past the checks, and the bar that would hold those back. With the default tools, routed (2026-10-07): 114 of 132 right, 68 of 85 calls run without asking, 2 wrong calls would (both open a harmless settings page). Lessons from it are in the comments in `Tools.kt`:
 - a timer's length as text ("2 hours", parsed by the app) beats a number of seconds, which the model got confidently wrong ("2 hours" → 120 s at 0.82), and separate fields, which turned "10 minutes" into 10 h 10 min;
 - an alarm time as text ("8:00 AM", parsed by the app) beats hour and minute fields, which turned "alarms at 8 and 9 am" into one alarm at 08:09;
 - "wi-fi" rather than "wifi" in the enum;

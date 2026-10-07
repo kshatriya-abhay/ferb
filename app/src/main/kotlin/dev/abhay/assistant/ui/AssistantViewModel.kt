@@ -15,6 +15,8 @@ import dev.abhay.assistant.tools.FollowUp
 import dev.abhay.assistant.tools.FollowUpEnv
 import dev.abhay.assistant.tools.Outcome
 import dev.abhay.assistant.tools.Prepared
+import dev.abhay.assistant.tools.Tool
+import dev.abhay.assistant.tools.ToolRouter
 import dev.abhay.assistant.tools.Tools
 import dev.abhay.assistant.tools.Verdict
 import kotlinx.coroutines.CancellationException
@@ -62,6 +64,10 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         val unmentioned: Boolean,
         /** Set when a call has a value the request doesn't say (see [dev.abhay.assistant.tools.Tool.grounded]). */
         val ungrounded: Boolean,
+        /** The tools the request mentioned, which Needle 3 was given ([ToolRouter]); empty: none, so it wasn't asked. */
+        val routed: List<String>,
+        /** Set when every tool was also tried, because the mentioned ones gave no call. */
+        val checkedAll: Boolean,
         val calls: List<CallState>,
         val wallMs: Long,
     )
@@ -85,13 +91,10 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
     private var nextId = 0L
 
     init {
-        // Loads the model on first use in this process, then gives it the tools turned on, again
-        // whenever that set changes (saved on the Tools screens); other settings need no reload.
+        // Loads the model on first use in this process. Each request then gets the tools it
+        // mentions (ToolRouter), so saving other tools needs no reload here.
         viewModelScope.launch {
-            enabledTools.collect { names ->
-                val ready = engine.value as? AssistantEngine.State.Ready
-                if (ready == null || ready.tools != names) applyTools(names)
-            }
+            enabledTools.collect { names -> if (engine.value !is AssistantEngine.State.Ready) applyTools(names) }
         }
     }
 
@@ -113,11 +116,22 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             try {
                 val started = SystemClock.elapsedRealtime()
-                val reply = NeedleReply.parse(assistant.engine.complete(request))
+                val enabled = enabledTools.value.mapNotNull(Tools::byName)
+                val routed = ToolRouter.route(request, enabled)
+                var reply = if (routed.isEmpty()) NO_TOOL_MENTIONED else ask(request, routed)
+                val checkAll = reply.calls.isEmpty() && reply.error == null && assistant.toolSettings.checkAllAsFallback.value
+                if (checkAll) {
+                    // Every tool, five at a time; the most confident answer with a call wins.
+                    ToolRouter.groups(enabled).filter { it != routed }.forEach { group ->
+                        val answer = ask(request, group)
+                        if (answer.calls.isNotEmpty() && (answer.confidence ?: 0.0) > (reply.confidence.takeIf { reply.calls.isNotEmpty() } ?: -1.0)) reply = answer
+                    }
+                }
                 val wallMs = SystemClock.elapsedRealtime() - started
                 val verdict = Verdict.of(reply, assistant.toolSettings.configs.value, request)
                 val calls = reply.calls.map { call -> CallState(call, prepare(call), Status.Waiting) }
-                val exchange = Exchange(nextId++, request, reply, verdict.decision, verdict.runAt, verdict.alwaysConfirm, verdict.unmentioned, verdict.ungrounded, calls, wallMs)
+                val exchange = Exchange(nextId++, request, reply, verdict.decision, verdict.runAt, verdict.alwaysConfirm, verdict.unmentioned, verdict.ungrounded,
+                    routed.map { it.name }, checkAll, calls, wallMs)
                 _state.update { it.copy(history = it.history + exchange, pending = null) }
                 if (verdict.decision == Decision.Run) run(exchange.id)
             } catch (e: CancellationException) {
@@ -129,6 +143,9 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
+
+    private suspend fun ask(request: String, tools: List<Tool>): NeedleReply =
+        NeedleReply.parse(assistant.engine.complete(request, tools.map { it.name }, Tools.json(tools)))
 
     /** Checks a call before anything runs: the tool must be turned on, and its arguments valid. */
     private fun prepare(call: ToolCall): Prepared {
@@ -203,4 +220,12 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun updateExchange(id: Long, change: (Exchange) -> Exchange) =
         _state.update { s -> s.copy(history = s.history.map { if (it.id == id) change(it) else it }) }
+
+    private companion object {
+        /** The answer when a request mentions no tool turned on: Needle 3 isn't asked. */
+        val NO_TOOL_MENTIONED = NeedleReply(
+            calls = emptyList(), suppressed = emptyList(), reasoning = "", confidence = null, ungrounded = emptyList(),
+            negation = false, prefillTps = 0.0, decodeTps = 0.0, peakRamMb = 0.0, error = null,
+        )
+    }
 }

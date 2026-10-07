@@ -15,7 +15,8 @@ import java.util.Locale
 /**
  * Needle 3, bundled in the APK, loaded once per process and kept loaded. Its tools can be swapped
  * at any time with [configure], which re-runs `needle_init` on the loaded model (checked on the
- * desktop: a second init replaces the tool set, and answers match a fresh start).
+ * desktop: a second init replaces the tool set, and answers match a fresh start); [complete] does
+ * so when a request is routed to other tools.
  */
 class AssistantEngine(private val context: Context) {
     sealed interface State {
@@ -54,9 +55,16 @@ class AssistantEngine(private val context: Context) {
         }
     }
 
-    /** Needle 3's JSON for [request]. Re-initialises first if the date has changed since, so "today" stays right. */
-    suspend fun complete(request: String): String {
-        if (factsDate != LocalDate.now()) lastTools?.let { (names, json) -> configure(names, json) }
+    /**
+     * Needle 3's JSON for [request], with [names] as its tools ([toolsJson]). Re-initialises first
+     * when they aren't the tools it has (requests are routed to different tools), or the date has
+     * changed since, so "today" stays right.
+     */
+    suspend fun complete(request: String, names: List<String>, toolsJson: String): String {
+        if (lastTools?.first != names || factsDate != LocalDate.now()) {
+            configure(names, toolsJson)
+            (_state.value as? State.Failed)?.let { throw IllegalStateException(it.message) }
+        }
         return lock.withLock { Needle.complete(request) }
     }
 

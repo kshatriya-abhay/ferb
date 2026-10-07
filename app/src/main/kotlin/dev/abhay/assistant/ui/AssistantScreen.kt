@@ -387,6 +387,13 @@ private fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () ->
                     }
                 }
             }
+            val titles = exchange.routed.mapNotNull { Tools.byName(it)?.title }
+            Text(
+                (if (titles.isEmpty()) "No tool's words in this request" else "Checked: ${titles.joinToString()}") +
+                    if (exchange.checkedAll) ", then every tool" else "",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             if (reply.reasoning.isNotBlank()) {
                 Text(reply.reasoning, style = MaterialTheme.typography.bodyMedium, fontStyle = FontStyle.Italic,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)

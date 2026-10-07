@@ -20,6 +20,20 @@ class ToolSettings(context: Context) {
     /** Names of the tools turned on, in [Tools.all] order. */
     val enabled: StateFlow<List<String>> = _enabled.asStateFlow()
 
+    private val _checkAllAsFallback = MutableStateFlow(prefs.getBoolean(KEY_CHECK_ALL, false))
+    /**
+     * Whether a request no mentioned tool answers is also tried against every tool turned on (see
+     * [ToolRouter.groups]). Off by default: on tool-check it added one right call that runs, and
+     * made unrelated requests reach a tool (the calls ask first, since they aren't mentioned).
+     */
+    val checkAllAsFallback: StateFlow<Boolean> = _checkAllAsFallback.asStateFlow()
+
+    /** Saved at once: it's on the settings home, apart from the tools' draft. */
+    fun setCheckAllAsFallback(on: Boolean) {
+        prefs.edit().putBoolean(KEY_CHECK_ALL, on).apply()
+        _checkAllAsFallback.value = on
+    }
+
     private fun read(): Map<String, ToolConfig> {
         val legacyEnabled = prefs.getStringSet(LEGACY_ENABLED, null)
         return Tools.all.associate { tool ->
@@ -44,6 +58,7 @@ class ToolSettings(context: Context) {
 
     companion object {
         private const val KEY_PREFIX = "tool."
+        private const val KEY_CHECK_ALL = "check_all_as_fallback"
         /** Phase 1 kept only a set of the tools turned on. */
         private const val LEGACY_ENABLED = "enabled"
 
