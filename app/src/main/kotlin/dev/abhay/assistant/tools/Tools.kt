@@ -1,6 +1,5 @@
 package dev.abhay.assistant.tools
 
-import android.app.AlarmManager
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -13,11 +12,8 @@ import android.provider.Settings
 import android.view.KeyEvent
 import dev.abhay.assistant.tools.Tools.again
 import dev.abhay.assistant.tools.Tools.withActions
-import java.time.Instant
-import java.time.ZoneId
 import java.util.Locale
 import kotlin.math.roundToInt
-import kotlinx.coroutines.delay
 
 /**
  * The assistant's tools. Each is one narrow action, with bounds and enums in its schema and formats
@@ -85,42 +81,15 @@ object SetAlarm : Tool(
                 .putExtra(AlarmClock.EXTRA_HOUR, hour)
                 .putExtra(AlarmClock.EXTRA_MINUTES, minute)
                 .putExtra(AlarmClock.EXTRA_SKIP_UI, true), "Alarm set for $time")
-                .withActions(undo(hour, minute, time), SHOW_ALARMS)
+                .withActions(SHOW_ALARMS)
         }
     }
 
     private val SHOW_ALARMS = FollowUp("Show alarms") { Tools.start(it.context, Intent(AlarmClock.ACTION_SHOW_ALARMS), "Opened the alarms") }
 
-    /**
-     * Undo: asks the clock app to dismiss the alarm at that time (`ACTION_DISMISS_ALARM`, searching
-     * by time). Android has no request to delete another app's alarm; clock apps that support this
-     * one switch the alarm off. Whether it worked is checked afterwards with the phone's next alarm
-     * clock: if that was this alarm before and isn't after, it's off. Otherwise the app can't tell.
-     */
-    private fun undo(hour: Int, minute: Int, time: String) = FollowUp("Undo") { env ->
-        val wasNext = nextAlarmIs(env.context, hour, minute)
-        val sent = Tools.start(env.context, Intent(AlarmClock.ACTION_DISMISS_ALARM)
-            .putExtra(AlarmClock.EXTRA_ALARM_SEARCH_MODE, AlarmClock.ALARM_SEARCH_MODE_TIME)
-            .putExtra(AlarmClock.EXTRA_HOUR, hour)
-            .putExtra(AlarmClock.EXTRA_MINUTES, minute)
-            .putExtra(AlarmClock.EXTRA_IS_PM, false)
-            .putExtra(AlarmClock.EXTRA_SKIP_UI, true), "")
-        if (sent is Outcome.Failed) return@FollowUp Outcome.Done("The clock app can't turn alarms off for other apps", listOf(SHOW_ALARMS))
-        env.awaitBack()
-        delay(300) // the clock reschedules the next alarm just after its screen goes
-        when {
-            wasNext && !nextAlarmIs(env.context, hour, minute) -> Outcome.Done("Alarm for $time turned off", listOf(SHOW_ALARMS))
-            wasNext -> Outcome.Done("The clock app didn't turn off the $time alarm", listOf(SHOW_ALARMS))
-            else -> Outcome.Done("Asked the clock app to turn off the $time alarm (it can't be checked)", listOf(SHOW_ALARMS))
-        }
-    }
-
-    /** Whether the phone's next alarm clock (from any app) rings at [hour]:[minute]. */
-    private fun nextAlarmIs(context: Context, hour: Int, minute: Int): Boolean {
-        val next = context.getSystemService(AlarmManager::class.java).nextAlarmClock ?: return false
-        val at = Instant.ofEpochMilli(next.triggerTime).atZone(ZoneId.systemDefault())
-        return at.hour == hour && at.minute == minute
-    }
+    // No Undo: Android has no request to delete another app's alarm, and ACTION_DISMISS_ALARM
+    // (searching by time), which switches alarms off in clock apps that support it, did nothing in
+    // HyperOS's clock (2026-10-07). "Show alarms" opens the clock's list, to delete it there.
 }
 
 /** A spoken or written time of day as hour (0–23) and minute. */
