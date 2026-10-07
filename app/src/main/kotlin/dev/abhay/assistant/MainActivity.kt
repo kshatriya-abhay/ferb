@@ -46,7 +46,11 @@ class MainActivity : ComponentActivity() {
                     "assistant" -> AssistantScreen(viewModel, onOpenSettings = { open("settings") })
                     "settings" -> SettingsScreen(settings, onOpenTools = { open("tools") }, onBack = back)
                     "tools" -> ToolsScreen(settings, onOpenTool = { open("tool:$it") }, onBack = back)
-                    else -> ToolConfigScreen(settings, screen.removePrefix("tool:"), onBack = back)
+                    // "Try it" on a tool's page: back to the chat, and send the example.
+                    else -> ToolConfigScreen(settings, screen.removePrefix("tool:"), onTry = { example ->
+                        stack = listOf("assistant")
+                        viewModel.send(example)
+                    }, onBack = back)
                 }
             }
         }

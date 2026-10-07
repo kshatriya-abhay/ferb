@@ -27,6 +27,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -35,6 +37,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
@@ -68,6 +71,7 @@ import dev.abhay.assistant.tools.ToolOption
 import dev.abhay.assistant.tools.ToolSettings
 import dev.abhay.assistant.tools.Tools
 import java.util.Locale
+import org.json.JSONObject
 import kotlin.math.roundToInt
 
 /** Above this many tools turned on, Needle 3 only considers the best matches for each request. */
@@ -156,7 +160,7 @@ private fun policy(config: ToolConfig) = when {
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ToolConfigScreen(settings: SettingsViewModel, name: String, onBack: () -> Unit) {
+fun ToolConfigScreen(settings: SettingsViewModel, name: String, onTry: (String) -> Unit, onBack: () -> Unit) {
     val tool = Tools.byName(name)
     if (tool == null) {
         // A tool a newer version removed: go back, from an effect rather than mid-composition.
@@ -164,6 +168,7 @@ fun ToolConfigScreen(settings: SettingsViewModel, name: String, onBack: () -> Un
         return
     }
     val draft by settings.draft.collectAsStateWithLifecycle()
+    val saved by settings.saved.collectAsStateWithLifecycle()
     val config = draft.getValue(name)
     val default = ToolConfig.defaults(tool)
     fun change(change: (ToolConfig) -> ToolConfig) = settings.update(name, change)
@@ -187,9 +192,18 @@ fun ToolConfigScreen(settings: SettingsViewModel, name: String, onBack: () -> Un
                 }
             }
 
-            SectionTitle("Try saying")
+            SectionTitle("Try it")
+            // Sends the example from the chat; only once the tool is on and saved, so it can answer.
+            val usable = saved.getValue(name).enabled
             FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                tool.examples.forEach { SuggestionChip(onClick = {}, enabled = false, label = { Text(it) }) }
+                tool.examples.forEach { example ->
+                    SuggestionChip(
+                        onClick = { onTry(example) },
+                        enabled = usable,
+                        label = { Text(example) },
+                        icon = { Icon(painterResource(tool.icon), contentDescription = null, Modifier.size(18.dp)) },
+                    )
+                }
             }
             Schema(tool)
         }
@@ -243,12 +257,14 @@ private fun SectionTitle(text: String) {
         style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
 }
 
-/** A row that toggles as a whole; the switch only shows the state. */
+/**
+ * A row that toggles as a whole; the switch only shows the state. A plain clickable row: the
+ * checkable ListItem fills checked rows with a tint, which read as a highlight, not a setting.
+ */
 @Composable
 private fun SwitchRow(title: String, checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
     ListItem(
-        checked = checked,
-        onCheckedChange = onChange,
+        onClick = { onChange(!checked) },
         enabled = enabled,
         trailingContent = { Switch(checked = checked, onCheckedChange = null, enabled = enabled) },
     ) { Text(title) }
@@ -257,24 +273,23 @@ private fun SwitchRow(title: String, checked: Boolean, enabled: Boolean = true, 
 /** The confidence slider, in steps of 0.05, with the value in a badge and a way back to the default. */
 @Composable
 private fun ConfidenceSetting(config: ToolConfig, default: ToolConfig, enabled: Boolean, onChange: (Double) -> Unit) {
+    val dim = if (enabled) 1f else 0.38f
     Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Run without asking from", style = MaterialTheme.typography.bodyLarge,
-                    color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("Lower means fewer questions", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = dim))
+                Text("Lower means fewer questions", style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = dim))
             }
             Surface(shape = CircleShape, color = if (enabled) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest) {
                 Text(String.format(Locale.US, "%.2f", config.runFrom), Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    style = MaterialTheme.typography.labelLarge)
+                    style = MaterialTheme.typography.labelLarge, color = LocalContentColor.current.copy(alpha = dim))
             }
         }
+        // Continuous (18 tick marks were busy); values snap to 0.05 in onValueChange.
         val slider = remember {
-            SliderState(
-                value = config.runFrom.toFloat(),
-                steps = ((ToolConfig.MAX_RUN_FROM - ToolConfig.MIN_RUN_FROM) / 0.05).roundToInt() - 1,
-                trackRange = ToolConfig.MIN_RUN_FROM.toFloat()..ToolConfig.MAX_RUN_FROM.toFloat(),
-            )
+            SliderState(value = config.runFrom.toFloat(), trackRange = ToolConfig.MIN_RUN_FROM.toFloat()..ToolConfig.MAX_RUN_FROM.toFloat())
         }
         slider.value = config.runFrom.toFloat() // follows the draft, e.g. after Reset or Discard
         Slider(state = slider, onValueChange = { onChange((it * 20).roundToInt() / 20.0) }, enabled = enabled)
@@ -291,7 +306,6 @@ private fun ChoiceSetting(option: ToolOption.Choice, chosen: String, enabled: Bo
     SectionTitle(option.title)
     option.items.forEach { item ->
         ListItem(
-            selected = item.id == chosen,
             onClick = { onChoose(item.id) },
             enabled = enabled,
             supportingContent = { Text(item.description) },
@@ -307,15 +321,20 @@ private fun ChoiceSetting(option: ToolOption.Choice, chosen: String, enabled: Bo
 @Composable
 private fun Schema(tool: Tool) {
     var shown by rememberSaveable { mutableStateOf(false) }
-    TextButton(onClick = { shown = !shown }, modifier = Modifier.padding(start = 8.dp, top = 16.dp)) {
-        Text(if (shown) "Hide what Needle 3 sees" else "Show what Needle 3 sees")
-    }
+    ListItem(
+        onClick = { shown = !shown },
+        modifier = Modifier.padding(top = 16.dp),
+        trailingContent = {
+            Icon(if (shown) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, contentDescription = null)
+        },
+    ) { Text("What Needle 3 sees") }
     AnimatedVisibility(shown, enter = expandVertically(), exit = shrinkVertically()) {
         Card(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         ) {
-            Text(tool.schema, Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+            Text(remember(tool) { JSONObject(tool.schema).toString(2) }, Modifier.padding(12.dp),
+                style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
         }
     }
 }
