@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.media.AudioManager
@@ -664,7 +665,7 @@ object MakeCall : Tool(
     name = "make_call",
     title = "Calls",
     icon = R.drawable.ic_call,
-    description = "Find a contact and open the dialer with their number. You press call.",
+    description = "Find a contact and call the one you pick. Without asking, it only opens the dialer.",
     onByDefault = false,
     // Only used if the user stops it asking. On tool-check (2026-10-08), right calls 0.57–0.93 (two
     // calls at once, 0.19); wrong ones 0.18–0.64, and "the dial on my watch is broken" called the
@@ -672,9 +673,9 @@ object MakeCall : Tool(
     defaultRunFrom = 0.7,
     // A wrong contact is embarrassing, so it shows the best three to pick from.
     confirmByDefault = true,
-    examples = listOf("Call Mum", "Dial Priya"),
+    examples = listOf("Call Kritika", "Dial Mum"),
 ) {
-    override val permissions = listOf(Manifest.permission.READ_CONTACTS)
+    override val permissions = listOf(Manifest.permission.READ_CONTACTS, Manifest.permission.CALL_PHONE)
 
     override val keywords = listOf("call", "dial", "phone", "ring")
 
@@ -693,23 +694,36 @@ object MakeCall : Tool(
 
     private val openDialer = Choice("Open dialer") { context -> Tools.start(context, dial(null), "Opened the dialer") }
 
+    /**
+     * Calls [number] at once (ACTION_CALL): for a contact the user picked, which is the
+     * confirmation. Without the call permission, the dialer with the number instead.
+     */
+    private fun call(context: Context, number: String, who: String): Outcome =
+        if (context.checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
+            Tools.start(context, Intent(Intent.ACTION_CALL, Uri.fromParts("tel", number, null)), "Calling $who")
+        } else {
+            Tools.start(context, dial(number), "Opened the dialer for $who: press call (allow calls on this tool's page to skip this)")
+        }
+
+    /** Without asking (the user turned that off), the best match only goes to the dialer: nobody is rung unpicked. */
+    private fun dialOnly(number: String, who: String): (Context) -> Outcome =
+        { context -> Tools.start(context, dial(number), "Opened the dialer for $who: press call") }
+
     override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps, contacts: ContactBook): Prepared {
         val name = arguments.text("name") ?: return Prepared.Invalid("No one to call")
         numberIn(name)?.let { number ->
-            return Prepared.Ready("Call $number", confirm = "Call", cancel = "Cancel") { context ->
-                Tools.start(context, dial(number), "Opened the dialer with $number: press call")
-            }
+            return Prepared.Ready("Call $number?", choices = listOf(Choice(number) { call(it, number, number) }), other = openDialer,
+                cancel = "Cancel", run = dialOnly(number, number))
         }
         val found = contacts.find(name) ?: return Prepared.Invalid(NO_CONTACTS)
         if (found.isEmpty()) {
             return Prepared.Ready("No contact matches \u201c$name\u201d", confirm = "Open dialer", cancel = "Cancel", run = openDialer.run)
         }
         val choices = found.map { contact ->
-            Choice(contact.name, listOfNotNull(contact.kind, contact.number).joinToString(" \u00b7 ")) { context ->
-                Tools.start(context, dial(contact.number), "Opened the dialer for ${contact.name}: press call")
-            }
+            Choice(contact.name, listOfNotNull(contact.kind, contact.number).joinToString(" \u00b7 ")) { call(it, contact.number, contact.name) }
         }
-        return Prepared.Ready("Call \u201c$name\u201d: which one?", choices = choices, other = openDialer, cancel = "Cancel", run = choices.first().run)
+        return Prepared.Ready("Call \u201c$name\u201d: which one?", choices = choices, other = openDialer, cancel = "Cancel",
+            run = dialOnly(found.first().number, found.first().name))
     }
 }
 

@@ -147,7 +147,8 @@ class ToolsTest {
         assertThat(nobody.choices).isEmpty()
         assertThat(nobody.confirm).isEqualTo("Open dialer")
         // A number is dialled as it is.
-        assertThat(summary(MakeCall.prepare(mapOf("name" to "98765 43210"), apps, contacts))).isEqualTo("Call 9876543210")
+        val number = MakeCall.prepare(mapOf("name" to "98765 43210"), apps, contacts) as Prepared.Ready
+        assertThat(number.choices.map { it.label }).containsExactly("9876543210")
         assertThat(reason(MakeCall.prepare(mapOf("name" to "Priya"), apps, ContactBook.NONE))).contains("contacts")
         assertThat(MakeCall.grounded(mapOf("name" to "Priya"), "call Priya")).isTrue()
         assertThat(MakeCall.grounded(mapOf("name" to "Rahul"), "call her")).isFalse()

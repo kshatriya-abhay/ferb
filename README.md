@@ -21,7 +21,7 @@ Phase 1 is a normal app with a text box. Voice and becoming the phone's default 
 - **Every tool is configurable:** Settings → Tools lists them; each row's switch turns the tool on or off, and the rest of the row opens its page:
   - on or off;
   - **always confirm before running** (on by default for Calls and Messages, which reach other people; turning it off warns that it's not recommended);
-  - Android permissions it needs, e.g. the contacts for Calls and Messages: asked for when the tool is turned on, with a row to allow them later;
+  - Android permissions it needs, e.g. the contacts for Calls and Messages, and calls for Calls: asked for when the tool is turned on, with a row to allow them later;
   - a **confidence slider** (0.10–1.00, steps of 0.05) from which it runs without asking, with a reset to its default;
   - its **keywords**, on a page of their own: add, edit (tap a word), delete, or reset to the tool's own words. Saved only when changed, so later changes to the defaults reach everyone else;
   - the tool's own options, e.g. **which clock** alarms and timers go to (the phone's clock app for now; more providers later);
@@ -43,7 +43,7 @@ Phase 1 is a normal app with a text box. Voice and becoming the phone's default 
 | Camera (`open_camera`) | | `MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA` |
 | Notes (`create_note`) | | Google's "create note" action (`com.google.android.gms.actions.CREATE_NOTE`, the one its "Take a note" voice command sends) with the note as `EXTRA_TEXT`; Keep and other notes apps take it (Keep opens it in a small dialog to save, it doesn't save it by itself), and with several Android asks which. A note whose words aren't mostly the request's asks first |
 | Directions (`get_directions`) | | Google Maps' directions link (`https://www.google.com/maps/dir/?api=1&destination=…`), which Maps opens as a route to check and start; Maps looks the place up, so the app stays offline. The app reads the travel mode from the request's words (walking, cycling, scooter or bike, bus or train, driving), not from Needle 3, which filled one in for every request. A destination whose words aren't mostly the request's asks first |
-| Calls (`make_call`) | | Finds the person in the contacts (`READ_CONTACTS`, read on the phone only) by spelling, by sound ("Shriyans" finds "Shreyansh") and by relation ("mum" finds "Maa"; Devanagari names are transliterated), and offers the best three, with "Open dialer" to pick by hand. The pick opens the dialer with the number (`ACTION_DIAL`, no call permission): you press call. A typed number is dialled as it is. Always asks first by default |
+| Calls (`make_call`) | | Finds the person in the contacts (`READ_CONTACTS`, read on the phone only) by spelling, by sound ("Shriyans" finds "Shreyansh") and by relation ("mum" finds "Maa"; Devanagari names are transliterated), and offers the best three, with "Open dialer" to pick by hand. Tapping one calls them at once (`ACTION_CALL`, with `CALL_PHONE`; without it, the dialer with the number). A typed number is offered the same way. Without asking (if you turn that off), it only opens the dialer with the best match (`ACTION_DIAL`), so nobody is rung without being picked. Always asks first by default |
 | Messages (`send_text`) | | Finds the best-matching contact the same way and shows them with the draft, to Proceed or Cancel. Proceed opens the messages app with the message written (`ACTION_SENDTO` with `sms_body`, no SMS permission): you press send. Always asks first by default |
 
 ### Routing

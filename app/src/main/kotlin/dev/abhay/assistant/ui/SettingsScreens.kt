@@ -424,6 +424,7 @@ private fun rememberPermissionAsk(onResult: (Boolean) -> Unit = {}): (Tool) -> U
 /** What a permission lets the tool see, in words. */
 private fun permissionTitle(permission: String) = when (permission) {
     Manifest.permission.READ_CONTACTS -> "Contacts"
+    Manifest.permission.CALL_PHONE -> "Calls"
     else -> permission.substringAfterLast('.').lowercase().replace('_', ' ')
 }
 
@@ -452,7 +453,7 @@ private fun PermissionsRow(tool: Tool) {
         supportingContent = {
             Text(
                 when {
-                    allowed -> "Allowed. Read on this phone only"
+                    allowed -> "Allowed. Used on this phone only"
                     refused -> "Not allowed. Tap to allow it in Android settings"
                     else -> "Not allowed yet. Tap to allow"
                 },

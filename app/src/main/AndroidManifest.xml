@@ -7,10 +7,11 @@
     <!-- set_alarm and set_timer: ask the clock app (a normal permission, granted at install). -->
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
 
-    <!-- make_call and send_text: find the person in the contacts, on the phone. The call and the
-         message go through the dialer and the messages app (no CALL_PHONE or SEND_SMS): the user
-         presses call or send there. -->
+    <!-- make_call and send_text: find the person in the contacts, on the phone. make_call: call
+         the contact the user picks at once; anything not picked only opens the dialer. Messages go
+         through the messages app (no SEND_SMS): the user presses send there. -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.CALL_PHONE" />
 
     <!-- open_app: see the launchable apps, to find one by name (package visibility).
          create_note: see the notes apps that take a note from another app. -->
