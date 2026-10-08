@@ -1,4 +1,4 @@
-# Maya
+# Ferb
 
 *An on-device assistant for Android.*
 

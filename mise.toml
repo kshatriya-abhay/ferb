@@ -114,8 +114,8 @@ depends = ["build"]
 run = """
 set -euo pipefail
 # Always the same name. Tailscale on Android never overwrites: a repeat send arrives as
-# Maya-<uuid>.apk, so old copies have to be deleted on the phone.
-cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/Maya.apk
-tailscale file cp app/build/outputs/apk/debug/Maya.apk "${usage_device}:"
-echo "Sent Maya.apk ($(git rev-parse --short HEAD)) to ${usage_device}"
+# Ferb-<uuid>.apk, so old copies have to be deleted on the phone.
+cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/Ferb.apk
+tailscale file cp app/build/outputs/apk/debug/Ferb.apk "${usage_device}:"
+echo "Sent Ferb.apk ($(git rev-parse --short HEAD)) to ${usage_device}"
 """
