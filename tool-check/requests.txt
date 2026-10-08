@@ -19,8 +19,8 @@ set_flashlight on=true | Turn on the flashlight
 set_flashlight on=false | Torch off
 set_flashlight on=true | I need some light
 show_alarms | Show my alarms
-set_volume stream=media percent=30 | Set the media volume to 30 percent
-set_volume stream=ring percent=0 | Mute the ringer
+set_volume percent=30 | Set the media volume to 30 percent
+none | Mute the ringer
 control_media action=pause | Pause the music
 control_media action=next | Next song
 open_camera/open_app | Take a picture
@@ -116,11 +116,11 @@ none | buy a torch
 show_alarms | what alarms do I have
 show_alarms | list my alarms
 show_alarms | open my alarms
-set_volume stream=media percent=100 | max volume
-set_volume stream=media percent=50 | volume to 50
-set_volume stream=alarm percent=80 | set alarm volume to 80 percent
-set_volume stream=media percent=0 | mute the media
-set_volume stream=ring percent=100 | ringer to full
+set_volume percent=100 | max volume
+set_volume percent=50 | volume to 50
+none | set alarm volume to 80 percent
+set_volume percent=0 | mute the media
+none | ringer to full
 none | why is my phone so loud
 none | what's the volume
 control_media action=play | play music
@@ -142,3 +142,9 @@ open_app app_name=youtube | I want to watch youtube
 open_app app_name=gmail | check my email
 open_app app_name=calendar | what's on my calendar today
 open_app app_name=whatsapp | whatsapp
+# The volume tool is media only (2026-10-08): any volume request without a stream means media.
+set_volume percent=40 | set volume to 40
+set_volume percent=40 | volume 40
+set_volume percent=70 | turn the volume up to 70 percent
+set_volume percent=20 | make it quieter, 20 percent
+set_volume percent=0 | mute

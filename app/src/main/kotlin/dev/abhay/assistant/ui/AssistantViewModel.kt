@@ -216,6 +216,16 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** A result's slider moved: applies [value] (e.g. sets the volume) and shows the new result. */
+    fun adjust(exchangeId: Long, callIndex: Int, value: Float) = updateExchange(exchangeId) { e ->
+        e.copy(calls = e.calls.mapIndexed { i, c ->
+            val done = (c.status as? Status.Finished)?.outcome as? Outcome.Done
+            val level = done?.level
+            if (i != callIndex || level == null) c
+            else c.copy(status = Status.Finished(done.copy(message = level.set(getApplication(), value), level = level.copy(value = value))))
+        })
+    }
+
     /** The assistant's screen if it's in front (so a quiet request runs in its task), else the app. */
     private fun launchContext(): Context = assistant.foreground.activity ?: getApplication()
 

@@ -33,7 +33,11 @@ def said_numbers(text):
 # The tools whose argument must use numbers the request says (the app's Tool.grounded), else they ask first.
 GROUNDED = {"set_alarm": "time", "set_timer": "duration"}
 
+# Requests naming a volume the media-only volume tool doesn't change (the app's SetVolume.grounded).
+OTHER_VOLUMES = r"\b(ring(er|tone)?|alarms?|notifications?|calls?)\b"
+
 def grounded(call, request):
+    if call["name"] == "set_volume": return re.search(OTHER_VOLUMES, request, re.IGNORECASE) is None
     key = GROUNDED.get(call["name"])
     value = (call.get("arguments") or {}).get(key) if key else None
     if value is None: return True

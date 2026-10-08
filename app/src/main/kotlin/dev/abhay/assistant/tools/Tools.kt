@@ -398,60 +398,57 @@ object Flashlight : Tool(
 
 object SetVolume : Tool(
     name = "set_volume",
-    title = "Volume",
+    title = "Media volume",
     icon = R.drawable.ic_volume,
-    description = "Set the volume of media, ringtone, alarms or notifications.",
+    description = "Set the volume of music, videos and games.",
     onByDefault = false,
     // Right calls 0.59–0.95, none wrong; a little higher than the harmless tools, since a wrong
     // volume can be loud.
     defaultRunFrom = 0.5,
-    examples = listOf("Set the media volume to 30 percent", "Mute the ringer"),
+    examples = listOf("Set volume to 40", "Mute the media"),
 ) {
-    val STREAMS = linkedMapOf(
-        "media" to AudioManager.STREAM_MUSIC,
-        "ring" to AudioManager.STREAM_RING,
-        "alarm" to AudioManager.STREAM_ALARM,
-        "notification" to AudioManager.STREAM_NOTIFICATION,
-    )
+    private const val STREAM = AudioManager.STREAM_MUSIC
 
-    override val cues = Regex("""\b(volume|mute|unmute|louder|quieter|loud|quiet|ring(er|tone)?|silent|sound)\b""", RegexOption.IGNORE_CASE)
+    override val cues = Regex("""\b(volume|mute|unmute|louder|quieter|loud|quiet|sound)\b""", RegexOption.IGNORE_CASE)
 
+    // Media only, with the percentage as the one parameter. With a stream to choose too (media,
+    // ring, alarm, notification), "volume to 50" and "max volume" got no call: the model had no
+    // stream to fill in.
     override val schema = """
         {"name": "set_volume",
-         "description": "Set a volume of this phone as a percentage; 0 mutes it",
+         "description": "Set the media volume as a percentage, such as volume to 40; 0 mutes it",
          "parameters": {"type": "object", "properties": {
-           "stream": {"type": "string", "enum": [${STREAMS.keys.joinToString { "\"$it\"" }}], "description": "Which volume: media for music and videos, ring for calls"},
            "percent": {"type": "integer", "minimum": 0, "maximum": 100, "description": "The volume, 0 to 100"}},
-           "required": ["stream", "percent"]}}
+           "required": ["percent"]}}
     """.trimIndent()
 
+    /** Other volumes this tool doesn't change: a request naming one asks first rather than change the media volume. */
+    private val OTHER_VOLUMES = Regex("""\b(ring(er|tone)?|alarms?|notifications?|calls?)\b""", RegexOption.IGNORE_CASE)
+
+    override fun grounded(arguments: Map<String, Any?>, request: String) = !OTHER_VOLUMES.containsMatchIn(request)
+
     override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps): Prepared {
-        val name = arguments.text("stream")?.lowercase() ?: "media"
-        val stream = STREAMS[name] ?: return Prepared.Invalid("\"$name\" isn't one of ${STREAMS.keys.joinToString()}")
         val percent = arguments.int("percent") ?: return Prepared.Invalid("No volume given")
         if (percent !in 0..100) return Prepared.Invalid("$percent % isn't 0–100")
-        return Prepared.Ready("Set the $name volume to $percent %", opensApp = false) { context ->
-            val audio = context.getSystemService(AudioManager::class.java)
-            val max = audio.getStreamMaxVolume(stream)
-            volume(context, name, stream, (max * percent / 100.0).roundToInt(), undoLabel = "Undo")
+        return Prepared.Ready("Set the media volume to $percent %", opensApp = false) { context ->
+            val message = set(context, percent / 100f)
+            Outcome.Done(message, level = Level(level(context), ::set))
         }
     }
 
-    /** Sets [stream] to [level] (of its own steps), offering to put back the level it had. */
-    private fun volume(context: Context, name: String, stream: Int, level: Int, undoLabel: String): Outcome {
+    /** The media volume now, 0..1. */
+    private fun level(context: Context): Float {
         val audio = context.getSystemService(AudioManager::class.java)
-        val before = audio.getStreamVolume(stream)
-        val max = audio.getStreamMaxVolume(stream)
-        return try {
-            audio.setStreamVolume(stream, level, AudioManager.FLAG_SHOW_UI)
-            val percent = (level * 100.0 / max).roundToInt()
-            Outcome.Done("$name volume $percent %", listOf(FollowUp(undoLabel) {
-                volume(it.context, name, stream, before, undoLabel = if (undoLabel == "Undo") "Redo" else "Undo")
-            }))
-        } catch (e: SecurityException) {
-            // Changing the ringer while Do Not Disturb is on needs Do Not Disturb access.
-            Outcome.Failed("Not allowed while Do Not Disturb is on")
-        }
+        return audio.getStreamVolume(STREAM).toFloat() / audio.getStreamMaxVolume(STREAM)
+    }
+
+    /** Sets the media volume to [fraction] of its range, to the nearest of its steps. */
+    private fun set(context: Context, fraction: Float): String {
+        val audio = context.getSystemService(AudioManager::class.java)
+        val max = audio.getStreamMaxVolume(STREAM)
+        val step = (fraction.coerceIn(0f, 1f) * max).roundToInt()
+        audio.setStreamVolume(STREAM, step, 0)
+        return "Media volume ${(step * 100.0 / max).roundToInt()} %"
     }
 }
 

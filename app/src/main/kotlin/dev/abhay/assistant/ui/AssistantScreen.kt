@@ -51,6 +51,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -225,6 +226,7 @@ private fun History(
                     onRun = { viewModel.run(exchange.id) },
                     onSkip = { viewModel.skip(exchange.id) },
                     onFollowUp = { index, action -> viewModel.followUp(exchange.id, index, action) },
+                    onAdjust = { index, value -> viewModel.adjust(exchange.id, index, value) },
                     onDetails = { onDetails(exchange) },
                 )
             }
@@ -265,7 +267,8 @@ private fun Thinking() {
 }
 
 /**
- * What became of a request: each call as one line with its tool's icon and its buttons; "Shall I
+ * What became of a request: each call as one line with its tool's icon and its buttons (or a
+ * slider, e.g. for the volume); "Shall I
  * do this?" when Needle 3 wasn't sure enough; a short apology when no tool fits. Details (the info
  * icon) opens the rest.
  */
@@ -275,6 +278,7 @@ private fun ReplyBubble(
     onRun: () -> Unit,
     onSkip: () -> Unit,
     onFollowUp: (Int, FollowUp) -> Unit,
+    onAdjust: (Int, Float) -> Unit,
     onDetails: () -> Unit,
 ) {
     val reply = exchange.reply
@@ -286,7 +290,7 @@ private fun ReplyBubble(
                 exchange.calls.isEmpty() -> Text("I can't do that yet.", style = MaterialTheme.typography.bodyLarge)
                 asking -> Text("Shall I do this?", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            exchange.calls.forEachIndexed { i, call -> CallLine(call, onFollowUp = { action -> onFollowUp(i, action) }) }
+            exchange.calls.forEachIndexed { i, call -> CallLine(call, onFollowUp = { action -> onFollowUp(i, action) }, onAdjust = { value -> onAdjust(i, value) }) }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (asking) {
                     Button(onClick = onRun) { Text("Do it") }
@@ -304,7 +308,7 @@ private fun ReplyBubble(
 /** One call: the tool's icon and what it does or did, then the result's buttons as chips. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun CallLine(state: AssistantViewModel.CallState, onFollowUp: (FollowUp) -> Unit) {
+private fun CallLine(state: AssistantViewModel.CallState, onFollowUp: (FollowUp) -> Unit, onAdjust: (Float) -> Unit) {
     val tool = Tools.byName(state.call.name)
     val status = state.status
     val (text, failed) = when (status) {
@@ -343,7 +347,11 @@ private fun CallLine(state: AssistantViewModel.CallState, onFollowUp: (FollowUp)
                 modifier = Modifier.weight(1f, fill = false),
             )
         }
-        val actions = ((status as? Status.Finished)?.outcome as? Outcome.Done)?.actions.orEmpty()
+        val done = (status as? Status.Finished)?.outcome as? Outcome.Done
+        done?.level?.let { level ->
+            Slider(value = level.value, onValueChange = onAdjust, modifier = Modifier.padding(start = 48.dp))
+        }
+        val actions = done?.actions.orEmpty()
         if (actions.isNotEmpty()) {
             FlowRow(Modifier.padding(start = 48.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 actions.forEach { action -> AssistChip(onClick = { onFollowUp(action) }, label = { Text(action.label) }) }

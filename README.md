@@ -12,7 +12,7 @@ Phase 1 is a normal app with a text box. Voice and becoming the phone's default 
   - asks first ("Do it" / "Skip") below that;
   - says so when no tool fits.
 - **A default bar per tool**, set from the desktop check (adjustable per tool): just above the confidence of the tool's wrong calls, while letting most right ones run. Opening an app and the alarm list 0.3, alarms and timers 0.4, volume 0.5, settings pages 0.6, media and camera 0.7, flashlight 0.75 (talk about the torch, "my flashlight is broken", reads as "turn it on" at up to 0.70). Cactus's general advice is 0.7 for everything; Needle 3's confidence varies a lot with phrasing (the same alarm request scores 0.3–0.9), so a single 0.7 bar asked about most good requests.
-- **Buttons on results:** "Turn off" / "Turn on" for the flashlight, "Undo" / "Redo" for volume, the opposite media action, "Show alarms" and "Show timers" (to change or delete them in the clock app), "Open again" for apps and pages.
+- **Buttons on results:** "Turn off" / "Turn on" for the flashlight, a slider on the volume result (drag to change the media volume), the opposite media action, "Show alarms" and "Show timers" (to change or delete them in the clock app), "Open again" for apps and pages.
 - **Cue words per tool** pick the tools a request goes to; a call to a tool the request doesn't mention (possible with the fallback) asks first, whatever its confidence.
 - **Numbers must come from the request:** an alarm time or timer length with a number the request doesn't say asks first ("I hate alarms" became an alarm at 6:45, the tool's example, at 0.63). Number words count ("half past six").
 - **Calls that open another app run one at a time**, each after the assistant is back in front: two alarm intents 14 ms apart set only the first on HyperOS.
@@ -34,7 +34,7 @@ Phase 1 is a normal app with a text box. Voice and becoming the phone's default 
 | Settings pages (`open_settings`) | ✓ | `Settings.ACTION_*` (Wi-Fi, Bluetooth, battery, display…, or Settings itself) |
 | Flashlight (`set_flashlight`) | ✓ | `CameraManager.setTorchMode` |
 | Show alarms (`show_alarms`) | | `AlarmClock.ACTION_SHOW_ALARMS` |
-| Volume (`set_volume`) | | `AudioManager.setStreamVolume` |
+| Media volume (`set_volume`) | | `AudioManager.setStreamVolume` on the media stream; requests about the ringer, alarm or notification volume ask first |
 | Media controls (`control_media`) | | Media key events |
 | Camera (`open_camera`) | | `MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA` |
 

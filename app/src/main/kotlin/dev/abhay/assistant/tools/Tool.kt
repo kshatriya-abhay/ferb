@@ -5,10 +5,16 @@ import androidx.annotation.DrawableRes
 
 /** What running a call did, shown under it. */
 sealed interface Outcome {
-    /** [actions] are buttons offered next to the result, e.g. "Turn off" after turning the torch on. */
-    data class Done(val message: String, val actions: List<FollowUp> = emptyList()) : Outcome
+    /**
+     * [actions] are buttons offered next to the result, e.g. "Turn off" after turning the torch on;
+     * [level], a slider instead, e.g. for the volume just set.
+     */
+    data class Done(val message: String, val actions: List<FollowUp> = emptyList(), val level: Level? = null) : Outcome
     data class Failed(val reason: String) : Outcome
 }
+
+/** A slider on a result, at [value] (0..1): [set] applies a value and gives the result's new message. */
+data class Level(val value: Float, val set: (Context, Float) -> String)
 
 /** A button on a result: [run] does it and gives the new result (with its own buttons, e.g. "Turn on" again). */
 class FollowUp(val label: String, val run: suspend (FollowUpEnv) -> Outcome) {

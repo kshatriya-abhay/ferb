@@ -91,9 +91,11 @@ class ToolsTest {
         assertThat(summary(Flashlight.prepare(mapOf("on" to true), apps))).isEqualTo("Turn the flashlight on")
         assertThat(summary(Flashlight.prepare(mapOf("on" to "false"), apps))).isEqualTo("Turn the flashlight off")
         assertThat(reason(Flashlight.prepare(emptyMap(), apps))).isNotNull()
-        assertThat(summary(SetVolume.prepare(mapOf("stream" to "ring", "percent" to 0), apps))).isEqualTo("Set the ring volume to 0 %")
-        assertThat(reason(SetVolume.prepare(mapOf("stream" to "ring", "percent" to 150), apps))).isNotNull()
-        assertThat(reason(SetVolume.prepare(mapOf("stream" to "bass", "percent" to 10), apps))).isNotNull()
+        assertThat(summary(SetVolume.prepare(mapOf("percent" to 40), apps))).isEqualTo("Set the media volume to 40 %")
+        assertThat(reason(SetVolume.prepare(mapOf("percent" to 150), apps))).isNotNull()
+        // Media only: a request about another volume asks first.
+        assertThat(SetVolume.grounded(mapOf("percent" to 0), "Mute the ringer")).isFalse()
+        assertThat(SetVolume.grounded(mapOf("percent" to 40), "set volume to 40")).isTrue()
         assertThat(summary(MediaControl.prepare(mapOf("action" to "next"), apps))).isEqualTo("Media: next")
         assertThat(reason(MediaControl.prepare(mapOf("action" to "rewind"), apps))).isNotNull()
     }
