@@ -148,3 +148,5 @@ set_volume percent=40 | volume 40
 set_volume percent=70 | turn the volume up to 70 percent
 set_volume percent=20 | make it quieter, 20 percent
 set_volume percent=0 | mute
+set_volume percent=0 | mute the volume
+set_volume percent=0 | mute please

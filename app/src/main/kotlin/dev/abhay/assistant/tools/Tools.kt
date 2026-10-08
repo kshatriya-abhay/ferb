@@ -400,7 +400,7 @@ object SetVolume : Tool(
     name = "set_volume",
     title = "Media volume",
     icon = R.drawable.ic_volume,
-    description = "Set the volume of music, videos and games.",
+    description = "Set or mute the volume of music, videos and games.",
     onByDefault = false,
     // Right calls 0.59–0.95, none wrong; a little higher than the harmless tools, since a wrong
     // volume can be loud.
@@ -414,9 +414,12 @@ object SetVolume : Tool(
     // Media only, with the percentage as the one parameter. With a stream to choose too (media,
     // ring, alarm, notification), "volume to 50" and "max volume" got no call: the model had no
     // stream to fill in.
+    // "Set or mute" at the start of the description took "mute", "mute the volume", "mute
+    // please" from 0.44–0.64 to 0.56–0.78. Saying "mute means 0" or "mute (volume 0)" instead, or
+    // in the percent's description, lowered them (one to no call).
     override val schema = """
         {"name": "set_volume",
-         "description": "Set the media volume as a percentage, such as volume to 40; 0 mutes it",
+         "description": "Set or mute the media volume as a percentage, such as volume to 40; 0 mutes it",
          "parameters": {"type": "object", "properties": {
            "percent": {"type": "integer", "minimum": 0, "maximum": 100, "description": "The volume, 0 to 100"}},
            "required": ["percent"]}}
