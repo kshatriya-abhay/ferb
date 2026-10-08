@@ -137,10 +137,11 @@ class ToolsTest {
     }
 
     @Test
-    fun callsOfferTheMatchingContactsAndTheDialer() {
+    fun callsOfferTheBestContactAndTheDialer() {
         val ready = MakeCall.prepare(mapOf("name" to "Priya"), apps, contacts) as Prepared.Ready
-        assertThat(ready.choices.map { it.label }).containsExactly("Priya Sharma", "Priya Singh")
-        assertThat(ready.choices.first { it.label == "Priya Sharma" }.detail).isEqualTo("Mobile \u00b7 +91 98765 43210")
+        // The best match only: equally good ones go to the shorter name.
+        assertThat(ready.choices.map { it.label }).containsExactly("Priya Singh")
+        assertThat(ready.choices.single().detail).isEqualTo("Mobile \u00b7 +91 99887 76655")
         assertThat(ready.other?.label).isEqualTo("Open dialer")
         // No one by that name: the dialer, to find them by hand.
         val nobody = MakeCall.prepare(mapOf("name" to "Zubair"), apps, contacts) as Prepared.Ready

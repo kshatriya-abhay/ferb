@@ -671,7 +671,7 @@ object MakeCall : Tool(
     // calls at once, 0.19); wrong ones 0.18–0.64, and "the dial on my watch is broken" called the
     // example's "Priya" (0.41), which the name check holds back.
     defaultRunFrom = 0.7,
-    // A wrong contact is embarrassing, so it shows the best three to pick from.
+    // A wrong contact is embarrassing, so it shows the best match to tap (or the dialer) first.
     confirmByDefault = true,
     examples = listOf("Call Kritika", "Dial Mum"),
 ) {
@@ -715,15 +715,12 @@ object MakeCall : Tool(
             return Prepared.Ready("Call $number?", choices = listOf(Choice(number) { call(it, number, number) }), other = openDialer,
                 cancel = "Cancel", run = dialOnly(number, number))
         }
-        val found = contacts.find(name) ?: return Prepared.Invalid(NO_CONTACTS)
-        if (found.isEmpty()) {
-            return Prepared.Ready("No contact matches \u201c$name\u201d", confirm = "Open dialer", cancel = "Cancel", run = openDialer.run)
-        }
-        val choices = found.map { contact ->
-            Choice(contact.name, listOfNotNull(contact.kind, contact.number).joinToString(" \u00b7 ")) { call(it, contact.number, contact.name) }
-        }
-        return Prepared.Ready("Call \u201c$name\u201d: which one?", choices = choices, other = openDialer, cancel = "Cancel",
-            run = dialOnly(found.first().number, found.first().name))
+        // The best match only, one tap to call; anyone else is found in the dialer.
+        val contact = (contacts.find(name, limit = 1) ?: return Prepared.Invalid(NO_CONTACTS)).firstOrNull()
+            ?: return Prepared.Ready("No contact matches \u201c$name\u201d", confirm = "Open dialer", cancel = "Cancel", run = openDialer.run)
+        val choice = Choice(contact.name, listOfNotNull(contact.kind, contact.number).joinToString(" \u00b7 ")) { call(it, contact.number, contact.name) }
+        return Prepared.Ready("Call \u201c$name\u201d?", choices = listOf(choice), other = openDialer, cancel = "Cancel",
+            run = dialOnly(contact.number, contact.name))
     }
 }
 
