@@ -1,5 +1,5 @@
 # expected_tool [key=value ...] | request. "none": no tool should be called; "a/b": either, the first one
-# turned on; key=value: arguments that matter (times as HH:MM, durations in seconds; see score.py).
+# turned on; key=value: arguments that matter (times as HH:MM, durations in seconds, "quoted" with spaces; see score.py).
 set_alarm time=06:45 | Wake me up at 6:45
 set_alarm time=19:00 | Set an alarm for 7 pm called gym
 set_alarm time=05:30 | alarm at 5:30 tomorrow morning
@@ -165,3 +165,26 @@ none | what's a quarter note
 none | I left a note on the table
 none | show me the note I took yesterday
 none | delete my last note
+# Directions (get_directions, 2026-10-08). Destinations compared without a leading "the".
+get_directions destination=airport | Directions to the airport
+get_directions destination="lodhi garden" | How do I get to Lodhi Garden
+get_directions destination="india gate" | navigate to India Gate
+get_directions destination="nearest petrol pump" | take me to the nearest petrol pump
+get_directions destination=home | navigate home
+get_directions destination="pizza hut" | directions to pizza hut
+get_directions destination="taj mahal" | show me the way to the Taj Mahal
+get_directions destination="nearest hospital" | route to the nearest hospital
+get_directions destination=dentist | how far is the dentist from here
+get_directions destination="connaught place" mode=walking | walking directions to Connaught Place
+get_directions destination="cubbon park" mode=bicycling | cycling route to Cubbon Park
+get_directions destination=bangalore mode=driving | driving directions to Bangalore
+get_directions destination=office mode=two-wheeler | route to the office on my scooter
+get_directions destination="mg road" mode=transit | how do I get to MG Road by bus
+none | directions for this recipe
+none | how far is the moon
+none | what's the route of the tour de france
+none | I can't find my way to happiness
+none | how do I get to level 5 in this game
+none | who gave you directions
+open_app | open google maps
+open_settings | take me to the settings

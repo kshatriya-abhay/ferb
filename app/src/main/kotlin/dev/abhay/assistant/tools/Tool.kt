@@ -79,6 +79,12 @@ abstract class Tool(
      */
     open fun grounded(arguments: Map<String, Any?>, request: String): Boolean = true
 
+    /**
+     * [arguments] with what the app reads from [request] itself, before [prepare]: arguments Needle 3
+     * fills in wrongly when the request doesn't give them (e.g. a travel mode). Unchanged by default.
+     */
+    open fun fromRequest(arguments: Map<String, Any?>, request: String): Map<String, Any?> = arguments
+
     /** The JSON schema object Needle 3 gets: {"name", "description", "parameters"}. */
     abstract val schema: String
 

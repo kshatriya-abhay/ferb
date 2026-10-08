@@ -111,6 +111,24 @@ class ToolsTest {
     }
 
     @Test
+    fun directionsTakeThePlaceAndTheRequestsMode() {
+        assertThat(summary(GetDirections.prepare(mapOf("destination" to "Lodhi Garden"), apps))).isEqualTo("Directions to \u201cLodhi Garden\u201d")
+        assertThat(reason(GetDirections.prepare(mapOf("destination" to " "), apps))).isNotNull()
+        // The mode is the request's, whatever Needle 3 said.
+        assertThat(GetDirections.fromRequest(mapOf("destination" to "MG Road", "mode" to "driving"), "how do I get to MG Road by bus"))
+            .isEqualTo(mapOf("destination" to "MG Road", "mode" to "transit"))
+        assertThat(GetDirections.fromRequest(mapOf("destination" to "airport", "mode" to "walking"), "directions to the airport"))
+            .isEqualTo(mapOf("destination" to "airport"))
+        assertThat(GetDirections.modeIn("route to the office on my scooter")).isEqualTo("two-wheeler")
+        assertThat(GetDirections.modeIn("cycling route to Cubbon Park")).isEqualTo("bicycling")
+        assertThat(GetDirections.modeIn("take me to the cartoon network studio")).isNull()
+        assertThat(summary(GetDirections.prepare(mapOf("destination" to "India Gate", "mode" to "walking"), apps)))
+            .isEqualTo("Directions to \u201cIndia Gate\u201d (walking)")
+        assertThat(GetDirections.grounded(mapOf("destination" to "the nearest petrol pump"), "take me to the nearest petrol pump")).isTrue()
+        assertThat(GetDirections.grounded(mapOf("destination" to "Mumbai Central"), "take me home")).isFalse()
+    }
+
+    @Test
     fun fiveToolsAreOnByDefault() {
         assertThat(ToolSettings.enabledNames(ToolSettings.defaults()))
             .containsExactly("set_alarm", "set_timer", "open_app", "open_settings", "set_flashlight").inOrder()

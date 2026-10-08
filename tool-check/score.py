@@ -2,11 +2,11 @@
 
 Reads "request<TAB>engine JSON" lines (tool_check with TOOL_CHECK_RAW=1) on stdin. Each request
 line in requests.txt is "tool[ key=value ...] | request": "none" expects no call, "a/b" either tool
-(the first one loaded), and key=value pairs the arguments that matter. Values are compared the way
+(the first one loaded), and key=value pairs the arguments that matter (quoted if they have spaces). Values are compared the way
 the app reads them: times of day as HH:MM, durations as seconds (from a "seconds" number or a
 "duration" text), app and page names case-insensitively.
 """
-import json, re, sys
+import json, re, shlex, sys
 
 def time_of_day(text):
     t = str(text).strip().lower()
@@ -41,9 +41,10 @@ def note_words(text):
 
 def grounded(call, request):
     if call["name"] == "set_volume": return re.search(OTHER_VOLUMES, request, re.IGNORECASE) is None
-    if call["name"] == "create_note":  # the app's CreateNote.grounded: at least half the note's words are the request's
-        note = note_words((call.get("arguments") or {}).get("text", ""))
-        return not note or 2 * len(note & note_words(request)) >= len(note)
+    said = {"create_note": "text", "get_directions": "destination"}.get(call["name"])
+    if said:  # the app's Tools.mostlySaid: at least half the argument's words are the request's
+        words = note_words((call.get("arguments") or {}).get(said, ""))
+        return not words or 2 * len(words & note_words(request)) >= len(words)
     key = GROUNDED.get(call["name"])
     value = (call.get("arguments") or {}).get(key) if key else None
     if value is None: return True
@@ -63,11 +64,21 @@ def duration(text):
 def normalise(tool, key, value):
     if key == "time": return time_of_day(value)
     if key == "seconds": return int(value) if str(value).lstrip("-").isdigit() else duration(value)
+    if key == "destination": return re.sub(r"^the\s+", "", str(value).strip().lower())
     return str(value).strip().lower()
 
-def arguments(call):
+# As in the app's GetDirections.modes: the app reads the travel mode from the request, not the model.
+MODES = {"walking": r"\b(walk|walking|on foot|by foot)\b", "bicycling": r"\b(cycle|cycling|bicycle|by cycle)\b",
+         "two-wheeler": r"\b(scooter|scooty|bike|motorbike|motorcycle|two[- ]wheeler)\b",
+         "transit": r"\b(bus|train|metro|transit|public transport)\b", "driving": r"\b(drive|driving|car)\b"}
+
+def arguments(call, request):
     """The call's arguments as the app reads them; a 'duration' text counts as 'seconds'."""
     args = dict(call.get("arguments") or {})
+    if call["name"] == "get_directions":
+        args.pop("mode", None)
+        mode = next((m for m, pattern in MODES.items() if re.search(pattern, request.lower())), None)
+        if mode: args["mode"] = mode
     if "duration" in args: args["seconds"] = duration(args.pop("duration"))
     return {k: normalise(call["name"], k, v) for k, v in args.items() if v is not None}
 
@@ -91,7 +102,7 @@ def main():
         line = line.strip()
         if not line or line.startswith("#"): continue
         spec, request = [x.strip() for x in line.split("|", 1)]
-        name, *pairs = spec.split()
+        name, *pairs = shlex.split(spec)
         tool = next((t for t in name.split("/") if t in loaded), "none")
         want = dict(p.split("=", 1) for p in pairs) if tool != "none" else {}
         expectations.append((request, tool, {k: normalise(tool, k, v) for k, v in want.items()}))
@@ -115,7 +126,7 @@ def main():
         else:
             calls += 1
             match = next((g for g in got if g["name"] == tool), None)
-            args = arguments(match) if match else {}
+            args = arguments(match, request) if match else {}
             ok = match is not None and all(args.get(k) == v for k, v in want.items())
             if match and not ok: wrong_args += 1
             if ok:

@@ -137,7 +137,7 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 val wallMs = SystemClock.elapsedRealtime() - started
                 val verdict = Verdict.of(reply, configs, request)
-                val calls = reply.calls.map { call -> CallState(call, prepare(call), Status.Waiting) }
+                val calls = reply.calls.map { call -> CallState(call, prepare(call, request), Status.Waiting) }
                 val exchange = Exchange(nextId++, request, reply, verdict.decision, verdict.runAt, verdict.alwaysConfirm, verdict.unmentioned, verdict.ungrounded,
                     routed.map { it.name }, checkAll, calls, wallMs)
                 _state.update { it.copy(history = it.history + exchange, pending = null) }
@@ -156,10 +156,10 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         NeedleReply.parse(assistant.engine.complete(request, tools.map { it.name }, Tools.json(tools)))
 
     /** Checks a call before anything runs: the tool must be turned on, and its arguments valid. */
-    private fun prepare(call: ToolCall): Prepared {
+    private fun prepare(call: ToolCall, request: String): Prepared {
         val tool = Tools.byName(call.name)?.takeIf { it.name in enabledTools.value }
             ?: return Prepared.Invalid("No tool called ${call.name} is turned on")
-        return tool.prepare(call.arguments, assistant.apps)
+        return tool.prepare(tool.fromRequest(call.arguments, request), assistant.apps)
     }
 
     private val runner by lazy { CallRunner(assistant.foreground.inFront) }

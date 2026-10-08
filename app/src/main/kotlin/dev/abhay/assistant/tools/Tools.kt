@@ -7,6 +7,7 @@ import android.content.Intent
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.media.AudioManager
+import android.net.Uri
 import android.provider.AlarmClock
 import android.provider.MediaStore
 import android.provider.Settings
@@ -23,15 +24,23 @@ import kotlin.math.roundToInt
  * of them on every request; with more, it sees the five that best match the request.
  *
  * All of them work offline and for any app: they're intents to other apps (clock, settings,
- * launcher apps, notes apps) or plain Android APIs (torch, volume, media keys). None needs the assistant role.
+ * launcher apps, notes apps, maps) or plain Android APIs (torch, volume, media keys). None needs the assistant role.
  */
 object Tools {
-    val all: List<Tool> = listOf(SetAlarm, SetTimer, OpenApp, OpenSettings, Flashlight, ShowAlarms, SetVolume, MediaControl, TakePhoto, CreateNote)
+    val all: List<Tool> = listOf(SetAlarm, SetTimer, OpenApp, OpenSettings, Flashlight, ShowAlarms, SetVolume, MediaControl, TakePhoto, CreateNote, GetDirections)
 
     fun byName(name: String): Tool? = all.firstOrNull { it.name == name }
 
     /** The JSON array Needle 3 gets for [tools]. */
     fun json(tools: List<Tool>): String = tools.joinToString(",\n", prefix = "[\n", postfix = "\n]") { it.schema }
+
+    /** Whether at least half the words of [text] (an argument) are [request]'s; true without one. */
+    internal fun mostlySaid(text: String?, request: String): Boolean {
+        val said = words(text ?: return true)
+        return said.isEmpty() || said.count { it in words(request) } * 2 >= said.size
+    }
+
+    private fun words(text: String) = Regex("""[\p{L}\p{N}]+""").findAll(text.lowercase()).map { it.value }.toSet()
 
     /** [this] with [actions] as buttons, if it succeeded. */
     internal fun Outcome.withActions(vararg actions: FollowUp): Outcome = if (this is Outcome.Done) copy(actions = actions.toList()) else this
@@ -557,12 +566,7 @@ object CreateNote : Tool(
     """.trimIndent()
 
     /** At least half the note's words must be the request's: a note Needle 3 made up asks first. */
-    override fun grounded(arguments: Map<String, Any?>, request: String): Boolean {
-        val note = words(arguments.text("text") ?: return true)
-        return note.isEmpty() || note.count { it in words(request) } * 2 >= note.size
-    }
-
-    private fun words(text: String) = Regex("""[\p{L}\p{N}]+""").findAll(text.lowercase()).map { it.value }.toSet()
+    override fun grounded(arguments: Map<String, Any?>, request: String) = Tools.mostlySaid(arguments.text("text"), request)
 
     override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps): Prepared {
         val text = arguments.text("text") ?: return Prepared.Invalid("No text for the note")
@@ -575,6 +579,76 @@ object CreateNote : Tool(
                 1 -> Tools.start(context, intent, "Note opened in ${handlers[0].loadLabel(context.packageManager)}, to save there", quietly = true)
                 else -> Tools.start(context, intent, "Note opened in your notes app, to save there", quietly = true)
             }
+        }
+    }
+}
+
+object GetDirections : Tool(
+    name = "get_directions",
+    title = "Directions",
+    icon = R.drawable.ic_directions,
+    description = "Show directions to a place in Google Maps, to check and start.",
+    onByDefault = false,
+    // On tool-check (2026-10-08), right calls scored 0.38–0.91 ("directions to the airport" 0.51);
+    // the worst wrong ones, "how do I get to level 5 in this game" 0.56 and "directions for this
+    // recipe" 0.35. A wrong one only opens Maps, to close.
+    defaultRunFrom = 0.6,
+    examples = listOf("Show me the way to the Taj Mahal", "How do I get to Lodhi Garden"),
+) {
+    /**
+     * Travel modes as Google Maps' links name them, and the request's words that pick each. The
+     * app reads the mode, not Needle 3: given a "mode" parameter (an enum, optional, "only if the
+     * request says"), it filled one in for every request, "driving" or "walking", and right calls
+     * without a mode in the request fell from 0.48–0.91 to 0.14–0.37 (tool-check, 2026-10-08).
+     * "Bike" is a motorbike, as in India.
+     */
+    val modes = linkedMapOf(
+        "walking" to Regex("""\b(walk|walking|on foot|by foot)\b"""),
+        "bicycling" to Regex("""\b(cycle|cycling|bicycle|by cycle)\b"""),
+        "two-wheeler" to Regex("""\b(scooter|scooty|bike|motorbike|motorcycle|two[- ]wheeler)\b"""),
+        "transit" to Regex("""\b(bus|train|metro|transit|public transport)\b"""),
+        "driving" to Regex("""\b(drive|driving|car)\b"""),
+    )
+
+    /** The travel mode [request] names, if any. */
+    fun modeIn(request: String): String? = modes.entries.firstOrNull { it.value.containsMatchIn(request.lowercase()) }?.key
+
+    override fun fromRequest(arguments: Map<String, Any?>, request: String) =
+        (arguments - "mode") + listOfNotNull(modeIn(request)?.let { "mode" to it })
+
+    // "Route to", not "route": "what's the route of the tour de france" got directions at 0.75.
+    // "Get directions in Google Maps to a place…" as the description lost "take me to the nearest
+    // petrol pump" and raised the wrong calls.
+    override val keywords = listOf("direction", "navigate", "route to", "take me to", "get to", "way to", "how far")
+
+    override val schema = """
+        {"name": "get_directions",
+         "description": "Get directions to a place, such as directions to the airport",
+         "parameters": {"type": "object", "properties": {
+           "destination": {"type": "string", "description": "The place, in the request's words"}},
+           "required": ["destination"]}}
+    """.trimIndent()
+
+    /** At least half the destination's words must be the request's: a place Needle 3 made up asks first. */
+    override fun grounded(arguments: Map<String, Any?>, request: String) = Tools.mostlySaid(arguments.text("destination"), request)
+
+    /**
+     * Google Maps' directions link, which shows the route to check before starting (the
+     * `google.navigation:` intent starts at once). Maps owns the link, so it opens there without
+     * asking; without Maps, in the browser. Maps looks the place up, so this app stays offline.
+     */
+    fun link(destination: String, mode: String?): Uri = Uri.Builder().scheme("https").authority("www.google.com")
+        .path("/maps/dir/").appendQueryParameter("api", "1").appendQueryParameter("destination", destination)
+        .apply { if (mode != null) appendQueryParameter("travelmode", mode) }.build()
+
+    override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps): Prepared {
+        val destination = arguments.text("destination") ?: return Prepared.Invalid("No place given")
+        // Without one, Maps uses the user's usual mode.
+        val mode = arguments.text("mode")?.takeIf { it in modes }
+        val by = mode?.let { " ($it)" } ?: ""
+        return Prepared.Ready("Directions to \u201c$destination\u201d$by") { context ->
+            val intent = Intent(Intent.ACTION_VIEW, link(destination, mode))
+            Tools.start(context, intent, "Opened directions to \u201c$destination\u201d").again(intent)
         }
     }
 }
