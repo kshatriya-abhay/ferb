@@ -114,8 +114,8 @@ depends = ["build"]
 run = """
 set -euo pipefail
 # Always the same name. Tailscale on Android never overwrites: a repeat send arrives as
-# Assistant-<uuid>.apk, so old copies have to be deleted on the phone.
-cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/Assistant.apk
-tailscale file cp app/build/outputs/apk/debug/Assistant.apk "${usage_device}:"
-echo "Sent Assistant.apk ($(git rev-parse --short HEAD)) to ${usage_device}"
+# Maya-<uuid>.apk, so old copies have to be deleted on the phone.
+cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/Maya.apk
+tailscale file cp app/build/outputs/apk/debug/Maya.apk "${usage_device}:"
+echo "Sent Maya.apk ($(git rev-parse --short HEAD)) to ${usage_device}"
 """

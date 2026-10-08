@@ -68,6 +68,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.ImeAction
@@ -104,7 +105,7 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Assistant") },
+                title = { Text(stringResource(R.string.app_name)) },
                 subtitle = { Text(subtitle(engine)) },
                 actions = {
                     IconButton(onClick = onOpenSettings) { Icon(Icons.Default.Settings, contentDescription = "Settings") }

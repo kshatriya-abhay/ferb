@@ -1,4 +1,6 @@
-# On-device Assistant
+# Maya
+
+*An on-device assistant for Android.*
 
 A private assistant for Android. Type a request ("wake me up at 6:45", "open Wi-Fi settings") and it acts, using **[Needle 3](https://huggingface.co/Cactus-Compute/needle3)**, Cactus Compute's 35 MB tool-calling model, running on the phone. The model is bundled in the app, and the app has **no internet permission**: nothing you type leaves the phone.
 
