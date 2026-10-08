@@ -79,6 +79,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.abhay.assistant.R
 import dev.abhay.assistant.engine.AssistantEngine
 import dev.abhay.assistant.engine.Decision
+import dev.abhay.assistant.tools.Choice
 import dev.abhay.assistant.tools.FollowUp
 import dev.abhay.assistant.tools.Outcome
 import dev.abhay.assistant.tools.Prepared
@@ -226,6 +227,7 @@ private fun History(
                     exchange,
                     onRun = { viewModel.run(exchange.id) },
                     onSkip = { viewModel.skip(exchange.id) },
+                    onChoose = { index, choice -> viewModel.choose(exchange.id, index, choice) },
                     onFollowUp = { index, action -> viewModel.followUp(exchange.id, index, action) },
                     onAdjust = { index, value -> viewModel.adjust(exchange.id, index, value) },
                     onDetails = { onDetails(exchange) },
@@ -278,24 +280,31 @@ private fun ReplyBubble(
     exchange: AssistantViewModel.Exchange,
     onRun: () -> Unit,
     onSkip: () -> Unit,
+    onChoose: (Int, Choice) -> Unit,
     onFollowUp: (Int, FollowUp) -> Unit,
     onAdjust: (Int, Float) -> Unit,
     onDetails: () -> Unit,
 ) {
     val reply = exchange.reply
     val asking = exchange.calls.any { it.status == Status.Waiting }
+    val waiting = exchange.calls.filter { it.status == Status.Waiting }.mapNotNull { it.prepared as? Prepared.Ready }
+    // A call with choices (contacts) is answered by picking one; its tool's words on the buttons when it's alone.
+    val choosing = waiting.any { it.choices.isNotEmpty() }
+    val only = exchange.calls.singleOrNull()?.prepared as? Prepared.Ready
     AssistantBubble {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             when {
                 reply.error != null -> Text("Something went wrong. Try again.", style = MaterialTheme.typography.bodyLarge)
                 exchange.calls.isEmpty() -> Text("I can't do that yet.", style = MaterialTheme.typography.bodyLarge)
-                asking -> Text("Shall I do this?", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                asking && !choosing -> Text("Shall I do this?", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            exchange.calls.forEachIndexed { i, call -> CallLine(call, onFollowUp = { action -> onFollowUp(i, action) }, onAdjust = { value -> onAdjust(i, value) }) }
+            exchange.calls.forEachIndexed { i, call ->
+                CallLine(call, onChoose = { choice -> onChoose(i, choice) }, onFollowUp = { action -> onFollowUp(i, action) }, onAdjust = { value -> onAdjust(i, value) })
+            }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (asking) {
-                    Button(onClick = onRun) { Text("Do it") }
-                    TextButton(onClick = onSkip) { Text("Not now") }
+                    if (!choosing) Button(onClick = onRun) { Text(only?.confirm ?: "Do it") }
+                    TextButton(onClick = onSkip) { Text(only?.cancel ?: "Not now") }
                 }
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = onDetails, modifier = Modifier.size(32.dp)) {
@@ -309,7 +318,7 @@ private fun ReplyBubble(
 /** One call: the tool's icon and what it does or did, then the result's buttons as chips. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun CallLine(state: AssistantViewModel.CallState, onFollowUp: (FollowUp) -> Unit, onAdjust: (Float) -> Unit) {
+private fun CallLine(state: AssistantViewModel.CallState, onChoose: (Choice) -> Unit, onFollowUp: (FollowUp) -> Unit, onAdjust: (Float) -> Unit) {
     val tool = Tools.byName(state.call.name)
     val status = state.status
     val (text, failed) = when (status) {
@@ -347,6 +356,26 @@ private fun CallLine(state: AssistantViewModel.CallState, onFollowUp: (FollowUp)
                 textDecoration = if (muted) TextDecoration.LineThrough else null,
                 modifier = Modifier.weight(1f, fill = false),
             )
+        }
+        val ready = state.prepared as? Prepared.Ready
+        if (ready != null && status !is Status.Finished) {
+            ready.detail?.let { detail ->
+                Text(detail, Modifier.padding(start = 48.dp), style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        if (ready != null && status == Status.Waiting && ready.choices.isNotEmpty()) {
+            Column(Modifier.padding(start = 48.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                ready.choices.forEach { choice ->
+                    FilledTonalButton(onClick = { onChoose(choice) }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+                        Column(Modifier.fillMaxWidth()) {
+                            Text(choice.label, style = MaterialTheme.typography.labelLarge)
+                            choice.detail?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                        }
+                    }
+                }
+                ready.other?.let { other -> TextButton(onClick = { onChoose(other) }) { Text(other.label) } }
+            }
         }
         val done = (status as? Status.Finished)?.outcome as? Outcome.Done
         done?.level?.let { level ->

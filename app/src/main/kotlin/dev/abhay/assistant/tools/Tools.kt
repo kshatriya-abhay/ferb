@@ -1,5 +1,6 @@
 package dev.abhay.assistant.tools
 
+import android.Manifest
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Context
@@ -24,10 +25,10 @@ import kotlin.math.roundToInt
  * of them on every request; with more, it sees the five that best match the request.
  *
  * All of them work offline and for any app: they're intents to other apps (clock, settings,
- * launcher apps, notes apps, maps) or plain Android APIs (torch, volume, media keys). None needs the assistant role.
+ * launcher apps, notes apps, maps, the dialer and the messages app) or plain Android APIs (torch, volume, media keys). None needs the assistant role.
  */
 object Tools {
-    val all: List<Tool> = listOf(SetAlarm, SetTimer, OpenApp, OpenSettings, Flashlight, ShowAlarms, SetVolume, MediaControl, TakePhoto, CreateNote, GetDirections)
+    val all: List<Tool> = listOf(SetAlarm, SetTimer, OpenApp, OpenSettings, Flashlight, ShowAlarms, SetVolume, MediaControl, TakePhoto, CreateNote, GetDirections, MakeCall, SendText)
 
     fun byName(name: String): Tool? = all.firstOrNull { it.name == name }
 
@@ -97,7 +98,7 @@ object SetAlarm : Tool(
            "required": ["time"]}}
     """.trimIndent()
 
-    override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps): Prepared {
+    override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps, contacts: ContactBook): Prepared {
         val said = arguments.text("time") ?: return Prepared.Invalid("No time given")
         val (hour, minute) = TimeOfDay.parse(said) ?: return Prepared.Invalid("\"$said\" isn't a time of day")
         val time = String.format(Locale.US, "%02d:%02d", hour, minute)
@@ -217,7 +218,7 @@ object SetTimer : Tool(
 
     override val keywords = listOf("timer", "countdown", "count down", "remind me in", "minute", "min", "second", "sec", "hour", "hr")
 
-    override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps): Prepared {
+    override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps, contacts: ContactBook): Prepared {
         val said = arguments.text("duration") ?: return Prepared.Invalid("No length given")
         val total = Durations.parse(said) ?: return Prepared.Invalid("\"$said\" isn't a length of time")
         if (total !in 1..MAX_SECONDS) return Prepared.Invalid("A timer needs 1 second to 24 hours")
@@ -260,7 +261,7 @@ object ShowAlarms : Tool(
          "parameters": {"type": "object", "properties": {}, "required": []}}
     """.trimIndent()
 
-    override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps) =
+    override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps, contacts: ContactBook) =
         Prepared.Ready("Show the alarms") { context -> Tools.start(context, Intent(AlarmClock.ACTION_SHOW_ALARMS), "Opened the alarms") }
 }
 
@@ -284,7 +285,7 @@ object OpenApp : Tool(
            "required": ["app_name"]}}
     """.trimIndent()
 
-    override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps): Prepared {
+    override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps, contacts: ContactBook): Prepared {
         val name = arguments.text("app_name") ?: return Prepared.Invalid("No app name")
         // "Open Bluetooth" sometimes comes here rather than to open_settings: no such app, but a settings page.
         val app = apps.find(name) ?: return OpenSettings.pageFor(name)?.let { OpenSettings.prepare(mapOf("page" to it), apps) }
@@ -349,7 +350,7 @@ object OpenSettings : Tool(
            "required": ["page"]}}
     """.trimIndent()
 
-    override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps): Prepared {
+    override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps, contacts: ContactBook): Prepared {
         val page = arguments.text("page")?.let(::pageFor) ?: arguments.text("page")
         val action = PAGES[page] ?: return Prepared.Invalid("\"$page\" isn't a settings page this assistant knows")
         val name = page!!.replace('_', ' ')
@@ -384,7 +385,7 @@ object Flashlight : Tool(
            "required": ["on"]}}
     """.trimIndent()
 
-    override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps): Prepared {
+    override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps, contacts: ContactBook): Prepared {
         val on = arguments.bool("on") ?: return Prepared.Invalid("On or off wasn't given")
         return Prepared.Ready("Turn the flashlight ${if (on) "on" else "off"}", opensApp = false) { context -> torch(context, on) }
     }
@@ -439,7 +440,7 @@ object SetVolume : Tool(
 
     override fun grounded(arguments: Map<String, Any?>, request: String) = !OTHER_VOLUMES.containsMatchIn(request)
 
-    override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps): Prepared {
+    override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps, contacts: ContactBook): Prepared {
         val percent = arguments.int("percent") ?: return Prepared.Invalid("No volume given")
         if (percent !in 0..100) return Prepared.Invalid("$percent % isn't 0–100")
         return Prepared.Ready("Set the media volume to $percent %", opensApp = false) { context ->
@@ -491,7 +492,7 @@ object MediaControl : Tool(
            "required": ["action"]}}
     """.trimIndent()
 
-    override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps): Prepared {
+    override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps, contacts: ContactBook): Prepared {
         val action = arguments.text("action")?.lowercase()
         val key = ACTIONS[action] ?: return Prepared.Invalid("\"$action\" isn't one of ${ACTIONS.keys.joinToString()}")
         return Prepared.Ready("Media: $action", opensApp = false) { context -> press(context, action!!) }
@@ -530,7 +531,7 @@ object TakePhoto : Tool(
          "parameters": {"type": "object", "properties": {}, "required": []}}
     """.trimIndent()
 
-    override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps) = Prepared.Ready("Open the camera") { context ->
+    override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps, contacts: ContactBook) = Prepared.Ready("Open the camera") { context ->
         Tools.start(context, Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA), "Opened the camera")
             .again(Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA))
     }
@@ -568,7 +569,7 @@ object CreateNote : Tool(
     /** At least half the note's words must be the request's: a note Needle 3 made up asks first. */
     override fun grounded(arguments: Map<String, Any?>, request: String) = Tools.mostlySaid(arguments.text("text"), request)
 
-    override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps): Prepared {
+    override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps, contacts: ContactBook): Prepared {
         val text = arguments.text("text") ?: return Prepared.Invalid("No text for the note")
         return Prepared.Ready("Take a note: \u201c$text\u201d") { context ->
             // Notes apps declare the action with a MIME type ("*/*" in Google's docs), so without one nothing matches.
@@ -641,7 +642,7 @@ object GetDirections : Tool(
         .path("/maps/dir/").appendQueryParameter("api", "1").appendQueryParameter("destination", destination)
         .apply { if (mode != null) appendQueryParameter("travelmode", mode) }.build()
 
-    override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps): Prepared {
+    override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps, contacts: ContactBook): Prepared {
         val destination = arguments.text("destination") ?: return Prepared.Invalid("No place given")
         // Without one, Maps uses the user's usual mode.
         val mode = arguments.text("mode")?.takeIf { it in modes }
@@ -649,6 +650,121 @@ object GetDirections : Tool(
         return Prepared.Ready("Directions to \u201c$destination\u201d$by") { context ->
             val intent = Intent(Intent.ACTION_VIEW, link(destination, mode))
             Tools.start(context, intent, "Opened directions to \u201c$destination\u201d").again(intent)
+        }
+    }
+}
+
+/** What [MakeCall] and [SendText] say without the contacts permission. */
+private const val NO_CONTACTS = "Ferb can't read your contacts: allow it on this tool's page in Settings"
+
+/** A typed number ("call 98765 43210"), not a name: five digits or more. */
+private fun numberIn(text: String): String? = text.filter { it.isDigit() || it == '+' }.takeIf { it.count(Char::isDigit) >= 5 }
+
+object MakeCall : Tool(
+    name = "make_call",
+    title = "Calls",
+    icon = R.drawable.ic_call,
+    description = "Find a contact and open the dialer with their number. You press call.",
+    onByDefault = false,
+    // Only used if the user stops it asking. On tool-check (2026-10-08), right calls 0.57–0.93 (two
+    // calls at once, 0.19); wrong ones 0.18–0.64, and "the dial on my watch is broken" called the
+    // example's "Priya" (0.41), which the name check holds back.
+    defaultRunFrom = 0.7,
+    // A wrong contact is embarrassing, so it shows the best three to pick from.
+    confirmByDefault = true,
+    examples = listOf("Call Mum", "Dial Priya"),
+) {
+    override val permissions = listOf(Manifest.permission.READ_CONTACTS)
+
+    override val keywords = listOf("call", "dial", "phone", "ring")
+
+    override val schema = """
+        {"name": "make_call",
+         "description": "Call a person, such as call Priya",
+         "parameters": {"type": "object", "properties": {
+           "name": {"type": "string", "description": "Who to call, in the request's words"}},
+           "required": ["name"]}}
+    """.trimIndent()
+
+    override fun grounded(arguments: Map<String, Any?>, request: String) = Tools.mostlySaid(arguments.text("name"), request)
+
+    /** The dialer with [number] typed in (ACTION_DIAL needs no permission; the user presses call). */
+    private fun dial(number: String?) = Intent(Intent.ACTION_DIAL, number?.let { Uri.fromParts("tel", it, null) })
+
+    private val openDialer = Choice("Open dialer") { context -> Tools.start(context, dial(null), "Opened the dialer") }
+
+    override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps, contacts: ContactBook): Prepared {
+        val name = arguments.text("name") ?: return Prepared.Invalid("No one to call")
+        numberIn(name)?.let { number ->
+            return Prepared.Ready("Call $number", confirm = "Call", cancel = "Cancel") { context ->
+                Tools.start(context, dial(number), "Opened the dialer with $number: press call")
+            }
+        }
+        val found = contacts.find(name) ?: return Prepared.Invalid(NO_CONTACTS)
+        if (found.isEmpty()) {
+            return Prepared.Ready("No contact matches \u201c$name\u201d", confirm = "Open dialer", cancel = "Cancel", run = openDialer.run)
+        }
+        val choices = found.map { contact ->
+            Choice(contact.name, listOfNotNull(contact.kind, contact.number).joinToString(" \u00b7 ")) { context ->
+                Tools.start(context, dial(contact.number), "Opened the dialer for ${contact.name}: press call")
+            }
+        }
+        return Prepared.Ready("Call \u201c$name\u201d: which one?", choices = choices, other = openDialer, cancel = "Cancel", run = choices.first().run)
+    }
+}
+
+object SendText : Tool(
+    name = "send_text",
+    title = "Messages",
+    icon = R.drawable.ic_sms,
+    description = "Write a text message to a contact, to check and send in your messages app.",
+    onByDefault = false,
+    // Only used if the user stops it asking. On tool-check (2026-10-08), every message came back
+    // clean ("send a text to Rahul saying the meeting is at 5" → "The meeting is at 5"), at
+    // 0.34–0.89; the one wrong call, "I got a weird message from the bank", 0.19.
+    defaultRunFrom = 0.45,
+    confirmByDefault = true,
+    examples = listOf("Text Priya I'm running late", "Message Mum that I reached safely"),
+) {
+    override val permissions = listOf(Manifest.permission.READ_CONTACTS)
+
+    override val keywords = listOf("text", "message", "sms", "msg")
+
+    override val schema = """
+        {"name": "send_text",
+         "description": "Send a text message to a person, such as text Priya I'm running late",
+         "parameters": {"type": "object", "properties": {
+           "name": {"type": "string", "description": "Who to send it to, in the request's words"},
+           "message": {"type": "string", "description": "The message, in the request's words"}},
+           "required": ["name", "message"]}}
+    """.trimIndent()
+
+    override fun grounded(arguments: Map<String, Any?>, request: String) =
+        Tools.mostlySaid(arguments.text("name"), request) && Tools.mostlySaid(arguments.text("message"), request)
+
+    /**
+     * The messages app with the text written (ACTION_SENDTO needs no permission; the user presses
+     * send); without a [number], it asks who to send it to.
+     */
+    private fun compose(number: String?, message: String) =
+        Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:" + Uri.encode(number.orEmpty()))).putExtra("sms_body", message)
+
+    override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps, contacts: ContactBook): Prepared {
+        val name = arguments.text("name") ?: return Prepared.Invalid("No one to send it to")
+        val message = arguments.text("message") ?: return Prepared.Invalid("No message to send")
+        val draft = "\u201c$message\u201d"
+        val number = numberIn(name)
+        val contact = if (number == null) (contacts.find(name, limit = 1) ?: return Prepared.Invalid(NO_CONTACTS)).firstOrNull() else null
+        val to = when {
+            number != null -> number
+            contact != null -> "${contact.name} \u00b7 ${contact.number}"
+            else -> return Prepared.Ready("No contact matches \u201c$name\u201d: choose in your messages app", detail = draft,
+                confirm = "Open messages", cancel = "Cancel") { context ->
+                Tools.start(context, compose(null, message), "Message written: choose who to send it to, then send")
+            }
+        }
+        return Prepared.Ready("Text $to", detail = draft, confirm = "Proceed", cancel = "Cancel") { context ->
+            Tools.start(context, compose(number ?: contact!!.number, message), "Message written to ${contact?.name ?: number}: press send")
         }
     }
 }

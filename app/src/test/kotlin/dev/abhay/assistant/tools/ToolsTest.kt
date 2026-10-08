@@ -128,6 +128,52 @@ class ToolsTest {
         assertThat(GetDirections.grounded(mapOf("destination" to "Mumbai Central"), "take me home")).isFalse()
     }
 
+    private val contacts = ContactBook {
+        listOf(
+            Contact("Priya Sharma", "+91 98765 43210", "Mobile"),
+            Contact("Priya Singh", "+91 99887 76655", "Mobile"),
+            Contact("Maa", "+91 98111 22222", "Mobile"),
+        )
+    }
+
+    @Test
+    fun callsOfferTheMatchingContactsAndTheDialer() {
+        val ready = MakeCall.prepare(mapOf("name" to "Priya"), apps, contacts) as Prepared.Ready
+        assertThat(ready.choices.map { it.label }).containsExactly("Priya Sharma", "Priya Singh")
+        assertThat(ready.choices.first { it.label == "Priya Sharma" }.detail).isEqualTo("Mobile \u00b7 +91 98765 43210")
+        assertThat(ready.other?.label).isEqualTo("Open dialer")
+        // No one by that name: the dialer, to find them by hand.
+        val nobody = MakeCall.prepare(mapOf("name" to "Zubair"), apps, contacts) as Prepared.Ready
+        assertThat(nobody.choices).isEmpty()
+        assertThat(nobody.confirm).isEqualTo("Open dialer")
+        // A number is dialled as it is.
+        assertThat(summary(MakeCall.prepare(mapOf("name" to "98765 43210"), apps, contacts))).isEqualTo("Call 9876543210")
+        assertThat(reason(MakeCall.prepare(mapOf("name" to "Priya"), apps, ContactBook.NONE))).contains("contacts")
+        assertThat(MakeCall.grounded(mapOf("name" to "Priya"), "call Priya")).isTrue()
+        assertThat(MakeCall.grounded(mapOf("name" to "Rahul"), "call her")).isFalse()
+    }
+
+    @Test
+    fun messagesShowOneRecipientAndTheDraft() {
+        val ready = SendText.prepare(mapOf("name" to "mum", "message" to "I reached safely"), apps, contacts) as Prepared.Ready
+        assertThat(ready.summary).isEqualTo("Text Maa \u00b7 +91 98111 22222")
+        assertThat(ready.detail).isEqualTo("\u201cI reached safely\u201d")
+        assertThat(ready.confirm).isEqualTo("Proceed")
+        assertThat(ready.cancel).isEqualTo("Cancel")
+        assertThat(reason(SendText.prepare(mapOf("name" to "mum"), apps, contacts))).isNotNull()
+        assertThat(SendText.grounded(mapOf("name" to "Priya", "message" to "I'm running late"), "text Priya I'm running late")).isTrue()
+        assertThat(SendText.grounded(mapOf("name" to "Priya", "message" to "see you at the cinema"), "text Priya")).isFalse()
+    }
+
+    @Test
+    fun callsAndMessagesAlwaysAskFirstUntilChanged() {
+        assertThat(ToolConfig.defaults(MakeCall).alwaysConfirm).isTrue()
+        assertThat(ToolConfig.defaults(SendText).alwaysConfirm).isTrue()
+        assertThat(ToolConfig.defaults(SetAlarm).alwaysConfirm).isFalse()
+        assertThat(ToolConfig.fromJson("""{"enabled": true}""", SendText).alwaysConfirm).isTrue()
+        assertThat(ToolConfig.fromJson("""{"enabled": true, "always_confirm": false}""", SendText).alwaysConfirm).isFalse()
+    }
+
     @Test
     fun fiveToolsAreOnByDefault() {
         assertThat(ToolSettings.enabledNames(ToolSettings.defaults()))

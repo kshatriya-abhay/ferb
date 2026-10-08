@@ -11,6 +11,7 @@ import dev.abhay.assistant.engine.Decision
 import dev.abhay.assistant.engine.NeedleReply
 import dev.abhay.assistant.engine.ToolCall
 import dev.abhay.assistant.tools.CallRunner
+import dev.abhay.assistant.tools.Choice
 import dev.abhay.assistant.tools.FollowUp
 import dev.abhay.assistant.tools.FollowUpEnv
 import dev.abhay.assistant.tools.Outcome
@@ -159,7 +160,7 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
     private fun prepare(call: ToolCall, request: String): Prepared {
         val tool = Tools.byName(call.name)?.takeIf { it.name in enabledTools.value }
             ?: return Prepared.Invalid("No tool called ${call.name} is turned on")
-        return tool.prepare(tool.fromRequest(call.arguments, request), assistant.apps)
+        return tool.prepare(tool.fromRequest(call.arguments, request), assistant.apps, assistant.contacts)
     }
 
     private val runner by lazy { CallRunner(assistant.foreground.inFront) }
@@ -229,6 +230,20 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
 
     /** The assistant's screen if it's in front (so a quiet request runs in its task), else the app. */
     private fun launchContext(): Context = assistant.foreground.activity ?: getApplication()
+
+    /**
+     * The user picked [choice] for a call that asked (a contact, or "Open dialer"): it becomes the
+     * call, and the exchange's waiting calls run.
+     */
+    fun choose(exchangeId: Long, callIndex: Int, choice: Choice) {
+        updateExchange(exchangeId) { e ->
+            e.copy(calls = e.calls.mapIndexed { i, c ->
+                val ready = c.prepared as? Prepared.Ready
+                if (i != callIndex || ready == null) c else c.copy(prepared = Prepared.Ready(ready.summary, ready.opensApp, run = choice.run))
+            })
+        }
+        run(exchangeId)
+    }
 
     fun skip(exchangeId: Long) = updateExchange(exchangeId) { e ->
         e.copy(calls = e.calls.map { if (it.status == Status.Waiting) it.copy(status = Status.Skipped) else it })

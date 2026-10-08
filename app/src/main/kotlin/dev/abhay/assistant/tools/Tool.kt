@@ -33,9 +33,27 @@ class FollowUpEnv(val context: Context, val awaitBack: suspend () -> Boolean)
  * call must wait for the assistant to be back in front.
  */
 sealed interface Prepared {
-    class Ready(val summary: String, val opensApp: Boolean = true, val run: (Context) -> Outcome) : Prepared
+    /**
+     * When it asks first: [detail] under the summary (e.g. a message's text), and [confirm] and
+     * [cancel] as the buttons. With [choices] (e.g. the contacts that match a name), each is a
+     * button of its own instead of [confirm], and [other] a way to do it by hand (open the
+     * dialer); without asking, [run] runs, which is the first choice.
+     */
+    class Ready(
+        val summary: String,
+        val opensApp: Boolean = true,
+        val detail: String? = null,
+        val choices: List<Choice> = emptyList(),
+        val other: Choice? = null,
+        val confirm: String = "Do it",
+        val cancel: String = "Not now",
+        val run: (Context) -> Outcome,
+    ) : Prepared
     data class Invalid(val reason: String) : Prepared
 }
+
+/** One of a call's [Prepared.Ready.choices]: [label] and [detail] on its button, [run] when it's picked. */
+class Choice(val label: String, val detail: String? = null, val run: (Context) -> Outcome)
 
 /**
  * One capability the assistant can be given. Needle 3 only sees [schema] (name, description and
@@ -60,7 +78,12 @@ abstract class Tool(
      * advice is 0.7.
      */
     val defaultRunFrom: Double = 0.7,
+    /** Its calls always ask first until the user changes it: for those that reach other people (calls, messages). */
+    val confirmByDefault: Boolean = false,
 ) {
+    /** Android permissions it needs (e.g. to read contacts), asked for when it's turned on. */
+    open val permissions: List<String> = emptyList()
+
     /** Settings of this tool's own, on its settings page, beyond the ones every tool has. */
     open val options: List<ToolOption> = emptyList()
 
@@ -88,7 +111,7 @@ abstract class Tool(
     /** The JSON schema object Needle 3 gets: {"name", "description", "parameters"}. */
     abstract val schema: String
 
-    abstract fun prepare(arguments: Map<String, Any?>, apps: InstalledApps): Prepared
+    abstract fun prepare(arguments: Map<String, Any?>, apps: InstalledApps, contacts: ContactBook = ContactBook.NONE): Prepared
 }
 
 /** Reads an integer argument, whether the engine gave it as a number or a numeric string. */

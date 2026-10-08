@@ -39,7 +39,7 @@ data class ToolConfig(
     companion object {
         fun defaults(tool: Tool) = ToolConfig(
             enabled = tool.onByDefault,
-            alwaysConfirm = false,
+            alwaysConfirm = tool.confirmByDefault,
             runFrom = tool.defaultRunFrom,
             options = tool.options.associate { it.key to it.default },
             keywords = tool.keywords,
@@ -52,7 +52,7 @@ data class ToolConfig(
             val options = o.optJSONObject("options")
             return ToolConfig(
                 enabled = o.optBoolean("enabled", fallback.enabled),
-                alwaysConfirm = o.optBoolean("always_confirm", false),
+                alwaysConfirm = o.optBoolean("always_confirm", fallback.alwaysConfirm),
                 runFrom = o.optDouble("run_from", fallback.runFrom).takeIf { !it.isNaN() && it != OLD_DEFAULT }
                     ?.coerceIn(MIN_RUN_FROM, MAX_RUN_FROM) ?: fallback.runFrom,
                 options = fallback.options + (options?.keys()?.asSequence()?.associateWith { options.getString(it) } ?: emptyMap()),

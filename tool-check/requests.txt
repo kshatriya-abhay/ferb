@@ -188,3 +188,31 @@ none | how do I get to level 5 in this game
 none | who gave you directions
 open_app | open google maps
 open_settings | take me to the settings
+# Calls (make_call, 2026-10-08). The app finds the contact; only the name as said is compared.
+make_call name=priya | Call Priya
+make_call name=mum | call mum
+make_call name="rahul sharma" | dial Rahul Sharma
+make_call name=dad | phone dad
+make_call name=shreyansh | give Shreyansh a ring
+make_call name=papa | call papa on his mobile
+make_call name=vikram | can you call Vikram for me
+make_call name="pizza hut" | call pizza hut
+make_call | call 98765 43210
+none | what is this flower called
+none | who called me
+none | my phone is slow
+none | call of duty is a great game
+none | the dial on my watch is broken
+# Messages (send_text, 2026-10-08). The message is checked by grounding, not compared.
+send_text name=priya | Text Priya I'm running late
+send_text name=mum | Message Mum that I reached safely
+send_text name=rahul | send a text to Rahul saying the meeting is at 5
+send_text name=dad | sms dad I'll be home by 9
+send_text name=vikram | msg Vikram happy birthday
+send_text name=anita | text Anita can you pick up the kids
+send_text name=priya | tell Priya I'm on my way
+none | read my messages
+none | any new messages
+none | what does this text mean
+none | I got a weird message from the bank
+none | copy this text

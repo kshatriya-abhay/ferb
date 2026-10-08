@@ -1,6 +1,13 @@
 package dev.abhay.assistant.ui
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -67,12 +74,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.abhay.assistant.R
 import dev.abhay.assistant.tools.Keywords
@@ -128,6 +137,7 @@ fun ToolsScreen(settings: SettingsViewModel, onOpenTool: (String) -> Unit, onBac
     val back = { if (draft != saved) confirmLeave = true else onBack() }
     BackHandler(onBack = back)
     val on = ToolSettings.enabledNames(draft).size
+    val askPermissions = rememberPermissionAsk()
 
     Scaffold(
         topBar = { TopBar("Tools", subtitle = "$on of ${Tools.all.size} on", onBack = back) },
@@ -136,7 +146,10 @@ fun ToolsScreen(settings: SettingsViewModel, onOpenTool: (String) -> Unit, onBac
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(vertical = 8.dp)) {
             items(Tools.all, key = { it.name }) { tool ->
                 val config = draft.getValue(tool.name)
-                ToolRow(tool, config, onOpen = { onOpenTool(tool.name) }, onToggle = { enabled -> settings.update(tool.name) { it.copy(enabled = enabled) } })
+                ToolRow(tool, config, onOpen = { onOpenTool(tool.name) }, onToggle = { enabled ->
+                    if (enabled) askPermissions(tool)
+                    settings.update(tool.name) { it.copy(enabled = enabled) }
+                })
             }
         }
     }
@@ -185,7 +198,22 @@ fun ToolConfigScreen(settings: SettingsViewModel, name: String, onOpenKeywords: 
     val config = draft.getValue(name)
     val default = ToolConfig.defaults(tool)
     fun change(change: (ToolConfig) -> ToolConfig) = settings.update(name, change)
+    val askPermissions = rememberPermissionAsk()
+    var confirmStopAsking by rememberSaveable { mutableStateOf(false) }
     BackHandler(onBack = onBack)
+
+    if (confirmStopAsking) {
+        AlertDialog(
+            onDismissRequest = { confirmStopAsking = false },
+            title = { Text("Stop asking first?") },
+            text = {
+                Text("Not recommended for ${tool.title.lowercase()}: Ferb may pick the wrong person. Without asking, the best match " +
+                    "opens straight away, and you only check it before you press call or send.")
+            },
+            confirmButton = { TextButton(onClick = { change { it.copy(alwaysConfirm = false) }; confirmStopAsking = false }) { Text("Stop asking") } },
+            dismissButton = { TextButton(onClick = { confirmStopAsking = false }) { Text("Keep asking") } },
+        )
+    }
 
     Scaffold(
         topBar = { TopBar(tool.title, onBack = onBack) },
@@ -193,8 +221,17 @@ fun ToolConfigScreen(settings: SettingsViewModel, name: String, onOpenKeywords: 
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
             Header(tool)
-            SwitchRow("Use this tool", checked = config.enabled) { on -> change { it.copy(enabled = on) } }
-            SwitchRow("Always ask first", checked = config.alwaysConfirm, enabled = config.enabled) { on -> change { it.copy(alwaysConfirm = on) } }
+            SwitchRow("Use this tool", checked = config.enabled) { on ->
+                if (on) askPermissions(tool)
+                change { it.copy(enabled = on) }
+            }
+            if (tool.permissions.isNotEmpty()) PermissionsRow(tool)
+            SwitchRow(
+                "Always ask first",
+                checked = config.alwaysConfirm,
+                enabled = config.enabled,
+                warning = "Not recommended for this tool".takeIf { tool.confirmByDefault && !config.alwaysConfirm },
+            ) { on -> if (!on && tool.confirmByDefault) confirmStopAsking = true else change { it.copy(alwaysConfirm = on) } }
             ConfidenceSetting(config, default, enabled = config.enabled && !config.alwaysConfirm) { value -> change { it.copy(runFrom = value) } }
             ListItem(
                 onClick = onOpenKeywords,
@@ -373,15 +410,68 @@ private fun SectionTitle(text: String) {
         style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
 }
 
+/** Asks Android for the permissions [Tool.permissions] that aren't granted yet; nothing if none are missing. */
+@Composable
+private fun rememberPermissionAsk(onResult: (Boolean) -> Unit = {}): (Tool) -> Unit {
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result -> onResult(result.values.all { it }) }
+    return { tool ->
+        val missing = tool.permissions.filter { context.checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
+        if (missing.isNotEmpty()) launcher.launch(missing.toTypedArray())
+    }
+}
+
+/** What a permission lets the tool see, in words. */
+private fun permissionTitle(permission: String) = when (permission) {
+    Manifest.permission.READ_CONTACTS -> "Contacts"
+    else -> permission.substringAfterLast('.').lowercase().replace('_', ' ')
+}
+
+/**
+ * Whether the tool has what it needs from Android (e.g. the contacts): tap to ask; once refused,
+ * Android won't ask again, so tap to open the app's page in Android's settings instead.
+ */
+@Composable
+private fun PermissionsRow(tool: Tool) {
+    val context = LocalContext.current
+    fun granted() = tool.permissions.all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
+    var allowed by remember { mutableStateOf(granted()) }
+    var refused by rememberSaveable { mutableStateOf(false) }
+    val ask = rememberPermissionAsk { ok -> allowed = ok; refused = !ok }
+    // Back from Android's settings, or the permission changed while away.
+    LifecycleResumeEffect(tool) {
+        allowed = granted()
+        onPauseOrDispose { }
+    }
+    ListItem(
+        onClick = {
+            if (refused) context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
+            else ask(tool)
+        },
+        enabled = !allowed,
+        supportingContent = {
+            Text(
+                when {
+                    allowed -> "Allowed. Read on this phone only"
+                    refused -> "Not allowed. Tap to allow it in Android settings"
+                    else -> "Not allowed yet. Tap to allow"
+                },
+                color = if (allowed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
+            )
+        },
+    ) { Text(tool.permissions.joinToString { permissionTitle(it) }) }
+}
+
 /**
  * A row that toggles as a whole; the switch only shows the state. A plain clickable row: the
  * checkable ListItem fills checked rows with a tint, which read as a highlight, not a setting.
  */
 @Composable
-private fun SwitchRow(title: String, checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
+private fun SwitchRow(title: String, checked: Boolean, enabled: Boolean = true, warning: String? = null, onChange: (Boolean) -> Unit) {
     ListItem(
         onClick = { onChange(!checked) },
         enabled = enabled,
+        supportingContent = warning?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
         trailingContent = { Switch(checked = checked, onCheckedChange = null, enabled = enabled) },
     ) { Text(title) }
 }

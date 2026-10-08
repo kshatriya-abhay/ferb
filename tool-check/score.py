@@ -41,10 +41,12 @@ def note_words(text):
 
 def grounded(call, request):
     if call["name"] == "set_volume": return re.search(OTHER_VOLUMES, request, re.IGNORECASE) is None
-    said = {"create_note": "text", "get_directions": "destination"}.get(call["name"])
-    if said:  # the app's Tools.mostlySaid: at least half the argument's words are the request's
-        words = note_words((call.get("arguments") or {}).get(said, ""))
-        return not words or 2 * len(words & note_words(request)) >= len(words)
+    said = {"create_note": ["text"], "get_directions": ["destination"], "make_call": ["name"], "send_text": ["name", "message"]}.get(call["name"])
+    if said:  # the app's Tools.mostlySaid: at least half each argument's words are the request's
+        for key in said:
+            words = note_words((call.get("arguments") or {}).get(key, ""))
+            if words and 2 * len(words & note_words(request)) < len(words): return False
+        return True
     key = GROUNDED.get(call["name"])
     value = (call.get("arguments") or {}).get(key) if key else None
     if value is None: return True
