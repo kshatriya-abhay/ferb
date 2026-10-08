@@ -7,11 +7,16 @@
     <!-- set_alarm and set_timer: ask the clock app (a normal permission, granted at install). -->
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
 
-    <!-- open_app: see the launchable apps, to find one by name (package visibility). -->
+    <!-- open_app: see the launchable apps, to find one by name (package visibility).
+         create_note: see the notes apps that take a note from another app. -->
     <queries>
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="com.google.android.gms.actions.CREATE_NOTE" />
+            <data android:mimeType="text/plain" />
         </intent>
     </queries>
 

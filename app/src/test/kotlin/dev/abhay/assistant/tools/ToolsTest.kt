@@ -101,6 +101,16 @@ class ToolsTest {
     }
 
     @Test
+    fun notesTakeTheRequestsWords() {
+        assertThat(summary(CreateNote.prepare(mapOf("text" to "buy milk"), apps))).isEqualTo("Take a note: \u201cbuy milk\u201d")
+        assertThat(reason(CreateNote.prepare(mapOf("text" to " "), apps))).isNotNull()
+        assertThat(CreateNote.grounded(mapOf("text" to "the gate code 4512"), "write down the gate code 4512")).isTrue()
+        assertThat(CreateNote.grounded(mapOf("text" to "car parked on level 3"), "Note that the car is parked on level 3")).isTrue()
+        // A note Needle 3 made up asks first.
+        assertThat(CreateNote.grounded(mapOf("text" to "groceries for the week"), "take a note")).isFalse()
+    }
+
+    @Test
     fun fiveToolsAreOnByDefault() {
         assertThat(ToolSettings.enabledNames(ToolSettings.defaults()))
             .containsExactly("set_alarm", "set_timer", "open_app", "open_settings", "set_flashlight").inOrder()

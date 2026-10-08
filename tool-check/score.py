@@ -36,8 +36,14 @@ GROUNDED = {"set_alarm": "time", "set_timer": "duration"}
 # Requests naming a volume the media-only volume tool doesn't change (the app's SetVolume.grounded).
 OTHER_VOLUMES = r"\b(ring(er|tone)?|alarms?|notifications?|calls?)\b"
 
+def note_words(text):
+    return set(re.findall(r"\w+", str(text).lower()))
+
 def grounded(call, request):
     if call["name"] == "set_volume": return re.search(OTHER_VOLUMES, request, re.IGNORECASE) is None
+    if call["name"] == "create_note":  # the app's CreateNote.grounded: at least half the note's words are the request's
+        note = note_words((call.get("arguments") or {}).get("text", ""))
+        return not note or 2 * len(note & note_words(request)) >= len(note)
     key = GROUNDED.get(call["name"])
     value = (call.get("arguments") or {}).get(key) if key else None
     if value is None: return True

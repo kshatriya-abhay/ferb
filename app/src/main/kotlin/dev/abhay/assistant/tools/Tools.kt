@@ -23,10 +23,10 @@ import kotlin.math.roundToInt
  * of them on every request; with more, it sees the five that best match the request.
  *
  * All of them work offline and for any app: they're intents to other apps (clock, settings,
- * launcher apps) or plain Android APIs (torch, volume, media keys). None needs the assistant role.
+ * launcher apps, notes apps) or plain Android APIs (torch, volume, media keys). None needs the assistant role.
  */
 object Tools {
-    val all: List<Tool> = listOf(SetAlarm, SetTimer, OpenApp, OpenSettings, Flashlight, ShowAlarms, SetVolume, MediaControl, TakePhoto)
+    val all: List<Tool> = listOf(SetAlarm, SetTimer, OpenApp, OpenSettings, Flashlight, ShowAlarms, SetVolume, MediaControl, TakePhoto, CreateNote)
 
     fun byName(name: String): Tool? = all.firstOrNull { it.name == name }
 
@@ -524,5 +524,56 @@ object TakePhoto : Tool(
     override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps) = Prepared.Ready("Open the camera") { context ->
         Tools.start(context, Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA), "Opened the camera")
             .again(Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA))
+    }
+}
+
+object CreateNote : Tool(
+    name = "create_note",
+    title = "Notes",
+    icon = R.drawable.ic_note,
+    description = "Take a note in your notes app, such as Keep.",
+    onByDefault = false,
+    // On tool-check (2026-10-08), right notes scored 0.41–0.79 and took the text cleanly ("jot down
+    // that the wifi password is on the fridge" → "the wifi password is on the fridge"); the worst
+    // wrong one, "what's a quarter note", 0.19.
+    defaultRunFrom = 0.4,
+    examples = listOf("Note that the car is parked on level 3", "Take a note: buy milk"),
+) {
+    /**
+     * Google's "create note" action, the one its "Take a note" voice command sends; Keep and other
+     * notes apps answer it. With several, Android asks which one.
+     */
+    const val ACTION = "com.google.android.gms.actions.CREATE_NOTE"
+
+    override val keywords = listOf("note", "jot", "write down", "take down")
+
+    override val schema = """
+        {"name": "create_note",
+         "description": "Take a note, such as note that the car is parked on level 3",
+         "parameters": {"type": "object", "properties": {
+           "text": {"type": "string", "description": "What to note, in the request's words"}},
+           "required": ["text"]}}
+    """.trimIndent()
+
+    /** At least half the note's words must be the request's: a note Needle 3 made up asks first. */
+    override fun grounded(arguments: Map<String, Any?>, request: String): Boolean {
+        val note = words(arguments.text("text") ?: return true)
+        return note.isEmpty() || note.count { it in words(request) } * 2 >= note.size
+    }
+
+    private fun words(text: String) = Regex("""[\p{L}\p{N}]+""").findAll(text.lowercase()).map { it.value }.toSet()
+
+    override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps): Prepared {
+        val text = arguments.text("text") ?: return Prepared.Invalid("No text for the note")
+        return Prepared.Ready("Take a note: \u201c$text\u201d") { context ->
+            // Notes apps declare the action with a MIME type ("*/*" in Google's docs), so without one nothing matches.
+            val intent = Intent(ACTION).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+            val handlers = context.packageManager.queryIntentActivities(intent, 0)
+            when (handlers.size) {
+                0 -> Outcome.Failed("No notes app on this phone takes notes from other apps (Google Keep does)")
+                1 -> Tools.start(context, intent, "Note sent to ${handlers[0].loadLabel(context.packageManager)}", quietly = true)
+                else -> Tools.start(context, intent, "Note sent to your notes app", quietly = true)
+            }
+        }
     }
 }

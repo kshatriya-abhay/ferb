@@ -150,3 +150,18 @@ set_volume percent=20 | make it quieter, 20 percent
 set_volume percent=0 | mute
 set_volume percent=0 | mute the volume
 set_volume percent=0 | mute please
+# Notes (create_note, 2026-10-08). The text is checked by grounding, not compared word for word.
+create_note | Note that the car is parked on level 3
+create_note | Take a note: buy milk
+create_note | take a note saying call the plumber on monday
+create_note | jot down that the wifi password is on the fridge
+create_note | write down the gate code 4512
+create_note | make a note to pick up the dry cleaning
+create_note | note: ideas for the birthday party, balloons and cake
+create_note | add a note about the meeting with sam at 3
+none | read my notes
+none | where are my notes
+none | what's a quarter note
+none | I left a note on the table
+none | show me the note I took yesterday
+none | delete my last note
