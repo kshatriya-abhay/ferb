@@ -109,7 +109,7 @@ run = "adb shell am start -n dev.abhay.assistant/.MainActivity"
 
 [tasks.send-over-tailscale]
 description = "Build the debug APK and send it to a device with Taildrop: mise run send-over-tailscale <device>"
-usage = 'arg "<device>" help="The Tailscale device to send to, e.g. poco-f5-1"'
+usage = 'arg "<device>" help="The Tailscale device to send to, e.g. my-phone"'
 depends = ["build"]
 run = """
 set -euo pipefail

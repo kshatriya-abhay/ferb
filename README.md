@@ -82,7 +82,7 @@ mise run tool-check     # the tools against the real model, on the desktop
 mise run check-offline  # fails if the APK has the INTERNET permission or networking calls in native code
 mise run device-test    # on the phone: loads the bundled model, swaps tools
 mise run run            # install and launch
-mise run send-over-tailscale poco-f5-1   # or send the APK with Taildrop
+mise run send-over-tailscale my-phone   # or send the APK with Taildrop
 ```
 
 ## Credits
