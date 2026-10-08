@@ -94,3 +94,7 @@ mise run send-over-tailscale poco-f5-1   # or send the APK with Taildrop
 | [Kotlin coroutines](https://github.com/Kotlin/kotlinx.coroutines) | Apache-2.0 | Background work |
 | [Material Icons](https://github.com/google/material-design-icons) | Apache-2.0 | Icons |
 | [Zig](https://ziglang.org) (via the `ziglang` Python package) | MIT | Builds the desktop `tool-check` against libc++ (not shipped) |
+
+## License
+
+Apache-2.0: see [LICENSE](LICENSE). Needle 3 and the Needle engine, fetched at build time, are Apache-2.0 too.

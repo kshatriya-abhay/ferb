@@ -13,3 +13,6 @@ third_party/
 app/src/main/assets/
 *.cact
 *.part
+
+# Local instructions for coding agents; they point into a private notes vault
+CLAUDE.md
