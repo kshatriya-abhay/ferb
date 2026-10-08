@@ -541,7 +541,8 @@ object CreateNote : Tool(
 ) {
     /**
      * Google's "create note" action, the one its "Take a note" voice command sends; Keep and other
-     * notes apps answer it. With several, Android asks which one.
+     * notes apps answer it. With several, Android asks which one. Keep (2026-10-08) doesn't save it:
+     * it opens a small dialog with the text filled in, for the user to save.
      */
     const val ACTION = "com.google.android.gms.actions.CREATE_NOTE"
 
@@ -571,8 +572,8 @@ object CreateNote : Tool(
             val handlers = context.packageManager.queryIntentActivities(intent, 0)
             when (handlers.size) {
                 0 -> Outcome.Failed("No notes app on this phone takes notes from other apps (Google Keep does)")
-                1 -> Tools.start(context, intent, "Note sent to ${handlers[0].loadLabel(context.packageManager)}", quietly = true)
-                else -> Tools.start(context, intent, "Note sent to your notes app", quietly = true)
+                1 -> Tools.start(context, intent, "Note opened in ${handlers[0].loadLabel(context.packageManager)}, to save there", quietly = true)
+                else -> Tools.start(context, intent, "Note opened in your notes app, to save there", quietly = true)
             }
         }
     }
