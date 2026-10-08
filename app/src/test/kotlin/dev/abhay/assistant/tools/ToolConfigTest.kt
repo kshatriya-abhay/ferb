@@ -8,8 +8,28 @@ import org.junit.Test
 class ToolConfigTest {
     @Test
     fun configsSurviveTheirJson() {
-        val config = ToolConfig(enabled = true, alwaysConfirm = true, runFrom = 0.55, options = mapOf("clock" to ClockProviders.SYSTEM_CLOCK))
+        val config = ToolConfig(enabled = true, alwaysConfirm = true, runFrom = 0.55, options = mapOf("clock" to ClockProviders.SYSTEM_CLOCK),
+            keywords = listOf("alarm", "rise and shine"))
         assertThat(ToolConfig.fromJson(config.toJson(SetAlarm), SetAlarm)).isEqualTo(config)
+    }
+
+    @Test
+    fun keywordsNobodyChangedFollowTheDefaults() {
+        assertThat(ToolConfig.defaults(Flashlight).toJson(Flashlight)).doesNotContain("keywords")
+        assertThat(ToolConfig.fromJson("""{"enabled": true}""", Flashlight).keywords).isEqualTo(Flashlight.keywords)
+    }
+
+    @Test
+    fun noKeywordsIsAChoiceToo() {
+        val none = ToolConfig.defaults(Flashlight).copy(keywords = emptyList())
+        assertThat(ToolConfig.fromJson(none.toJson(Flashlight), Flashlight).keywords).isEmpty()
+        assertThat(none.mentionedIn("torch on")).isFalse()
+    }
+
+    @Test
+    fun savedKeywordsAreCleanedUp() {
+        val config = ToolConfig.fromJson("""{"keywords": ["  Wi-Fi ", "wi-fi", "", "flash   light"]}""", OpenSettings)
+        assertThat(config.keywords).containsExactly("wi-fi", "flash light").inOrder()
     }
 
     @Test
@@ -79,6 +99,13 @@ class ToolConfigTest {
     }
 
     @Test
+    fun theUsersOwnKeywordsCount() {
+        val lamp = configs + ("set_flashlight" to configs.getValue("set_flashlight").copy(keywords = listOf("lamp")))
+        assertThat(Verdict.of(reply(0.8, "set_flashlight"), lamp, "lamp on").decision).isEqualTo(Decision.Run)
+        assertThat(Verdict.of(reply(0.8, "set_flashlight"), lamp, "torch on").unmentioned).isTrue()
+    }
+
+    @Test
     fun aTimeTheRequestDoesntSayAsksFirst() {
         fun alarm(time: String, request: String) = Verdict.of(NeedleReply.parse(
             """{"success":true,"function_calls":[{"name":"set_alarm","arguments":{"time":"$time"}}],"confidence":0.63}""",
@@ -92,6 +119,6 @@ class ToolConfigTest {
     @Test
     fun everyExampleMentionsItsTool() {
         // The suggestions must never be held back by their own tool's cues.
-        Tools.all.forEach { tool -> tool.examples.forEach { assertThat(tool.cues?.containsMatchIn(it) ?: true).isTrue() } }
+        Tools.all.forEach { tool -> tool.examples.forEach { assertThat(ToolConfig.defaults(tool).mentionedIn(it)).isTrue() } }
     }
 }

@@ -68,7 +68,7 @@ object SetAlarm : Tool(
     description = "Set an alarm in the clock app, at a time of day.",
     onByDefault = true,
     // Bars from tool-check's per-tool table (2026-10-07). Right alarms scored 0.47–0.85 with
-    // five tools, wrong ones that get past the cues and number check at most 0.24.
+    // five tools, wrong ones that get past the keyword and number check at most 0.24.
     defaultRunFrom = 0.4,
     examples = listOf("Wake me up at 6:45", "Alarms at 8 and 9 am"),
 ) {
@@ -78,7 +78,7 @@ object SetAlarm : Tool(
     // turned "alarms at 8 and 9 am" into one alarm at 08:09 and scored single alarms around 0.3;
     // one time string got every request right (two alarms included) and scored higher. A label
     // parameter made the model invent labels ("Tomorrow morning"), so there isn't one.
-    override val cues = Regex("""\b(alarms?|wake|get up|up at)\b""", RegexOption.IGNORE_CASE)
+    override val keywords = listOf("alarm", "wake", "get up", "up at")
 
     override val schema = """
         {"name": "set_alarm",
@@ -206,7 +206,7 @@ object SetTimer : Tool(
            "required": ["duration"]}}
     """.trimIndent()
 
-    override val cues = Regex("""\b(timers?|count ?down|remind me in|minutes?|mins?|seconds?|secs?|hours?|hrs?)\b""", RegexOption.IGNORE_CASE)
+    override val keywords = listOf("timer", "countdown", "count down", "remind me in", "minute", "min", "second", "sec", "hour", "hr")
 
     override fun prepare(arguments: Map<String, Any?>, apps: InstalledApps): Prepared {
         val said = arguments.text("duration") ?: return Prepared.Invalid("No length given")
@@ -243,7 +243,7 @@ object ShowAlarms : Tool(
 ) {
     override val options = listOf(ClockProviders.option)
 
-    override val cues = Regex("""\balarms?\b""", RegexOption.IGNORE_CASE)
+    override val keywords = listOf("alarm")
 
     override val schema = """
         {"name": "show_alarms",
@@ -261,11 +261,11 @@ object OpenApp : Tool(
     icon = R.drawable.ic_apps,
     description = "Open an app on this phone by its name.",
     onByDefault = true,
-    // Low: opening an app is harmless, and the cues hold back the wrong calls ("uninstall instagram" 0.83).
+    // Low: opening an app is harmless, and the keywords hold back the wrong calls ("uninstall instagram" 0.83).
     defaultRunFrom = 0.3,
     examples = listOf("Open the calculator", "Launch WhatsApp"),
 ) {
-    override val cues = Regex("""\b(open|launch|start|go to|run|show)\b""", RegexOption.IGNORE_CASE)
+    override val keywords = listOf("open", "launch", "start", "go to", "run", "show")
 
     override val schema = """
         {"name": "open_app",
@@ -329,7 +329,7 @@ object OpenSettings : Tool(
     /** The page [name] means ("Bluetooth", "wifi", "Settings"), if it's one. */
     fun pageFor(name: String): String? = name.lowercase().trim().replace(' ', '_').let { ALIASES[it] ?: it }.takeIf { it in PAGES }
 
-    override val cues = Regex("""\b(settings?|wi-?fi|bluetooth|battery|display|brightness|sound|location|storage|security|privacy|notifications?|apps|date|time|language|accessibility|nfc|developer|airplane|aeroplane|flight mode|mobile (network|data))\b""", RegexOption.IGNORE_CASE)
+    override val keywords = listOf("setting", "wifi", "wi-fi", "bluetooth", "battery", "display", "brightness", "sound", "location", "storage", "security", "privacy", "notification", "apps", "date", "time", "language", "accessibility", "nfc", "developer", "airplane", "aeroplane", "flight mode", "mobile network", "mobile data")
 
     override val schema = """
         {"name": "open_settings",
@@ -365,7 +365,7 @@ object Flashlight : Tool(
     defaultRunFrom = 0.75,
     examples = listOf("Turn on the flashlight", "Torch off"),
 ) {
-    override val cues = Regex("""\b(torch|flashlight|flash light|lights?|dark)\b""", RegexOption.IGNORE_CASE)
+    override val keywords = listOf("torch", "flashlight", "flash light", "light", "dark")
 
     override val schema = """
         {"name": "set_flashlight",
@@ -409,7 +409,7 @@ object SetVolume : Tool(
 ) {
     private const val STREAM = AudioManager.STREAM_MUSIC
 
-    override val cues = Regex("""\b(volume|mute|unmute|louder|quieter|loud|quiet|sound)\b""", RegexOption.IGNORE_CASE)
+    override val keywords = listOf("volume", "mute", "unmute", "louder", "quieter", "loud", "quiet", "sound")
 
     // Media only, with the percentage as the one parameter. With a stream to choose too (media,
     // ring, alarm, notification), "volume to 50" and "max volume" got no call: the model had no
@@ -472,7 +472,7 @@ object MediaControl : Tool(
         "previous" to KeyEvent.KEYCODE_MEDIA_PREVIOUS,
     )
 
-    override val cues = Regex("""\b(play|pause|resume|music|song|track|next|previous|skip|stop)\b""", RegexOption.IGNORE_CASE)
+    override val keywords = listOf("play", "pause", "resume", "music", "song", "track", "next", "previous", "skip", "stop")
 
     override val schema = """
         {"name": "control_media",
@@ -513,7 +513,7 @@ object TakePhoto : Tool(
 ) {
     // No photo/video choice: on the desktop check, Needle 3 picked the mode backwards about half the
     // time (whether as an enum or a boolean); switching to video in the camera app is one tap.
-    override val cues = Regex("""\b(camera|photo|picture|pic|selfie|video|snap)\b""", RegexOption.IGNORE_CASE)
+    override val keywords = listOf("camera", "photo", "picture", "pic", "selfie", "video", "snap")
 
     override val schema = """
         {"name": "open_camera",

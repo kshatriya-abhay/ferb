@@ -60,7 +60,7 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         val decision: Decision,
         val runAt: Double,
         val alwaysConfirm: Boolean,
-        /** Set when the request doesn't mention a tool it reached (see [dev.abhay.assistant.tools.Tool.cues]). */
+        /** Set when the request doesn't mention a tool it reached (see [dev.abhay.assistant.tools.ToolConfig.keywords]). */
         val unmentioned: Boolean,
         /** Set when a call has a value the request doesn't say (see [dev.abhay.assistant.tools.Tool.grounded]). */
         val ungrounded: Boolean,
@@ -117,7 +117,8 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 val started = SystemClock.elapsedRealtime()
                 val enabled = enabledTools.value.mapNotNull(Tools::byName)
-                val routed = ToolRouter.route(request, enabled)
+                val configs = assistant.toolSettings.configs.value
+                val routed = ToolRouter.route(request, enabled, configs)
                 val checkAllOn = assistant.toolSettings.checkAllAsFallback.value
                 // No tool mentioned: every tool turned on, and Needle 3 weighs the five that match
                 // best (its own retrieval), unless the user chose to check them all.
@@ -135,7 +136,7 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 }
                 val wallMs = SystemClock.elapsedRealtime() - started
-                val verdict = Verdict.of(reply, assistant.toolSettings.configs.value, request)
+                val verdict = Verdict.of(reply, configs, request)
                 val calls = reply.calls.map { call -> CallState(call, prepare(call), Status.Waiting) }
                 val exchange = Exchange(nextId++, request, reply, verdict.decision, verdict.runAt, verdict.alwaysConfirm, verdict.unmentioned, verdict.ungrounded,
                     routed.map { it.name }, checkAll, calls, wallMs)

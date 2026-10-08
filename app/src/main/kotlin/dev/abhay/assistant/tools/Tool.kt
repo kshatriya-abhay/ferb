@@ -65,11 +65,13 @@ abstract class Tool(
     open val options: List<ToolOption> = emptyList()
 
     /**
-     * Words a request for this tool would contain ("torch", "flashlight"…). A call to a tool the
-     * request doesn't mention asks first, whatever its confidence: with the volume tool off, Needle
-     * 3 answered "mute the ringer" with "flashlight off" at 0.7. Null: no check.
+     * Words and phrases a request for this tool would contain ("torch", "flashlight"…), until the
+     * user changes them ([ToolConfig.keywords]). A request goes to the tools it mentions
+     * ([ToolRouter]), and a call to a tool the request doesn't mention asks first, whatever its
+     * confidence: with the volume tool off, Needle 3 answered "mute the ringer" with "flashlight
+     * off" at 0.7. Matched as whole words, also with an "s" on the end ([Keywords]).
      */
-    open val cues: Regex? = null
+    open val keywords: List<String> = emptyList()
 
     /**
      * Whether [arguments] come from [request], e.g. an alarm's time is one the request says. A call

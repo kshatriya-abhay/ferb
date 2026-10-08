@@ -18,14 +18,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.abhay.assistant.ui.AssistantScreen
 import dev.abhay.assistant.ui.AssistantViewModel
+import dev.abhay.assistant.ui.KeywordsScreen
 import dev.abhay.assistant.ui.SettingsScreen
 import dev.abhay.assistant.ui.SettingsViewModel
 import dev.abhay.assistant.ui.ToolConfigScreen
 import dev.abhay.assistant.ui.ToolsScreen
 
 /**
- * The assistant, and its settings: Settings → Tools → one tool's page. The navigation state is a
- * small back stack of screen names ("tool:<name>" for a tool's page).
+ * The assistant, and its settings: Settings → Tools → one tool's page → its keywords. The
+ * navigation state is a small back stack of screen names ("tool:<name>" for a tool's page,
+ * "keywords:<name>" for its keywords).
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 class MainActivity : ComponentActivity() {
@@ -42,12 +44,14 @@ class MainActivity : ComponentActivity() {
                 var stack by rememberSaveable { mutableStateOf(listOf("assistant")) }
                 val open = { screen: String -> stack = stack + screen }
                 val back = { stack = stack.dropLast(1) }
-                when (val screen = stack.last()) {
-                    "assistant" -> AssistantScreen(viewModel, onOpenSettings = { open("settings") })
-                    "settings" -> SettingsScreen(settings, onOpenTools = { open("tools") }, onBack = back)
-                    "tools" -> ToolsScreen(settings, onOpenTool = { open("tool:$it") }, onBack = back)
+                val screen = stack.last()
+                when {
+                    screen == "assistant" -> AssistantScreen(viewModel, onOpenSettings = { open("settings") })
+                    screen == "settings" -> SettingsScreen(settings, onOpenTools = { open("tools") }, onBack = back)
+                    screen == "tools" -> ToolsScreen(settings, onOpenTool = { open("tool:$it") }, onBack = back)
+                    screen.startsWith("keywords:") -> KeywordsScreen(settings, screen.removePrefix("keywords:"), onBack = back)
                     // "Try it" on a tool's page: back to the chat, and send the example.
-                    else -> ToolConfigScreen(settings, screen.removePrefix("tool:"), onTry = { example ->
+                    else -> ToolConfigScreen(settings, screen.removePrefix("tool:"), onOpenKeywords = { open("keywords:" + screen.removePrefix("tool:")) }, onTry = { example ->
                         stack = listOf("assistant")
                         viewModel.send(example)
                     }, onBack = back)

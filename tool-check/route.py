@@ -1,5 +1,5 @@
 """Runs tool_check the way the app routes requests: each request goes to Needle 3 with only the
-tools whose cue words it contains (the app's ToolRouter); one that mentions none gets every tool,
+tools whose keywords it contains (the app's ToolRouter, with each tool's default keywords); one that mentions none gets every tool,
 and Needle 3's own retrieval of the best five.
 
     route.py tool_check model.cact tools.json requests.txt cues.json [fallback]

@@ -5,8 +5,9 @@ import org.junit.Test
 
 class ToolRouterTest {
     private val enabled = Tools.all
+    private val configs = ToolSettings.defaults()
 
-    private fun route(request: String) = ToolRouter.route(request, enabled).map { it.name }
+    private fun route(request: String) = ToolRouter.route(request, enabled, configs).map { it.name }
 
     @Test
     fun aRequestGetsTheToolsItMentions() {
@@ -22,7 +23,14 @@ class ToolRouterTest {
 
     @Test
     fun onlyToolsTurnedOnAreRouted() {
-        assertThat(ToolRouter.route("set an alarm and show my alarms", listOf(SetAlarm)).map { it.name }).containsExactly("set_alarm")
+        assertThat(ToolRouter.route("set an alarm and show my alarms", listOf(SetAlarm), configs).map { it.name }).containsExactly("set_alarm")
+    }
+
+    @Test
+    fun theUsersKeywordsReplaceTheDefaults() {
+        val lamp = configs + ("set_flashlight" to configs.getValue("set_flashlight").copy(keywords = listOf("lamp", "night light")))
+        assertThat(ToolRouter.route("lamp on", enabled, lamp).map { it.name }).containsExactly("set_flashlight")
+        assertThat(ToolRouter.route("torch on", enabled, lamp)).isEmpty()
     }
 
     @Test

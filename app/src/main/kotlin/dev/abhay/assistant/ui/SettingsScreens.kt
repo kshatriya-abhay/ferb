@@ -20,12 +20,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
@@ -33,12 +37,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -59,11 +65,17 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.abhay.assistant.R
+import dev.abhay.assistant.tools.Keywords
 import dev.abhay.assistant.tools.Tool
 import dev.abhay.assistant.tools.ToolConfig
 import dev.abhay.assistant.tools.ToolOption
@@ -156,11 +168,12 @@ private fun policy(config: ToolConfig) = when {
 
 /**
  * One tool's page: on or off, always confirm, the confidence from which it runs without asking,
- * its own options (e.g. which clock), examples, and, on request, the schema Needle 3 gets.
+ * its keywords (a page of their own), its own options (e.g. which clock), examples, and, on
+ * request, the schema Needle 3 gets.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ToolConfigScreen(settings: SettingsViewModel, name: String, onTry: (String) -> Unit, onBack: () -> Unit) {
+fun ToolConfigScreen(settings: SettingsViewModel, name: String, onOpenKeywords: () -> Unit, onTry: (String) -> Unit, onBack: () -> Unit) {
     val tool = Tools.byName(name)
     if (tool == null) {
         // A tool a newer version removed: go back, from an effect rather than mid-composition.
@@ -183,6 +196,14 @@ fun ToolConfigScreen(settings: SettingsViewModel, name: String, onTry: (String) 
             SwitchRow("Use this tool", checked = config.enabled) { on -> change { it.copy(enabled = on) } }
             SwitchRow("Always ask first", checked = config.alwaysConfirm, enabled = config.enabled) { on -> change { it.copy(alwaysConfirm = on) } }
             ConfidenceSetting(config, default, enabled = config.enabled && !config.alwaysConfirm) { value -> change { it.copy(runFrom = value) } }
+            ListItem(
+                onClick = onOpenKeywords,
+                supportingContent = {
+                    Text(config.keywords.joinToString(", ").ifEmpty { "None: asked only when a request names no tool" },
+                        maxLines = 2, overflow = TextOverflow.Ellipsis)
+                },
+                trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
+            ) { Text(if (config.keywords == default.keywords) "Keywords" else "Keywords (changed)") }
 
             tool.options.forEach { option ->
                 when (option) {
@@ -208,6 +229,114 @@ fun ToolConfigScreen(settings: SettingsViewModel, name: String, onTry: (String) 
             Schema(tool)
         }
     }
+}
+
+/**
+ * A tool's keywords: a request containing one goes to the tool, and a call to it from a request
+ * without one asks first. Add, edit (tap a word), delete, or go back to the tool's own words; part
+ * of the same draft as the rest of the Tools screens.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun KeywordsScreen(settings: SettingsViewModel, name: String, onBack: () -> Unit) {
+    val tool = Tools.byName(name)
+    if (tool == null) {
+        LaunchedEffect(name) { onBack() }
+        return
+    }
+    val draft by settings.draft.collectAsStateWithLifecycle()
+    val words = draft.getValue(name).keywords
+    fun change(words: List<String>) = settings.update(name) { it.copy(keywords = words) }
+    // The word being edited (its index), -1 for a new one, null when no dialog is open.
+    var editing by rememberSaveable { mutableStateOf<Int?>(null) }
+    BackHandler(onBack = onBack)
+
+    Scaffold(
+        topBar = { TopBar("Keywords", subtitle = tool.title, onBack = onBack) },
+        bottomBar = { SaveBar(settings) },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = { editing = -1 },
+                icon = { Icon(Icons.Default.Add, contentDescription = null) },
+                text = { Text("Add") },
+            )
+        },
+    ) { padding ->
+        LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(bottom = 96.dp)) {
+            item {
+                Text("A request with one of these words or phrases goes to this tool. They match whole words, also with an s " +
+                    "on the end (\"alarm\" finds \"alarms\"). A call from a request without any of them asks first.",
+                    Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (words.isEmpty()) item {
+                Text("No keywords: this tool is only asked when a request has no tool's keywords, and its calls always ask first.",
+                    Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+            }
+            items(words.size, key = { words[it] }) { index ->
+                ListItem(
+                    onClick = { editing = index },
+                    trailingContent = {
+                        IconButton(onClick = { change(words - words[index]) }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete ${words[index]}")
+                        }
+                    },
+                ) { Text(words[index]) }
+            }
+            if (words != tool.keywords) item {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = { change(tool.keywords) }) { Text("Reset to default words") }
+                }
+            }
+        }
+    }
+
+    editing?.let { index ->
+        KeywordDialog(
+            initial = words.getOrNull(index).orEmpty(),
+            taken = words.filterIndexed { i, _ -> i != index },
+            onDone = { word ->
+                change(if (index in words.indices) words.toMutableList().apply { this[index] = word } else words + word)
+                editing = null
+            },
+            onCancel = { editing = null },
+        )
+    }
+}
+
+/** Adds a keyword ([initial] empty) or edits one; [taken] are the tool's other words, which it can't repeat. */
+@Composable
+private fun KeywordDialog(initial: String, taken: List<String>, onDone: (String) -> Unit, onCancel: () -> Unit) {
+    var text by rememberSaveable { mutableStateOf(initial) }
+    val word = Keywords.clean(text)
+    val problem = when {
+        text.isBlank() -> null
+        word == null -> "At most ${Keywords.MAX_LENGTH} characters"
+        word in taken -> "Already a keyword"
+        else -> null
+    }
+    val ok = word != null && problem == null
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() }
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text(if (initial.isEmpty()) "Add keyword" else "Edit keyword") },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                modifier = Modifier.focusRequester(focus),
+                label = { Text("Word or phrase") },
+                singleLine = true,
+                isError = problem != null,
+                supportingText = { Text(problem ?: "For example \"lamp\" or \"night light\"") },
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { if (ok) onDone(word!!) }),
+            )
+        },
+        confirmButton = { TextButton(onClick = { onDone(word!!) }, enabled = ok) { Text(if (initial.isEmpty()) "Add" else "Save") } },
+        dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } },
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
