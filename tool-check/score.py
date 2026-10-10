@@ -39,9 +39,18 @@ OTHER_VOLUMES = r"\b(ring(er|tone)?|alarms?|notifications?|calls?)\b"
 def note_words(text):
     return set(re.findall(r"\w+", str(text).lower()))
 
+# A day as the app's When.day reads one, roughly: show_agenda's day must be one, else it asks first.
+DAY = (r"\b(today|tonight|tomorrow|yesterday|mon|monday|tue|tues|tuesday|wednesday|thu|thurs|thursday|fri|friday|saturday|sunday|"
+       r"jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|sept|september|oct|october|nov|november|dec|december)\b|\b\d{1,2}(st|nd|rd|th)?\b|\d/\d")
+
 def grounded(call, request):
+    if call["name"] == "show_agenda":
+        day = (call.get("arguments") or {}).get("day")
+        return day is None or re.search(DAY, str(day).lower()) is not None
     if call["name"] == "set_volume": return re.search(OTHER_VOLUMES, request, re.IGNORECASE) is None
-    said = {"create_note": ["text"], "get_directions": ["destination"], "make_call": ["name"], "send_text": ["name", "message"]}.get(call["name"])
+    said = {"create_note": ["text"], "get_directions": ["destination"], "make_call": ["name"], "send_text": ["name", "message"],
+            # add_event's "when" is only checked when the request says no time; the app reads it from the request.
+            "add_event": ["title"]}.get(call["name"])
     if said:  # the app's Tools.mostlySaid: at least half each argument's words are the request's
         for key in said:
             words = note_words((call.get("arguments") or {}).get(key, ""))

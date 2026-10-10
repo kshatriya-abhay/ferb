@@ -91,6 +91,11 @@ sealed interface ToolOption {
     ) : ToolOption {
         data class Item(val id: String, val label: String, val description: String)
     }
+
+    /** One of the phone's calendars that can take events, listed when the page opens; [default] "" is the account's own ([CalendarBook.target]). */
+    data class Calendar(override val key: String, override val title: String) : ToolOption {
+        override val default = ""
+    }
 }
 
 /** Where alarms and timers go. One provider today; the choice is there so others can be added. */

@@ -19,10 +19,10 @@ class ToolsTest {
 
     @Test
     fun alarmsTakeTheTimeAsWritten() {
-        assertThat(summary(SetAlarm.prepare(mapOf("time" to "7 pm"), apps))).isEqualTo("Set an alarm for 19:00")
-        assertThat(summary(SetAlarm.prepare(mapOf("time" to "6:45"), apps))).isEqualTo("Set an alarm for 06:45")
-        assertThat(reason(SetAlarm.prepare(mapOf("time" to "soon"), apps))).contains("soon")
-        assertThat(reason(SetAlarm.prepare(emptyMap(), apps))).isNotNull()
+        assertThat(summary(SetAlarm.prepare(mapOf("time" to "7 pm"), PrepareEnv(apps)))).isEqualTo("Set an alarm for 19:00")
+        assertThat(summary(SetAlarm.prepare(mapOf("time" to "6:45"), PrepareEnv(apps)))).isEqualTo("Set an alarm for 06:45")
+        assertThat(reason(SetAlarm.prepare(mapOf("time" to "soon"), PrepareEnv(apps)))).contains("soon")
+        assertThat(reason(SetAlarm.prepare(emptyMap(), PrepareEnv(apps)))).isNotNull()
     }
 
     @Test
@@ -39,10 +39,10 @@ class ToolsTest {
 
     @Test
     fun timersTakeTheLengthAsWritten() {
-        assertThat(summary(SetTimer.prepare(mapOf("duration" to "90 seconds"), apps))).isEqualTo("Start a 1 min 30 s timer")
-        assertThat(summary(SetTimer.prepare(mapOf("duration" to "1 hour 15 minutes"), apps))).isEqualTo("Start a 1 h 15 min timer")
-        assertThat(reason(SetTimer.prepare(mapOf("duration" to "a while"), apps))).isNotNull()
-        assertThat(reason(SetTimer.prepare(mapOf("duration" to "25 hours"), apps))).isNotNull()
+        assertThat(summary(SetTimer.prepare(mapOf("duration" to "90 seconds"), PrepareEnv(apps)))).isEqualTo("Start a 1 min 30 s timer")
+        assertThat(summary(SetTimer.prepare(mapOf("duration" to "1 hour 15 minutes"), PrepareEnv(apps)))).isEqualTo("Start a 1 h 15 min timer")
+        assertThat(reason(SetTimer.prepare(mapOf("duration" to "a while"), PrepareEnv(apps)))).isNotNull()
+        assertThat(reason(SetTimer.prepare(mapOf("duration" to "25 hours"), PrepareEnv(apps)))).isNotNull()
     }
 
     @Test
@@ -71,39 +71,39 @@ class ToolsTest {
 
     @Test
     fun openAppFallsBackToASettingsPage() {
-        assertThat(summary(OpenApp.prepare(mapOf("app_name" to "WhatsApp"), apps))).isEqualTo("Open WhatsApp")
+        assertThat(summary(OpenApp.prepare(mapOf("app_name" to "WhatsApp"), PrepareEnv(apps)))).isEqualTo("Open WhatsApp")
         // No "Bluetooth" app, but a settings page: Needle 3 sometimes sends it here.
-        assertThat(summary(OpenApp.prepare(mapOf("app_name" to "Bluetooth"), apps))).isEqualTo("Open the bluetooth settings")
-        assertThat(summary(OpenApp.prepare(mapOf("app_name" to "Settings"), apps))).isEqualTo("Open Settings")
-        assertThat(reason(OpenApp.prepare(mapOf("app_name" to "Spotify"), apps))).contains("Spotify")
+        assertThat(summary(OpenApp.prepare(mapOf("app_name" to "Bluetooth"), PrepareEnv(apps)))).isEqualTo("Open the bluetooth settings")
+        assertThat(summary(OpenApp.prepare(mapOf("app_name" to "Settings"), PrepareEnv(apps)))).isEqualTo("Open Settings")
+        assertThat(reason(OpenApp.prepare(mapOf("app_name" to "Spotify"), PrepareEnv(apps)))).contains("Spotify")
     }
 
     @Test
     fun settingsPagesAcceptCommonSpellings() {
-        assertThat(summary(OpenSettings.prepare(mapOf("page" to "wi-fi"), apps))).isEqualTo("Open the wi-fi settings")
-        assertThat(summary(OpenSettings.prepare(mapOf("page" to "wifi"), apps))).isEqualTo("Open the wi-fi settings")
-        assertThat(summary(OpenSettings.prepare(mapOf("page" to "date_time"), apps))).isEqualTo("Open the date time settings")
-        assertThat(reason(OpenSettings.prepare(mapOf("page" to "kitchen"), apps))).isNotNull()
+        assertThat(summary(OpenSettings.prepare(mapOf("page" to "wi-fi"), PrepareEnv(apps)))).isEqualTo("Open the wi-fi settings")
+        assertThat(summary(OpenSettings.prepare(mapOf("page" to "wifi"), PrepareEnv(apps)))).isEqualTo("Open the wi-fi settings")
+        assertThat(summary(OpenSettings.prepare(mapOf("page" to "date_time"), PrepareEnv(apps)))).isEqualTo("Open the date time settings")
+        assertThat(reason(OpenSettings.prepare(mapOf("page" to "kitchen"), PrepareEnv(apps)))).isNotNull()
     }
 
     @Test
     fun theRestCheckTheirArguments() {
-        assertThat(summary(Flashlight.prepare(mapOf("on" to true), apps))).isEqualTo("Turn the flashlight on")
-        assertThat(summary(Flashlight.prepare(mapOf("on" to "false"), apps))).isEqualTo("Turn the flashlight off")
-        assertThat(reason(Flashlight.prepare(emptyMap(), apps))).isNotNull()
-        assertThat(summary(SetVolume.prepare(mapOf("percent" to 40), apps))).isEqualTo("Set the media volume to 40 %")
-        assertThat(reason(SetVolume.prepare(mapOf("percent" to 150), apps))).isNotNull()
+        assertThat(summary(Flashlight.prepare(mapOf("on" to true), PrepareEnv(apps)))).isEqualTo("Turn the flashlight on")
+        assertThat(summary(Flashlight.prepare(mapOf("on" to "false"), PrepareEnv(apps)))).isEqualTo("Turn the flashlight off")
+        assertThat(reason(Flashlight.prepare(emptyMap(), PrepareEnv(apps)))).isNotNull()
+        assertThat(summary(SetVolume.prepare(mapOf("percent" to 40), PrepareEnv(apps)))).isEqualTo("Set the media volume to 40 %")
+        assertThat(reason(SetVolume.prepare(mapOf("percent" to 150), PrepareEnv(apps)))).isNotNull()
         // Media only: a request about another volume asks first.
         assertThat(SetVolume.grounded(mapOf("percent" to 0), "Mute the ringer")).isFalse()
         assertThat(SetVolume.grounded(mapOf("percent" to 40), "set volume to 40")).isTrue()
-        assertThat(summary(MediaControl.prepare(mapOf("action" to "next"), apps))).isEqualTo("Media: next")
-        assertThat(reason(MediaControl.prepare(mapOf("action" to "rewind"), apps))).isNotNull()
+        assertThat(summary(MediaControl.prepare(mapOf("action" to "next"), PrepareEnv(apps)))).isEqualTo("Media: next")
+        assertThat(reason(MediaControl.prepare(mapOf("action" to "rewind"), PrepareEnv(apps)))).isNotNull()
     }
 
     @Test
     fun notesTakeTheRequestsWords() {
-        assertThat(summary(CreateNote.prepare(mapOf("text" to "buy milk"), apps))).isEqualTo("Take a note: \u201cbuy milk\u201d")
-        assertThat(reason(CreateNote.prepare(mapOf("text" to " "), apps))).isNotNull()
+        assertThat(summary(CreateNote.prepare(mapOf("text" to "buy milk"), PrepareEnv(apps)))).isEqualTo("Take a note: \u201cbuy milk\u201d")
+        assertThat(reason(CreateNote.prepare(mapOf("text" to " "), PrepareEnv(apps)))).isNotNull()
         assertThat(CreateNote.grounded(mapOf("text" to "the gate code 4512"), "write down the gate code 4512")).isTrue()
         assertThat(CreateNote.grounded(mapOf("text" to "car parked on level 3"), "Note that the car is parked on level 3")).isTrue()
         // A note Needle 3 made up asks first.
@@ -112,8 +112,8 @@ class ToolsTest {
 
     @Test
     fun directionsTakeThePlaceAndTheRequestsMode() {
-        assertThat(summary(GetDirections.prepare(mapOf("destination" to "Lodhi Garden"), apps))).isEqualTo("Directions to \u201cLodhi Garden\u201d")
-        assertThat(reason(GetDirections.prepare(mapOf("destination" to " "), apps))).isNotNull()
+        assertThat(summary(GetDirections.prepare(mapOf("destination" to "Lodhi Garden"), PrepareEnv(apps)))).isEqualTo("Directions to \u201cLodhi Garden\u201d")
+        assertThat(reason(GetDirections.prepare(mapOf("destination" to " "), PrepareEnv(apps)))).isNotNull()
         // The mode is the request's, whatever Needle 3 said.
         assertThat(GetDirections.fromRequest(mapOf("destination" to "MG Road", "mode" to "driving"), "how do I get to MG Road by bus"))
             .isEqualTo(mapOf("destination" to "MG Road", "mode" to "transit"))
@@ -122,7 +122,7 @@ class ToolsTest {
         assertThat(GetDirections.modeIn("route to the office on my scooter")).isEqualTo("two-wheeler")
         assertThat(GetDirections.modeIn("cycling route to Cubbon Park")).isEqualTo("bicycling")
         assertThat(GetDirections.modeIn("take me to the cartoon network studio")).isNull()
-        assertThat(summary(GetDirections.prepare(mapOf("destination" to "India Gate", "mode" to "walking"), apps)))
+        assertThat(summary(GetDirections.prepare(mapOf("destination" to "India Gate", "mode" to "walking"), PrepareEnv(apps))))
             .isEqualTo("Directions to \u201cIndia Gate\u201d (walking)")
         assertThat(GetDirections.grounded(mapOf("destination" to "the nearest petrol pump"), "take me to the nearest petrol pump")).isTrue()
         assertThat(GetDirections.grounded(mapOf("destination" to "Mumbai Central"), "take me home")).isFalse()
@@ -138,31 +138,31 @@ class ToolsTest {
 
     @Test
     fun callsOfferTheBestContactAndTheDialer() {
-        val ready = MakeCall.prepare(mapOf("name" to "Priya"), apps, contacts) as Prepared.Ready
+        val ready = MakeCall.prepare(mapOf("name" to "Priya"), PrepareEnv(apps, contacts)) as Prepared.Ready
         // The best match only: equally good ones go to the shorter name.
         assertThat(ready.choices.map { it.label }).containsExactly("Priya Singh")
         assertThat(ready.choices.single().detail).isEqualTo("Mobile \u00b7 +91 99887 76655")
         assertThat(ready.other?.label).isEqualTo("Open dialer")
         // No one by that name: the dialer, to find them by hand.
-        val nobody = MakeCall.prepare(mapOf("name" to "Zubair"), apps, contacts) as Prepared.Ready
+        val nobody = MakeCall.prepare(mapOf("name" to "Zubair"), PrepareEnv(apps, contacts)) as Prepared.Ready
         assertThat(nobody.choices).isEmpty()
         assertThat(nobody.confirm).isEqualTo("Open dialer")
         // A number is dialled as it is.
-        val number = MakeCall.prepare(mapOf("name" to "98765 43210"), apps, contacts) as Prepared.Ready
+        val number = MakeCall.prepare(mapOf("name" to "98765 43210"), PrepareEnv(apps, contacts)) as Prepared.Ready
         assertThat(number.choices.map { it.label }).containsExactly("9876543210")
-        assertThat(reason(MakeCall.prepare(mapOf("name" to "Priya"), apps, ContactBook.NONE))).contains("contacts")
+        assertThat(reason(MakeCall.prepare(mapOf("name" to "Priya"), PrepareEnv(apps)))).contains("contacts")
         assertThat(MakeCall.grounded(mapOf("name" to "Priya"), "call Priya")).isTrue()
         assertThat(MakeCall.grounded(mapOf("name" to "Rahul"), "call her")).isFalse()
     }
 
     @Test
     fun messagesShowOneRecipientAndTheDraft() {
-        val ready = SendText.prepare(mapOf("name" to "mum", "message" to "I reached safely"), apps, contacts) as Prepared.Ready
+        val ready = SendText.prepare(mapOf("name" to "mum", "message" to "I reached safely"), PrepareEnv(apps, contacts)) as Prepared.Ready
         assertThat(ready.summary).isEqualTo("Text Maa \u00b7 +91 98111 22222")
         assertThat(ready.detail).isEqualTo("\u201cI reached safely\u201d")
         assertThat(ready.confirm).isEqualTo("Proceed")
         assertThat(ready.cancel).isEqualTo("Cancel")
-        assertThat(reason(SendText.prepare(mapOf("name" to "mum"), apps, contacts))).isNotNull()
+        assertThat(reason(SendText.prepare(mapOf("name" to "mum"), PrepareEnv(apps, contacts)))).isNotNull()
         assertThat(SendText.grounded(mapOf("name" to "Priya", "message" to "I'm running late"), "text Priya I'm running late")).isTrue()
         assertThat(SendText.grounded(mapOf("name" to "Priya", "message" to "see you at the cinema"), "text Priya")).isFalse()
     }

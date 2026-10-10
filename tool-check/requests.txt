@@ -89,7 +89,7 @@ none | what's a pomodoro timer
 none | how much time is left
 open_app app_name=chrome | open chrome
 open_settings/open_app | open the settings app
-open_app app_name=calendar | show my calendar
+show_agenda/open_app | show my calendar
 open_app app_name=clock | open the clock
 open_app | open play store
 open_app app_name=telegram | start telegram
@@ -140,7 +140,7 @@ none | which camera is better
 set_flashlight on=true | I can't see a thing
 open_app app_name=youtube | I want to watch youtube
 open_app app_name=gmail | check my email
-open_app app_name=calendar | what's on my calendar today
+show_agenda/open_app | what's on my calendar today
 open_app app_name=whatsapp | whatsapp
 # The volume tool is media only (2026-10-08): any volume request without a stream means media.
 set_volume percent=40 | set volume to 40
@@ -216,3 +216,37 @@ none | any new messages
 none | what does this text mean
 none | I got a weird message from the bank
 none | copy this text
+# Agenda (show_agenda, 2026-10-10). The app reads the day from the request; only the tool is compared.
+show_agenda | What's on tomorrow?
+show_agenda | am I free on Friday
+show_agenda | what does my schedule look like tomorrow
+show_agenda | do I have any meetings today
+show_agenda | show my agenda for Monday
+show_agenda | any events on 12 October
+show_agenda | am I busy tomorrow evening
+show_agenda | what's on my calendar
+show_agenda | what appointments do I have on Thursday
+show_agenda | whats on today
+none | what's on TV tonight
+none | what's on netflix
+none | I'm free now
+none | what's the agenda of the G20 summit
+none | the schedule for the IPL final
+none | my plans fell through
+# Calendar events (add_event, 2026-10-10). The app reads the day and time from the request; the title is checked by grounding.
+add_event | Add the dentist to my calendar tomorrow at 5 pm
+add_event | Schedule lunch with Priya on Saturday at 1
+add_event | put a meeting with Rahul on Monday at 11 in my calendar
+add_event | add an event: team dinner on Friday at 8 pm
+add_event | create a calendar event for the parent teacher meeting on 15 October at 10 am
+add_event | schedule a call with the bank tomorrow morning
+add_event | I have a doctor's appointment on Thursday at 4:30, add it to my calendar
+add_event | add mum's birthday on 12 October to my calendar
+add_event | book a meeting with the design team next Tuesday from 2 to 3 pm
+add_event | remind me on Friday to pay the rent
+none | cancel my meeting tomorrow
+none | what is a calendar year
+none | the meeting went well
+none | I missed the event yesterday
+none | my schedule is too tight this week
+none | move my dentist appointment to Friday

@@ -1,17 +1,23 @@
 package dev.abhay.assistant.tools
 
 import android.content.Context
+import android.content.Intent
 import androidx.annotation.DrawableRes
+import java.time.ZonedDateTime
 
 /** What running a call did, shown under it. */
 sealed interface Outcome {
     /**
      * [actions] are buttons offered next to the result, e.g. "Turn off" after turning the torch on;
-     * [level], a slider instead, e.g. for the volume just set.
+     * [level], a slider instead, e.g. for the volume just set; [lines], a list under the message,
+     * e.g. a day's events.
      */
-    data class Done(val message: String, val actions: List<FollowUp> = emptyList(), val level: Level? = null) : Outcome
+    data class Done(val message: String, val actions: List<FollowUp> = emptyList(), val level: Level? = null, val lines: List<Line> = emptyList()) : Outcome
     data class Failed(val reason: String) : Outcome
 }
+
+/** One line of a result's list: [lead] (e.g. a time) beside [text], [detail] under it; tapping it starts [open]'s intent, if any. */
+class Line(val lead: String, val text: String, val detail: String? = null, val open: (() -> Intent)? = null)
 
 /** A slider on a result, at [value] (0..1): [set] applies a value and gives the result's new message. */
 data class Level(val value: Float, val set: (Context, Float) -> String)
@@ -81,6 +87,9 @@ abstract class Tool(
     /** Its calls always ask first until the user changes it: for those that reach other people (calls, messages). */
     val confirmByDefault: Boolean = false,
 ) {
+    /** For tools that ask first by default ([confirmByDefault]): why that's best, when the user turns it off. */
+    open val whyAsk: String = "Ferb may get it wrong, and it would run without you seeing it first."
+
     /** Android permissions it needs (e.g. to read contacts), asked for when it's turned on. */
     open val permissions: List<String> = emptyList()
 
@@ -111,8 +120,20 @@ abstract class Tool(
     /** The JSON schema object Needle 3 gets: {"name", "description", "parameters"}. */
     abstract val schema: String
 
-    abstract fun prepare(arguments: Map<String, Any?>, apps: InstalledApps, contacts: ContactBook = ContactBook.NONE): Prepared
+    abstract fun prepare(arguments: Map<String, Any?>, env: PrepareEnv): Prepared
 }
+
+/**
+ * What [Tool.prepare] can look things up in: the phone's apps, contacts and calendar (each read
+ * on lookup), the time [now], and the tool's own [options] ([ToolConfig.options]).
+ */
+class PrepareEnv(
+    val apps: InstalledApps = InstalledApps { emptyList() },
+    val contacts: ContactBook = ContactBook.NONE,
+    val calendar: CalendarBook = CalendarBook.NONE,
+    val now: ZonedDateTime = ZonedDateTime.now(),
+    val options: Map<String, String> = emptyMap(),
+)
 
 /** Reads an integer argument, whether the engine gave it as a number or a numeric string. */
 internal fun Map<String, Any?>.int(key: String): Int? = when (val v = this[key]) {

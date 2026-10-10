@@ -84,6 +84,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.abhay.assistant.R
+import dev.abhay.assistant.tools.CalendarBook
+import dev.abhay.assistant.tools.CalendarInfo
 import dev.abhay.assistant.tools.Keywords
 import dev.abhay.assistant.tools.Tool
 import dev.abhay.assistant.tools.ToolConfig
@@ -207,8 +209,7 @@ fun ToolConfigScreen(settings: SettingsViewModel, name: String, onOpenKeywords: 
             onDismissRequest = { confirmStopAsking = false },
             title = { Text("Stop asking first?") },
             text = {
-                Text("Not recommended for ${tool.title.lowercase()}: Ferb may pick the wrong person. Without asking, the best match " +
-                    "opens straight away, and you only check it before you press call or send.")
+                Text("Not recommended for ${tool.title.lowercase()}: ${tool.whyAsk}")
             },
             confirmButton = { TextButton(onClick = { change { it.copy(alwaysConfirm = false) }; confirmStopAsking = false }) { Text("Stop asking") } },
             dismissButton = { TextButton(onClick = { confirmStopAsking = false }) { Text("Keep asking") } },
@@ -245,6 +246,9 @@ fun ToolConfigScreen(settings: SettingsViewModel, name: String, onOpenKeywords: 
             tool.options.forEach { option ->
                 when (option) {
                     is ToolOption.Choice -> ChoiceSetting(option, config.choice(option), enabled = config.enabled) { id ->
+                        change { it.copy(options = it.options + (option.key to id)) }
+                    }
+                    is ToolOption.Calendar -> CalendarSetting(option, config.options[option.key].orEmpty(), enabled = config.enabled) { id ->
                         change { it.copy(options = it.options + (option.key to id)) }
                     }
                 }
@@ -425,6 +429,8 @@ private fun rememberPermissionAsk(onResult: (Boolean) -> Unit = {}): (Tool) -> U
 private fun permissionTitle(permission: String) = when (permission) {
     Manifest.permission.READ_CONTACTS -> "Contacts"
     Manifest.permission.CALL_PHONE -> "Calls"
+    Manifest.permission.READ_CALENDAR -> "Calendar"
+    Manifest.permission.WRITE_CALENDAR -> "Adding events"
     else -> permission.substringAfterLast('.').lowercase().replace('_', ' ')
 }
 
@@ -521,6 +527,45 @@ private fun ChoiceSetting(option: ToolOption.Choice, chosen: String, enabled: Bo
     }
     option.note?.let {
         Text(it, Modifier.padding(horizontal = 16.dp, vertical = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/**
+ * Which calendar new events go to: the phone's calendars that take events, read whenever the page
+ * shows (so after allowing access). Until one is picked, the account's own ([CalendarBook.target]).
+ */
+@Composable
+private fun CalendarSetting(option: ToolOption.Calendar, chosen: String, enabled: Boolean, onChoose: (String) -> Unit) {
+    val context = LocalContext.current
+    var calendars by remember { mutableStateOf<List<CalendarInfo>?>(null) }
+    LifecycleResumeEffect(Unit) {
+        calendars = CalendarBook.from(context).calendars()
+        onPauseOrDispose { }
+    }
+    SectionTitle(option.title)
+    val all = calendars
+    val writable = all?.filter { it.writable }.orEmpty()
+    if (all == null || writable.isEmpty()) {
+        Text(
+            if (all == null) "Allow the calendar above to choose one" else "No calendar on this phone takes events",
+            Modifier.padding(horizontal = 16.dp, vertical = 4.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
+    }
+    val current = CalendarBook({ all }, { _, _ -> null }).target(chosen)?.id
+    writable.forEach { calendar ->
+        ListItem(
+            onClick = { onChoose(calendar.id.toString()) },
+            enabled = enabled,
+            supportingContent = {
+                Text(when {
+                    calendar.local -> "Only on this phone"
+                    calendar.account != calendar.name -> calendar.account
+                    else -> "Your account's own calendar"
+                })
+            },
+            leadingContent = { RadioButton(selected = calendar.id == current, onClick = null, enabled = enabled) },
+        ) { Text(calendar.name) }
     }
 }
 

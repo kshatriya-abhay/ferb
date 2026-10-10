@@ -15,6 +15,7 @@ import dev.abhay.assistant.tools.Choice
 import dev.abhay.assistant.tools.FollowUp
 import dev.abhay.assistant.tools.FollowUpEnv
 import dev.abhay.assistant.tools.Outcome
+import dev.abhay.assistant.tools.PrepareEnv
 import dev.abhay.assistant.tools.Prepared
 import dev.abhay.assistant.tools.Tool
 import dev.abhay.assistant.tools.ToolRouter
@@ -160,7 +161,9 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
     private fun prepare(call: ToolCall, request: String): Prepared {
         val tool = Tools.byName(call.name)?.takeIf { it.name in enabledTools.value }
             ?: return Prepared.Invalid("No tool called ${call.name} is turned on")
-        return tool.prepare(tool.fromRequest(call.arguments, request), assistant.apps, assistant.contacts)
+        val env = PrepareEnv(assistant.apps, assistant.contacts, assistant.calendar,
+            options = assistant.toolSettings.configs.value[tool.name]?.options.orEmpty())
+        return tool.prepare(tool.fromRequest(call.arguments, request), env)
     }
 
     private val runner by lazy { CallRunner(assistant.foreground.inFront) }

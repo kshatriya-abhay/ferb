@@ -1,6 +1,7 @@
 package dev.abhay.assistant.ui
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -66,7 +67,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -81,6 +84,7 @@ import dev.abhay.assistant.engine.AssistantEngine
 import dev.abhay.assistant.engine.Decision
 import dev.abhay.assistant.tools.Choice
 import dev.abhay.assistant.tools.FollowUp
+import dev.abhay.assistant.tools.Line
 import dev.abhay.assistant.tools.Outcome
 import dev.abhay.assistant.tools.Prepared
 import dev.abhay.assistant.tools.Tools
@@ -381,10 +385,34 @@ private fun CallLine(state: AssistantViewModel.CallState, onChoose: (Choice) -> 
         done?.level?.let { level ->
             Slider(value = level.value, onValueChange = onAdjust, modifier = Modifier.padding(start = 48.dp))
         }
+        val lines = done?.lines.orEmpty()
+        if (lines.isNotEmpty()) ResultLines(lines)
         val actions = done?.actions.orEmpty()
         if (actions.isNotEmpty()) {
             FlowRow(Modifier.padding(start = 48.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 actions.forEach { action -> AssistChip(onClick = { onFollowUp(action) }, label = { Text(action.label) }) }
+            }
+        }
+    }
+}
+
+/** A result's list, e.g. a day's events: the lead (a time) in a column of its own; a line with something to open is tappable. */
+@Composable
+private fun ResultLines(lines: List<Line>) {
+    val context = LocalContext.current
+    Column(Modifier.padding(start = 40.dp)) {
+        lines.forEach { line ->
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                    .clickable(enabled = line.open != null) { line.open?.let { Tools.start(context, it(), "") } }
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(line.lead, Modifier.width(92.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                Column(Modifier.weight(1f)) {
+                    Text(line.text, style = MaterialTheme.typography.bodyMedium)
+                    line.detail?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                }
             }
         }
     }
