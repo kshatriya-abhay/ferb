@@ -19,6 +19,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.abhay.assistant.ui.AssistantScreen
 import dev.abhay.assistant.ui.AssistantViewModel
 import dev.abhay.assistant.ui.KeywordsScreen
+import dev.abhay.assistant.ui.LinkScreen
 import dev.abhay.assistant.ui.SettingsScreen
 import dev.abhay.assistant.ui.SettingsViewModel
 import dev.abhay.assistant.ui.ToolConfigScreen
@@ -47,7 +48,8 @@ class MainActivity : ComponentActivity() {
                 val screen = stack.last()
                 when {
                     screen == "assistant" -> AssistantScreen(viewModel, onOpenSettings = { open("settings") })
-                    screen == "settings" -> SettingsScreen(settings, onOpenTools = { open("tools") }, onBack = back)
+                    screen == "settings" -> SettingsScreen(settings, onOpenTools = { open("tools") }, onOpenLink = { open("link") }, onBack = back)
+                    screen == "link" -> LinkScreen(settings, onBack = back)
                     screen == "tools" -> ToolsScreen(settings, onOpenTool = { open("tool:$it") }, onBack = back)
                     screen.startsWith("keywords:") -> KeywordsScreen(settings, screen.removePrefix("keywords:"), onBack = back)
                     // "Try it" on a tool's page: back to the chat, and send the example.

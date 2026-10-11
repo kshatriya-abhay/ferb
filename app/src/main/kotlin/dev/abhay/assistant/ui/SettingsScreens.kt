@@ -84,6 +84,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.abhay.assistant.R
+import dev.abhay.assistant.link.LinkMode
 import dev.abhay.assistant.tools.CalendarBook
 import dev.abhay.assistant.tools.CalendarInfo
 import dev.abhay.assistant.tools.Keywords
@@ -96,11 +97,12 @@ import java.util.Locale
 import org.json.JSONObject
 import kotlin.math.roundToInt
 
-/** The settings home: the tools (a page of their own), and the model, which runs on the phone. */
+/** The settings home: the tools (a page of their own), Ferb Link (likewise), and the model, which runs on the phone. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onBack: () -> Unit) {
+fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenLink: () -> Unit, onBack: () -> Unit) {
     val saved by settings.saved.collectAsStateWithLifecycle()
+    val linkMode by settings.linkMode.collectAsStateWithLifecycle()
     val checkAll by settings.checkAllAsFallback.collectAsStateWithLifecycle()
     BackHandler(onBack = onBack)
     Scaffold(topBar = { TopBar("Settings", onBack = onBack) }) { padding ->
@@ -117,9 +119,13 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onBack:
                 supportingContent = { Text("When a request names no tool, try every tool instead of the best five. Slower with many tools on.") },
                 trailingContent = { Switch(checked = checkAll, onCheckedChange = null) },
             ) { Text("Check all tools as a fallback") }
+            LinkRow(settings, onOpen = onOpenLink)
             ListItem(
                 leadingContent = { IconBadge(R.drawable.ic_lock) },
-                supportingContent = { Text("Needle 3 runs on this phone. The app has no internet access.") },
+                supportingContent = {
+                    Text(if (linkMode == LinkMode.Off) "Needle 3 runs on this phone. The app has no internet access."
+                        else "Needle 3 runs on this phone, and the app has no internet access. Ferb Link sends some requests to your computer.")
+                },
             ) { Text("Private by design") }
         }
     }
@@ -382,7 +388,7 @@ private fun KeywordDialog(initial: String, taken: List<String>, onDone: (String)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TopBar(title: String, subtitle: String? = null, onBack: () -> Unit) {
+internal fun TopBar(title: String, subtitle: String? = null, onBack: () -> Unit) {
     val navigation = @Composable { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } }
     if (subtitle == null) TopAppBar(title = { Text(title) }, navigationIcon = navigation)
     else TopAppBar(title = { Text(title) }, subtitle = { Text(subtitle) }, navigationIcon = navigation)
@@ -390,7 +396,7 @@ private fun TopBar(title: String, subtitle: String? = null, onBack: () -> Unit) 
 
 /** An icon in a tonal circle, for list rows; muted when [active] is false (a tool that's off). */
 @Composable
-private fun IconBadge(@DrawableRes icon: Int, active: Boolean = true, size: Int = 40) {
+internal fun IconBadge(@DrawableRes icon: Int, active: Boolean = true, size: Int = 40) {
     Surface(
         shape = CircleShape,
         color = if (active) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -409,7 +415,7 @@ private fun Header(tool: Tool) {
 }
 
 @Composable
-private fun SectionTitle(text: String) {
+internal fun SectionTitle(text: String) {
     Text(text, Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 8.dp),
         style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
 }

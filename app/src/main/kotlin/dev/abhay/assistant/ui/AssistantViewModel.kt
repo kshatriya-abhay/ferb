@@ -10,6 +10,11 @@ import dev.abhay.assistant.engine.AssistantEngine
 import dev.abhay.assistant.engine.Decision
 import dev.abhay.assistant.engine.NeedleReply
 import dev.abhay.assistant.engine.ToolCall
+import dev.abhay.assistant.link.Answerer
+import dev.abhay.assistant.link.LinkMode
+import dev.abhay.assistant.link.LinkPolicy
+import dev.abhay.assistant.link.LinkStatus
+import dev.abhay.assistant.link.describe
 import dev.abhay.assistant.tools.CallRunner
 import dev.abhay.assistant.tools.Choice
 import dev.abhay.assistant.tools.FollowUp
@@ -72,6 +77,12 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         val checkedAll: Boolean,
         val calls: List<CallState>,
         val wallMs: Long,
+        /** Needle 3's answer, when it was replaced by the computer's ([dev.abhay.assistant.link.LinkPolicy.keep]). */
+        val needleReply: NeedleReply? = null,
+        /** Why the computer's answer isn't shown, when Ferb asked it and it failed (Needle 3 answered). */
+        val laptopError: String? = null,
+        /** For the computer's answers: whether Needle 3 made the same calls, which lets it run without asking. */
+        val agreed: Boolean = false,
     )
 
     data class UiState(
@@ -81,12 +92,18 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         val history: List<Exchange> = emptyList(),
         /** The request sent and not answered yet, shown at once with a "thinking" bubble. */
         val pending: String? = null,
+        /** What the thinking bubble says, when it's more than thinking (waiting for the computer). */
+        val asking: String? = null,
         val notice: String? = null,
     )
 
     private val assistant = app as AssistantApp
     val engine: StateFlow<AssistantEngine.State> = assistant.engine.state
     val enabledTools: StateFlow<List<String>> = assistant.toolSettings.enabled
+    /** How Ferb Link is used (Settings → Ferb Link), and who answers when the chat box offers a choice. */
+    val linkMode: StateFlow<LinkMode> = assistant.linkSettings.mode
+    val answerer: StateFlow<Answerer> = assistant.linkSettings.answerer
+    fun setAnswerer(answerer: Answerer) = assistant.linkSettings.setAnswerer(answerer)
 
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
@@ -137,19 +154,45 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
                         if (answer.calls.isNotEmpty() && (answer.confidence ?: 0.0) > (reply.confidence.takeIf { reply.calls.isNotEmpty() } ?: -1.0)) reply = answer
                     }
                 }
-                val wallMs = SystemClock.elapsedRealtime() - started
-                val verdict = Verdict.of(reply, configs, request)
-                val calls = reply.calls.map { call -> CallState(call, prepare(call, request), Status.Waiting) }
-                val exchange = Exchange(nextId++, request, reply, verdict.decision, verdict.runAt, verdict.alwaysConfirm, verdict.unmentioned, verdict.ungrounded,
-                    routed.map { it.name }, checkAll, calls, wallMs)
-                _state.update { it.copy(history = it.history + exchange, pending = null) }
+                val needleVerdict = Verdict.of(reply, configs, request)
+                // Ferb Link, as chosen in Settings: the computer's model answers when Ferb Link is
+                // picked in the chat box ("Option"), or when Needle 3 is unsure or finds no tool
+                // ("Fallback"). Needle 3 answers either way: its answer is the fallback, and the
+                // computer's runs without asking only when Needle 3 agrees (LinkPolicy.verdict).
+                val mode = assistant.linkSettings.mode.value
+                val chosen = LinkPolicy.laptopFirst(mode, assistant.linkSettings.answerer.value)
+                var laptop: NeedleReply? = null
+                var laptopError: String? = null
+                val askLaptop = enabled.isNotEmpty() &&
+                    (chosen || (mode == LinkMode.Fallback && reply.error == null && LinkPolicy.askLaptopAfter(reply, needleVerdict)))
+                if (askLaptop) {
+                    val status = assistant.link.status()
+                    if (status is LinkStatus.Ready) {
+                        _state.update { it.copy(asking = "Asking your computer\u2026") }
+                        laptop = assistant.link.complete(request, Tools.json(routed.ifEmpty { enabled }))
+                        laptopError = laptop.error
+                    } else if (chosen) {
+                        // Picked in the chat box, so say why it didn't answer; in Fallback, a Ferb Link
+                        // that's off or not set up is simply not asked.
+                        laptopError = describe(status)
+                    }
+                }
+                val shown = laptop?.let { LinkPolicy.keep(reply, it) } ?: reply
+                val verdict = if (shown.fromLaptop) LinkPolicy.verdict(shown, reply, configs, request) else needleVerdict
+                val calls = shown.calls.map { call -> CallState(call, prepare(call, request), Status.Waiting) }
+                val exchange = Exchange(nextId++, request, shown, verdict.decision, verdict.runAt, verdict.alwaysConfirm, verdict.unmentioned, verdict.ungrounded,
+                    routed.map { it.name }, checkAll, calls, SystemClock.elapsedRealtime() - started,
+                    needleReply = reply.takeIf { shown !== reply },
+                    laptopError = laptopError,
+                    agreed = shown.fromLaptop && LinkPolicy.agrees(shown, reply))
+                _state.update { it.copy(history = it.history + exchange, pending = null, asking = null) }
                 if (verdict.decision == Decision.Run) run(exchange.id)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 _state.update { it.copy(notice = e.message ?: e.toString(), input = request) }
             } finally {
-                _state.update { it.copy(busy = false, pending = null) }
+                _state.update { it.copy(busy = false, pending = null, asking = null) }
             }
         }
     }

@@ -127,9 +127,13 @@ data class Verdict(
     val ungrounded: Boolean = false,
 ) {
     companion object {
-        fun of(reply: NeedleReply, configs: Map<String, ToolConfig>, request: String): Verdict {
+        /**
+         * [bar], when given, replaces the tools' bars: for answers from Ferb Link, whose confidence
+         * isn't Needle 3's ([dev.abhay.assistant.link.LinkSettings.bar]). The other checks apply as they are.
+         */
+        fun of(reply: NeedleReply, configs: Map<String, ToolConfig>, request: String, bar: Double? = null): Verdict {
             val called = reply.calls.map { configs[it.name] }
-            val runAt = called.maxOfOrNull { it?.runFrom ?: Decision.RUN_AT } ?: Decision.RUN_AT
+            val runAt = bar ?: called.maxOfOrNull { it?.runFrom ?: Decision.RUN_AT } ?: Decision.RUN_AT
             val alwaysConfirm = called.any { it?.alwaysConfirm == true }
             val unmentioned = reply.calls.any { call -> configs[call.name]?.mentionedIn(request) == false }
             val ungrounded = reply.calls.any { call -> Tools.byName(call.name)?.grounded(call.arguments, request) == false }

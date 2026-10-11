@@ -2,7 +2,7 @@
 
 *An on-device assistant for Android.*
 
-A private assistant for Android. Type a request ("wake me up at 6:45", "open Wi-Fi settings") and it acts, using **[Needle 3](https://huggingface.co/Cactus-Compute/needle3)**, Cactus Compute's 35 MB tool-calling model, running on the phone. The model is bundled in the app, and the app has **no internet permission**: nothing you type leaves the phone.
+A private assistant for Android. Type a request ("wake me up at 6:45", "open Wi-Fi settings") and it acts, using **[Needle 3](https://huggingface.co/Cactus-Compute/needle3)**, Cactus Compute's 35 MB tool-calling model, running on the phone. The model is bundled in the app, and the app has **no internet permission**: nothing you type leaves the phone, unless you turn on Ferb Link (below), which sends requests to your own computer.
 
 Phase 1 is a normal app with a text box. Voice and becoming the phone's default assistant come later.
 
@@ -47,6 +47,17 @@ Phase 1 is a normal app with a text box. Voice and becoming the phone's default 
 | Messages (`send_text`) | | Finds the best-matching contact the same way and shows them with the draft, to Proceed or Cancel. Proceed opens the messages app with the message written (`ACTION_SENDTO` with `sms_body`, no SMS permission): you press send. Always asks first by default |
 | Agenda (`show_agenda`) | | Lists a day's events in the chat, read from Android's calendar provider (`READ_CALENDAR`; Google Calendar syncs it, so the app stays offline), with repeating events, all-day ones on their own dates, and only the calendars your calendar app shows. Tap an event to open it, or "Open calendar" for the day. The app reads the day from the request ("tomorrow", "Friday", "12 Oct"), not from Needle 3, which doesn't know today's date; a day that isn't one ("the agenda of the G20 summit") asks first |
 | Calendar (`add_event`) | | Shows the event (title, day and time, the calendar, any clash with what's already there) and adds it on "Add" (`WRITE_CALENDAR`, straight into the calendar provider), with "Open" and "Undo" on the result. The app reads the day and time from the request: "tomorrow at 5", "Saturday from 2 to 3:30 pm", "next Tuesday morning", "for 2 hours"; a day alone is all day, a time alone the next time it comes, and an event lasts an hour unless an end or length is said. Without the permission, it opens the calendar app's new-event screen filled in (`ACTION_INSERT`), to save there. Always asks first by default |
+
+### Ferb Link: a bigger model on your computer
+
+**Ferb Link** (work in progress, in its own repo) is a companion app that holds the internet access Ferb doesn't have and passes requests to a model on your own computer, such as a laptop on your Tailscale network running Gemma 4 E2B through llama.cpp. Ferb talks to it through one `ContentResolver.call` on its content provider (`link/FerbLink.kt`, Ferb's copy of Ferb Link's `LinkContract`, version 1), so Ferb itself stays offline; Ferb Link answers only apps signed with its key.
+
+**Settings → Ferb Link**, off by default:
+- **Off:** Needle 3 answers everything.
+- **When Needle 3 is unsure:** Needle 3 answers first; when its calls are below their bar, or it finds no tool, Ferb asks the computer, and the computer's answer wins, "no tool" included (Gemma 4 E2B turned down 30 of 36 near misses in the bench, Needle 3 14).
+- **Choose in the chat:** the chat box gets a Needle 3 / Ferb Link choice, kept until changed.
+
+Either way the computer gets the tools Needle 3 would get, one request at a time, with 10 s to answer, and Needle 3 answers whenever the computer can't (the reply says why). The computer's answers run without asking only when Needle 3 made the same calls and the usual checks pass: no stand-in for their confidence was safe in the bench (Gemma 4 E2B's first-token probability let 20 wrong calls through even at 1.00). Answers from the computer say so, with the model and its time; Details shows Needle 3's answer next to it. Without Ferb Link installed, the settings row says so and explains what it is.
 
 ### Routing
 

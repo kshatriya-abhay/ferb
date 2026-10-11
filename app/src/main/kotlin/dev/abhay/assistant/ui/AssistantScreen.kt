@@ -27,6 +27,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
@@ -48,6 +49,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -82,6 +84,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.abhay.assistant.R
 import dev.abhay.assistant.engine.AssistantEngine
 import dev.abhay.assistant.engine.Decision
+import dev.abhay.assistant.link.Answerer
+import dev.abhay.assistant.link.LinkMode
 import dev.abhay.assistant.tools.Choice
 import dev.abhay.assistant.tools.FollowUp
 import dev.abhay.assistant.tools.Line
@@ -103,6 +107,8 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit) {
     val engine by viewModel.engine.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val enabled by viewModel.enabledTools.collectAsStateWithLifecycle()
+    val linkMode by viewModel.linkMode.collectAsStateWithLifecycle()
+    val answerer by viewModel.answerer.collectAsStateWithLifecycle()
     var details by remember { mutableStateOf<AssistantViewModel.Exchange?>(null) }
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(state.notice) { state.notice?.let { snackbar.showSnackbar(it) } }
@@ -111,7 +117,7 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit) {
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.app_name)) },
-                subtitle = { Text(subtitle(engine)) },
+                subtitle = { Text(subtitle(engine, linkMode, answerer)) },
                 actions = {
                     IconButton(onClick = onOpenSettings) { Icon(Icons.Default.Settings, contentDescription = "Settings") }
                     var menu by remember { mutableStateOf(false) }
@@ -136,20 +142,25 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit) {
                 AssistantEngine.State.Loading -> Loading(Modifier.weight(1f))
                 is AssistantEngine.State.Failed -> Failed(e.message, viewModel::retry, Modifier.weight(1f))
                 is AssistantEngine.State.Ready ->
-                    if (state.history.isEmpty() && state.pending == null) Welcome(enabled, onTry = viewModel::send, Modifier.weight(1f))
+                    if (state.history.isEmpty() && state.pending == null) Welcome(enabled, linkMode, onTry = viewModel::send, Modifier.weight(1f))
                     else History(state, viewModel, onDetails = { details = it }, Modifier.weight(1f))
             }
-            InputBar(state, ready = engine is AssistantEngine.State.Ready, onChange = viewModel::onInputChange, onSend = { viewModel.send() })
+            InputBar(state, ready = engine is AssistantEngine.State.Ready, onChange = viewModel::onInputChange, onSend = { viewModel.send() },
+                answerer = answerer.takeIf { linkMode == LinkMode.Option }, onAnswerer = viewModel::setAnswerer)
         }
     }
 
     details?.let { DetailsSheet(it, onDismiss = { details = null }) }
 }
 
-private fun subtitle(engine: AssistantEngine.State) = when (engine) {
+private fun subtitle(engine: AssistantEngine.State, link: LinkMode, answerer: Answerer) = when (engine) {
     AssistantEngine.State.Loading -> "Getting ready…"
     is AssistantEngine.State.Failed -> "Couldn't start"
-    is AssistantEngine.State.Ready -> "On this phone · offline"
+    is AssistantEngine.State.Ready -> when {
+        link == LinkMode.Fallback -> "On this phone · your computer when unsure"
+        link == LinkMode.Option && answerer == Answerer.Link -> "Your computer, through Ferb Link"
+        else -> "On this phone · offline"
+    }
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -170,7 +181,7 @@ private fun Failed(message: String, onRetry: () -> Unit, modifier: Modifier) {
 
 /** Before the first request: what to say, as chips with the tools' icons (one per tool turned on). */
 @Composable
-private fun Welcome(enabled: List<String>, onTry: (String) -> Unit, modifier: Modifier) {
+private fun Welcome(enabled: List<String>, link: LinkMode, onTry: (String) -> Unit, modifier: Modifier) {
     val tools = enabled.mapNotNull(Tools::byName)
     Column(
         modifier.fillMaxWidth().padding(24.dp),
@@ -184,7 +195,7 @@ private fun Welcome(enabled: List<String>, onTry: (String) -> Unit, modifier: Mo
         Spacer(Modifier.height(16.dp))
         Text("How can I help?", style = MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(4.dp))
-        Text("Everything stays on this phone", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(if (link == LinkMode.Off) "Everything stays on this phone" else "Some requests go to your computer, through Ferb Link", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(24.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             tools.forEach { tool ->
@@ -221,7 +232,7 @@ private fun History(
         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.Bottom),
     ) {
         state.pending?.let { request ->
-            item(key = "thinking") { Thinking() }
+            item(key = "thinking") { Thinking(state.asking) }
             item(key = "pending") { RequestBubble(request) }
         }
         items(state.history.asReversed(), key = { it.id }) { exchange ->
@@ -269,8 +280,13 @@ private fun AssistantBubble(content: @Composable () -> Unit) {
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun Thinking() {
-    AssistantBubble { LoadingIndicator(Modifier.size(32.dp)) }
+private fun Thinking(asking: String?) {
+    AssistantBubble {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            LoadingIndicator(Modifier.size(32.dp))
+            asking?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        }
+    }
 }
 
 /**
@@ -305,6 +321,7 @@ private fun ReplyBubble(
             exchange.calls.forEachIndexed { i, call ->
                 CallLine(call, onChoose = { choice -> onChoose(i, choice) }, onFollowUp = { action -> onFollowUp(i, action) }, onAdjust = { value -> onAdjust(i, value) })
             }
+            source(exchange)?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (asking) {
                     if (!choosing) Button(onClick = onRun) { Text(only?.confirm ?: "Do it") }
@@ -316,6 +333,20 @@ private fun ReplyBubble(
                 }
             }
         }
+    }
+}
+
+/**
+ * Where an answer came from, when Ferb Link was involved: the computer (its model and time), or
+ * Needle 3 because the computer couldn't answer. Nothing for Needle 3's usual answers.
+ */
+private fun source(exchange: AssistantViewModel.Exchange): String? {
+    val reply = exchange.reply
+    return when {
+        reply.fromLaptop -> listOfNotNull("From your computer", reply.model, reply.ms?.let { String.format(Locale.US, "%.1f s", it / 1000.0) })
+            .joinToString(" \u00b7 ")
+        exchange.laptopError != null -> "Needle 3 answered: ${exchange.laptopError.replaceFirstChar { it.lowercase() }}"
+        else -> null
     }
 }
 
@@ -434,7 +465,8 @@ private fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () ->
             reply.confidence?.let { confidence ->
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row {
-                        Text("Confidence", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                        Text(if (reply.fromLaptop) "Your computer's first-token probability" else "Confidence",
+                            style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
                         Text(String.format(Locale.US, "%.2f", confidence), style = MaterialTheme.typography.labelLarge)
                     }
                     LinearProgressIndicator(progress = { confidence.toFloat() }, Modifier.fillMaxWidth())
@@ -444,6 +476,8 @@ private fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () ->
                                 exchange.alwaysConfirm -> "Asked first: the tool is set to always ask."
                                 exchange.unmentioned -> "Asked first: the request doesn't mention what this tool does."
                                 exchange.ungrounded -> "Asked first: the request doesn't say these numbers."
+                                reply.fromLaptop && exchange.agreed -> "Ran without asking: Needle 3 made the same calls."
+                                reply.fromLaptop -> "Asked first: your computer's answer runs without asking only when Needle 3 makes the same calls."
                                 exchange.decision == Decision.Run -> String.format(Locale.US, "Ran without asking: needed %.2f.", exchange.runAt)
                                 else -> String.format(Locale.US, "Asked first: runs without asking from %.2f.", exchange.runAt)
                             },
@@ -474,8 +508,19 @@ private fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () ->
                 }
             }
             reply.error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+            // With Ferb Link: Needle 3's own answer when the computer's replaced it, or why the computer didn't answer.
+            exchange.needleReply?.let { needle ->
+                HorizontalDivider()
+                Text(String.format(Locale.US, "Needle 3 said (confidence %.2f):", needle.confidence ?: 0.0), style = MaterialTheme.typography.labelLarge)
+                Text(needle.calls.joinToString("\n") { it.signature() }.ifEmpty { "no tool" },
+                    style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+            }
+            exchange.laptopError?.let {
+                Text("Your computer didn't answer: $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             Text(
-                String.format(Locale.US, "%d ms on this phone · prefill %.0f tok/s · decode %.0f tok/s", exchange.wallMs, reply.prefillTps, reply.decodeTps),
+                if (reply.fromLaptop) String.format(Locale.US, "%d ms in all · %s took %d ms on your computer", exchange.wallMs, reply.model ?: "the model", reply.ms ?: 0L)
+                else String.format(Locale.US, "%d ms on this phone · prefill %.0f tok/s · decode %.0f tok/s", exchange.wallMs, reply.prefillTps, reply.decodeTps),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -483,15 +528,51 @@ private fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () ->
     }
 }
 
+/** The chat box's choice of who answers: Needle 3 on the phone, or the computer through Ferb Link. */
+@Composable
+private fun AnswererMenu(chosen: Answerer, enabled: Boolean, onChoose: (Answerer) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box(Modifier.padding(start = 6.dp)) {
+        TextButton(onClick = { open = true }, enabled = enabled, contentPadding = PaddingValues(start = 10.dp, end = 4.dp)) {
+            Text(chosen.label, style = MaterialTheme.typography.labelLarge)
+            Icon(Icons.Default.ArrowDropDown, contentDescription = "Choose who answers")
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            Answerer.entries.forEach { answerer ->
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text(answerer.label)
+                            Text(if (answerer == Answerer.Needle) "On this phone, offline" else "Your computer, through Ferb Link",
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    },
+                    leadingIcon = { RadioButton(selected = answerer == chosen, onClick = null) },
+                    onClick = { open = false; onChoose(answerer) },
+                )
+            }
+        }
+    }
+}
+
 /** A rounded input with the send button inside it; a loading indicator while Needle 3 thinks. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun InputBar(state: AssistantViewModel.UiState, ready: Boolean, onChange: (String) -> Unit, onSend: () -> Unit) {
+private fun InputBar(
+    state: AssistantViewModel.UiState,
+    ready: Boolean,
+    onChange: (String) -> Unit,
+    onSend: () -> Unit,
+    /** Who answers, when Ferb Link is offered as an option (Settings → Ferb Link); null: no choice to show. */
+    answerer: Answerer? = null,
+    onAnswerer: (Answerer) -> Unit = {},
+) {
     TextField(
         value = state.input,
         onValueChange = onChange,
         modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 12.dp),
         placeholder = { Text("Ask me to do something") },
+        leadingIcon = answerer?.let { chosen -> { AnswererMenu(chosen, enabled = !state.busy, onChoose = onAnswerer) } },
         enabled = ready,
         shape = RoundedCornerShape(28.dp),
         colors = TextFieldDefaults.colors(

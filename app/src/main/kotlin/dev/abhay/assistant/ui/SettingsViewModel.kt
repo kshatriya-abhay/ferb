@@ -3,6 +3,7 @@ package dev.abhay.assistant.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import dev.abhay.assistant.AssistantApp
+import dev.abhay.assistant.link.LinkMode
 import dev.abhay.assistant.tools.ToolConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,6 +17,12 @@ import kotlinx.coroutines.flow.update
  */
 class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     private val settings = (app as AssistantApp).toolSettings
+
+    /** Ferb Link (Settings → Ferb Link): saved at once, apart from the tools' draft. */
+    val link = (app as AssistantApp).link
+    private val linkSettings = (app as AssistantApp).linkSettings
+    val linkMode: StateFlow<LinkMode> = linkSettings.mode
+    fun setLinkMode(mode: LinkMode) = linkSettings.setMode(mode)
     val saved: StateFlow<Map<String, ToolConfig>> = settings.configs
 
     val checkAllAsFallback: StateFlow<Boolean> = settings.checkAllAsFallback
