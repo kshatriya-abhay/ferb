@@ -163,8 +163,9 @@ class FerbLink(private val context: Context) {
         const val SOURCE = "laptop"
 
         /**
-         * How long Ferb waits for the computer: Gemma 4 E2B took 1.5 s (median) and 2.6 s (90th
-         * percentile) per request on the laptop's CPU in the bench.
+         * How long Ferb waits for the computer: Gemma 4 E2B takes 0.26 s (median) and 0.54 s (90th
+         * percentile) per request on the laptop's GPU, and about 2 s waking after 5 idle minutes. A
+         * load from a cold disk (10–30 s) times out; Needle 3 answers that one, and the next is fast.
          */
         const val TIMEOUT_MS = 10_000
 

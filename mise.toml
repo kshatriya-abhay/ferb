@@ -69,6 +69,11 @@ mkdir -p "$DIR/models" "$DIR/results"
 # timing and can push the machine into swap.
 exec 9> "$DIR/.lock"
 flock -n 9 || { echo "Another bench is running; wait for it (models must run one at a time)."; exit 1; }
+# Nor beside Ferb Link's model server (ferb-llama, /data/Projects/ferb-link): it stays up, and a
+# request from the phone loads Gemma 4 even while it sleeps.
+if systemctl --user -q is-active ferb-llama 2>/dev/null; then
+  echo "Ferb Link's model server is up: stop it first (mise run server:stop in ../ferb-link)."; exit 1
+fi
 fetch() { # url path sha256
   if [ -f "$2" ] && echo "$3  $2" | sha256sum -c --quiet 2>/dev/null; then return; fi
   curl -fL --progress-bar -o "$2.part" "$1"
