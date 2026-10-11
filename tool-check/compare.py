@@ -12,9 +12,11 @@ def read(path):
     report["wrong arguments"] = m[3] if m else "?"
     for name, ok, n, bad in re.findall(r"^(\w[\w.]*)\s+(\d+)/(\d+)\s+(\d+)$", text, re.M):
         report[f"  {name}"] = f"{ok}/{n} ({bad})"
-    for measure, block in re.findall(r"^one bar for all tools, on '(\w+)'.*\n((?:  \d.*\n)+)", text, re.M):
+    for measure, block in re.findall(r"^one bar for all tools, on '(\w+)'.*\n((?:  .*\n)+)", text, re.M):
+        report[f"{measure}: no wrong runs from"] = "no bar"
         for bar, star, ok, bad in re.findall(r"^  (\d\.\d\d)(\*?)\s+(\d+)\s+(\d+)$", block, re.M):
             if star: report[f"{measure}: no wrong runs from"] = f"{bar}: {ok} right"
+            if bar == "1.00": report[f"{measure}: at 1.00, right / wrong"] = f"{ok} / {bad}"
             if bar == "0.70": report[f"{measure}: at 0.70, right / wrong"] = f"{ok} / {bad}"
     m = re.search(r"ms per request: median (\d+), 90th percentile (\d+)", text)
     report["ms (desktop CPU)"] = f"{m[1]} / {m[2]}" if m else "-"

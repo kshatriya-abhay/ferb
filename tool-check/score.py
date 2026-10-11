@@ -183,10 +183,13 @@ def main():
     for measure in measures:
         print(f"\none bar for all tools, on {measure!r} (calls past the cues and checks): bar  right runs  wrong runs")
         checked = [(c.get(measure, 0.0), ok) for c, ok, passes in every_call if passes]
-        safe = next((b / 100 for b in range(10, 101) if not any(c >= b / 100 and not ok for c, ok in checked)), 1.0)
-        for b in sorted({0.3, 0.5, 0.7, 0.9, safe}):
+        # None when even 1.00 lets a wrong call run: no bar is safe (it used to fall back to 1.00
+        # and mark it safe anyway, which hid Gemma 4 E2B's 20 wrong calls at 1.00).
+        safe = next((b / 100 for b in range(10, 101) if not any(c >= b / 100 and not ok for c, ok in checked)), None)
+        for b in sorted({0.3, 0.5, 0.7, 0.9, 1.0} | ({safe} if safe is not None else set())):
             print(f"  {b:.2f}{'*' if b == safe else ' '}  {sum(c >= b and ok for c, ok in checked):>5}  {sum(c >= b and not ok for c, ok in checked):>5}")
-    print("  (* the lowest bar at which no wrong call runs)")
+        if safe is None: print("  (no bar holds back every wrong call)")
+    print("\n(* the lowest bar at which no wrong call runs)")
     if times:
         times.sort()
         print(f"\nms per request: median {times[len(times) // 2]}, 90th percentile {times[int(len(times) * 0.9)]}")
