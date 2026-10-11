@@ -7,6 +7,7 @@
 // "a/b" accepts either tool: the first that's in tools.json is expected. A request none of whose
 // tools are in tools.json (turned off) expects no call.
 
+#include <chrono>
 #include <cstdio>
 #include <fstream>
 #include <iterator>
@@ -75,9 +76,12 @@ int main(int argc, char** argv) {
             expected = pick;
         }
         needle_reset();
+        auto started = std::chrono::steady_clock::now();
         if (needle_complete(request.c_str(), nullptr, 0, 256, out.data(), out.size()) < 0) { printf("ERROR %s\n", needle_last_error()); continue; }
+        long ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count();
         std::string json(out.data());
-        if (getenv("TOOL_CHECK_RAW")) { printf("%s\t%s\n", request.c_str(), json.c_str()); continue; }
+        // The time this request took, for the bench's timings, as an "ms" field like bench.py's.
+        if (getenv("TOOL_CHECK_RAW")) { printf("%s\t{\"ms\":%ld,%s\n", request.c_str(), ms, json.c_str() + 1); continue; }
         std::string calls = field(json, "function_calls");
         double confidence = atof(field(json, "confidence").c_str());
         bool ok = expected == "none" ? calls == "[]" : calls.find("\"name\":\"" + expected + "\"") != std::string::npos;

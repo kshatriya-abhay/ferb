@@ -31,12 +31,9 @@ fetch $NEEDLE/needle3.cact app/src/main/assets/needle3.cact c9d915eca282ed42d1a0
 echo "All files present and verified."
 '''
 
-[tasks.tool-check]
-description = "Run Needle 3 on the desktop with the app's tools against tool-check/requests.txt: mise run tool-check [all|default] [routed|fallback|unrouted]"
-usage = '''
-arg "[set]" help="Which tools: all (default) or default (the ones on by default)" default="all"
-arg "[mode]" help="routed: only the tools a request mentions, as the app does; fallback: also every tool when those give no call; unrouted: every tool for every request" default="routed"
-'''
+[tasks.tool-check-engine]
+description = "Fetch Cactus's Linux build of the Needle engine and build tool-check's runner (for tool-check and bench)"
+hide = true
 run = """
 set -euo pipefail
 NEEDLE=https://huggingface.co/Cactus-Compute/needle3/resolve/c7c415a3d1b3d929014bc6e866d51ebb971f7089
@@ -54,6 +51,91 @@ fetch $NEEDLE/linux-x86_64/needle.h "$DIR/needle.h" 90f347f9dca1199de79967ab199a
 if [ ! -x "$DIR/tool_check" ] || [ tool-check/tool_check.cpp -nt "$DIR/tool_check" ]; then
   uvx --from ziglang python -m ziglang c++ -O2 -std=c++17 -w -I "$DIR" tool-check/tool_check.cpp "$DIR/libneedle.a" -lpthread -o "$DIR/tool_check"
 fi
+"""
+
+[tasks.bench]
+description = "Compare local models with Needle 3 on tool-check/requests.txt plus suite.txt: mise run bench [model|all] [all|default] [routed|unrouted]"
+usage = '''
+arg "[model]" help="needle3, needle3-2026-10-10 (a newer engine), a name in tool-check/models.txt (run through llama.cpp on the desktop), or all: every one, then a table" default="all"
+arg "[set]" help="Which tools: all (default) or default" default="all"
+arg "[mode]" help="routed (as the app does) or unrouted (every tool for every request)" default="routed"
+'''
+depends = ["tool-check-engine"]
+run = """
+set -euo pipefail
+DIR=build/bench
+mkdir -p "$DIR/models" "$DIR/results"
+# One bench at a time: models run side by side share the CPU and memory, which skews every
+# timing and can push the machine into swap.
+exec 9> "$DIR/.lock"
+flock -n 9 || { echo "Another bench is running; wait for it (models must run one at a time)."; exit 1; }
+fetch() { # url path sha256
+  if [ -f "$2" ] && echo "$3  $2" | sha256sum -c --quiet 2>/dev/null; then return; fi
+  curl -fL --progress-bar -o "$2.part" "$1"
+  echo "$3  $2.part" | sha256sum -c --quiet
+  mv "$2.part" "$2"
+}
+./gradlew -q testDebugUnitTest --tests '*ToolSchemasTest*'
+cat tool-check/requests.txt tool-check/suite.txt > "$DIR/requests.txt"
+TOOLS="app/build/tool-check/${usage_set}.json"
+# Answers are kept per model in tool-check/results/ (route.Cache): only requests and tool sets not
+# answered before are run.
+# Needle 3 with a newer engine: the same needle3.cact (unchanged since), Cactus's 2026-10-10
+# production build of libneedle (rev 93e88ed), which the app doesn't use yet.
+NEWER=build/bench/needle-93e88ed
+newer_engine() {
+  mkdir -p "$NEWER"
+  local REV=https://huggingface.co/Cactus-Compute/needle3/resolve/93e88ede867e4311c39151285e74df513e4b835b/linux-x86_64
+  fetch $REV/libneedle.a "$NEWER/libneedle.a" 5f8ed375f304cf7e7ba9e6e37d105b51549597e014afbd006407a0836804e5cd
+  fetch $REV/needle.h "$NEWER/needle.h" a27dac4b3239eead91d124b7f7dbce5495c13019903fd817b68c16d39b055a99
+  if [ ! -x "$NEWER/tool_check" ] || [ tool-check/tool_check.cpp -nt "$NEWER/tool_check" ]; then
+    uvx --from ziglang python -m ziglang c++ -O2 -std=c++17 -w -I "$NEWER" tool-check/tool_check.cpp "$NEWER/libneedle.a" -lpthread -o "$NEWER/tool_check"
+  fi
+}
+MODELS="needle3 needle3-2026-10-10 $(grep -v '^#' tool-check/models.txt | cut -d' ' -f1)"
+bench() { # model
+  local OUT="$DIR/results/$1-${usage_set}-${usage_mode}"
+  if [ "$1" = needle3-2026-10-10 ]; then
+    newer_engine
+    BENCH_CACHE="tool-check/results/$1.jsonl" BENCH_SALT=c9d915eca282ed42d1a09b143b592adb4cc6744ffe2d294adf5cfc5548170c38/5f8ed375f304cf7e7ba9e6e37d105b51549597e014afbd006407a0836804e5cd \
+      python3 tool-check/route.py "$NEWER/tool_check" app/src/main/assets/needle3.cact "$TOOLS" "$DIR/requests.txt" \
+      app/build/tool-check/cues.json "$usage_mode" > "$OUT.answers"
+  elif [ "$1" = needle3 ]; then
+    BENCH_CACHE="tool-check/results/needle3.jsonl" BENCH_SALT=c9d915eca282ed42d1a09b143b592adb4cc6744ffe2d294adf5cfc5548170c38 \
+      python3 tool-check/route.py build/tool-check/tool_check app/src/main/assets/needle3.cact "$TOOLS" "$DIR/requests.txt" \
+      app/build/tool-check/cues.json "$usage_mode" > "$OUT.answers"
+  else
+    read -r _ REPO REV FILE SHA < <(grep "^$1 " tool-check/models.txt) || { echo "No model $1 in tool-check/models.txt"; exit 1; }
+    # llama.cpp's CPU build for Linux, pinned.
+    fetch https://github.com/ggml-org/llama.cpp/releases/download/b11541/llama-b11541-bin-ubuntu-x64.tar.gz "$DIR/llama.tar.gz" 36ca310be4405acb7ba59b32dbdce32bb9cd7b1ef95358997b7eaed2c6f0188b
+    [ -x "$DIR/llama/llama-b11541/llama-server" ] || { mkdir -p "$DIR/llama"; tar -xzf "$DIR/llama.tar.gz" -C "$DIR/llama"; }
+    fetch "https://huggingface.co/$REPO/resolve/$REV/$FILE" "$DIR/models/$FILE" "$SHA"
+    BENCH_CACHE="tool-check/results/$1.jsonl" BENCH_SALT="$SHA" \
+      python3 tool-check/bench.py "$DIR/llama/llama-b11541/llama-server" "$DIR/models/$FILE" "$TOOLS" "$DIR/requests.txt" \
+      app/build/tool-check/cues.json "$usage_mode" > "$OUT.answers"
+  fi
+  python3 tool-check/score.py "$TOOLS" "$DIR/requests.txt" app/build/tool-check/bars.json app/build/tool-check/cues.json < "$OUT.answers" > "$OUT.txt"
+}
+if [ "$usage_model" = all ]; then
+  for m in $MODELS; do echo "== $m"; bench "$m"; done
+  python3 tool-check/compare.py $(for m in $MODELS; do echo "$DIR/results/$m-${usage_set}-${usage_mode}.txt"; done) \
+    | tee "tool-check/results/summary-${usage_set}-${usage_mode}.txt"
+else
+  bench "$usage_model"
+  cat "$DIR/results/${usage_model}-${usage_set}-${usage_mode}.txt"
+fi
+"""
+
+[tasks.tool-check]
+description = "Run Needle 3 on the desktop with the app's tools against tool-check/requests.txt: mise run tool-check [all|default] [routed|fallback|unrouted]"
+usage = '''
+arg "[set]" help="Which tools: all (default) or default (the ones on by default)" default="all"
+arg "[mode]" help="routed: only the tools a request mentions, as the app does; fallback: also every tool when those give no call; unrouted: every tool for every request" default="routed"
+'''
+depends = ["tool-check-engine"]
+run = """
+set -euo pipefail
+DIR=build/tool-check
 ./gradlew -q testDebugUnitTest --tests '*ToolSchemasTest*'
 if [ "$usage_mode" = unrouted ]; then
   TOOL_CHECK_RAW=1 "$DIR/tool_check" app/src/main/assets/needle3.cact "app/build/tool-check/${usage_set}.json" tool-check/requests.txt ${FACTS:+"$FACTS"} \

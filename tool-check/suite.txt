@@ -1,0 +1,222 @@
+# More requests for comparing models (2026-10-10), in the format of requests.txt. Each "# @name"
+# line starts a category, and the scorer reports each category on its own. requests.txt is the
+# set the tools' bars are tuned on; this set is for judging models, so it isn't tuned against.
+
+# @plain: everyday requests, said plainly, one per tool
+set_alarm time=07:00 | set an alarm for 7 am
+set_alarm time=05:45 | wake me at 5:45
+set_alarm time=22:30 | alarm for 10:30 pm
+set_alarm time=06:00 | I need to get up at 6
+set_timer seconds=300 | set a five minute timer
+set_timer seconds=1200 | set a timer for twenty minutes
+set_timer seconds=45 | timer 45 seconds
+set_timer seconds=7200 | start a 2 hour timer
+open_app app_name=spotify | open spotify
+open_app app_name=instagram | launch instagram
+open_app app_name=youtube | open the youtube app
+open_app app_name=chrome | open google chrome
+open_app app_name=calculator | open the calculator app
+open_settings page=bluetooth | show me the bluetooth settings
+open_settings page=display | open display settings
+open_settings page=storage | show storage settings
+open_settings page=location | location settings please
+open_settings page=notifications | go to notification settings
+set_flashlight on=true | flashlight on please
+set_flashlight on=false | turn off the flashlight
+set_flashlight on=true | switch on the torch
+show_alarms | show alarms
+show_alarms | list all my alarms
+set_volume percent=50 | volume 50 percent
+set_volume percent=100 | volume to max
+set_volume percent=10 | set the volume to 10
+control_media action=play | play the music
+control_media action=previous | previous song
+control_media action=next | skip this track
+open_camera/open_app | open camera
+open_camera/open_app | click a photo
+create_note | note: dentist on tuesday
+create_note | make a note that the plumber charges 500
+get_directions destination=airport | navigate to the airport
+get_directions destination="railway station" | directions to the railway station
+get_directions destination=office | take me to the office
+make_call name=rahul | call Rahul
+make_call name=dad | call dad
+send_text name=priya | text Priya see you at 8
+send_text name=mum | message mum I'm home
+show_agenda | what's in my calendar for today
+show_agenda | what do I have tomorrow
+add_event | add a meeting with Sam tomorrow at 3 pm to my calendar
+add_event | schedule a haircut on Saturday at 11
+
+# @casual: how people talk to a phone: lower case, no punctuation, filler words, voice-style
+set_alarm time=06:30 | uh set an alarm 6 30
+set_alarm time=08:00 | wake me up at eight
+set_alarm time=07:15 | alarm 7 15 am pls
+set_timer seconds=600 | ten min timer
+set_timer seconds=180 | timer three minutes for the tea
+set_timer seconds=1500 | can you start a 25 min timer
+open_app app_name=whatsapp | open up whatsapp for me
+open_app app_name=maps | pull up maps
+open_app app_name=gmail | gmail
+open_settings page=wi-fi | open my wifi settings
+open_settings page=battery | how's my battery settings
+set_flashlight on=true | torch
+set_flashlight on=true | lights on phone light
+set_flashlight on=false | ok turn the light off now
+set_volume percent=0 | shh mute it
+set_volume percent=80 | volume up to like 80
+control_media action=pause | hold on pause
+control_media action=next | next
+control_media action=play | resume the song
+open_camera/open_app | lemme take a pic
+create_note | remember that the wifi password is tiger123
+create_note | note to self buy eggs
+get_directions destination=home | take me home
+get_directions destination="nearest atm" | where's the nearest atm, take me there
+make_call name=mom | ring mom
+make_call name=bhaiya | call bhaiya
+send_text name=rohit | tell rohit im running 10 min late
+send_text name=dad | text dad call me back
+show_agenda | am i free tmrw
+show_agenda | whats on this afternoon
+add_event | put dinner with neha on friday 8pm in my calendar
+add_event | remind me on monday to submit the form
+
+# @indian: Indian English, Hinglish and Indian names and places
+set_alarm time=05:00 | subah 5 baje ka alarm laga do
+set_alarm time=06:00 | 6 baje utha dena
+set_timer seconds=600 | 10 minute ka timer lagao
+open_app app_name=paytm | paytm kholo
+open_app app_name=phonepe | open phonepe
+open_app app_name=zomato | zomato open karo
+open_app app_name=hotstar | open hotstar
+set_flashlight on=true | torch on karo
+set_flashlight on=false | torch band karo
+set_volume percent=0 | awaaz band karo
+control_media action=next | agla gaana
+control_media action=pause | gaana roko
+get_directions destination="india gate" | india gate ka rasta batao
+get_directions destination="chandni chowk" | chandni chowk kaise jaun
+get_directions destination=koramangala | navigate to koramangala
+get_directions destination="charminar" | directions to charminar by metro
+make_call name=mummy | mummy ko call karo
+make_call name="sharma ji" | call sharma ji
+make_call name=didi | didi ko phone lagao
+send_text name=papa | papa ko message karo ki main pahunch gaya
+send_text name=ananya | text ananya happy diwali
+create_note | note karo ki doodh khatam ho gaya
+show_agenda | kal ka schedule kya hai
+add_event | kal 4 baje meeting calendar mein daal do
+
+# @typos: misspellings and missing spaces
+set_alarm time=07:30 | set an alram for 7:30
+set_timer seconds=900 | timmer for 15 minuts
+open_app app_name=whatsapp | opne whatsap
+open_settings page=bluetooth | blutooth settings
+set_flashlight on=true | turn on flashlite
+set_volume percent=60 | volme 60
+control_media action=pause | pase the music
+open_camera/open_app | open camra
+get_directions destination=airport | direcshuns to airport
+make_call name=priya | cal priya
+send_text name=mum | txt mum on my way
+create_note | take a not buy bread
+show_agenda | whats on my calender tomorow
+add_event | ad dentist to my calender friday 5pm
+
+# @numbers: times, lengths and amounts said in words or unusual forms
+set_alarm time=06:30 | alarm at half past six
+set_alarm time=07:45 | alarm at quarter to eight
+set_alarm time=12:00 | wake me at noon
+set_alarm time=00:00 | alarm at midnight
+set_alarm time=19:00 | alarm for 7 in the evening
+set_alarm time=06:00 | alarm 0600
+set_timer seconds=5400 | an hour and a half timer
+set_timer seconds=30 | half a minute timer
+set_timer seconds=2700 | timer for three quarters of an hour
+set_timer seconds=90 | timer one and a half minutes
+set_volume percent=25 | volume a quarter
+set_volume percent=50 | half volume
+set_volume percent=75 | volume seventy five
+
+# @multi: two actions in one request (either one counts here; the first one is expected)
+set_alarm time=06:00 | set an alarm for 6 and turn on the flashlight
+set_timer seconds=600 | start a 10 minute timer and play music
+set_flashlight on=true | turn on the torch and open the camera
+control_media action=pause | pause the song and set volume to 20
+open_app app_name=spotify | open spotify and play the next song
+send_text name=priya | text Priya I'm late and call mum
+get_directions destination=airport | directions to the airport and call the cab driver
+
+# @context: the request depends on something unsaid, or names a tool's subject without its usual words
+set_flashlight on=true | it's too dark in here
+set_flashlight on=true | I dropped my earring under the bed, need light
+set_volume percent=0 | I'm in a meeting, silence the music
+control_media action=pause | someone's at the door, stop the song
+set_alarm time=06:00 | I have to leave at 6:30 tomorrow, wake me half an hour before
+set_timer seconds=480 | boiling eggs, let me know in 8 minutes
+open_settings page=wi-fi | the internet isn't working, check the wifi
+open_settings page=battery | my phone is dying, what's eating the battery
+get_directions destination=hospital | I need to get to a hospital fast
+create_note | don't let me forget the parking spot is B12
+show_agenda | do I have time for lunch tomorrow
+add_event | I've got a dentist appointment next Wednesday at 10, save it
+
+# @near: talks about a tool's subject without asking for the action
+none | what time is it
+none | how long is a marathon
+none | my alarm clock is broken
+none | timers are useful for cooking
+none | what's the best music app
+none | is spotify better than youtube music
+none | why is my bluetooth so slow
+none | how do I change my wallpaper
+none | flashlights use a lot of battery
+none | the volume of a sphere
+none | play is a verb
+none | who invented the camera
+none | how many megapixels is my camera
+none | my notes app crashed
+none | what's a good note taking app
+none | which way is north
+none | the road to the airport is closed
+none | how far is mars
+none | did anyone call
+none | calls are so expensive
+none | I don't like texting
+none | text me later is what she said
+none | what is a calendar
+none | the event was fun
+none | what's on your mind
+none | are you free
+none | Diwali is on 1 November
+none | set the table for dinner
+none | turn up the heat
+none | open the door
+none | open a bank account
+none | settings for my camera lens
+none | next year I want to travel
+none | pause for a second, I'm thinking
+none | take a break
+none | note that I'm not happy with you
+
+# @out: unrelated requests no tool should take
+none | what is the capital of France
+none | tell me a story
+none | how are you
+none | thank you
+none | translate good morning to Hindi
+none | what's 15 times 23
+none | who won the world cup in 2011
+none | order a pizza
+none | book a flight to Goa
+none | what's the weather tomorrow
+none | send money to Rahul
+none | read me the news
+none | how do I make chai
+none | turn on the AC
+none | lock the front door
+none | find my keys
+none | delete all my photos
+none | hello
+none | good night

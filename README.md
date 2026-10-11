@@ -77,6 +77,10 @@ Needle 3's choices and confidence depend heavily on the tool descriptions. `mise
 - a photo/video choice was picked backwards about half the time, so the camera tool has none;
 - Needle 3 doesn't know today's date and makes dates up ("Friday at 8 pm" → a Thursday), so the calendar tools read days and times from the request themselves.
 
+### Comparing models
+
+`mise run bench [model|all] [all|default] [routed|unrouted]` runs models on `tool-check/requests.txt` plus `tool-check/suite.txt`: 201 more requests in categories (plain, casual, Indian English and Hinglish, typos, numbers in words, two actions at once, context, near misses, unrelated), which the bars aren't tuned on. `needle3` runs as tool-check does; the models in `tool-check/models.txt` (pinned GGUF files) run on the desktop's CPU through llama.cpp's server (`tool-check/bench.py`), with the same tool JSON and routing and one short system prompt. The same scorer reports each category, and, since other models have no confidence score like Needle 3's, how many right and wrong calls would run at one bar for all tools, on three stand-ins: the probability of the weakest token a model writes, of its first token (whether to call a tool at all), and their mean. With `all` (the default) it runs every model and writes a table, `tool-check/results/summary-*.txt` (`tool-check/compare.py`). Answers are kept per model in `tool-check/results/*.jsonl`, by tool set and request, so only what's new runs: added requests, or the requests routed to a tool whose schema changed. Delete a model's file to run it afresh.
+
 ## Build and run
 
 Requires [mise](https://mise.jdx.dev), the Android SDK with NDK 28.2.13676358 and CMake 3.22.1, and an arm64 phone.
@@ -103,6 +107,12 @@ mise run send-over-tailscale my-phone   # or send the APK with Taildrop
 | [Kotlin coroutines](https://github.com/Kotlin/kotlinx.coroutines) | Apache-2.0 | Background work |
 | [Material Icons](https://github.com/google/material-design-icons) | Apache-2.0 | Icons |
 | [Zig](https://ziglang.org) (via the `ziglang` Python package) | MIT | Builds the desktop `tool-check` against libc++ (not shipped) |
+| [llama.cpp](https://github.com/ggml-org/llama.cpp) | MIT | Runs other models for `mise run bench` (not shipped) |
+| [FunctionGemma 270M](https://huggingface.co/google/functiongemma-270m-it) by Google (GGUF by Unsloth) | Gemma terms | Compared in `mise run bench` (not shipped) |
+| [Gemma 4 E2B](https://huggingface.co/google/gemma-4-E2B-it) by Google (GGUF by Unsloth) | Apache-2.0 | Compared in `mise run bench` (not shipped) |
+| [LFM2.5-350M, LFM2.5-1.2B](https://huggingface.co/LiquidAI) by Liquid AI | LFM Open License | Compared in `mise run bench` (not shipped) |
+| [Qwen3.5-0.8B, Qwen3.5-2B](https://huggingface.co/Qwen) by Alibaba (GGUF by Unsloth) | Apache-2.0 | Compared in `mise run bench` (not shipped) |
+| [Hammer2.1-0.5b](https://huggingface.co/MadeAgents/Hammer2.1-0.5b) by MadeAgents (GGUF by mradermacher) | CC-BY-NC-4.0 | Compared in `mise run bench` (not shipped) |
 
 ## License
 

@@ -6,7 +6,7 @@ line in requests.txt is "tool[ key=value ...] | request": "none" expects no call
 the app reads them: times of day as HH:MM, durations as seconds (from a "seconds" number or a
 "duration" text), app and page names case-insensitively.
 """
-import json, re, shlex, sys
+import json, os, re, shlex, sys
 
 def time_of_day(text):
     t = str(text).strip().lower()
@@ -109,23 +109,30 @@ def main():
     cues = json.load(open(sys.argv[4])) if len(sys.argv) > 4 else {}
     loaded = {t["name"] for t in json.loads(tools_json)}
     expectations = []
+    category = "requests.txt"  # until a "# @name" line starts a category (suite.txt)
+    categories = {}
     for line in open(sys.argv[2]):
         line = line.strip()
+        if line.startswith("# @"): category = line[3:].split(":")[0].strip()
         if not line or line.startswith("#"): continue
         spec, request = [x.strip() for x in line.split("|", 1)]
         name, *pairs = shlex.split(spec)
         tool = next((t for t in name.split("/") if t in loaded), "none")
         want = dict(p.split("=", 1) for p in pairs) if tool != "none" else {}
         expectations.append((request, tool, {k: normalise(tool, k, v) for k, v in want.items()}))
+        categories[request] = category
     answers = dict(line.rstrip("\n").split("\t", 1) for line in sys.stdin if "\t" in line)
 
     right = wrong_args = calls = runs = wrong_runs = 0
     confidence_sum = 0.0
     per_tool = {t: ([], []) for t in sorted(loaded)}  # tool -> (confidence of right calls, of wrong calls that skip the cues)
+    # Per category: [requests, right, wrong calls]; and every call, as (confidence, right, passes the checks), for one bar for all.
+    per_category, every_call, times = {}, [], []
     for request, tool, want in expectations:
         reply = json.loads(answers[request])
         got = reply.get("function_calls") or []
-        c = reply.get("confidence") or 0.0
+        # CONFIDENCE=first|mean picks another of bench.py's stand-ins for a confidence.
+        c = reply.get(os.environ.get("CONFIDENCE", "confidence")) or 0.0
         # The app's rule: a reply runs when every tool it calls is mentioned (its cues) and the
         # confidence clears the highest bar among them.
         bar = max((bars.get(g["name"], 0.7) for g in got), default=0.7)
@@ -146,6 +153,10 @@ def main():
                 per_tool[tool][0].append(c)
             mark = ("OK  " if runs_now else "ok? ") if ok else ("ARGS" if match else "MISS")
         right += ok
+        counts = per_category.setdefault(categories[request], [0, 0, 0])
+        counts[0] += 1; counts[1] += ok; counts[2] += bool(got) and not ok
+        if got: every_call.append(({k: reply.get(k) or 0.0 for k in ("confidence", "first", "mean") if k in reply}, ok, all_cued))
+        if reply.get("ms"): times.append(reply["ms"])
         if not ok:
             wrong_runs += runs_now
             for g in got:
@@ -161,5 +172,23 @@ def main():
         at, n = suggest(ok, bad)
         print(f"{tool:<15}{bar:>5.2f}  {sum(c >= bar for c in ok):>3}/{len(ok):<3}  {at:>4.2f} {n:>2}  "
               f"{' '.join(f'{c:.2f}' for c in sorted(ok))}  /  {' '.join(f'{c:.2f}' for c in sorted(bad)) or '-'}")
+    if len(per_category) > 1:
+        print(f"\n{'category':<15}{'right':>11}  wrong calls")
+        for name, (n, ok, bad) in per_category.items():
+            print(f"{name:<15}{ok:>5}/{n:<5}  {bad}")
+    # The same bar for every tool, for comparing models whose confidence means something else
+    # (another model's is its weakest token's probability): calls that get past the cues and
+    # checks, right ones that run and wrong ones that would.
+    measures = [k for k in ("confidence", "first", "mean") if any(k in c for c, _, _ in every_call)]
+    for measure in measures:
+        print(f"\none bar for all tools, on {measure!r} (calls past the cues and checks): bar  right runs  wrong runs")
+        checked = [(c.get(measure, 0.0), ok) for c, ok, passes in every_call if passes]
+        safe = next((b / 100 for b in range(10, 101) if not any(c >= b / 100 and not ok for c, ok in checked)), 1.0)
+        for b in sorted({0.3, 0.5, 0.7, 0.9, safe}):
+            print(f"  {b:.2f}{'*' if b == safe else ' '}  {sum(c >= b and ok for c, ok in checked):>5}  {sum(c >= b and not ok for c, ok in checked):>5}")
+    print("  (* the lowest bar at which no wrong call runs)")
+    if times:
+        times.sort()
+        print(f"\nms per request: median {times[len(times) // 2]}, 90th percentile {times[int(len(times) * 0.9)]}")
 
 main()
