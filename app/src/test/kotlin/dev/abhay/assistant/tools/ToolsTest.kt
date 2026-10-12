@@ -70,12 +70,34 @@ class ToolsTest {
     }
 
     @Test
+    fun misheardAppNamesAreFoundOnlyWhenClear() {
+        val installed = listOf("Paytm", "PhonePe", "Zoom", "Zomato", "Swiggy", "Uber", "Ola", "Maps", "Phone", "Photos", "Gmail",
+            "Gallery", "YouTube", "Instagram", "Telegram", "Truecaller", "Amazon", "Flipkart", "Myntra", "Meesho", "Keep Notes",
+            "Clock", "Calendar", "Messages", "Contacts", "Files", "Chrome", "Settings", "Camera", "Calculator", "Google Pay", "CRED")
+            .mapIndexed { i, label -> LaunchableApp(label, "p$i") }
+        fun find(q: String) = InstalledApps.loose(q, installed)?.label
+        assertThat(find("ptm")).isEqualTo("Paytm")
+        assertThat(find("PTM")).isEqualTo("Paytm")
+        assertThat(find("peti m")).isEqualTo("Paytm")
+        assertThat(find("ptm kholo")).isEqualTo("Paytm")
+        assertThat(find("fone pe")).isEqualTo("PhonePe")
+        assertThat(find("swigy")).isEqualTo("Swiggy")
+        assertThat(find("flip kart")).isEqualTo("Flipkart")
+        // Short or unrelated words open nothing.
+        listOf("pm", "tm", "pt", "do", "app", "time", "bank", "xyz", "spotify", "mom", "the car").forEach {
+            assertThat(find(it)).isNull()
+        }
+    }
+
+    @Test
     fun openAppFallsBackToASettingsPage() {
         assertThat(summary(OpenApp.prepare(mapOf("app_name" to "WhatsApp"), PrepareEnv(apps)))).isEqualTo("Open WhatsApp")
         // No "Bluetooth" app, but a settings page: Needle 3 sometimes sends it here.
         assertThat(summary(OpenApp.prepare(mapOf("app_name" to "Bluetooth"), PrepareEnv(apps)))).isEqualTo("Open the bluetooth settings")
         assertThat(summary(OpenApp.prepare(mapOf("app_name" to "Settings"), PrepareEnv(apps)))).isEqualTo("Open Settings")
         assertThat(reason(OpenApp.prepare(mapOf("app_name" to "Spotify"), PrepareEnv(apps)))).contains("Spotify")
+        // A misheard name, after the settings pages: "watsap" is WhatsApp.
+        assertThat(summary(OpenApp.prepare(mapOf("app_name" to "watsap"), PrepareEnv(apps)))).isEqualTo("Open WhatsApp")
     }
 
     @Test

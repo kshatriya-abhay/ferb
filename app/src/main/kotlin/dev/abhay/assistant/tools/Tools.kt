@@ -288,9 +288,10 @@ object OpenApp : Tool(
 
     override fun prepare(arguments: Map<String, Any?>, env: PrepareEnv): Prepared {
         val name = arguments.text("app_name") ?: return Prepared.Invalid("No app name")
-        // "Open Bluetooth" sometimes comes here rather than to open_settings: no such app, but a settings page.
-        val app = env.apps.find(name) ?: return OpenSettings.pageFor(name)?.let { OpenSettings.prepare(mapOf("page" to it), env) }
-            ?: Prepared.Invalid("No app called \"$name\" on this phone")
+        // "Open Bluetooth" sometimes comes here rather than to open_settings: no such app, but a
+        // settings page. Then a misheard name ("ptm" for Paytm), last, so a page still wins.
+        val app = env.apps.find(name) ?: OpenSettings.pageFor(name)?.let { return OpenSettings.prepare(mapOf("page" to it), env) }
+            ?: env.apps.findLoosely(name) ?: return Prepared.Invalid("No app called \"$name\" on this phone")
         return Prepared.Ready("Open ${app.label}") { context ->
             val launch = context.packageManager.getLaunchIntentForPackage(app.packageName)
                 ?: return@Ready Outcome.Failed("${app.label} can't be opened")
