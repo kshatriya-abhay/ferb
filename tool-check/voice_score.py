@@ -8,7 +8,8 @@ heard, the English command, the calls, and how Ferb read them ("Open Paytm" from
 pair with audio.txt's requests in order, so read them in order and don't redo one that answered;
 one that failed (no answer) leaves no line, so it can be said again. A call is right when its tool
 and arguments match, scored as score.py does; names, apps and places also count when Ferb's reading
-of the call has them (its own matching found the app or contact).
+of the call has them (its own matching found the app). Names are scored as heard, whether or not
+the contact is on the phone; whether Ferb found a contact is reported apart.
 """
 import json, shlex, subprocess, sys
 from score import arguments, normalise
@@ -39,9 +40,17 @@ def judge(tools, want, entry, request):
     args = arguments(match, request)
     def ok(k, v):
         if args.get(k) == v: return True
-        # Ferb's own matching: "ptm" → "Open Paytm", "mummy" → the contact Maa.
-        return k in ("app_name", "name", "destination") and str(v).replace(" ", "") in read
+        # A name counts as heard, spaces aside ("sharmaji"), whether or not the phone has the contact;
+        # contacts are scored apart (contact()).
+        if k == "name": return str(args.get(k, "")).replace(" ", "") == str(v).replace(" ", "")
+        # Ferb's own matching of apps and places: "ptm" → "Open Paytm".
+        return k in ("app_name", "destination") and str(v).replace(" ", "") in read
     return all(ok(k, v) for k, v in want.items())
+
+def contact(entry):
+    """For a call or text: whether Ferb found a contact for the name (its reading isn't a failure)."""
+    read = [r for c, r in zip(entry["calls"], entry["read"]) if c["name"] in ("make_call", "send_text")]
+    return bool(read) and not any(r.startswith("invalid") or r.startswith("No contact matches") for r in read)
 
 def main():
     if sys.argv[1:] == ["--reset"]:
@@ -53,18 +62,23 @@ def main():
     log = [json.loads(l) for l in lines.splitlines() if l.strip()]
     if len(log) != len(bench):
         print(f"note: {len(log)} spoken requests logged for {len(bench)} in the bench; paired in order\n")
-    per, times = {}, []
+    per, times, contacts = {}, [], []
     for (category, request, tools, want), entry in zip(bench, log):
         right = judge(tools, want, entry, request)
         counts = per.setdefault(category, [0, 0])
         counts[0] += 1; counts[1] += right
         times.append(entry["ms"])
+        if any(t in ("make_call", "send_text") for t in tools): contacts.append((request, contact(entry), entry["read"]))
         calls = "; ".join(f"{c['name']}({', '.join(f'{k}={v}' for k, v in c['arguments'].items())})" for c in entry["calls"]) or "no tool"
         print(f"{'OK  ' if right else 'MISS'} {request}\n     heard: {entry['heard']}\n     text:  {entry['text']}\n"
               f"     calls: {calls}" + (f"  ->  {' / '.join(entry['read'])}" if entry["read"] else "") + "\n")
     total = sum(r for _, r in per.values())
     print(f"{total}/{sum(n for n, _ in per.values())} right")
     for category, (n, r) in per.items(): print(f"  {category:<10}{r:>3}/{n}")
+    if contacts:
+        print(f"contacts found on the phone: {sum(found for _, found, _ in contacts)}/{len(contacts)} calls and texts")
+        for request, found, read in contacts:
+            if not found: print(f"  none for {request!r}: {' / '.join(read) or 'no call'}")
     if times:
         times.sort()
         print(f"ms per request (transcribed to answered): median {times[len(times) // 2]}, slowest {times[-1]}")

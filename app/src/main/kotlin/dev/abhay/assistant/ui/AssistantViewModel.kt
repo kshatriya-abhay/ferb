@@ -418,9 +418,9 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
 }
 
 /** "Voice request · 0:04", for the request's bubble until the computer has heard it. */
-/** How Ferb read a call, for the voice log: its summary ("Open Paytm"), or why it can't run. */
+/** How Ferb read a call, for the voice log: its summary ("Open Paytm") and choices (the contact found), or why it can't run. */
 private fun summaryOf(prepared: Prepared) = when (prepared) {
-    is Prepared.Ready -> prepared.summary
+    is Prepared.Ready -> prepared.summary + prepared.choices.joinToString(prefix = " \u2192 ", separator = ", ") { it.label }.takeIf { prepared.choices.isNotEmpty() }.orEmpty()
     is Prepared.Invalid -> "invalid: ${prepared.reason}"
 }
 
