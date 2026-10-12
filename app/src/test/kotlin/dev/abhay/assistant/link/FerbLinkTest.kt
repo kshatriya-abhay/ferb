@@ -97,13 +97,16 @@ class FerbLinkTest {
     }
 
     @Test
-    fun aSpokenRequestAlwaysAsksFirst() {
+    fun aSpokenAlarmOrTimerAsksFirst() {
         val laptop = FerbLink.parse(laptopAlarm)
         val verdict = LinkPolicy.verdict(laptop, configs, "wake me up at 6:45")
         assertThat(verdict.decision).isEqualTo(Decision.Run)
-        assertThat(LinkPolicy.spoken(verdict).decision).isEqualTo(Decision.Confirm)
+        assertThat(LinkPolicy.spoken(verdict, laptop).decision).isEqualTo(Decision.Confirm)
+        // Other tools run as typed requests do.
+        val torch = laptop.copy(calls = listOf(ToolCall("set_flashlight", mapOf("on" to true))))
+        assertThat(LinkPolicy.spoken(verdict, torch).decision).isEqualTo(Decision.Run)
         // No call stays no call.
-        assertThat(LinkPolicy.spoken(verdict.copy(decision = Decision.Refuse)).decision).isEqualTo(Decision.Refuse)
+        assertThat(LinkPolicy.spoken(verdict.copy(decision = Decision.Refuse), laptop).decision).isEqualTo(Decision.Refuse)
     }
 
     @Test

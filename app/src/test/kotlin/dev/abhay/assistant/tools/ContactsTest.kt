@@ -12,6 +12,7 @@ class ContactsTest {
         Contact("माँ", "+91 98111 22222", "Mobile", latin = "ma"),
         Contact("Papa", "+91 98333 44444", "Home"),
         Contact("Vikram", "+91 97777 88888"),
+        Contact("Kriyansh Verma", "+91 96666 77777"),
     )
 
     private fun names(query: String, limit: Int = 3) = ContactMatch.rank(query, book, limit).map { it.name }
@@ -42,6 +43,9 @@ class ContactsTest {
     @Test
     fun strangersMatchNoOne() {
         assertThat(names("Zubair")).isEmpty()
+        // "shriansh" (Shreyansh, as heard on the audio bench) sounds like Kriyansh but for its first sound.
+        assertThat(names("shriansh")).containsExactly("Shreyansh Jain")
+        assertThat(ContactMatch.rank("shriansh", book.filter { it.name != "Shreyansh Jain" })).isEmpty()
         assertThat(names("the")).isEmpty()
     }
 

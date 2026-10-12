@@ -31,10 +31,15 @@ object LinkPolicy {
         Verdict.of(laptop, configs, request, bar = 0.0)
 
     /**
-     * A spoken request's [verdict]: its calls always ask first, until the audio bench shows how
-     * often the computer mishears or mistranslates (decided 2026-10-12). "Heard: …" shows what it
-     * understood, so asking is cheap to check.
+     * A spoken request's [verdict]: an alarm or timer asks first, as times and lengths said in
+     * Hindi are misheard or mistranslated most ("sava saat" → 7:00, "dhai minute" → 30 min). On
+     * the audio bench (2026-10-12), 4 of 50 spoken requests would have run a wrong action without
+     * asking, 3 of them among the 12 alarms and timers (an alarm can't be undone from here); other
+     * tools follow their usual rules. To revisit after the computer's Hindi numbers are fixed.
      */
-    fun spoken(verdict: Verdict): Verdict =
-        if (verdict.decision == Decision.Run) verdict.copy(decision = Decision.Confirm) else verdict
+    fun spoken(verdict: Verdict, reply: NeedleReply): Verdict =
+        if (verdict.decision == Decision.Run && reply.calls.any { it.name in SPOKEN_ASK }) verdict.copy(decision = Decision.Confirm) else verdict
+
+    /** The tools whose spoken calls ask first ([spoken]). */
+    val SPOKEN_ASK = setOf("set_alarm", "set_timer")
 }

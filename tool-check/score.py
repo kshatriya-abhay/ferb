@@ -64,8 +64,13 @@ def grounded(call, request):
 
 def duration(text):
     """'2 hours', '1 hour 15 minutes', '90 seconds', '45 min', '1:30', 'one minute' -> seconds."""
-    t = str(text).strip().lower().replace(" and ", " ").replace("half an hour", "30 minutes")
+    # As the app's Durations.parse, halves included ("an hour and a half", "1 and a half minutes").
+    t = re.sub(r"\band a half\b", " andahalf ", str(text).strip().lower())
+    t = re.sub(r"\bhalf an? (hour|minute|second)\b", lambda m: f"0.5 {m[1]}", t)
+    t = t.replace(" and ", " ")
     t = re.sub(r"\b(" + "|".join(WORDS) + r")\b", lambda m: str(WORDS[m[1]]), t)
+    t = re.sub(r"(\d+(?:\.\d+)?)\s+andahalf\s+([a-z]+)", lambda m: f"{float(m[1]) + 0.5} {m[2]}", t)
+    t = re.sub(r"(\d+(?:\.\d+)?)\s*([a-z]+)\s+andahalf", lambda m: f"{float(m[1]) + 0.5} {m[2]}", t).strip()
     m = re.fullmatch(r"(\d+):(\d{2})", t)
     if m: return int(m[1]) * 60 + int(m[2])
     parts = re.findall(r"(\d+(?:\.\d+)?)\s*([a-z]+)", t)

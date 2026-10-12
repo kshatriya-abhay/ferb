@@ -81,11 +81,20 @@ object ContactMatch {
         return maxOf(perWord, joined * 0.95)
     }
 
-    /** How alike two words are, 0..1: equal, a prefix of 3+ letters, or close in spelling or in sound. */
+    /**
+     * How alike two words are, 0..1: equal, a prefix of 3+ letters, or close in spelling or in sound.
+     * Names typed or heard by ear keep their first sound ("Shriyans" for Shreyansh), so words that
+     * start with different sounds count by spelling only, and for less: "shriansh" sounds 0.8 like
+     * "priyansh" and offered Priyansh, the wrong person, on the audio bench (2026-10-12); offering
+     * no one beats offering a stranger.
+     */
     fun word(a: String, b: String): Double = when {
         a == b -> 1.0
         a.length >= 3 && b.startsWith(a) -> 0.9
-        else -> maxOf(similarity(a, b), 0.95 * similarity(sound(a), sound(b)))
+        else -> {
+            val (sa, sb) = sound(a) to sound(b)
+            if (sa.firstOrNull() == sb.firstOrNull()) maxOf(similarity(a, b), 0.95 * similarity(sa, sb)) else 0.8 * similarity(a, b)
+        }
     }
 
     /**

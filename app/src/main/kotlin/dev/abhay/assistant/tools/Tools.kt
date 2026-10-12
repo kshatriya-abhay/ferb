@@ -132,10 +132,22 @@ object Durations {
     )
     private val PART = Regex("""(\d+(?:\.\d+)?)\s*([a-z]+)""")
 
-    /** "2 hours", "1 hour 15 minutes", "90 seconds", "45 min", "1.5 hours", "1:30" (min:sec), "one minute" → seconds; null if it isn't one. */
+    /**
+     * "2 hours", "1 hour 15 minutes", "90 seconds", "45 min", "1.5 hours", "1:30" (min:sec), "one
+     * minute", "an hour and a half", "1 and a half minutes", "half a minute" → seconds; null if it
+     * isn't one. The computer's model passes halves as said (audio bench, 2026-10-12).
+     */
     fun parse(text: String): Int? {
-        val t = text.trim().lowercase().replace(" and ", " ").replace("half an hour", "30 minutes")
+        val t = text.trim().lowercase()
+            // Before "and" goes and "a" becomes 1.
+            .replace(Regex("""\band a half\b"""), " andahalf ")
+            .replace(Regex("""\bhalf an? (hour|minute|second)\b""")) { "0.5 ${it.groupValues[1]}" }
+            .replace(" and ", " ")
             .replace(SaidNumbers.WORD) { SaidNumbers.WORDS.getValue(it.value).toString() }
+            // "1 andahalf minutes" and "1 hour andahalf" → 1.5 of the unit.
+            .replace(Regex("""(\d+(?:\.\d+)?)\s+andahalf\s+([a-z]+)""")) { "${it.groupValues[1].toDouble() + 0.5} ${it.groupValues[2]}" }
+            .replace(Regex("""(\d+(?:\.\d+)?)\s*([a-z]+)\s+andahalf""")) { "${it.groupValues[1].toDouble() + 0.5} ${it.groupValues[2]}" }
+            .trim()
         Regex("""(\d+):(\d{2})""").matchEntire(t)?.let { return it.groupValues[1].toInt() * 60 + it.groupValues[2].toInt() }
         val parts = PART.findAll(t).toList()
         if (parts.isEmpty() || parts.any { it.groupValues[2] !in UNITS }) return null

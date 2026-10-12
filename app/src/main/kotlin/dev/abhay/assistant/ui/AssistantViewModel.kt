@@ -86,7 +86,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         val laptopErrorDetail: String? = null,
         /** For a spoken request: the words heard, when they differ from [request] (its English command). */
         val heard: String? = null,
-        /** Whether the request was spoken; its calls ask first ([LinkPolicy.spoken]). */
+        /** Whether the request was spoken; its alarms and timers ask first ([LinkPolicy.spoken]). */
         val spoken: Boolean = false,
     )
 
@@ -211,7 +211,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             // The computer's answer whenever it gave one, including "no tool fits".
             val shown = laptop?.takeIf { it.error == null } ?: needle!!
             val checked = if (shown.fromLaptop) LinkPolicy.verdict(shown, configs, request) else Verdict.of(shown, configs, request)
-            val verdict = if (spoken) LinkPolicy.spoken(checked) else checked
+            val verdict = if (spoken) LinkPolicy.spoken(checked, shown) else checked
             val calls = shown.calls.map { call -> CallState(call, prepare(call, request), Status.Waiting) }
             val exchange = Exchange(nextId++, request, shown, verdict.decision, verdict.runAt, verdict.alwaysConfirm, verdict.unmentioned, verdict.ungrounded,
                 routed.map { it.name }, calls, SystemClock.elapsedRealtime() - started,

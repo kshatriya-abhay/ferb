@@ -49,7 +49,10 @@ class ToolsTest {
     fun durationsAsTheModelWritesThem() {
         val cases = mapOf("10 minutes" to 600, "90 seconds" to 90, "2 hours" to 7200, "45 min" to 2700, "1 hour 15 minutes" to 4500,
             "1 hour and 30 minutes" to 5400, "1.5 hours" to 5400, "half an hour" to 1800, "5 mins" to 300, "1:30" to 90, "30 secs" to 30,
-            "one minute" to 60, "ten minutes" to 600, "an hour" to 3600)
+            "one minute" to 60, "ten minutes" to 600, "an hour" to 3600,
+            // Halves as the computer's model passes them (audio bench, 2026-10-12).
+            "1 hour and a half" to 5400, "an hour and a half" to 5400, "1 and a half minutes" to 90,
+            "one and a half hours" to 5400, "2 and a half minutes" to 150, "half a minute" to 30, "a minute and a half" to 90)
         cases.forEach { (text, seconds) -> assertThat(Durations.parse(text)).isEqualTo(seconds) }
         listOf("soon", "10", "").forEach { assertThat(Durations.parse(it)).isNull() }
     }
@@ -83,6 +86,8 @@ class ToolsTest {
         assertThat(find("fone pe")).isEqualTo("PhonePe")
         assertThat(find("swigy")).isEqualTo("Swiggy")
         assertThat(find("flip kart")).isEqualTo("Flipkart")
+        // A whole name that sounds right beats one shared word ("pay" in HP PAY).
+        assertThat(InstalledApps.best("phone pay", installed + LaunchableApp("HP PAY", "hp"))?.label).isEqualTo("PhonePe")
         // Short or unrelated words open nothing.
         listOf("pm", "tm", "pt", "do", "app", "time", "bank", "xyz", "spotify", "mom", "the car").forEach {
             assertThat(find(it)).isNull()

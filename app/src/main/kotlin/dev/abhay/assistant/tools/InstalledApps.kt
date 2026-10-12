@@ -32,8 +32,9 @@ class InstalledApps(private val load: () -> List<LaunchableApp>) {
 
         /**
          * The best match for [query]: an exact name, then a name starting with it, then one
-         * containing it, then the most shared words ("the camera app" finds "Camera"); shorter names
-         * win ties. The word "app" itself is ignored. Null if nothing shares a word.
+         * containing it, then a name that sounds the same as the whole query ("phone pay" is PhonePe),
+         * then the most shared words ("the camera app" finds "Camera"); shorter names win ties. The
+         * word "app" itself is ignored. Null if nothing shares a word.
          */
         fun best(query: String, apps: List<LaunchableApp>): LaunchableApp? {
             val q = normal(query).split(' ').filter { it.isNotEmpty() && it != "app" && it != "the" }.joinToString(" ")
@@ -43,6 +44,8 @@ class InstalledApps(private val load: () -> List<LaunchableApp>) {
             named.filter { it.second == q }.let { if (it.isNotEmpty()) return shortest(it) }
             named.filter { it.second.startsWith(q) }.let { if (it.isNotEmpty()) return shortest(it) }
             named.filter { it.second.contains(q) }.let { if (it.isNotEmpty()) return shortest(it) }
+            // Before a single shared word: "phone pay" opened HP PAY on the audio bench (2026-10-12).
+            soundsLike(q.replace(" ", ""), apps)?.let { return it }
             val words = q.split(' ').toSet()
             return named.map { (app, label) -> Triple(app, label, label.split(' ').count { it in words }) }
                 .filter { it.third > 0 }
@@ -77,6 +80,13 @@ class InstalledApps(private val load: () -> List<LaunchableApp>) {
             val (top, score) = scored.firstOrNull() ?: return null
             val next = scored.getOrNull(1)?.second ?: 0.0
             return top.takeIf { score >= MIN_LOOSE && score - next >= 0.05 }
+        }
+
+        /** The one app whose whole name sounds like [said] (joined words), by [looseScore] of at least 0.85. */
+        private fun soundsLike(said: String, apps: List<LaunchableApp>): LaunchableApp? {
+            if (said.length < 3) return null
+            val close = apps.map { it to looseScore(said, normal(it.label).replace(" ", "")) }.filter { it.second >= 0.85 }
+            return close.maxByOrNull { it.second }?.takeIf { best -> close.count { it.second >= best.second - 0.05 } == 1 }?.first
         }
 
         private fun looseScore(said: String, label: String): Double {
