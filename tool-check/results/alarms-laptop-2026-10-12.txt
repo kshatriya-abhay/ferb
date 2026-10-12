@@ -1,0 +1,12 @@
+Alarm lines (tool-check/audio-alarms.txt) on the laptop, 2026-10-12: Ferb's routing and time reading
+(tool-check/laptop.py) with Ferb Link's own code (56c7307) against the laptop's model server.
+
+Typed as written: 11/12. Miss: 10 "dopahar 2 baje utha dena" (sent "dopahar 2:00 pm utha dena") has
+no alarm keyword, so every tool went to the model, which called add_event(title="Utha dena", 2:00 pm).
+
+ferb-link's transcribed texts of synthetic clips (29: Hindi lines in two Hindi voices; English lines in a
+British voice and, as a stress test, the two Hindi voices): 21/29, every miss a mishearing of English by
+a Hindi voice ("alarm at 6" for half past six, "8 o'clock", "khotatu ek", "7:00 inel ine", "9:15" with no
+"at night", "9 at night" for quarter past nine, "7 in the morning", "5 past 7"). From each transcribed
+text, the model's call and Ferb's reading gave the time the text says in 28 of 29; "khotatu ek" isn't a
+time, so no alarm. Hindi lines on both Hindi voices and the British English lines: 21/21 right.
