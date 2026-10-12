@@ -39,7 +39,9 @@ class ToolsTest {
         val spoken = mapOf("5 o'clock" to (5 to 0), "five o'clock" to (5 to 0), "5 baje" to (5 to 0), "tomorrow at 6" to (6 to 0),
             "6 am tomorrow" to (6 to 0), "7 in the evening" to (19 to 0), "5 in the morning" to (5 to 0), "9 at night" to (21 to 0),
             "12 at night" to (0 to 0), "3 in the afternoon" to (15 to 0), "subah 5" to (5 to 0), "shaam 6 baje" to (18 to 0),
-            "7:30 in the evening" to (19 to 30), "6 pm tonight" to (18 to 0), "raat 2 baje" to (2 to 0), "raat 10 baje" to (22 to 0))
+            "7:30 in the evening" to (19 to 30), "6 pm tonight" to (18 to 0), "raat 2 baje" to (2 to 0), "raat 10 baje" to (22 to 0),
+            // As Ferb Link leaves the model's own words for the time of day.
+            "11 o'clock at night" to (23 to 0), "7 o'clock in the morning" to (7 to 0), "3 o'clock in the afternoon" to (15 to 0))
         spoken.forEach { (text, expected) -> assertThat(TimeOfDay.parse(text)).isEqualTo(expected) }
     }
 
