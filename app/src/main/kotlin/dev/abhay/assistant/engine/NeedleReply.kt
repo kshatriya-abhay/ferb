@@ -25,7 +25,7 @@ data class NeedleReply(
     val prefillTps: Double,
     val decodeTps: Double,
     val peakRamMb: Double,
-    /** Set when the engine reports a failure instead of an answer. */
+    /** Set when the engine reports a failure instead of an answer; for Ferb Link's, a few words that fit in the chat. */
     val error: String?,
     /** Where the answer came from: null for Needle 3 on the phone, "laptop" for Ferb Link ([dev.abhay.assistant.link.FerbLink]). */
     val source: String? = null,
@@ -33,6 +33,8 @@ data class NeedleReply(
     val model: String? = null,
     val first: Double? = null,
     val ms: Long? = null,
+    /** Ferb Link's: the failure at length, for the details ([error] is the short form); null from an older Ferb Link. */
+    val errorDetail: String? = null,
 ) {
     val fromLaptop get() = source != null
 
@@ -55,6 +57,7 @@ data class NeedleReply(
                 model = o.optString("model").ifEmpty { null },
                 first = if (o.has("first") && !o.isNull("first")) o.optDouble("first") else null,
                 ms = if (o.has("ms") && !o.isNull("ms")) o.optLong("ms") else null,
+                errorDetail = o.optString("error_detail").ifEmpty { null },
             )
         }
 

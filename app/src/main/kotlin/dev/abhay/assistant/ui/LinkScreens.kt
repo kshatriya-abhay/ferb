@@ -1,6 +1,26 @@
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+
 package dev.abhay.assistant.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItemShapes
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.SegmentedListItem
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import dev.abhay.assistant.link.Reachability
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -53,9 +73,9 @@ private fun LinkMode.title() = when (this) {
 }
 
 private fun LinkMode.description() = when (this) {
-    LinkMode.Off -> "Needle 3 answers everything, on this phone."
-    LinkMode.Fallback -> "Needle 3 answers first. When it's unsure, or finds no tool, Ferb asks your computer and uses its answer."
-    LinkMode.Option -> "The chat box gets a choice of Needle 3 or Ferb Link. Needle 3 answers when your computer can't."
+    LinkMode.Off -> "Phone only"
+    LinkMode.Fallback -> "Phone first, your computer when unsure"
+    LinkMode.Option -> "Pick Phone or Computer under the chat box"
 }
 
 /** Ferb Link's status now, refreshed whenever the screen comes back (e.g. from Ferb Link or installing it). */
@@ -95,14 +115,15 @@ internal fun rememberVoiceAvailable(link: FerbLink, active: Boolean): Boolean {
  * dimmed, and a tap explains what it is.
  */
 @Composable
-fun LinkRow(settings: SettingsViewModel, onOpen: () -> Unit) {
+fun LinkRow(settings: SettingsViewModel, onOpen: () -> Unit, shapes: ListItemShapes) {
     val mode by settings.linkMode.collectAsStateWithLifecycle()
     val status = rememberLinkStatus(settings.link)
     var explaining by rememberSaveable { mutableStateOf(false) }
     val installed = status != LinkStatus.NotInstalled
     if (explaining) AboutLinkDialog(onDismiss = { explaining = false })
-    ListItem(
+    SegmentedListItem(
         onClick = { if (installed) onOpen() else explaining = true },
+        shapes = shapes,
         leadingContent = { IconBadge(R.drawable.ic_link, active = installed && mode != LinkMode.Off) },
         supportingContent = {
             Text(
@@ -142,10 +163,9 @@ private fun AboutLink() {
 }
 
 /**
- * Ferb Link's page: whether it's ready (with a way into Ferb Link and a connection check), and how
- * Ferb uses it. Saved at once.
+ * Ferb Link's page: a card with whether the computer answers (checked when the page opens, again
+ * with refresh) and a way into Ferb Link, then how Ferb uses it. Saved at once.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LinkScreen(settings: SettingsViewModel, onBack: () -> Unit) {
     val context = LocalContext.current
@@ -154,57 +174,96 @@ fun LinkScreen(settings: SettingsViewModel, onBack: () -> Unit) {
     val installed = status != LinkStatus.NotInstalled
     val scope = rememberCoroutineScope()
     var checking by remember { mutableStateOf(false) }
-    var checked by remember { mutableStateOf<String?>(null) }
+    var checked by remember { mutableStateOf<Reachability?>(null) }
+    fun check() {
+        if (checking) return
+        checking = true
+        scope.launch {
+            // Null from a Ferb Link too old to check: keep its status alone.
+            checked = settings.link.check()
+            checking = false
+        }
+    }
+    // Ready only means set up: ask the computer once the page shows, so the card says whether it answers.
+    LaunchedEffect(status is LinkStatus.Ready) { if (status is LinkStatus.Ready) check() }
+    val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     BackHandler(onBack = onBack)
-    Scaffold(topBar = { TopBar("Ferb Link", onBack = onBack) }) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
+    Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer, topBar = { TopBar("Ferb Link", onBack = onBack, scroll = bar) }) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(top = 8.dp, bottom = 24.dp)) {
             if (!installed) {
                 Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) { AboutLink() }
             } else {
-                ListItem(
-                    leadingContent = { IconBadge(R.drawable.ic_link, active = status is LinkStatus.Ready) },
-                    supportingContent = { checked?.let { Text(it) } },
-                ) {
-                    Text(describe(status), color = if (status is LinkStatus.Ready) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error)
-                }
-                FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    settings.link.openIntent()?.let { intent ->
-                        FilledTonalButton(onClick = { context.startActivity(intent) }) { Text("Open Ferb Link") }
-                    }
-                    OutlinedButton(
-                        onClick = {
-                            checking = true
-                            scope.launch {
-                                val found = settings.link.check()
-                                checked = when {
-                                    found == null -> "Update Ferb Link to check the connection from here"
-                                    found.reachable -> "Your computer answers" + (found.model?.let { ": $it" } ?: "")
-                                    else -> "Your computer doesn't answer" + (found.error?.let { ": $it" } ?: "")
-                                }
-                                checking = false
-                            }
-                        },
-                        enabled = status is LinkStatus.Ready && !checking,
-                    ) { Text(if (checking) "Checking…" else "Check connection") }
-                }
+                StatusCard(
+                    status, checked, checking,
+                    onCheck = ::check,
+                    onOpen = settings.link.openIntent()?.let { intent -> { context.startActivity(intent) } },
+                )
             }
 
             SectionTitle("Use Ferb Link")
-            LinkMode.entries.forEach { option ->
-                ListItem(
-                    onClick = { settings.setLinkMode(option) },
-                    enabled = installed || option == LinkMode.Off,
-                    supportingContent = { Text(option.description()) },
-                    leadingContent = { RadioButton(selected = option == mode, onClick = null, enabled = installed || option == LinkMode.Off) },
-                ) { Text(option.title()) }
-            }
+            Group(LinkMode.entries.map { option ->
+                { shapes ->
+                    val enabled = installed || option == LinkMode.Off
+                    SegmentedListItem(
+                        selected = option == mode,
+                        onClick = { settings.setLinkMode(option) },
+                        shapes = shapes,
+                        enabled = enabled,
+                        supportingContent = { Text(option.description()) },
+                        leadingContent = { RadioButton(selected = option == mode, onClick = null, enabled = enabled) },
+                    ) { Text(option.title()) }
+                }
+            })
             Text(
-                "Your computer's answers run like Needle 3's: tools set to always ask (calls, messages, new events) still ask first. " +
-                    "With Ferb Link on, the requests your computer answers leave this phone for it, over Tailscale. Ferb itself still has no internet access.",
-                Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                "Requests your computer answers leave this phone over Tailscale.",
+                Modifier.padding(horizontal = 32.dp, vertical = 12.dp),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+    }
+}
+
+/**
+ * Ferb Link's state at a glance: "Connected · model" in the primary colours once the computer
+ * answers a check, the error colours when it doesn't or Ferb Link isn't ready (what to do in a
+ * line), a refresh to check again, and Ferb Link itself behind the open icon.
+ */
+@Composable
+private fun StatusCard(status: LinkStatus, checked: Reachability?, checking: Boolean, onCheck: () -> Unit, onOpen: (() -> Unit)?) {
+    val ready = status is LinkStatus.Ready
+    val ok = ready && checked?.reachable != false
+    val title = when {
+        !ready -> describe(status)
+        checked?.reachable == false -> "Your computer doesn't answer"
+        else -> describe(LinkStatus.Ready(null))
+    }
+    // Under the title: why the computer doesn't answer, or its model.
+    val detail = when {
+        !ready -> null
+        checked?.reachable == false -> (checked.errorDetail ?: checked.error)?.replaceFirstChar { it.uppercase() }
+        else -> checked?.model ?: (status as LinkStatus.Ready).model
+    }
+    Card(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (ok) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer,
+        ),
+    ) {
+        Row(Modifier.padding(start = 20.dp, end = 8.dp, top = 16.dp, bottom = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(painterResource(R.drawable.ic_link), contentDescription = null, Modifier.size(28.dp))
+            Column(Modifier.weight(1f).padding(start = 16.dp, end = 8.dp)) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                detail?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+            }
+            if (ready) {
+                Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                    if (checking) LoadingIndicator(Modifier.size(36.dp))
+                    else IconButton(onClick = onCheck) { Icon(Icons.Default.Refresh, contentDescription = "Check connection") }
+                }
+            }
+            onOpen?.let { IconButton(onClick = it) { Icon(painterResource(R.drawable.ic_open_in_new), contentDescription = "Open Ferb Link") } }
         }
     }
 }

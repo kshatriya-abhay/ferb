@@ -21,8 +21,8 @@ enum class LinkMode(val id: String) {
 
 /** Who answers in [LinkMode.Option], as picked in the chat box. */
 enum class Answerer(val id: String, val label: String) {
-    Needle("needle", "Needle 3"),
-    Link("link", "Ferb Link");
+    Needle("needle", "Phone"),
+    Link("link", "Computer");
 
     companion object {
         fun of(id: String?) = entries.firstOrNull { it.id == id } ?: Needle

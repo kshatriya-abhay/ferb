@@ -15,6 +15,7 @@ import dev.abhay.assistant.link.LinkMode
 import dev.abhay.assistant.link.LinkPolicy
 import dev.abhay.assistant.link.LinkStatus
 import dev.abhay.assistant.link.Recorder
+import dev.abhay.assistant.link.brief
 import dev.abhay.assistant.link.describe
 import dev.abhay.assistant.tools.CallRunner
 import dev.abhay.assistant.tools.Choice
@@ -80,8 +81,9 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         val wallMs: Long,
         /** Needle 3's answer, when the computer's replaced it (Ferb Link's "When Needle 3 is unsure"). */
         val needleReply: NeedleReply? = null,
-        /** Why the computer's answer isn't shown, when Ferb asked it and it failed (Needle 3 answered). */
+        /** Why the computer's answer isn't shown, when Ferb asked it and it failed (Needle 3 answered): in a few words, and at length. */
         val laptopError: String? = null,
+        val laptopErrorDetail: String? = null,
         /** For a spoken request: the words heard, when they differ from [request] (its English command). */
         val heard: String? = null,
     )
@@ -165,16 +167,19 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             val chosen = LinkPolicy.laptopFirst(mode, assistant.linkSettings.answerer.value)
             var laptop: NeedleReply? = null
             var laptopError: String? = null
+            var laptopErrorDetail: String? = null
             suspend fun askLaptop() {
                 val status = assistant.link.status()
                 if (status is LinkStatus.Ready) {
                     _state.update { it.copy(asking = "Asking your computer\u2026") }
                     laptop = assistant.link.complete(request, Tools.json(routed.ifEmpty { enabled }))
                     laptopError = laptop?.error
+                    laptopErrorDetail = laptop?.let { it.errorDetail ?: it.error }
                 } else if (chosen) {
                     // Picked in the chat box, so say why it didn't answer; in Fallback, a Ferb Link
                     // that's off or not set up is simply not asked.
-                    laptopError = describe(status)
+                    laptopError = brief(status)
+                    laptopErrorDetail = describe(status)
                 }
             }
             if (chosen && enabled.isNotEmpty()) askLaptop()
@@ -196,6 +201,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
                 routed.map { it.name }, checkAll, calls, SystemClock.elapsedRealtime() - started,
                 needleReply = needle.takeIf { shown !== it },
                 laptopError = laptopError.takeIf { !shown.fromLaptop },
+                laptopErrorDetail = laptopErrorDetail.takeIf { !shown.fromLaptop },
                 heard = heard)
             _state.update { it.copy(history = it.history + exchange, pending = null, asking = null) }
             if (verdict.decision == Decision.Run) run(exchange.id)

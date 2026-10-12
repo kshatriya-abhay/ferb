@@ -1,6 +1,22 @@
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+
 package dev.abhay.assistant.ui
 
 import android.Manifest
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.ListItemShapes
+import androidx.compose.material3.SegmentedListItem
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -98,36 +114,59 @@ import org.json.JSONObject
 import kotlin.math.roundToInt
 
 /** The settings home: the tools (a page of their own), Ferb Link (likewise), and the model, which runs on the phone. */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenLink: () -> Unit, onBack: () -> Unit) {
     val saved by settings.saved.collectAsStateWithLifecycle()
     val linkMode by settings.linkMode.collectAsStateWithLifecycle()
     val checkAll by settings.checkAllAsFallback.collectAsStateWithLifecycle()
+    val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     BackHandler(onBack = onBack)
-    Scaffold(topBar = { TopBar("Settings", onBack = onBack) }) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
-            ListItem(
-                onClick = onOpenTools,
-                leadingContent = { IconBadge(R.drawable.ic_tune) },
-                supportingContent = { Text("${ToolSettings.enabledNames(saved).size} of ${Tools.all.size} on") },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
-            ) { Text("Tools") }
-            ListItem(
-                onClick = { settings.setCheckAllAsFallback(!checkAll) },
-                leadingContent = { IconBadge(R.drawable.ic_search) },
-                supportingContent = { Text("When a request names no tool, try every tool instead of the best five. Slower with many tools on.") },
-                trailingContent = { Switch(checked = checkAll, onCheckedChange = null) },
-            ) { Text("Check all tools as a fallback") }
-            LinkRow(settings, onOpen = onOpenLink)
-            ListItem(
-                leadingContent = { IconBadge(R.drawable.ic_lock) },
-                supportingContent = {
-                    Text(if (linkMode == LinkMode.Off) "Needle 3 runs on this phone. The app has no internet access."
-                        else "Needle 3 runs on this phone, and the app has no internet access. Ferb Link sends some requests to your computer.")
+    Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer, topBar = { TopBar("Settings", onBack = onBack, scroll = bar) }) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Group(listOf(
+                { shapes ->
+                    SegmentedListItem(
+                        onClick = onOpenTools,
+                        shapes = shapes,
+                        leadingContent = { IconBadge(R.drawable.ic_tune) },
+                        supportingContent = { Text("${ToolSettings.enabledNames(saved).size} of ${Tools.all.size} on") },
+                        trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
+                    ) { Text("Tools") }
                 },
-            ) { Text("Private by design") }
+                { shapes ->
+                    SegmentedListItem(
+                        onClick = { settings.setCheckAllAsFallback(!checkAll) },
+                        shapes = shapes,
+                        leadingContent = { IconBadge(R.drawable.ic_search) },
+                        supportingContent = { Text("When a request names no tool, try every tool instead of the best five. Slower with many tools on.") },
+                        trailingContent = { Switch(checked = checkAll, onCheckedChange = null) },
+                    ) { Text("Check all tools as a fallback") }
+                },
+                { shapes -> LinkRow(settings, onOpen = onOpenLink, shapes = shapes) },
+            ))
+            Group(listOf { shapes ->
+                SegmentedListItem(
+                    shapes = shapes,
+                    leadingContent = { IconBadge(R.drawable.ic_lock) },
+                    supportingContent = {
+                        Text(if (linkMode == LinkMode.Off) "Needle 3 runs on this phone. The app has no internet access."
+                            else "Needle 3 runs on this phone, and the app has no internet access. Ferb Link sends some requests to your computer.")
+                    },
+                ) { Text("Private by design") }
+            })
         }
+    }
+}
+
+/**
+ * Rows grouped the Material 3 Expressive way: each in its own rounded container, a small gap
+ * between them, the group's outer corners rounder. Each row gets its [ListItemShapes] by position.
+ */
+@Composable
+internal fun Group(rows: List<@Composable (ListItemShapes) -> Unit>, modifier: Modifier = Modifier) {
+    Column(modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
+        rows.forEachIndexed { i, row -> row(ListItemDefaults.segmentedShapes(i, rows.size)) }
     }
 }
 
@@ -136,7 +175,6 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
  * Changes here and on the tools' pages are one draft, saved together; leaving with unsaved
  * changes asks first.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ToolsScreen(settings: SettingsViewModel, onOpenTool: (String) -> Unit, onBack: () -> Unit) {
     val draft by settings.draft.collectAsStateWithLifecycle()
@@ -146,15 +184,22 @@ fun ToolsScreen(settings: SettingsViewModel, onOpenTool: (String) -> Unit, onBac
     BackHandler(onBack = back)
     val on = ToolSettings.enabledNames(draft).size
     val askPermissions = rememberPermissionAsk()
+    val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
-        topBar = { TopBar("Tools", subtitle = "$on of ${Tools.all.size} on", onBack = back) },
+        Modifier.nestedScroll(bar.nestedScrollConnection),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        topBar = { TopBar("Tools", subtitle = "$on of ${Tools.all.size} on", onBack = back, scroll = bar) },
         bottomBar = { SaveBar(settings) },
     ) { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(vertical = 8.dp)) {
-            items(Tools.all, key = { it.name }) { tool ->
+        LazyColumn(
+            Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+        ) {
+            itemsIndexed(Tools.all, key = { _, tool -> tool.name }) { i, tool ->
                 val config = draft.getValue(tool.name)
-                ToolRow(tool, config, onOpen = { onOpenTool(tool.name) }, onToggle = { enabled ->
+                ToolRow(tool, config, ListItemDefaults.segmentedShapes(i, Tools.all.size), onOpen = { onOpenTool(tool.name) }, onToggle = { enabled ->
                     if (enabled) askPermissions(tool)
                     settings.update(tool.name) { it.copy(enabled = enabled) }
                 })
@@ -165,13 +210,15 @@ fun ToolsScreen(settings: SettingsViewModel, onOpenTool: (String) -> Unit, onBac
     if (confirmLeave) UnsavedDialog(settings, onDone = { confirmLeave = false; onBack() }, onCancel = { confirmLeave = false })
 }
 
-/** Material 3's split list item: the row opens the tool's page; the switch, past a divider, toggles it. */
+/** The split list item: the row opens the tool's page; the switch, past a divider, toggles it. */
 @Composable
-private fun ToolRow(tool: Tool, config: ToolConfig, onOpen: () -> Unit, onToggle: (Boolean) -> Unit) {
-    ListItem(
+private fun ToolRow(tool: Tool, config: ToolConfig, shapes: ListItemShapes, onOpen: () -> Unit, onToggle: (Boolean) -> Unit) {
+    val note = policy(tool, config)
+    SegmentedListItem(
         onClick = onOpen,
+        shapes = shapes,
         leadingContent = { IconBadge(tool.icon, active = config.enabled) },
-        supportingContent = { Text(policy(config)) },
+        supportingContent = note?.let { { Text(it) } },
         trailingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 VerticalDivider(Modifier.height(32.dp).padding(end = 16.dp))
@@ -181,10 +228,12 @@ private fun ToolRow(tool: Tool, config: ToolConfig, onOpen: () -> Unit, onToggle
     ) { Text(tool.title) }
 }
 
-private fun policy(config: ToolConfig) = when {
-    !config.enabled -> "Off"
+/** Only what's worth a glance: a tool that always asks, or a bar changed from the tool's own. */
+private fun policy(tool: Tool, config: ToolConfig) = when {
+    !config.enabled -> null
     config.alwaysConfirm -> "Always asks first"
-    else -> String.format(Locale.US, "Runs from %.2f", config.runFrom)
+    config.runFrom != ToolConfig.defaults(tool).runFrom -> String.format(Locale.US, "Runs from %.2f", config.runFrom)
+    else -> null
 }
 
 /**
@@ -192,7 +241,6 @@ private fun policy(config: ToolConfig) = when {
  * its keywords (a page of their own), its own options (e.g. which clock), examples, and, on
  * request, the schema Needle 3 gets.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ToolConfigScreen(settings: SettingsViewModel, name: String, onOpenKeywords: () -> Unit, onTry: (String) -> Unit, onBack: () -> Unit) {
     val tool = Tools.byName(name)
@@ -222,32 +270,45 @@ fun ToolConfigScreen(settings: SettingsViewModel, name: String, onOpenKeywords: 
         )
     }
 
+    val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
-        topBar = { TopBar(tool.title, onBack = onBack) },
+        Modifier.nestedScroll(bar.nestedScrollConnection),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        topBar = { TopBar(tool.title, onBack = onBack, scroll = bar) },
         bottomBar = { SaveBar(settings) },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
             Header(tool)
-            SwitchRow("Use this tool", checked = config.enabled) { on ->
-                if (on) askPermissions(tool)
-                change { it.copy(enabled = on) }
-            }
-            if (tool.permissions.isNotEmpty()) PermissionsRow(tool)
-            SwitchRow(
-                "Always ask first",
-                checked = config.alwaysConfirm,
-                enabled = config.enabled,
-                warning = "Not recommended for this tool".takeIf { tool.confirmByDefault && !config.alwaysConfirm },
-            ) { on -> if (!on && tool.confirmByDefault) confirmStopAsking = true else change { it.copy(alwaysConfirm = on) } }
-            ConfidenceSetting(config, default, enabled = config.enabled && !config.alwaysConfirm) { value -> change { it.copy(runFrom = value) } }
-            ListItem(
-                onClick = onOpenKeywords,
-                supportingContent = {
-                    Text(config.keywords.joinToString(", ").ifEmpty { "None: asked only when a request names no tool" },
-                        maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (tool.permissions.isNotEmpty()) PermissionsCard(tool)
+            Group(listOf(
+                { shapes ->
+                    SwitchRow("Use this tool", checked = config.enabled, shapes = shapes) { on ->
+                        if (on) askPermissions(tool)
+                        change { it.copy(enabled = on) }
+                    }
                 },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
-            ) { Text(if (config.keywords == default.keywords) "Keywords" else "Keywords (changed)") }
+                { shapes ->
+                    SwitchRow(
+                        "Always ask first",
+                        checked = config.alwaysConfirm,
+                        shapes = shapes,
+                        enabled = config.enabled,
+                        warning = "Not recommended for this tool".takeIf { tool.confirmByDefault && !config.alwaysConfirm },
+                    ) { on -> if (!on && tool.confirmByDefault) confirmStopAsking = true else change { it.copy(alwaysConfirm = on) } }
+                },
+                { shapes -> ConfidenceSetting(config, default, shapes, enabled = config.enabled && !config.alwaysConfirm) { value -> change { it.copy(runFrom = value) } } },
+                { shapes ->
+                    SegmentedListItem(
+                        onClick = onOpenKeywords,
+                        shapes = shapes,
+                        supportingContent = {
+                            Text(config.keywords.joinToString(", ").ifEmpty { "None: asked only when a request names no tool" },
+                                maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        },
+                        trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
+                    ) { Text(if (config.keywords == default.keywords) "Keywords" else "Keywords (changed)") }
+                },
+            ))
 
             tool.options.forEach { option ->
                 when (option) {
@@ -283,7 +344,6 @@ fun ToolConfigScreen(settings: SettingsViewModel, name: String, onOpenKeywords: 
  * without one asks first. Add, edit (tap a word), delete, or go back to the tool's own words; part
  * of the same draft as the rest of the Tools screens.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KeywordsScreen(settings: SettingsViewModel, name: String, onBack: () -> Unit) {
     val tool = Tools.byName(name)
@@ -298,8 +358,11 @@ fun KeywordsScreen(settings: SettingsViewModel, name: String, onBack: () -> Unit
     var editing by rememberSaveable { mutableStateOf<Int?>(null) }
     BackHandler(onBack = onBack)
 
+    val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
-        topBar = { TopBar("Keywords", subtitle = tool.title, onBack = onBack) },
+        Modifier.nestedScroll(bar.nestedScrollConnection),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        topBar = { TopBar("Keywords", subtitle = tool.title, onBack = onBack, scroll = bar) },
         bottomBar = { SaveBar(settings) },
         floatingActionButton = {
             ExtendedFloatingActionButton(
@@ -321,8 +384,10 @@ fun KeywordsScreen(settings: SettingsViewModel, name: String, onBack: () -> Unit
                     Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
             }
             items(words.size, key = { words[it] }) { index ->
-                ListItem(
+                SegmentedListItem(
                     onClick = { editing = index },
+                    shapes = ListItemDefaults.segmentedShapes(index, words.size),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = ListItemDefaults.SegmentedGap / 2),
                     trailingContent = {
                         IconButton(onClick = { change(words - words[index]) }) {
                             Icon(Icons.Default.Delete, contentDescription = "Delete ${words[index]}")
@@ -386,12 +451,23 @@ private fun KeywordDialog(initial: String, taken: List<String>, onDone: (String)
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * A settings page's top bar: Material 3 Expressive's large flexible bar, which collapses into a
+ * small one as the page scrolls ([scroll], whose nested scroll the page's Scaffold takes). Settings
+ * pages sit on surfaceContainer, so their grouped rows (surface) stand out, as in Android's settings.
+ */
 @Composable
-internal fun TopBar(title: String, subtitle: String? = null, onBack: () -> Unit) {
-    val navigation = @Composable { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } }
-    if (subtitle == null) TopAppBar(title = { Text(title) }, navigationIcon = navigation)
-    else TopAppBar(title = { Text(title) }, subtitle = { Text(subtitle) }, navigationIcon = navigation)
+internal fun TopBar(title: String, subtitle: String? = null, onBack: () -> Unit, scroll: TopAppBarScrollBehavior) {
+    LargeFlexibleTopAppBar(
+        title = { Text(title) },
+        subtitle = subtitle?.let { { Text(it) } },
+        navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ),
+        scrollBehavior = scroll,
+    )
 }
 
 /** An icon in a tonal circle, for list rows; muted when [active] is false (a tool that's off). */
@@ -441,11 +517,11 @@ private fun permissionTitle(permission: String) = when (permission) {
 }
 
 /**
- * Whether the tool has what it needs from Android (e.g. the contacts): tap to ask; once refused,
- * Android won't ask again, so tap to open the app's page in Android's settings instead.
+ * What the tool needs from Android (e.g. the contacts), shown only while it's missing: Allow asks;
+ * once refused, Android won't ask again, so the button opens the app's page in Android's settings.
  */
 @Composable
-private fun PermissionsRow(tool: Tool) {
+private fun PermissionsCard(tool: Tool) {
     val context = LocalContext.current
     fun granted() = tool.permissions.all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
     var allowed by remember { mutableStateOf(granted()) }
@@ -456,23 +532,22 @@ private fun PermissionsRow(tool: Tool) {
         allowed = granted()
         onPauseOrDispose { }
     }
-    ListItem(
-        onClick = {
-            if (refused) context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
-            else ask(tool)
-        },
-        enabled = !allowed,
-        supportingContent = {
-            Text(
-                when {
-                    allowed -> "Allowed. Used on this phone only"
-                    refused -> "Not allowed. Tap to allow it in Android settings"
-                    else -> "Not allowed yet. Tap to allow"
-                },
-                color = if (allowed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
-            )
-        },
-    ) { Text(tool.permissions.joinToString { permissionTitle(it) }) }
+    AnimatedVisibility(!allowed, enter = expandVertically(), exit = shrinkVertically()) {
+        Card(
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+        ) {
+            Row(Modifier.padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("Needs ${tool.permissions.joinToString { permissionTitle(it) }.lowercase()}", Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyLarge)
+                Button(onClick = {
+                    if (refused) context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
+                    else ask(tool)
+                }) { Text(if (refused) "Open settings" else "Allow") }
+            }
+        }
+    }
 }
 
 /**
@@ -480,9 +555,10 @@ private fun PermissionsRow(tool: Tool) {
  * checkable ListItem fills checked rows with a tint, which read as a highlight, not a setting.
  */
 @Composable
-private fun SwitchRow(title: String, checked: Boolean, enabled: Boolean = true, warning: String? = null, onChange: (Boolean) -> Unit) {
-    ListItem(
+private fun SwitchRow(title: String, checked: Boolean, shapes: ListItemShapes, enabled: Boolean = true, warning: String? = null, onChange: (Boolean) -> Unit) {
+    SegmentedListItem(
         onClick = { onChange(!checked) },
+        shapes = shapes,
         enabled = enabled,
         supportingContent = warning?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
         trailingContent = { Switch(checked = checked, onCheckedChange = null, enabled = enabled) },
@@ -491,9 +567,9 @@ private fun SwitchRow(title: String, checked: Boolean, enabled: Boolean = true, 
 
 /** The confidence slider, in steps of 0.05, with the value in a badge and a way back to the default. */
 @Composable
-private fun ConfidenceSetting(config: ToolConfig, default: ToolConfig, enabled: Boolean, onChange: (Double) -> Unit) {
+private fun ConfidenceSetting(config: ToolConfig, default: ToolConfig, shapes: ListItemShapes, enabled: Boolean, onChange: (Double) -> Unit) {
     val dim = if (enabled) 1f else 0.38f
-    Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+    SegmentedListItem(shapes = shapes) { Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Run without asking from", style = MaterialTheme.typography.bodyLarge,
@@ -517,28 +593,33 @@ private fun ConfidenceSetting(config: ToolConfig, default: ToolConfig, enabled: 
                 Text(String.format(Locale.US, "Reset to %.2f", default.runFrom))
             }
         }
-    }
+    } }
 }
 
 @Composable
 private fun ChoiceSetting(option: ToolOption.Choice, chosen: String, enabled: Boolean, onChoose: (String) -> Unit) {
     SectionTitle(option.title)
-    option.items.forEach { item ->
-        ListItem(
-            onClick = { onChoose(item.id) },
-            enabled = enabled,
-            supportingContent = { Text(item.description) },
-            leadingContent = { RadioButton(selected = item.id == chosen, onClick = null, enabled = enabled) },
-        ) { Text(item.label) }
-    }
+    Group(option.items.map { item ->
+        { shapes ->
+            SegmentedListItem(
+                selected = item.id == chosen,
+                onClick = { onChoose(item.id) },
+                shapes = shapes,
+                enabled = enabled,
+                supportingContent = { Text(item.description) },
+                leadingContent = { RadioButton(selected = item.id == chosen, onClick = null, enabled = enabled) },
+            ) { Text(item.label) }
+        }
+    })
     option.note?.let {
         Text(it, Modifier.padding(horizontal = 16.dp, vertical = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
 /**
- * Which calendar new events go to: the phone's calendars that take events, read whenever the page
- * shows (so after allowing access). Until one is picked, the account's own ([CalendarBook.target]).
+ * Which calendar new events go to, as one row that opens a menu of the phone's calendars that take
+ * events, read whenever the page shows (so after allowing access). Until one is picked, the
+ * account's own ([CalendarBook.target]).
  */
 @Composable
 private fun CalendarSetting(option: ToolOption.Calendar, chosen: String, enabled: Boolean, onChoose: (String) -> Unit) {
@@ -548,48 +629,69 @@ private fun CalendarSetting(option: ToolOption.Calendar, chosen: String, enabled
         calendars = CalendarBook.from(context).calendars()
         onPauseOrDispose { }
     }
-    SectionTitle(option.title)
     val all = calendars
     val writable = all?.filter { it.writable }.orEmpty()
-    if (all == null || writable.isEmpty()) {
-        Text(
-            if (all == null) "Allow the calendar above to choose one" else "No calendar on this phone takes events",
-            Modifier.padding(horizontal = 16.dp, vertical = 4.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        return
-    }
-    val current = CalendarBook({ all }, { _, _ -> null }).target(chosen)?.id
-    writable.forEach { calendar ->
-        ListItem(
-            onClick = { onChoose(calendar.id.toString()) },
-            enabled = enabled,
-            supportingContent = {
-                Text(when {
-                    calendar.local -> "Only on this phone"
-                    calendar.account != calendar.name -> calendar.account
-                    else -> "Your account's own calendar"
-                })
-            },
-            leadingContent = { RadioButton(selected = calendar.id == current, onClick = null, enabled = enabled) },
-        ) { Text(calendar.name) }
-    }
+    val current = all?.let { CalendarBook({ it }, { _, _ -> null }).target(chosen) }
+    var open by remember { mutableStateOf(false) }
+    Spacer(Modifier.height(16.dp))
+    Group(listOf { shapes ->
+        Box {
+            SegmentedListItem(
+                onClick = { open = true },
+                shapes = shapes,
+                enabled = enabled && writable.isNotEmpty(),
+                supportingContent = {
+                    Text(when {
+                        all == null -> "Allow the calendar to choose one"
+                        writable.isEmpty() -> "No calendar on this phone takes events"
+                        else -> current?.name ?: "None"
+                    })
+                },
+                trailingContent = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
+            ) { Text(option.title) }
+            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                writable.forEach { calendar ->
+                    DropdownMenuItem(
+                        text = {
+                            Column {
+                                Text(calendar.name)
+                                where(calendar)?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                            }
+                        },
+                        leadingIcon = { RadioButton(selected = calendar.id == current?.id, onClick = null) },
+                        onClick = { open = false; onChoose(calendar.id.toString()) },
+                    )
+                }
+            }
+        }
+    })
+}
+
+/** Where a calendar lives, when its name doesn't say: only on this phone, or another account's. */
+private fun where(calendar: CalendarInfo) = when {
+    calendar.local -> "Only on this phone"
+    calendar.account != calendar.name -> calendar.account
+    else -> null
 }
 
 /** The JSON schema Needle 3 gets, behind a toggle: useful when tuning, noise otherwise. */
 @Composable
 private fun Schema(tool: Tool) {
     var shown by rememberSaveable { mutableStateOf(false) }
-    ListItem(
-        onClick = { shown = !shown },
-        modifier = Modifier.padding(top = 16.dp),
-        trailingContent = {
-            Icon(if (shown) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, contentDescription = null)
-        },
-    ) { Text("What Needle 3 sees") }
+    Spacer(Modifier.height(16.dp))
+    Group(listOf { shapes ->
+        SegmentedListItem(
+            onClick = { shown = !shown },
+            shapes = shapes,
+            trailingContent = {
+                Icon(if (shown) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, contentDescription = null)
+            },
+        ) { Text("What Needle 3 sees") }
+    })
     AnimatedVisibility(shown, enter = expandVertically(), exit = shrinkVertically()) {
         Card(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         ) {
             Text(remember(tool) { JSONObject(tool.schema).toString(2) }, Modifier.padding(12.dp),
                 style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
@@ -607,7 +709,7 @@ private fun SaveBar(settings: SettingsViewModel) {
     val saved by settings.saved.collectAsStateWithLifecycle()
     val valid = ToolSettings.enabledNames(draft).isNotEmpty()
     AnimatedVisibility(draft != saved, enter = expandVertically(), exit = shrinkVertically()) {
-        Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
+        Surface(color = MaterialTheme.colorScheme.surfaceContainerHighest) {
             Column(Modifier.navigationBarsPadding()) {
                 HorizontalDivider()
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {

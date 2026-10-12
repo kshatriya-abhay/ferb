@@ -52,6 +52,8 @@ object LinkContract {
     /** In `check`. */
     const val RESULT_REACHABLE = "reachable"
     const val RESULT_ERROR = "error"
+    /** In `check` (and in replies' JSON): the failure at length; [RESULT_ERROR] is a few words. Missing in an older Ferb Link. */
+    const val RESULT_ERROR_DETAIL = "error_detail"
     /**
      * In `status` and `check`: whether the computer's model takes audio, so voice works; missing in
      * an older Ferb Link. Status keeps the last value seen, false until a check, wake or complete.
@@ -115,10 +117,10 @@ class FerbLink(private val context: Context) {
                 LinkContract.EXTRA_TIMEOUT_MS to TIMEOUT_MS,
             ))
         } catch (e: SecurityException) {
-            return@withContext failed("Ferb Link only answers apps signed with the same key")
+            return@withContext failed("not allowed", "Ferb Link only answers apps signed with the same key")
         } catch (e: Exception) {
-            return@withContext failed(if (installed()) "Ferb Link failed: ${e.message ?: e}" else "Ferb Link isn't installed")
-        } ?: return@withContext failed("Ferb Link didn't answer")
+            return@withContext if (installed()) failed("Ferb Link failed", "Ferb Link failed: ${e.message ?: e}") else failed("not installed", "Ferb Link isn't installed")
+        } ?: return@withContext failed("no answer", "Ferb Link didn't answer")
         replyOf(result)
     }
 
@@ -141,6 +143,7 @@ class FerbLink(private val context: Context) {
             model = result.getString(LinkContract.RESULT_MODEL)?.ifBlank { null },
             error = result.getString(LinkContract.RESULT_ERROR)?.ifBlank { null },
             audio = result.getBoolean(LinkContract.RESULT_AUDIO),
+            errorDetail = result.getString(LinkContract.RESULT_ERROR_DETAIL)?.ifBlank { null },
         )
     }
 
@@ -198,8 +201,8 @@ class FerbLink(private val context: Context) {
 
         fun replyOf(result: Bundle): NeedleReply {
             val version = result.getInt(LinkContract.RESULT_VERSION, -1)
-            if (version != LinkContract.VERSION) return failed("Ferb Link speaks version $version, Ferb version ${LinkContract.VERSION}: update the older one")
-            val json = result.getString(LinkContract.RESULT_REPLY) ?: return failed("Ferb Link sent no reply")
+            if (version != LinkContract.VERSION) return failed("versions differ", "Ferb Link speaks version $version, Ferb version ${LinkContract.VERSION}: update the older one")
+            val json = result.getString(LinkContract.RESULT_REPLY) ?: return failed("unexpected answer", "Ferb Link sent no reply")
             return parse(json)
         }
 
@@ -214,7 +217,7 @@ class FerbLink(private val context: Context) {
             val reply = NeedleReply.parse(json)
             reply.copy(confidence = reply.first ?: reply.confidence, source = reply.source ?: SOURCE)
         } catch (e: Exception) {
-            failed("Ferb Link's reply couldn't be read: ${e.message}")
+            failed("unexpected answer", "Ferb Link's reply couldn't be read: ${e.message}")
         }
 
         const val SOURCE = "laptop"
@@ -233,15 +236,16 @@ class FerbLink(private val context: Context) {
          */
         const val TRANSCRIBE_TIMEOUT_MS = 15_000
 
-        private fun failed(reason: String) = NeedleReply(
+        /** A failure: [reason] in a few words, for the chat, and at length in [detail], for the details. */
+        private fun failed(reason: String, detail: String) = NeedleReply(
             calls = emptyList(), suppressed = emptyList(), reasoning = "", confidence = null, ungrounded = emptyList(),
-            negation = false, prefillTps = 0.0, decodeTps = 0.0, peakRamMb = 0.0, error = reason, source = SOURCE,
+            negation = false, prefillTps = 0.0, decodeTps = 0.0, peakRamMb = 0.0, error = reason, source = SOURCE, errorDetail = detail,
         )
     }
 }
 
 /** What Ferb Link's `check` found: whether the computer answers, its model, or why not. */
-data class Reachability(val reachable: Boolean, val model: String?, val error: String?, val audio: Boolean = false)
+data class Reachability(val reachable: Boolean, val model: String?, val error: String?, val audio: Boolean = false, val errorDetail: String? = null)
 
 /** [status] in a few words, for the settings page and for notes under answers. */
 fun describe(status: LinkStatus): String = when (status) {
@@ -250,8 +254,19 @@ fun describe(status: LinkStatus): String = when (status) {
     LinkStatus.NotAllowed -> "Ferb Link only answers apps signed with the same key"
     LinkStatus.Off -> "Ferb Link is off: switch on “Answer Ferb's requests” in it"
     LinkStatus.NotSetUp -> "Ferb Link has no computer set up yet"
-    is LinkStatus.Ready -> status.model?.let { "Ready: $it" } ?: "Ready"
+    is LinkStatus.Ready -> status.model?.let { "Connected \u00b7 $it" } ?: "Connected"
     is LinkStatus.Failed -> "Ferb Link failed: ${status.reason}"
+}
+
+/** Why Ferb Link can't answer, in a few words like Ferb Link's own short errors, for the chat. */
+fun brief(status: LinkStatus): String = when (status) {
+    LinkStatus.NotInstalled -> "not installed"
+    is LinkStatus.Mismatch -> "versions differ"
+    LinkStatus.NotAllowed -> "not allowed"
+    LinkStatus.Off -> "turned off"
+    LinkStatus.NotSetUp -> "not set up"
+    is LinkStatus.Ready -> "ready"
+    is LinkStatus.Failed -> "Ferb Link failed"
 }
 
 /**

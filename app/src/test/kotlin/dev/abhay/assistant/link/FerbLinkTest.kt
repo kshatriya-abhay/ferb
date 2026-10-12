@@ -43,10 +43,19 @@ class FerbLinkTest {
     fun aFailedOrUnreadableLaptopReplyIsAnError() {
         assertThat(FerbLink.parse(laptopFailed).error).isEqualTo("The laptop took too long to answer")
         val garbled = FerbLink.parse("not json")
-        assertThat(garbled.error).contains("couldn't be read")
+        // A few words for the chat, the reason at length for the details.
+        assertThat(garbled.error).isEqualTo("unexpected answer")
+        assertThat(garbled.errorDetail).contains("couldn't be read")
         assertThat(garbled.fromLaptop).isTrue()
         // Needle 3's own replies have no source.
         assertThat(NeedleReply.parse("""{"success":true,"function_calls":[],"confidence":0.5}""").fromLaptop).isFalse()
+    }
+
+    @Test
+    fun ferbLinksShortErrorAndItsDetailAreKeptApart() {
+        val reply = FerbLink.parse("""{"success":false,"error":"timed out","error_detail":"Your computer took longer than 10 s to answer"}""")
+        assertThat(reply.error).isEqualTo("timed out")
+        assertThat(reply.errorDetail).isEqualTo("Your computer took longer than 10 s to answer")
     }
 
     @Test
