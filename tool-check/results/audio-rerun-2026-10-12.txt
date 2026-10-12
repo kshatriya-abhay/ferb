@@ -1,0 +1,94 @@
+Audio bench rerun, 2026-10-12, after Ferb a9e7cad..ade87a9 and Ferb Link 637a705. 19 lines logged for 18: lines 1-2
+were said twice (the first two entries dropped) and line 12 ("timer one and a half minutes") left no entry, so it's
+left out: 17 scored.
+
+OK   subah 5 baje ka alarm laga do
+     heard: subah 5 baje ka alarm laga do
+     text:  Set an alarm for 5 am
+     calls: set_alarm(time=5 am)  ->  Set an alarm for 05:00
+
+OK   dedh ghante ka timer laga do
+     heard: dedh ghante ka timer laga do
+     text:  Set a timer for 1 hour 30 minutes
+     calls: set_timer(duration=1 hour 30 minutes)  ->  Start a 1 h 30 min timer
+
+OK   saade paanch baje ka alarm lagao
+     heard: saade paanch baje ka alarm laga do
+     text:  Set an alarm for 5:30
+     calls: set_alarm(time=5:30)  ->  Set an alarm for 05:30
+
+OK   dhai minute ka timer lagao
+     heard: dhai minute ka timer laga do
+     text:  Set a timer for 2 minutes 30 seconds
+     calls: set_timer(duration=2 minutes 30 seconds)  ->  Start a 2 min 30 s timer
+
+OK   sava saat baje utha dena
+     heard: sava 7 baje utha dena
+     text:  Wake me up at 7:15
+     calls: set_alarm(time=7:15)  ->  Set an alarm for 07:15
+
+OK   paune aath baje ka alarm lagao
+     heard: paune 8 baje ka alarm lagao
+     text:  Set an alarm for 7:45
+     calls: set_alarm(time=7:45)  ->  Set an alarm for 07:45
+
+MISS shaam 7 baje ka alarm lagao
+     heard: shaam saat baje ka alarm lagao
+     text:  Set an alarm for 7 o'clock
+     calls: set_alarm(time=7 o'clock)  ->  Set an alarm for 07:00
+
+OK   alarm at half past six
+     heard: alarm at half past 6
+     text:  alarm at half past 6
+     calls: set_alarm(time=6:30)  ->  Set an alarm for 06:30
+
+MISS alarm at quarter to eight
+     heard: alarm add quarter to 8
+     text:  alarm add quarter to 8
+     calls: set_alarm(time=8:15)  ->  Set an alarm for 08:15
+
+OK   alarm for 7 in the evening
+     heard: alarm for seven in the evening
+     text:  alarm for seven in the evening
+     calls: set_alarm(time=7 pm)  ->  Set an alarm for 19:00
+
+OK   an hour and a half timer
+     heard: one hour and a half timer
+     text:  one hour and a half timer
+     calls: set_timer(duration=1 hour and a half)  ->  Start a 1 h 30 min timer
+
+OK   half volume
+     heard: half volume
+     text:  half volume
+     calls: set_volume(percent=50)  ->  Set the media volume to 50 %
+
+OK   stop
+     heard: stop
+     text:  stop
+     calls: control_media(action=pause)  ->  Media: pause
+
+OK   next
+     heard: next
+     text:  next
+     calls: control_media(action=next)  ->  Media: next
+
+OK   open phonepe
+     heard: open phone pay
+     text:  open phone pay
+     calls: open_app(app_name=Phone Pay)  ->  Open PhonePe
+
+OK   chandni chowk kaise jaun
+     heard: chandni chowk kaise jaaun
+     text:  How do I go to Chandni Chowk
+     calls: get_directions(destination=Chandni Chowk)  ->  Directions to “Chandni Chowk”
+
+OK   tell rohit im running 10 min late
+     heard: tell rohit i am running 10 minutes late
+     text:  tell rohit i am running 10 minutes late
+     calls: send_text(message=I am running 10 minutes late, name=Rohit)  ->  Text [a contact]
+
+15/17 right
+  amounts     9/11
+  others      6/6
+contacts found on the phone: 1/1 calls and texts
+ms per request (transcribed to answered): median 395, slowest 3091
