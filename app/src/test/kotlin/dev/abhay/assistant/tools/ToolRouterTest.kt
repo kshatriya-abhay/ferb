@@ -32,11 +32,4 @@ class ToolRouterTest {
         assertThat(ToolRouter.route("lamp on", enabled, lamp).map { it.name }).containsExactly("set_flashlight")
         assertThat(ToolRouter.route("torch on", enabled, lamp)).isEmpty()
     }
-
-    @Test
-    fun theFallbackSeesEveryToolFiveAtATime() {
-        val groups = ToolRouter.groups(enabled)
-        assertThat(groups.flatten()).containsExactlyElementsIn(enabled).inOrder()
-        groups.forEach { assertThat(it.size).isAtMost(ToolRouter.MAX_SEEN) }
-    }
 }

@@ -15,11 +15,4 @@ object ToolRouter {
     /** The tools in [enabled] that [request] mentions (by their keywords in [configs]), in [enabled]'s order. Empty: none. */
     fun route(request: String, enabled: List<Tool>, configs: Map<String, ToolConfig>): List<Tool> =
         enabled.filter { tool -> (configs[tool.name] ?: ToolConfig.defaults(tool)).mentionedIn(request) }
-
-    /**
-     * For "Check all tools as a fallback", instead of Needle 3's retrieval: every tool turned on,
-     * at most [MAX_SEEN] per group, so it weighs each of them. One engine run per group, so more
-     * tools take longer.
-     */
-    fun groups(enabled: List<Tool>): List<List<Tool>> = enabled.chunked(MAX_SEEN)
 }

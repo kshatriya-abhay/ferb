@@ -6,7 +6,7 @@ and Needle 3's own retrieval of the best five.
 
 With "fallback", a request no mentioned tool answered (or that mentions none) is tried against
 every tool, five at a time, keeping the most confident answer (the app's "Check all tools as a
-fallback").
+fallback", removed from the app on 2026-10-12; kept here to measure it).
 Prints "request<TAB>engine JSON" lines, like tool_check with TOOL_CHECK_RAW=1, for score.py.
 """
 import hashlib, json, os, re, subprocess, sys, tempfile

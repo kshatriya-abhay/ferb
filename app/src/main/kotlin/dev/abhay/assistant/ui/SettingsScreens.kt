@@ -118,7 +118,6 @@ import kotlin.math.roundToInt
 fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenLink: () -> Unit, onBack: () -> Unit) {
     val saved by settings.saved.collectAsStateWithLifecycle()
     val linkMode by settings.linkMode.collectAsStateWithLifecycle()
-    val checkAll by settings.checkAllAsFallback.collectAsStateWithLifecycle()
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     BackHandler(onBack = onBack)
     Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer, topBar = { TopBar("Settings", onBack = onBack, scroll = bar) }) { padding ->
@@ -133,15 +132,6 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
                         supportingContent = { Text("${ToolSettings.enabledNames(saved).size} of ${Tools.all.size} on") },
                         trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
                     ) { Text("Tools") }
-                },
-                { shapes ->
-                    SegmentedListItem(
-                        onClick = { settings.setCheckAllAsFallback(!checkAll) },
-                        shapes = shapes,
-                        leadingContent = { IconBadge(R.drawable.ic_search) },
-                        supportingContent = { Text("When a request names no tool, try every tool instead of the best five. Slower with many tools on.") },
-                        trailingContent = { Switch(checked = checkAll, onCheckedChange = null) },
-                    ) { Text("Check all tools as a fallback") }
                 },
                 { shapes -> LinkRow(settings, onOpen = onOpenLink, shapes = shapes) },
             ))

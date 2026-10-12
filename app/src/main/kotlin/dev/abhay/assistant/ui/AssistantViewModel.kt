@@ -76,7 +76,6 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         /** The tools the request mentioned, which Needle 3 was given ([ToolRouter]); empty: none, so it got every tool turned on. */
         val routed: List<String>,
         /** Set when every tool was also tried, because the mentioned ones gave no call. */
-        val checkedAll: Boolean,
         val calls: List<CallState>,
         val wallMs: Long,
         /** Needle 3's answer, when the computer's replaced it (Ferb Link's "When Needle 3 is unsure"). */
@@ -159,7 +158,6 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             val enabled = enabledTools.value.mapNotNull(Tools::byName)
             val configs = assistant.toolSettings.configs.value
             val routed = ToolRouter.route(request, enabled, configs)
-            val checkAllOn = assistant.toolSettings.checkAllAsFallback.value
             // Ferb Link, as chosen in Settings: the computer's model answers first when Ferb Link
             // is picked in the chat box ("Option"), or after Needle 3 when it's unsure or finds no
             // tool ("Fallback"). Needle 3 answers whenever the computer can't.
@@ -184,12 +182,10 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             }
             if (chosen && enabled.isNotEmpty()) askLaptop()
             var needle: NeedleReply? = null
-            var checkAll = false
             if (laptop?.error != null || laptop == null) {
                 _state.update { it.copy(asking = null) }
-                val (reply, checkedAll) = askNeedle(request, enabled, routed, checkAllOn)
+                val reply = askNeedle(request, enabled, routed)
                 needle = reply
-                checkAll = checkedAll
                 if (!chosen && mode == LinkMode.Fallback && enabled.isNotEmpty() && reply.error == null &&
                     LinkPolicy.askLaptopAfter(reply, Verdict.of(reply, configs, request))) askLaptop()
             }
@@ -198,7 +194,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             val verdict = if (shown.fromLaptop) LinkPolicy.verdict(shown, configs, request) else Verdict.of(shown, configs, request)
             val calls = shown.calls.map { call -> CallState(call, prepare(call, request), Status.Waiting) }
             val exchange = Exchange(nextId++, request, shown, verdict.decision, verdict.runAt, verdict.alwaysConfirm, verdict.unmentioned, verdict.ungrounded,
-                routed.map { it.name }, checkAll, calls, SystemClock.elapsedRealtime() - started,
+                routed.map { it.name }, calls, SystemClock.elapsedRealtime() - started,
                 needleReply = needle.takeIf { shown !== it },
                 laptopError = laptopError.takeIf { !shown.fromLaptop },
                 laptopErrorDetail = laptopErrorDetail.takeIf { !shown.fromLaptop },
@@ -273,25 +269,15 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
 
     /**
      * Needle 3's answer: from the tools [routed] to (the request mentions them), else from every tool
-     * turned on, as Needle 3 weighs the five that match best (its own retrieval), unless the user
-     * chose to check them all; and whether every tool was checked, five at a time, because the
-     * mentioned ones gave no call.
+     * turned on, as Needle 3 weighs the five that match best (its own retrieval). Until 2026-10-12
+     * a setting could check every tool, five at a time, instead; removed: on tool-check it added
+     * one right call that runs and let unrelated requests reach tools, and Ferb Link now covers
+     * Needle 3 finding nothing.
      */
-    private suspend fun askNeedle(request: String, enabled: List<Tool>, routed: List<Tool>, checkAllOn: Boolean): Pair<NeedleReply, Boolean> {
-        var reply = when {
-            routed.isNotEmpty() -> ask(request, routed)
-            checkAllOn || enabled.isEmpty() -> NO_TOOL_MENTIONED
-            else -> ask(request, enabled)
-        }
-        val checkAll = reply.calls.isEmpty() && reply.error == null && checkAllOn && enabled.isNotEmpty()
-        if (checkAll) {
-            // The most confident answer with a call wins.
-            ToolRouter.groups(enabled).filter { it != routed }.forEach { group ->
-                val answer = ask(request, group)
-                if (answer.calls.isNotEmpty() && (answer.confidence ?: 0.0) > (reply.confidence.takeIf { reply.calls.isNotEmpty() } ?: -1.0)) reply = answer
-            }
-        }
-        return reply to checkAll
+    private suspend fun askNeedle(request: String, enabled: List<Tool>, routed: List<Tool>): NeedleReply = when {
+        routed.isNotEmpty() -> ask(request, routed)
+        enabled.isEmpty() -> NO_TOOL
+        else -> ask(request, enabled)
     }
 
     private suspend fun ask(request: String, tools: List<Tool>): NeedleReply =
@@ -398,8 +384,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         _state.update { s -> s.copy(history = s.history.map { if (it.id == id) change(it) else it }) }
 
     private companion object {
-        /** The answer before any is asked for, when a request mentions no tool and the check of all tools follows (or no tool is on). */
-        val NO_TOOL_MENTIONED = NeedleReply(
+        /** The answer when no tool is on. */
+        val NO_TOOL = NeedleReply(
             calls = emptyList(), suppressed = emptyList(), reasoning = "", confidence = null, ungrounded = emptyList(),
             negation = false, prefillTps = 0.0, decodeTps = 0.0, peakRamMb = 0.0, error = null,
         )
