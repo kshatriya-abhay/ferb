@@ -57,7 +57,7 @@ Phase 1 is a normal app with a text box. Voice and becoming the phone's default 
 - **When Needle 3 is unsure:** Needle 3 answers first; when its calls are below their bar, or it finds no tool, Ferb asks the computer, and the computer's answer wins, "no tool" included (Gemma 4 E2B turned down 30 of 36 near misses in the bench, Needle 3 14).
 - **Choose in the chat:** the chat box gets a Needle 3 / Ferb Link choice, kept until changed.
 
-Either way the computer gets the tools Needle 3 would get, one request at a time, with 10 s to answer, and Needle 3 answers whenever the computer can't (the reply says why). The computer's answers run without asking only when Needle 3 made the same calls and the usual checks pass: no stand-in for their confidence was safe in the bench (Gemma 4 E2B's first-token probability let 20 wrong calls through even at 1.00). Answers from the computer say so, with the model and its time; Details shows Needle 3's answer next to it. Without Ferb Link installed, the settings row says so and explains what it is.
+Either way the computer gets the tools Needle 3 would get, one request at a time, with 10 s to answer, and Needle 3 answers whenever the computer can't (the reply says why). The computer's answers run without asking only when Needle 3's answer does the same (compared by what each would do, as Ferb would show it when asking first, not word for word) and the usual checks pass: no stand-in for their confidence was safe in the bench (Gemma 4 E2B's first-token probability let 20 wrong calls through even at 1.00). Answers from the computer say so, with the model and its time; Details shows Needle 3's answer next to it. Without Ferb Link installed, the settings row says so and explains what it is.
 
 ### Routing
 

@@ -81,7 +81,7 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         val needleReply: NeedleReply? = null,
         /** Why the computer's answer isn't shown, when Ferb asked it and it failed (Needle 3 answered). */
         val laptopError: String? = null,
-        /** For the computer's answers: whether Needle 3 made the same calls, which lets it run without asking. */
+        /** For the computer's answers: whether Needle 3's would do the same, which lets it run without asking. */
         val agreed: Boolean = false,
     )
 
@@ -178,13 +178,15 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 }
                 val shown = laptop?.let { LinkPolicy.keep(reply, it) } ?: reply
-                val verdict = if (shown.fromLaptop) LinkPolicy.verdict(shown, reply, configs, request) else needleVerdict
+                // The two answers agree when they'd do the same, however they're worded.
+                val meaning = { call: ToolCall -> LinkPolicy.prepared(call.name, prepare(call, request)) }
+                val verdict = if (shown.fromLaptop) LinkPolicy.verdict(shown, reply, configs, request, meaning) else needleVerdict
                 val calls = shown.calls.map { call -> CallState(call, prepare(call, request), Status.Waiting) }
                 val exchange = Exchange(nextId++, request, shown, verdict.decision, verdict.runAt, verdict.alwaysConfirm, verdict.unmentioned, verdict.ungrounded,
                     routed.map { it.name }, checkAll, calls, SystemClock.elapsedRealtime() - started,
                     needleReply = reply.takeIf { shown !== reply },
                     laptopError = laptopError,
-                    agreed = shown.fromLaptop && LinkPolicy.agrees(shown, reply))
+                    agreed = shown.fromLaptop && LinkPolicy.agrees(shown, reply, meaning))
                 _state.update { it.copy(history = it.history + exchange, pending = null, asking = null) }
                 if (verdict.decision == Decision.Run) run(exchange.id)
             } catch (e: CancellationException) {

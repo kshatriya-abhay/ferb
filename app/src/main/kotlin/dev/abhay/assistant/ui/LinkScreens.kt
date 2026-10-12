@@ -174,7 +174,7 @@ fun LinkScreen(settings: SettingsViewModel, onBack: () -> Unit) {
                 ) { Text(option.title()) }
             }
             Text(
-                "Your computer's answers run without asking only when Needle 3 makes the same calls; otherwise Ferb asks first. " +
+                "Your computer's answers run without asking only when Needle 3's would do the same; otherwise Ferb asks first. " +
                     "With Ferb Link on, the requests your computer answers leave this phone for it, over Tailscale. Ferb itself still has no internet access.",
                 Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 style = MaterialTheme.typography.bodySmall,

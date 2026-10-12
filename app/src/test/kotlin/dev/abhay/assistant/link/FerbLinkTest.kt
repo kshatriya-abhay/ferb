@@ -4,11 +4,15 @@ import com.google.common.truth.Truth.assertThat
 import dev.abhay.assistant.engine.Decision
 import dev.abhay.assistant.engine.NeedleReply
 import dev.abhay.assistant.engine.ToolCall
+import dev.abhay.assistant.tools.PrepareEnv
 import dev.abhay.assistant.tools.SetAlarm
+import dev.abhay.assistant.tools.ShowAgenda
 import dev.abhay.assistant.tools.SetTimer
 import dev.abhay.assistant.tools.ToolConfig
 import dev.abhay.assistant.tools.Verdict
 import org.junit.Test
+import java.time.ZoneId
+import java.time.ZonedDateTime
 
 class FerbLinkTest {
     /** Ferb Link's reply as its `Reply.toJson` writes it. */
@@ -107,5 +111,23 @@ class FerbLinkTest {
         assertThat(LinkPolicy.verdict(laptop, needle(0.3, alarm("6:45 am")), asking, request).decision).isEqualTo(Decision.Confirm)
         // Nor the request's words: a time it doesn't say asks.
         assertThat(LinkPolicy.verdict(laptop, needle(0.3, alarm("6:45 am")), configs, "wake me up early").decision).isEqualTo(Decision.Confirm)
+    }
+
+    @Test
+    fun answersWordedDifferentlyAgreeWhenTheyDoTheSame() {
+        // Seen on the phone: Gemma 4 E2B said "Friday", Needle 3 a wrong ISO date; the agenda reads
+        // the day from the request, so both show Friday.
+        val request = "Am I free on Friday?"
+        val env = PrepareEnv(now = ZonedDateTime.of(2026, 10, 12, 8, 0, 0, 0, ZoneId.of("Asia/Kolkata")))
+        val meaning = { call: ToolCall -> LinkPolicy.prepared(call.name, ShowAgenda.prepare(ShowAgenda.fromRequest(call.arguments, request), env)) }
+        val laptop = needle(1.0, ToolCall(ShowAgenda.name, mapOf("day" to "Friday")))
+        val needleSays = needle(0.53, ToolCall(ShowAgenda.name, mapOf("day" to "2026-10-13")))
+        assertThat(LinkPolicy.agrees(laptop, needleSays)).isFalse()
+        assertThat(LinkPolicy.agrees(laptop, needleSays, meaning)).isTrue()
+        // A different day said in the request's place still differs: "today" isn't Friday.
+        val other = { call: ToolCall -> LinkPolicy.prepared(call.name, ShowAgenda.prepare(call.arguments, env)) }
+        assertThat(LinkPolicy.agrees(laptop, needle(0.5, ToolCall(ShowAgenda.name, mapOf("day" to "today"))), other)).isFalse()
+        // A call that can't run has no meaning, so never agrees.
+        assertThat(LinkPolicy.agrees(laptop, needleSays) { null }).isFalse()
     }
 }
