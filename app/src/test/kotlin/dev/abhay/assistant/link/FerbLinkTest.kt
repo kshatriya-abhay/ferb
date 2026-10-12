@@ -4,15 +4,11 @@ import com.google.common.truth.Truth.assertThat
 import dev.abhay.assistant.engine.Decision
 import dev.abhay.assistant.engine.NeedleReply
 import dev.abhay.assistant.engine.ToolCall
-import dev.abhay.assistant.tools.PrepareEnv
 import dev.abhay.assistant.tools.SetAlarm
-import dev.abhay.assistant.tools.ShowAgenda
 import dev.abhay.assistant.tools.SetTimer
 import dev.abhay.assistant.tools.ToolConfig
 import dev.abhay.assistant.tools.Verdict
 import org.junit.Test
-import java.time.ZoneId
-import java.time.ZonedDateTime
 
 class FerbLinkTest {
     /** Ferb Link's reply as its `Reply.toJson` writes it. */
@@ -78,56 +74,16 @@ class FerbLinkTest {
     }
 
     @Test
-    fun theComputersAnswerWinsUnlessItFailed() {
-        val needleSays = needle(0.2, alarm("6:45"))
-        val laptopSaysNo = FerbLink.parse("""{"success":true,"function_calls":[],"first":1.0,"source":"laptop"}""")
-        assertThat(LinkPolicy.keep(needleSays, laptopSaysNo)).isSameInstanceAs(laptopSaysNo)
-        assertThat(LinkPolicy.keep(needleSays, FerbLink.parse(laptopFailed))).isSameInstanceAs(needleSays)
-    }
-
-    @Test
-    fun agreementIsTheSameCallsWhateverTheCaseSpacesOrOrder() {
-        val laptop = needle(1.0, alarm(" 6:45 AM"), ToolCall(SetTimer.name, mapOf("duration" to "10 minutes")))
-        assertThat(LinkPolicy.agrees(laptop, needle(0.2, ToolCall(SetTimer.name, mapOf("duration" to "10 Minutes")), alarm("6:45 am")))).isTrue()
-        assertThat(LinkPolicy.agrees(laptop, needle(0.2, alarm("6:45 am")))).isFalse()
-        assertThat(LinkPolicy.agrees(needle(1.0, alarm("6:45")), needle(0.3, alarm("7:45")))).isFalse()
-        // Numbers by value: 40 and "40" agree.
-        val volume = { v: Any -> ToolCall("set_volume", mapOf("percent" to v)) }
-        assertThat(LinkPolicy.agrees(needle(1.0, volume(40)), needle(0.3, volume("40")))).isTrue()
-        // Nothing to run is never agreement.
-        assertThat(LinkPolicy.agrees(needle(1.0), needle(0.3))).isFalse()
-        assertThat(LinkPolicy.agrees(laptop, null)).isFalse()
-    }
-
-    @Test
-    fun theComputersAnswerRunsWithoutAskingOnlyWhenNeedle3Agrees() {
+    fun theComputersAnswerRunsWhenTheUsualChecksPass() {
         val request = "wake me up at 6:45"
         val laptop = FerbLink.parse(laptopAlarm)
-        assertThat(LinkPolicy.verdict(laptop, needle(0.3, alarm("6:45 am")), configs, request).decision).isEqualTo(Decision.Run)
-        assertThat(LinkPolicy.verdict(laptop, needle(0.3, alarm("7:45")), configs, request).decision).isEqualTo(Decision.Confirm)
-        assertThat(LinkPolicy.verdict(laptop, needle(0.3), configs, request).decision).isEqualTo(Decision.Confirm)
-        // Agreement doesn't override the tools' own checks: an alarm set to always ask still asks.
+        assertThat(LinkPolicy.verdict(laptop, configs, request).decision).isEqualTo(Decision.Run)
+        // Whatever its first-token probability: there's no bar.
+        assertThat(LinkPolicy.verdict(laptop.copy(confidence = 0.01), configs, request).decision).isEqualTo(Decision.Run)
+        // A tool set to always ask still asks.
         val asking = configs + (SetAlarm.name to ToolConfig.defaults(SetAlarm).copy(alwaysConfirm = true))
-        assertThat(LinkPolicy.verdict(laptop, needle(0.3, alarm("6:45 am")), asking, request).decision).isEqualTo(Decision.Confirm)
-        // Nor the request's words: a time it doesn't say asks.
-        assertThat(LinkPolicy.verdict(laptop, needle(0.3, alarm("6:45 am")), configs, "wake me up early").decision).isEqualTo(Decision.Confirm)
-    }
-
-    @Test
-    fun answersWordedDifferentlyAgreeWhenTheyDoTheSame() {
-        // Seen on the phone: Gemma 4 E2B said "Friday", Needle 3 a wrong ISO date; the agenda reads
-        // the day from the request, so both show Friday.
-        val request = "Am I free on Friday?"
-        val env = PrepareEnv(now = ZonedDateTime.of(2026, 10, 12, 8, 0, 0, 0, ZoneId.of("Asia/Kolkata")))
-        val meaning = { call: ToolCall -> LinkPolicy.prepared(call.name, ShowAgenda.prepare(ShowAgenda.fromRequest(call.arguments, request), env)) }
-        val laptop = needle(1.0, ToolCall(ShowAgenda.name, mapOf("day" to "Friday")))
-        val needleSays = needle(0.53, ToolCall(ShowAgenda.name, mapOf("day" to "2026-10-13")))
-        assertThat(LinkPolicy.agrees(laptop, needleSays)).isFalse()
-        assertThat(LinkPolicy.agrees(laptop, needleSays, meaning)).isTrue()
-        // A different day said in the request's place still differs: "today" isn't Friday.
-        val other = { call: ToolCall -> LinkPolicy.prepared(call.name, ShowAgenda.prepare(call.arguments, env)) }
-        assertThat(LinkPolicy.agrees(laptop, needle(0.5, ToolCall(ShowAgenda.name, mapOf("day" to "today"))), other)).isFalse()
-        // A call that can't run has no meaning, so never agrees.
-        assertThat(LinkPolicy.agrees(laptop, needleSays) { null }).isFalse()
+        assertThat(LinkPolicy.verdict(laptop, asking, request).decision).isEqualTo(Decision.Confirm)
+        // So does a value the request doesn't say.
+        assertThat(LinkPolicy.verdict(laptop, configs, "wake me up early").decision).isEqualTo(Decision.Confirm)
     }
 }

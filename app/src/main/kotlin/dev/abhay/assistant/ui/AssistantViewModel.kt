@@ -77,12 +77,10 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         val checkedAll: Boolean,
         val calls: List<CallState>,
         val wallMs: Long,
-        /** Needle 3's answer, when it was replaced by the computer's ([dev.abhay.assistant.link.LinkPolicy.keep]). */
+        /** Needle 3's answer, when the computer's replaced it (Ferb Link's "When Needle 3 is unsure"). */
         val needleReply: NeedleReply? = null,
         /** Why the computer's answer isn't shown, when Ferb asked it and it failed (Needle 3 answered). */
         val laptopError: String? = null,
-        /** For the computer's answers: whether Needle 3's would do the same, which lets it run without asking. */
-        val agreed: Boolean = false,
     )
 
     data class UiState(
@@ -139,54 +137,44 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
                 val configs = assistant.toolSettings.configs.value
                 val routed = ToolRouter.route(request, enabled, configs)
                 val checkAllOn = assistant.toolSettings.checkAllAsFallback.value
-                // No tool mentioned: every tool turned on, and Needle 3 weighs the five that match
-                // best (its own retrieval), unless the user chose to check them all.
-                var reply = when {
-                    routed.isNotEmpty() -> ask(request, routed)
-                    checkAllOn || enabled.isEmpty() -> NO_TOOL_MENTIONED
-                    else -> ask(request, enabled)
-                }
-                val checkAll = reply.calls.isEmpty() && reply.error == null && checkAllOn && enabled.isNotEmpty()
-                if (checkAll) {
-                    // Every tool, five at a time; the most confident answer with a call wins.
-                    ToolRouter.groups(enabled).filter { it != routed }.forEach { group ->
-                        val answer = ask(request, group)
-                        if (answer.calls.isNotEmpty() && (answer.confidence ?: 0.0) > (reply.confidence.takeIf { reply.calls.isNotEmpty() } ?: -1.0)) reply = answer
-                    }
-                }
-                val needleVerdict = Verdict.of(reply, configs, request)
-                // Ferb Link, as chosen in Settings: the computer's model answers when Ferb Link is
-                // picked in the chat box ("Option"), or when Needle 3 is unsure or finds no tool
-                // ("Fallback"). Needle 3 answers either way: its answer is the fallback, and the
-                // computer's runs without asking only when Needle 3 agrees (LinkPolicy.verdict).
+                // Ferb Link, as chosen in Settings: the computer's model answers first when Ferb Link
+                // is picked in the chat box ("Option"), or after Needle 3 when it's unsure or finds no
+                // tool ("Fallback"). Needle 3 answers whenever the computer can't.
                 val mode = assistant.linkSettings.mode.value
                 val chosen = LinkPolicy.laptopFirst(mode, assistant.linkSettings.answerer.value)
                 var laptop: NeedleReply? = null
                 var laptopError: String? = null
-                val askLaptop = enabled.isNotEmpty() &&
-                    (chosen || (mode == LinkMode.Fallback && reply.error == null && LinkPolicy.askLaptopAfter(reply, needleVerdict)))
-                if (askLaptop) {
+                suspend fun askLaptop() {
                     val status = assistant.link.status()
                     if (status is LinkStatus.Ready) {
                         _state.update { it.copy(asking = "Asking your computer\u2026") }
                         laptop = assistant.link.complete(request, Tools.json(routed.ifEmpty { enabled }))
-                        laptopError = laptop.error
+                        laptopError = laptop?.error
                     } else if (chosen) {
                         // Picked in the chat box, so say why it didn't answer; in Fallback, a Ferb Link
                         // that's off or not set up is simply not asked.
                         laptopError = describe(status)
                     }
                 }
-                val shown = laptop?.let { LinkPolicy.keep(reply, it) } ?: reply
-                // The two answers agree when they'd do the same, however they're worded.
-                val meaning = { call: ToolCall -> LinkPolicy.prepared(call.name, prepare(call, request)) }
-                val verdict = if (shown.fromLaptop) LinkPolicy.verdict(shown, reply, configs, request, meaning) else needleVerdict
+                if (chosen && enabled.isNotEmpty()) askLaptop()
+                var needle: NeedleReply? = null
+                var checkAll = false
+                if (laptop?.error != null || laptop == null) {
+                    _state.update { it.copy(asking = null) }
+                    val (reply, checkedAll) = askNeedle(request, enabled, routed, checkAllOn)
+                    needle = reply
+                    checkAll = checkedAll
+                    if (!chosen && mode == LinkMode.Fallback && enabled.isNotEmpty() && reply.error == null &&
+                        LinkPolicy.askLaptopAfter(reply, Verdict.of(reply, configs, request))) askLaptop()
+                }
+                // The computer's answer whenever it gave one, including "no tool fits".
+                val shown = laptop?.takeIf { it.error == null } ?: needle!!
+                val verdict = if (shown.fromLaptop) LinkPolicy.verdict(shown, configs, request) else Verdict.of(shown, configs, request)
                 val calls = shown.calls.map { call -> CallState(call, prepare(call, request), Status.Waiting) }
                 val exchange = Exchange(nextId++, request, shown, verdict.decision, verdict.runAt, verdict.alwaysConfirm, verdict.unmentioned, verdict.ungrounded,
                     routed.map { it.name }, checkAll, calls, SystemClock.elapsedRealtime() - started,
-                    needleReply = reply.takeIf { shown !== reply },
-                    laptopError = laptopError,
-                    agreed = shown.fromLaptop && LinkPolicy.agrees(shown, reply, meaning))
+                    needleReply = needle.takeIf { shown !== it },
+                    laptopError = laptopError.takeIf { !shown.fromLaptop })
                 _state.update { it.copy(history = it.history + exchange, pending = null, asking = null) }
                 if (verdict.decision == Decision.Run) run(exchange.id)
             } catch (e: CancellationException) {
@@ -197,6 +185,29 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
                 _state.update { it.copy(busy = false, pending = null, asking = null) }
             }
         }
+    }
+
+    /**
+     * Needle 3's answer: from the tools [routed] to (the request mentions them), else from every tool
+     * turned on, as Needle 3 weighs the five that match best (its own retrieval), unless the user
+     * chose to check them all; and whether every tool was checked, five at a time, because the
+     * mentioned ones gave no call.
+     */
+    private suspend fun askNeedle(request: String, enabled: List<Tool>, routed: List<Tool>, checkAllOn: Boolean): Pair<NeedleReply, Boolean> {
+        var reply = when {
+            routed.isNotEmpty() -> ask(request, routed)
+            checkAllOn || enabled.isEmpty() -> NO_TOOL_MENTIONED
+            else -> ask(request, enabled)
+        }
+        val checkAll = reply.calls.isEmpty() && reply.error == null && checkAllOn && enabled.isNotEmpty()
+        if (checkAll) {
+            // The most confident answer with a call wins.
+            ToolRouter.groups(enabled).filter { it != routed }.forEach { group ->
+                val answer = ask(request, group)
+                if (answer.calls.isNotEmpty() && (answer.confidence ?: 0.0) > (reply.confidence.takeIf { reply.calls.isNotEmpty() } ?: -1.0)) reply = answer
+            }
+        }
+        return reply to checkAll
     }
 
     private suspend fun ask(request: String, tools: List<Tool>): NeedleReply =

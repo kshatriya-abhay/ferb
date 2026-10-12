@@ -476,8 +476,7 @@ private fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () ->
                                 exchange.alwaysConfirm -> "Asked first: the tool is set to always ask."
                                 exchange.unmentioned -> "Asked first: the request doesn't mention what this tool does."
                                 exchange.ungrounded -> "Asked first: the request doesn't say these numbers."
-                                reply.fromLaptop && exchange.agreed -> "Ran without asking: Needle 3's answer does the same."
-                                reply.fromLaptop -> "Asked first: your computer's answer runs without asking only when Needle 3's does the same."
+                                reply.fromLaptop -> "Ran without asking: your computer's answer passed the usual checks."
                                 exchange.decision == Decision.Run -> String.format(Locale.US, "Ran without asking: needed %.2f.", exchange.runAt)
                                 else -> String.format(Locale.US, "Asked first: runs without asking from %.2f.", exchange.runAt)
                             },

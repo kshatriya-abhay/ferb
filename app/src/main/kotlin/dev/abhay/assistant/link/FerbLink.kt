@@ -150,7 +150,7 @@ class FerbLink(private val context: Context) {
          * Ferb Link's reply, shaped like Needle 3's. The computer's model has no calibrated
          * confidence like Needle 3's, and no stand-in for one held back every wrong call in Ferb's
          * bench (Gemma 4 E2B's first token: 20 wrong calls even at 1.00), so whether its answer
-         * runs doesn't depend on one ([LinkPolicy.agrees]). The first token's probability is kept
+         * runs doesn't depend on one ([LinkPolicy.verdict]). The first token's probability is kept
          * as the confidence, for the details.
          */
         fun parse(json: String): NeedleReply = try {
