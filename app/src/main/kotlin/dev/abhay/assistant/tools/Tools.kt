@@ -208,9 +208,11 @@ object TimeOfDay {
             .replace(SaidNumbers.WORD) { w -> SaidNumbers.WORDS.getValue(w.value).takeIf { it in 1..12 }?.toString() ?: w.value }
             .replace(Regex("""\s+"""), " ").trim()
         t = if (t == "noon") "12" else if (t == "midnight") "0" else t
-        // "12 at night" is midnight; otherwise the word gives am or pm when the time doesn't.
-        if (hint == "pm" && NIGHT.containsMatchIn(lower) && t == "12") t = "0"
-        else if (hint != null && Regex("""^\d{1,2}(?:\s*[:.h]\s*\d{2})?$""").matches(t)) t = "$t $hint"
+        // The word gives am or pm when the time doesn't; at night, 12 to 5 are the small hours
+        // ("12 at night" is midnight, "raat 2 baje" 2 am), as Ferb Link reads raat too.
+        val small = Regex("""^(\d{1,2})""").find(t)?.groupValues?.get(1)?.toInt()?.let { it == 12 || it in 1..5 } == true
+        val said = if (hint == "pm" && NIGHT.containsMatchIn(lower) && small) "am" else hint
+        if (said != null && Regex("""^\d{1,2}(?:\s*[:.h]\s*\d{2})?$""").matches(t)) t = "$t $said"
         val m = PATTERN.matchEntire(t) ?: return null
         var hour = m.groupValues[1].toInt()
         val minute = m.groupValues[2].ifEmpty { "0" }.toInt()
@@ -656,7 +658,7 @@ object GetDirections : Tool(
     // "Route to", not "route": "what's the route of the tour de france" got directions at 0.75.
     // "Get directions in Google Maps to a place…" as the description lost "take me to the nearest
     // petrol pump" and raised the wrong calls.
-    override val keywords = listOf("direction", "navigate", "route to", "take me to", "get to", "way to", "how far")
+    override val keywords = listOf("direction", "navigate", "route to", "take me to", "get to", "way to", "how far", "go to", "reach")
 
     override val schema = """
         {"name": "get_directions",
@@ -782,7 +784,7 @@ object SendText : Tool(
 
     override val whyAsk = WRONG_PERSON
 
-    override val keywords = listOf("text", "message", "sms", "msg")
+    override val keywords = listOf("text", "message", "sms", "msg", "tell")
 
     override val schema = """
         {"name": "send_text",

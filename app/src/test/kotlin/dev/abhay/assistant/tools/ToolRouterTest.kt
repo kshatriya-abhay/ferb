@@ -18,7 +18,9 @@ class ToolRouterTest {
 
     @Test
     fun aRequestMentioningNoToolGetsNone() {
-        assertThat(route("tell me a joke")).isEmpty()
+        assertThat(route("what's the capital of France")).isEmpty()
+        // "tell" goes to Messages since 2026-10-12 ("tell rohit I'm late"); Needle 3 calls nothing for a joke.
+        assertThat(route("tell me a joke")).containsExactly("send_text")
     }
 
     @Test

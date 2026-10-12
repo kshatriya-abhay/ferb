@@ -21,8 +21,9 @@ def time_of_day(text):
     t = re.sub(r"\b(" + "|".join(WORDS) + r")\b", lambda m: str(WORDS[m[1]]) if 1 <= WORDS[m[1]] <= 12 else m[1], t)
     t = re.sub(r"\s+", " ", t).strip()
     t = {"noon": "12", "midnight": "0"}.get(t, t)
-    if hint == "pm" and re.search(NIGHT, lower) and t == "12": t = "0"
-    elif hint and re.fullmatch(r"\d{1,2}(?:\s*[:.h]\s*\d{2})?", t): t = f"{t} {hint}"
+    m = re.match(r"\d{1,2}", t)
+    if hint == "pm" and re.search(NIGHT, lower) and m and (int(m[0]) == 12 or 1 <= int(m[0]) <= 5): hint = "am"
+    if hint and re.fullmatch(r"\d{1,2}(?:\s*[:.h]\s*\d{2})?", t): t = f"{t} {hint}"
     m = re.fullmatch(r"(\d{1,2})(?:\s*[:.h]\s*(\d{2}))?\s*(am|a\.m\.|pm|p\.m\.)?", t)
     if not m: return None
     h, mi, p = int(m[1]), int(m[2] or 0), (m[3] or "").replace(".", "")
