@@ -1,5 +1,6 @@
 package dev.abhay.assistant.link
 
+import dev.abhay.assistant.engine.Decision
 import dev.abhay.assistant.engine.NeedleReply
 import dev.abhay.assistant.tools.ToolConfig
 import dev.abhay.assistant.tools.Verdict
@@ -28,4 +29,12 @@ object LinkPolicy {
      */
     fun verdict(laptop: NeedleReply, configs: Map<String, ToolConfig>, request: String): Verdict =
         Verdict.of(laptop, configs, request, bar = 0.0)
+
+    /**
+     * A spoken request's [verdict]: its calls always ask first, until the audio bench shows how
+     * often the computer mishears or mistranslates (decided 2026-10-12). "Heard: …" shows what it
+     * understood, so asking is cheap to check.
+     */
+    fun spoken(verdict: Verdict): Verdict =
+        if (verdict.decision == Decision.Run) verdict.copy(decision = Decision.Confirm) else verdict
 }

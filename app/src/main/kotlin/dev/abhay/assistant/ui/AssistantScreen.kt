@@ -94,6 +94,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -178,6 +179,8 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit) {
                 if (granted) viewModel.startRecording()
             }
             InputBar(state, ready = engine is AssistantEngine.State.Ready, onChange = viewModel::onInputChange, onSend = { viewModel.send() },
+                // With the computer picked, a tap on the box wakes its model while the request is typed.
+                onFocus = { if (offered == Answerer.Link) viewModel.wakeComputer() },
                 answerer = offered, onAnswerer = viewModel::setAnswerer,
                 voice = voice,
                 onMic = {
@@ -530,6 +533,7 @@ private fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () ->
                                 exchange.alwaysConfirm -> "Asked first: the tool is set to always ask."
                                 exchange.unmentioned -> "Asked first: the request doesn't mention what this tool does."
                                 exchange.ungrounded -> "Asked first: the request doesn't say these numbers."
+                                exchange.spoken && exchange.decision != Decision.Run -> "Asked first: spoken requests always ask, for now."
                                 reply.fromLaptop -> "Ran without asking: your computer's answer passed the usual checks."
                                 exchange.decision == Decision.Run -> String.format(Locale.US, "Ran without asking: needed %.2f.", exchange.runAt)
                                 else -> String.format(Locale.US, "Asked first: runs without asking from %.2f.", exchange.runAt)
@@ -614,6 +618,7 @@ private fun InputBar(
     ready: Boolean,
     onChange: (String) -> Unit,
     onSend: () -> Unit,
+    onFocus: () -> Unit = {},
     /** Who answers, when Ferb Link is offered as an option (Settings → Ferb Link); null: no choice to show. */
     answerer: Answerer? = null,
     onAnswerer: (Answerer) -> Unit = {},
@@ -625,7 +630,7 @@ private fun InputBar(
 ) {
     Column(Modifier.padding(bottom = 12.dp)) {
         when (val clip = state.voice) {
-            null -> InputField(state, ready, voice, onChange, onSend, onMic)
+            null -> InputField(state, ready, voice, onChange, onSend, onMic, onFocus)
             else -> VoiceField(clip, onStop, onDiscard, onSend)
         }
         // Who answers, in a row of its own under the box, so the box keeps its width for the request.
@@ -689,11 +694,15 @@ private fun elapsed(ms: Long) = String.format(Locale.US, "%d:%02d", ms / 60_000,
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun InputField(state: AssistantViewModel.UiState, ready: Boolean, voice: Boolean, onChange: (String) -> Unit, onSend: () -> Unit, onMic: () -> Unit) {
+private fun InputField(
+    state: AssistantViewModel.UiState, ready: Boolean, voice: Boolean,
+    onChange: (String) -> Unit, onSend: () -> Unit, onMic: () -> Unit, onFocus: () -> Unit,
+) {
     TextField(
         value = state.input,
         onValueChange = onChange,
-        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 4.dp)
+            .onFocusChanged { if (it.isFocused) onFocus() },
         placeholder = { Text("Ask me to do something") },
         enabled = ready,
         shape = BoxShape,

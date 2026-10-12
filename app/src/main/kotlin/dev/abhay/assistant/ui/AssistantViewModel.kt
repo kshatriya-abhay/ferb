@@ -85,6 +85,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         val laptopErrorDetail: String? = null,
         /** For a spoken request: the words heard, when they differ from [request] (its English command). */
         val heard: String? = null,
+        /** Whether the request was spoken; its calls ask first ([LinkPolicy.spoken]). */
+        val spoken: Boolean = false,
     )
 
     data class UiState(
@@ -117,8 +119,24 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         // Voice goes only through Ferb Link.
         if (answerer != Answerer.Link) discardRecording()
         assistant.linkSettings.setAnswerer(answerer)
+        if (answerer == Answerer.Link) wakeComputer()
     }
     val link get() = assistant.link
+
+    private var wokeAt = 0L
+
+    /**
+     * Has Ferb Link load the computer's model if it's asleep or unloaded, when a request is likely:
+     * the chat box tapped with the computer picked, or the computer just picked. A cold load took
+     * 2–28 s, longer than the 10 s Ferb waits for an answer; started on the tap, most of it hides
+     * behind the typing. A loaded model costs Ferb Link two small requests, so at most once a minute.
+     */
+    fun wakeComputer() {
+        val now = SystemClock.elapsedRealtime()
+        if (wokeAt != 0L && now - wokeAt < WAKE_EVERY_MS) return
+        wokeAt = now
+        viewModelScope.launch { assistant.link.wake() }
+    }
 
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
@@ -148,11 +166,11 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         val request = text.trim()
         if (request.isEmpty() || _state.value.busy || engine.value !is AssistantEngine.State.Ready) return
         _state.update { it.copy(busy = true, input = "", notice = null, pending = request) }
-        viewModelScope.launch { answer(request, heard = null) }
+        viewModelScope.launch { answer(request, heard = null, spoken = false) }
     }
 
-    /** Answers [request] (typed, or the English command of a spoken one, [heard] as said) and runs what it can. */
-    private suspend fun answer(request: String, heard: String?) {
+    /** Answers [request] (typed, or the English command of a [spoken] one, [heard] as said) and runs what it can. */
+    private suspend fun answer(request: String, heard: String?, spoken: Boolean) {
         try {
             val started = SystemClock.elapsedRealtime()
             val enabled = enabledTools.value.mapNotNull(Tools::byName)
@@ -191,14 +209,15 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             }
             // The computer's answer whenever it gave one, including "no tool fits".
             val shown = laptop?.takeIf { it.error == null } ?: needle!!
-            val verdict = if (shown.fromLaptop) LinkPolicy.verdict(shown, configs, request) else Verdict.of(shown, configs, request)
+            val checked = if (shown.fromLaptop) LinkPolicy.verdict(shown, configs, request) else Verdict.of(shown, configs, request)
+            val verdict = if (spoken) LinkPolicy.spoken(checked) else checked
             val calls = shown.calls.map { call -> CallState(call, prepare(call, request), Status.Waiting) }
             val exchange = Exchange(nextId++, request, shown, verdict.decision, verdict.runAt, verdict.alwaysConfirm, verdict.unmentioned, verdict.ungrounded,
                 routed.map { it.name }, calls, SystemClock.elapsedRealtime() - started,
                 needleReply = needle.takeIf { shown !== it },
                 laptopError = laptopError.takeIf { !shown.fromLaptop },
                 laptopErrorDetail = laptopErrorDetail.takeIf { !shown.fromLaptop },
-                heard = heard)
+                heard = heard, spoken = spoken)
             _state.update { it.copy(history = it.history + exchange, pending = null, asking = null) }
             if (verdict.decision == Decision.Run) run(exchange.id)
         } catch (e: CancellationException) {
@@ -261,7 +280,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
                 return@launch
             }
             _state.update { it.copy(pending = transcript.text, asking = null) }
-            answer(transcript.text, heard = transcript.heard.takeUnless { it.isBlank() || it.equals(transcript.text, ignoreCase = true) })
+            answer(transcript.text, heard = transcript.heard.takeUnless { it.isBlank() || it.equals(transcript.text, ignoreCase = true) }, spoken = true)
         }
     }
 
@@ -384,6 +403,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         _state.update { s -> s.copy(history = s.history.map { if (it.id == id) change(it) else it }) }
 
     private companion object {
+        const val WAKE_EVERY_MS = 60_000L
+
         /** The answer when no tool is on. */
         val NO_TOOL = NeedleReply(
             calls = emptyList(), suppressed = emptyList(), reasoning = "", confidence = null, ungrounded = emptyList(),

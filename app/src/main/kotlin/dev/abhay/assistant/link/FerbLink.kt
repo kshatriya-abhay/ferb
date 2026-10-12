@@ -148,8 +148,10 @@ class FerbLink(private val context: Context) {
     }
 
     /**
-     * Asks Ferb Link to load the computer's model if it's asleep, when the user starts speaking, so
-     * the wake (2 s, at times 12 s) hides behind the speech. Returns at once; never throws.
+     * Asks Ferb Link to load the computer's model if it's asleep or unloaded, when a request is
+     * coming (the chat box tapped, the computer picked, recording started), so the wake (2 s, up to
+     * 28 s when the model file has left the page cache) hides behind the typing or speech. Returns
+     * at once; never throws.
      */
     suspend fun wake() {
         withContext(Dispatchers.IO) {

@@ -97,6 +97,16 @@ class FerbLinkTest {
     }
 
     @Test
+    fun aSpokenRequestAlwaysAsksFirst() {
+        val laptop = FerbLink.parse(laptopAlarm)
+        val verdict = LinkPolicy.verdict(laptop, configs, "wake me up at 6:45")
+        assertThat(verdict.decision).isEqualTo(Decision.Run)
+        assertThat(LinkPolicy.spoken(verdict).decision).isEqualTo(Decision.Confirm)
+        // No call stays no call.
+        assertThat(LinkPolicy.spoken(verdict.copy(decision = Decision.Refuse)).decision).isEqualTo(Decision.Refuse)
+    }
+
+    @Test
     fun aTranscriptHasWhatWasHeardAndTheEnglishCommand() {
         val heard = Transcript.parse("""{"heard":"subah 5 baje ka alarm laga do","text":"Set an alarm for 5 am","model":"gemma-4-e2b","ms":640}""")
         assertThat(heard.heard).isEqualTo("subah 5 baje ka alarm laga do")
