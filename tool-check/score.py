@@ -194,4 +194,5 @@ def main():
         times.sort()
         print(f"\nms per request: median {times[len(times) // 2]}, 90th percentile {times[int(len(times) * 0.9)]}")
 
-main()
+if __name__ == "__main__":
+    main()

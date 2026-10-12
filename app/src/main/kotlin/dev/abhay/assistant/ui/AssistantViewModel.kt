@@ -15,6 +15,7 @@ import dev.abhay.assistant.link.LinkMode
 import dev.abhay.assistant.link.LinkPolicy
 import dev.abhay.assistant.link.LinkStatus
 import dev.abhay.assistant.link.Recorder
+import dev.abhay.assistant.link.VoiceLog
 import dev.abhay.assistant.link.brief
 import dev.abhay.assistant.link.describe
 import dev.abhay.assistant.tools.CallRunner
@@ -219,6 +220,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
                 laptopErrorDetail = laptopErrorDetail.takeIf { !shown.fromLaptop },
                 heard = heard, spoken = spoken)
             _state.update { it.copy(history = it.history + exchange, pending = null, asking = null) }
+            if (spoken) voiceLog.add(heard ?: request, request, shown.calls, calls.map { summaryOf(it.prepared) },
+                asked = verdict.decision != Decision.Run, fromComputer = shown.fromLaptop, ms = exchange.wallMs)
             if (verdict.decision == Decision.Run) run(exchange.id)
         } catch (e: CancellationException) {
             throw e
@@ -230,6 +233,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     private val recorder by lazy { Recorder(app) }
+    private val voiceLog by lazy { VoiceLog(app) }
 
     /**
      * Starts recording a spoken request (the microphone permission is granted), and has Ferb Link
@@ -414,4 +418,10 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
 }
 
 /** "Voice request · 0:04", for the request's bubble until the computer has heard it. */
+/** How Ferb read a call, for the voice log: its summary ("Open Paytm"), or why it can't run. */
+private fun summaryOf(prepared: Prepared) = when (prepared) {
+    is Prepared.Ready -> prepared.summary
+    is Prepared.Invalid -> "invalid: ${prepared.reason}"
+}
+
 internal fun voiceLabel(ms: Long): String = String.format(java.util.Locale.US, "Voice request \u00b7 %d:%02d", ms / 60_000, ms / 1000 % 60)

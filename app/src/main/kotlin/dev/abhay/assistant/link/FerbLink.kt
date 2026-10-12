@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.SystemClock
+import android.util.Log
 import androidx.core.os.bundleOf
 import dev.abhay.assistant.engine.NeedleReply
 import kotlinx.coroutines.Dispatchers
@@ -95,7 +97,7 @@ class FerbLink(private val context: Context) {
     fun status(): LinkStatus {
         if (!installed()) return LinkStatus.NotInstalled
         val result = try {
-            context.contentResolver.call(LinkContract.AUTHORITY, LinkContract.METHOD_STATUS, null, null)
+            timed(LinkContract.METHOD_STATUS) { context.contentResolver.call(LinkContract.AUTHORITY, LinkContract.METHOD_STATUS, null, null) }
         } catch (e: SecurityException) {
             return LinkStatus.NotAllowed
         } catch (e: Exception) {
@@ -111,11 +113,13 @@ class FerbLink(private val context: Context) {
      */
     suspend fun complete(request: String, toolsJson: String): NeedleReply = withContext(Dispatchers.IO) {
         val result = try {
-            context.contentResolver.call(LinkContract.AUTHORITY, LinkContract.METHOD_COMPLETE, null, bundleOf(
-                LinkContract.EXTRA_REQUEST to request,
-                LinkContract.EXTRA_TOOLS to toolsJson,
-                LinkContract.EXTRA_TIMEOUT_MS to TIMEOUT_MS,
-            ))
+            timed(LinkContract.METHOD_COMPLETE) {
+                context.contentResolver.call(LinkContract.AUTHORITY, LinkContract.METHOD_COMPLETE, null, bundleOf(
+                    LinkContract.EXTRA_REQUEST to request,
+                    LinkContract.EXTRA_TOOLS to toolsJson,
+                    LinkContract.EXTRA_TIMEOUT_MS to TIMEOUT_MS,
+                ))
+            }
         } catch (e: SecurityException) {
             return@withContext failed("not allowed", "Ferb Link only answers apps signed with the same key")
         } catch (e: Exception) {
@@ -170,11 +174,13 @@ class FerbLink(private val context: Context) {
      */
     suspend fun transcribe(audio: ByteArray, mime: String): Transcript = withContext(Dispatchers.IO) {
         val result = try {
-            context.contentResolver.call(LinkContract.AUTHORITY, LinkContract.METHOD_TRANSCRIBE, null, bundleOf(
-                LinkContract.EXTRA_AUDIO to audio,
-                LinkContract.EXTRA_AUDIO_MIME to mime,
-                LinkContract.EXTRA_TIMEOUT_MS to TRANSCRIBE_TIMEOUT_MS,
-            ))
+            timed(LinkContract.METHOD_TRANSCRIBE) {
+                context.contentResolver.call(LinkContract.AUTHORITY, LinkContract.METHOD_TRANSCRIBE, null, bundleOf(
+                    LinkContract.EXTRA_AUDIO to audio,
+                    LinkContract.EXTRA_AUDIO_MIME to mime,
+                    LinkContract.EXTRA_TIMEOUT_MS to TRANSCRIBE_TIMEOUT_MS,
+                ))
+            }
         } catch (e: IllegalArgumentException) {
             return@withContext Transcript.failed("Update Ferb Link to use your voice")
         } catch (e: SecurityException) {
@@ -185,6 +191,20 @@ class FerbLink(private val context: Context) {
         val version = result.getInt(LinkContract.RESULT_VERSION, -1)
         if (version != LinkContract.VERSION) return@withContext Transcript.failed("Ferb Link speaks version $version, Ferb version ${LinkContract.VERSION}: update the older one")
         Transcript.parse(result.getString(LinkContract.RESULT_REPLY) ?: return@withContext Transcript.failed("Ferb Link sent no reply"))
+    }
+
+    /**
+     * Logs how long each call to Ferb Link took (`adb logcat -s FerbLink`), with logcat's wall-clock
+     * timestamps to line up with Ferb Link's and the server's logs.
+     */
+    private inline fun <T> timed(method: String, call: () -> T): T {
+        val started = SystemClock.elapsedRealtime()
+        Log.i(TAG, "$method: start")
+        try {
+            return call()
+        } finally {
+            Log.i(TAG, "$method: ${SystemClock.elapsedRealtime() - started} ms")
+        }
     }
 
     /** Ferb Link's own screen, where its server is set up and switched on. */
@@ -223,6 +243,7 @@ class FerbLink(private val context: Context) {
         }
 
         const val SOURCE = "laptop"
+        private const val TAG = "FerbLink"
 
         /**
          * How long Ferb waits for the computer: Gemma 4 E2B takes 0.26 s (median) and 0.54 s (90th
