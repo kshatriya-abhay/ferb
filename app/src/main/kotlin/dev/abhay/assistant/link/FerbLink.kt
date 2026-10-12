@@ -52,7 +52,10 @@ object LinkContract {
     /** In `check`. */
     const val RESULT_REACHABLE = "reachable"
     const val RESULT_ERROR = "error"
-    /** In `status`: whether the computer's model takes audio, so voice works; missing in an older Ferb Link. */
+    /**
+     * In `status` and `check`: whether the computer's model takes audio, so voice works; missing in
+     * an older Ferb Link. Status keeps the last value seen, false until a check, wake or complete.
+     */
     const val RESULT_AUDIO = "audio"
 }
 
@@ -137,6 +140,7 @@ class FerbLink(private val context: Context) {
             reachable = result.getBoolean(LinkContract.RESULT_REACHABLE),
             model = result.getString(LinkContract.RESULT_MODEL)?.ifBlank { null },
             error = result.getString(LinkContract.RESULT_ERROR)?.ifBlank { null },
+            audio = result.getBoolean(LinkContract.RESULT_AUDIO),
         )
     }
 
@@ -237,7 +241,7 @@ class FerbLink(private val context: Context) {
 }
 
 /** What Ferb Link's `check` found: whether the computer answers, its model, or why not. */
-data class Reachability(val reachable: Boolean, val model: String?, val error: String?)
+data class Reachability(val reachable: Boolean, val model: String?, val error: String?, val audio: Boolean = false)
 
 /** [status] in a few words, for the settings page and for notes under answers. */
 fun describe(status: LinkStatus): String = when (status) {

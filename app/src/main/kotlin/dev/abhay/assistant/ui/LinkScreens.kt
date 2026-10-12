@@ -23,7 +23,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -39,7 +41,9 @@ import dev.abhay.assistant.link.FerbLink
 import dev.abhay.assistant.link.LinkMode
 import dev.abhay.assistant.link.LinkStatus
 import dev.abhay.assistant.link.describe
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Each way to use Ferb Link, in words: its name and what it does. */
 private fun LinkMode.title() = when (this) {
@@ -63,6 +67,27 @@ internal fun rememberLinkStatus(link: FerbLink): LinkStatus {
         onPauseOrDispose { }
     }
     return status
+}
+
+/**
+ * Whether to offer voice: Ferb Link is ready and the computer's model takes audio. Status keeps
+ * the last value Ferb Link saw, false until it has checked once (e.g. after its server restarted),
+ * so then a check (2 s at most, without waking the model) asks the computer. Again on each resume.
+ */
+@Composable
+internal fun rememberVoiceAvailable(link: FerbLink, active: Boolean): Boolean {
+    var resumed by remember { mutableIntStateOf(0) }
+    LifecycleResumeEffect(Unit) {
+        resumed++
+        onPauseOrDispose { }
+    }
+    val available by produceState(false, active, resumed) {
+        value = active && withContext(Dispatchers.IO) {
+            val status = link.status()
+            status is LinkStatus.Ready && (status.audio || link.check()?.audio == true)
+        }
+    }
+    return available
 }
 
 /**

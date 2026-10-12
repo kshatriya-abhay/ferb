@@ -94,7 +94,6 @@ import dev.abhay.assistant.engine.AssistantEngine
 import dev.abhay.assistant.engine.Decision
 import dev.abhay.assistant.link.Answerer
 import dev.abhay.assistant.link.LinkMode
-import dev.abhay.assistant.link.LinkStatus
 import dev.abhay.assistant.tools.Choice
 import dev.abhay.assistant.tools.FollowUp
 import dev.abhay.assistant.tools.Line
@@ -157,7 +156,7 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit) {
             }
             // Voice: only with Ferb Link picked in the chat box, and a computer that takes audio.
             val offered = answerer.takeIf { linkMode == LinkMode.Option }
-            val voice = offered == Answerer.Link && (rememberLinkStatus(viewModel.link) as? LinkStatus.Ready)?.audio == true
+            val voice = rememberVoiceAvailable(viewModel.link, active = offered == Answerer.Link)
             val context = LocalContext.current
             val askMic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
                 if (granted) viewModel.startRecording()
