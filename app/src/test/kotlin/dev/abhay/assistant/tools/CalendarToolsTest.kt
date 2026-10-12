@@ -73,6 +73,7 @@ class CalendarToolsTest {
         assertThat(agenda.lines.last().detail).isEqualTo("Cult, HSR")
         assertThat(agenda.actions.map { it.label }).containsExactly("Open calendar")
         assertThat(ShowAgenda.agenda(today.plusDays(2), today, emptyList(), india).message).isEqualTo("Nothing on Sat 10 Oct")
+        assertThat(ShowAgenda.agenda(today, today, emptyList(), india).message).isEqualTo("Today, Thu 8 Oct: nothing on")
     }
 
     @Test

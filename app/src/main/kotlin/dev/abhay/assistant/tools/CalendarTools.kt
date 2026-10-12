@@ -76,9 +76,11 @@ object ShowAgenda : Tool(
 
     /** The day's events as a list, with a button to open the calendar at that day (which keeps the list). */
     fun agenda(day: LocalDate, today: LocalDate, events: List<CalendarEvent>, zone: ZoneId): Outcome.Done {
-        val name = (if (day == today) "Today, " else if (day == today.plusDays(1)) "Tomorrow, " else "") + dayName(day, today)
+        val near = if (day == today) "Today, " else if (day == today.plusDays(1)) "Tomorrow, " else ""
+        val name = near + dayName(day, today)
         val message = when (events.size) {
-            0 -> "Nothing on $name"
+            // "Nothing on Sat 10 Oct", but "Today, Mon 12 Oct: nothing on" (not "Nothing on Today").
+            0 -> if (near.isEmpty()) "Nothing on $name" else "$name: nothing on"
             1 -> "$name: 1 event"
             else -> "$name: ${events.size} events"
         }
