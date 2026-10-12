@@ -3,7 +3,10 @@ package dev.abhay.assistant.link
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.ContentProviderClient
+import android.net.wifi.WifiManager
 import android.os.Bundle
+import android.os.DeadObjectException
 import android.os.SystemClock
 import android.util.Log
 import androidx.core.os.bundleOf
@@ -86,6 +89,68 @@ sealed interface LinkStatus {
  * can't.
  */
 class FerbLink(private val context: Context) {
+    /**
+     * Held while the chat has the computer picked ([hold]): Android then keeps Ferb Link's process
+     * at Ferb's importance instead of killing it, which cost about 250 ms on the next call (twice
+     * in the audio bench, 2026-10-12). Unstable, so Ferb isn't killed if Ferb Link crashes.
+     */
+    @Volatile private var client: ContentProviderClient? = null
+    private var holders = 0
+
+    /** Keeps Ferb Link's process up until a matching [release]. Main thread. */
+    fun hold() {
+        if (holders++ == 0 && installed()) client = context.contentResolver.acquireUnstableContentProviderClient(LinkContract.AUTHORITY)
+    }
+
+    fun release() {
+        if (holders > 0 && --holders == 0) {
+            client?.close()
+            client = null
+        }
+    }
+
+    /** Calls Ferb Link through the held client when there is one, else as usual. */
+    private fun provider(method: String, arg: String?, extras: Bundle?): Bundle? {
+        client?.let { held ->
+            try {
+                return held.call(method, arg, extras)
+            } catch (e: DeadObjectException) {
+                // Ferb Link died since: drop the client and call it afresh, which restarts it.
+                held.close()
+                client = context.contentResolver.acquireUnstableContentProviderClient(LinkContract.AUTHORITY)
+            }
+        }
+        return context.contentResolver.call(LinkContract.AUTHORITY, method, arg, extras)
+    }
+
+    /**
+     * Keeps the phone's Wi-Fi out of power save while a request is with the computer: with it on,
+     * packets waited for the radio's next wake, about 1 s per request (ferb-link's pings: 0.1–3.3 s
+     * in 500 ms steps). Android honours it only for the app in front with the screen on, so Ferb
+     * holds it, not Ferb Link. Needs WAKE_LOCK, not INTERNET.
+     */
+    private val wifi by lazy {
+        (context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager)
+            ?.createWifiLock(WifiManager.WIFI_MODE_FULL_LOW_LATENCY, "ferb:link")?.apply { setReferenceCounted(true) }
+    }
+
+    /** Runs [work] with Wi-Fi in low latency (see [wifi]). */
+    private inline fun <T> lowLatency(work: () -> T): T {
+        val lock = wifi
+        try { lock?.acquire() } catch (e: Exception) { }
+        try {
+            return work()
+        } finally {
+            try { if (lock?.isHeld == true) lock.release() } catch (e: Exception) { }
+        }
+    }
+
+    /** Low-latency Wi-Fi for [ms] from now, e.g. while recording a spoken request, ahead of its transcription. */
+    fun lowLatencyFor(ms: Long) {
+        val lock = wifi ?: return
+        try { lock.acquire() } catch (e: Exception) { return }
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ try { if (lock.isHeld) lock.release() } catch (e: Exception) { } }, ms)
+    }
     fun installed(): Boolean = try {
         context.packageManager.getPackageInfo(LinkContract.PACKAGE, 0)
         true
@@ -97,7 +162,7 @@ class FerbLink(private val context: Context) {
     fun status(): LinkStatus {
         if (!installed()) return LinkStatus.NotInstalled
         val result = try {
-            timed(LinkContract.METHOD_STATUS) { context.contentResolver.call(LinkContract.AUTHORITY, LinkContract.METHOD_STATUS, null, null) }
+            timed(LinkContract.METHOD_STATUS) { provider(LinkContract.METHOD_STATUS, null, null) }
         } catch (e: SecurityException) {
             return LinkStatus.NotAllowed
         } catch (e: Exception) {
@@ -113,13 +178,13 @@ class FerbLink(private val context: Context) {
      */
     suspend fun complete(request: String, toolsJson: String): NeedleReply = withContext(Dispatchers.IO) {
         val result = try {
-            timed(LinkContract.METHOD_COMPLETE) {
-                context.contentResolver.call(LinkContract.AUTHORITY, LinkContract.METHOD_COMPLETE, null, bundleOf(
+            lowLatency { timed(LinkContract.METHOD_COMPLETE) {
+                provider(LinkContract.METHOD_COMPLETE, null, bundleOf(
                     LinkContract.EXTRA_REQUEST to request,
                     LinkContract.EXTRA_TOOLS to toolsJson,
                     LinkContract.EXTRA_TIMEOUT_MS to TIMEOUT_MS,
                 ))
-            }
+            } }
         } catch (e: SecurityException) {
             return@withContext failed("not allowed", "Ferb Link only answers apps signed with the same key")
         } catch (e: Exception) {
@@ -134,7 +199,7 @@ class FerbLink(private val context: Context) {
      */
     suspend fun check(): Reachability? = withContext(Dispatchers.IO) {
         val result = try {
-            context.contentResolver.call(LinkContract.AUTHORITY, LinkContract.METHOD_CHECK, null, null)
+            provider(LinkContract.METHOD_CHECK, null, null)
         } catch (e: IllegalArgumentException) {
             return@withContext null
         } catch (e: SecurityException) {
@@ -160,7 +225,8 @@ class FerbLink(private val context: Context) {
     suspend fun wake() {
         withContext(Dispatchers.IO) {
             try {
-                context.contentResolver.call(LinkContract.AUTHORITY, LinkContract.METHOD_WAKE, null, null)
+                lowLatencyFor(WAKE_LOW_LATENCY_MS)
+                provider(LinkContract.METHOD_WAKE, null, null)
             } catch (e: Exception) {
                 // An older Ferb Link, or none: the transcription just waits for the wake.
             }
@@ -174,13 +240,13 @@ class FerbLink(private val context: Context) {
      */
     suspend fun transcribe(audio: ByteArray, mime: String): Transcript = withContext(Dispatchers.IO) {
         val result = try {
-            timed(LinkContract.METHOD_TRANSCRIBE) {
-                context.contentResolver.call(LinkContract.AUTHORITY, LinkContract.METHOD_TRANSCRIBE, null, bundleOf(
+            lowLatency { timed(LinkContract.METHOD_TRANSCRIBE) {
+                provider(LinkContract.METHOD_TRANSCRIBE, null, bundleOf(
                     LinkContract.EXTRA_AUDIO to audio,
                     LinkContract.EXTRA_AUDIO_MIME to mime,
                     LinkContract.EXTRA_TIMEOUT_MS to TRANSCRIBE_TIMEOUT_MS,
                 ))
-            }
+            } }
         } catch (e: IllegalArgumentException) {
             return@withContext Transcript.failed("Update Ferb Link to use your voice")
         } catch (e: SecurityException) {
@@ -244,6 +310,8 @@ class FerbLink(private val context: Context) {
 
         const val SOURCE = "laptop"
         private const val TAG = "FerbLink"
+        /** After a wake (the box tapped, the mic started), how long Wi-Fi stays low latency for the request to come. */
+        private const val WAKE_LOW_LATENCY_MS = 30_000L
 
         /**
          * How long Ferb waits for the computer: Gemma 4 E2B takes 0.26 s (median) and 0.54 s (90th

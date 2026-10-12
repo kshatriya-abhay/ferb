@@ -85,6 +85,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -174,6 +175,12 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit) {
             // Voice: only with Ferb Link picked in the chat box, and a computer that takes audio.
             val offered = answerer.takeIf { linkMode == LinkMode.Option }
             val voice = rememberVoiceAvailable(viewModel.link, active = offered == Answerer.Link)
+            // With the computer picked, keep Ferb Link's process up, so a request doesn't wait for it to start.
+            DisposableEffect(offered == Answerer.Link) {
+                val holding = offered == Answerer.Link
+                if (holding) viewModel.link.hold()
+                onDispose { if (holding) viewModel.link.release() }
+            }
             val context = LocalContext.current
             val askMic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
                 if (granted) viewModel.startRecording()

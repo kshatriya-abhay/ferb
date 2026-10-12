@@ -21,6 +21,9 @@
     <!-- Voice, only through Ferb Link: record a spoken request, which Ferb Link sends to the
          user's computer to transcribe. Ferb itself still has no INTERNET permission. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- A low-latency Wi-Fi lock while a request is with the computer (Ferb Link): Wi-Fi power
+         save delayed each one by about a second. Not network access: Ferb still has no INTERNET. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <!-- open_app: see the launchable apps, to find one by name (package visibility).
          create_note: see the notes apps that take a note from another app. -->
