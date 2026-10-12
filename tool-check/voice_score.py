@@ -2,6 +2,7 @@
 
     voice_score.py audio.txt [voice-log.jsonl]   score (pulls Ferb's voice log from the phone over adb if no file)
     voice_score.py --reset                      clear the log on the phone before a run
+    PUBLIC=1 voice_score.py …                   hide the contacts Ferb found (names, numbers), to commit the output
 
 Ferb appends one JSON line per spoken request it answered (link/VoiceLog.kt): what the computer
 heard, the English command, the calls, and how Ferb read them ("Open Paytm" from "ptm"). The lines
@@ -11,7 +12,7 @@ and arguments match, scored as score.py does; names, apps and places also count 
 of the call has them (its own matching found the app). Names are scored as heard, whether or not
 the contact is on the phone; whether Ferb found a contact is reported apart.
 """
-import json, shlex, subprocess, sys
+import json, os, re, shlex, subprocess, sys
 from score import arguments, normalise
 
 LOG = "files/voice-log.jsonl"
@@ -64,6 +65,10 @@ def main():
         print(f"note: {len(log)} spoken requests logged for {len(bench)} in the bench; paired in order\n")
     per, times, contacts = {}, [], []
     for (category, request, tools, want), entry in zip(bench, log):
+        if os.environ.get("PUBLIC"):
+            # A found contact's name and number stay off the output; "No contact matches …" is kept.
+            entry["read"] = [r if c["name"] not in ("make_call", "send_text") or r.startswith(("No contact", "invalid"))
+                             else re.sub(r"^(Text|Call) .*", r"\1 [a contact]", r) for c, r in zip(entry["calls"], entry["read"])]
         right = judge(tools, want, entry, request)
         counts = per.setdefault(category, [0, 0])
         counts[0] += 1; counts[1] += right

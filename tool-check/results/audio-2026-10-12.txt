@@ -1,0 +1,270 @@
+MISS subah 5 baje ka alarm laga do
+     heard: subah 6 baje ka alarm laga do
+     text:  Set an alarm for 6 am
+     calls: set_alarm(time=6 am)  ->  Set an alarm for 06:00
+
+OK   6 baje utha dena
+     heard: 6 baje utha dena
+     text:  Wake me up at 6
+     calls: set_alarm(time=6)  ->  Set an alarm for 06:00
+
+OK   10 minute ka timer lagao
+     heard: das minute ka timer laga do
+     text:  Set a 10 minute timer
+     calls: set_timer(duration=10 minutes)  ->  Start a 10 min timer
+
+OK   torch on karo
+     heard: torch on karo
+     text:  Turn on the torch
+     calls: set_flashlight(on=True)  ->  Turn the flashlight on
+
+OK   torch band karo
+     heard: torch band karo
+     text:  Turn off the torch
+     calls: set_flashlight(on=False)  ->  Turn the flashlight off
+
+OK   awaaz band karo
+     heard: aawaz band karo
+     text:  Turn off the sound
+     calls: set_volume(percent=0)  ->  Set the media volume to 0 %
+
+OK   agla gaana
+     heard: agla gaana
+     text:  Play the next song
+     calls: control_media(action=next)  ->  Media: next
+
+OK   gaana roko
+     heard: gana roko
+     text:  Stop the song
+     calls: control_media(action=pause)  ->  Media: pause
+
+OK   note karo ki doodh khatam ho gaya
+     heard: note karo ki doodh khatam ho gaya
+     text:  Note that milk is finished
+     calls: create_note(text=milk is finished)  ->  Take a note: “milk is finished”
+
+OK   kal ka schedule kya hai
+     heard: kal ka schedule kya hai
+     text:  What is tomorrow's schedule?
+     calls: show_agenda(day=tomorrow)  ->  Show Tue 13 Oct
+
+MISS kal 4 baje meeting calendar mein daal do
+     heard: kal 4 baje meeting calendar mein dal do
+     text:  Add meeting to calendar for tomorrow at 4
+     calls: no tool
+
+OK   dedh ghante ka timer laga do
+     heard: pedh ghante ka timer laga do
+     text:  Set a timer for 1.5 hours
+     calls: set_timer(duration=1.5 hours)  ->  Start a 1 h 30 min timer
+
+OK   saade paanch baje ka alarm lagao
+     heard: saade paanch baje ka alarm lagao
+     text:  Set an alarm for 5:30
+     calls: set_alarm(time=5:30)  ->  Set an alarm for 05:30
+
+MISS dhai minute ka timer lagao
+     heard: thai minute ka timer lagao
+     text:  Set a timer for 30 minutes
+     calls: set_timer(duration=30 minutes)  ->  Start a 30 min timer
+
+MISS sava saat baje utha dena
+     heard: sava 7 baje utha dena
+     text:  Wake me up at 7 AM
+     calls: set_alarm(time=7 AM)  ->  Set an alarm for 07:00
+
+OK   alarm at half past six
+     heard: alarm at half past six
+     text:  alarm at half past six
+     calls: set_alarm(time=6:30)  ->  Set an alarm for 06:30
+
+OK   alarm at quarter to eight
+     heard: alarm at quarter to eight
+     text:  alarm at quarter to eight
+     calls: set_alarm(time=7:45)  ->  Set an alarm for 07:45
+
+OK   alarm for 7 in the evening
+     heard: alarm for seven in the evening
+     text:  alarm for seven in the evening
+     calls: set_alarm(time=7 pm)  ->  Set an alarm for 19:00
+
+MISS an hour and a half timer
+     heard: an hour and a half timer
+     text:  an hour and a half timer
+     calls: set_timer(duration=1 hour and a half)  ->  invalid: "1 hour and a half" isn't a length of time
+
+MISS timer one and a half minutes
+     heard: timer one and a half minutes
+     text:  timer one and a half minutes
+     calls: set_timer(duration=1 and a half minutes)  ->  invalid: "1 and a half minutes" isn't a length of time
+
+OK   half volume
+     heard: half volume
+     text:  half volume
+     calls: set_volume(percent=50)  ->  Set the media volume to 50 %
+
+OK   paytm kholo
+     heard: ptm kholo
+     text:  Open ptm
+     calls: open_app(app_name=PTM)  ->  Open Paytm
+
+MISS open phonepe
+     heard: open phone pay
+     text:  open phone pay
+     calls: open_app(app_name=Phone Pay)  ->  Open HP PAY
+
+OK   zomato open karo
+     heard: zomato open karo
+     text:  Open Zomato
+     calls: open_app(app_name=Zomato)  ->  Open Zomato
+
+OK   swiggy kholo
+     heard: swiggi kholo
+     text:  Open Swiggy
+     calls: open_app(app_name=Swiggy)  ->  Open Swiggy
+
+OK   open hotstar
+     heard: open Hotstar
+     text:  open Hotstar
+     calls: open_app(app_name=Hotstar)  ->  Open JioHotstar
+
+OK   open up whatsapp for me
+     heard: open up whatsapp for me
+     text:  open up whatsapp for me
+     calls: open_app(app_name=WhatsApp)  ->  Open WhatsApp
+
+OK   india gate ka rasta batao
+     heard: india gate ka rasta batao
+     text:  Tell me the way to India Gate
+     calls: get_directions(destination=India Gate)  ->  Directions to “India Gate”
+
+MISS chandni chowk kaise jaun
+     heard: chandni chowk kaise jaaun
+     text:  How do I go to Chandni Chowk
+     calls: no tool
+
+OK   navigate to koramangala
+     heard: Navigate to Koramangala
+     text:  Navigate to Koramangala
+     calls: get_directions(destination=Koramangala)  ->  Directions to “Koramangala”
+
+OK   directions to charminar by metro
+     heard: directions to charminar by metro
+     text:  directions to charminar by metro
+     calls: get_directions(destination=charminar by metro)  ->  Directions to “charminar by metro” (transit)
+
+OK   gateway of india le chalo
+     heard: gateway of india le chalo
+     text:  Take me to Gateway of India
+     calls: get_directions(destination=Gateway of India)  ->  Directions to “Gateway of India”
+
+OK   mummy ko call karo
+     heard: mummy ko call karo
+     text:  Call mummy
+     calls: make_call(name=mummy)  ->  Call [a contact]
+
+OK   call sharma ji
+     heard: call Sharma ji
+     text:  call Sharma ji
+     calls: make_call(name=Sharma ji)  ->  Call [a contact]
+
+OK   didi ko phone lagao
+     heard: didi ko phone lagao
+     text:  Call didi
+     calls: make_call(name=didi)  ->  Call [a contact]
+
+OK   call bhaiya
+     heard: call bhaiya
+     text:  call bhaiya
+     calls: make_call(name=bhaiya)  ->  Call [a contact]
+
+OK   papa ko message karo ki main pahunch gaya
+     heard: papa ko message karo ki main pahunch gaya
+     text:  Message papa that I have arrived
+     calls: send_text(message=I have arrived, name=papa)  ->  Text [a contact]
+
+OK   text ananya happy diwali
+     heard: text ananya happy diwali
+     text:  text ananya happy diwali
+     calls: send_text(message=happy diwali, name=Ananya)  ->  Text [a contact]
+
+MISS tell rohit im running 10 min late
+     heard: tell rohit i am running 10 minutes late
+     text:  tell rohit i am running 10 minutes late
+     calls: no tool
+
+MISS message shreyansh that I'll be late
+     heard: message shriansh that i will be late
+     text:  message shriansh that i will be late
+     calls: send_text(message=i will be late, name=shriansh)  ->  Text [a contact]
+
+OK   put dinner with neha on friday 8pm in my calendar
+     heard: potluck dinner with neha on friday 8 pm in my calendar
+     text:  potluck dinner with neha on friday 8 pm in my calendar
+     calls: add_event(title=potluck dinner with neha, when=friday 8 pm)  ->  Add “Potluck dinner with neha” · Fri 16 Oct, 20:00–21:00
+
+OK   am i free tomorrow
+     heard: am i free tomorrow
+     text:  am i free tomorrow
+     calls: show_agenda(day=tomorrow)  ->  Show Tue 13 Oct
+
+OK   my alarm clock is broken
+     heard: my alarm clock is broken
+     text:  my alarm clock is broken
+     calls: no tool
+
+OK   what's the best music app
+     heard: whats the best music app
+     text:  whats the best music app
+     calls: no tool
+
+OK   did anyone call
+     heard: did anyone call
+     text:  did anyone call
+     calls: no tool
+
+MISS Diwali is on 1 November
+     heard: Diwali is on 1 November
+     text:  Diwali is on 1 November
+     calls: add_event(title=Diwali, when=1 November)  ->  Add “Diwali” · Sun 1 Nov, all day
+
+OK   send money to Rahul
+     heard: send money to rahul
+     text:  send money to rahul
+     calls: no tool
+
+OK   open a bank account
+     heard: open a bank account
+     text:  open a bank account
+     calls: no tool
+
+OK   kal mausam kaisa rahega
+     heard: kal mausam kaisa rahega
+     text:  What will the weather be like tomorrow
+     calls: no tool
+
+OK   mujhe chai banana sikhao
+     heard: mujhe chai banana sikhao
+     text:  Teach me how to make tea
+     calls: no tool
+
+39/50 right
+  hinglish    9/11
+  amounts     6/10
+  apps        5/6
+  places      4/5
+  names       8/10
+  near        7/8
+contacts found on the phone: 7/8 calls and texts
+  none for 'tell rohit im running 10 min late': no call
+ms per request (transcribed to answered): median 1269, slowest 6056
+
+Timings from logcat (FerbLink tag, Ferb and Ferb Link; 50 spoken requests; ms: first / median / 90th percentile / max)
+  transcribe, all            2158 / 1624 / 2743 / 3894
+    server (wait)            1647 / 1404 / 2554 / 3608
+    Ferb Link on the phone    511 /  242 /  394 /  520   (decoding to WAV, the call)
+  Ferb, transcribe -> complete 16 /   13 /   18 /   21   (the 1.7 s gap of 9a is gone)
+  complete, all               445 / 1098 / 2534 / 6040
+    server (wait)             393 /  992 / 2485 / 5969
+    Ferb Link on the phone     52 /   70 /  106 /  149
+  Ferb Link's process was started twice by Android during the run (killed in between).
