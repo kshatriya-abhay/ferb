@@ -183,12 +183,34 @@ object SaidNumbers {
 object TimeOfDay {
     private val PATTERN = Regex("""^(\d{1,2})(?:\s*[:.h]\s*(\d{2}))?\s*(am|a\.m\.|pm|p\.m\.)?$""")
 
+    // Words around a time that say am or pm, in English and Hindi ("subah 5 baje", "7 in the evening").
+    private val MORNING = Regex("""\b(in the morning|morning|subah|subha)\b""")
+    private val LATER = Regex("""\b(in the afternoon|afternoon|in the evening|evening|at night|tonight|night|dopahar|shaam|sham|raat)\b""")
+    private val NIGHT = Regex("""\b(at night|tonight|night|raat)\b""")
+    // Words that add nothing to the time: "5 o'clock", "5 baje", "tomorrow at 7" (the clock app
+    // sets the next time it's that time of day, so tomorrow when it's already passed today).
+    private val FILLER = Regex("""\b(o'clock|o’clock|oclock|o clock|baje|bje|sharp|at|tomorrow|today|kal|aaj|ka|ki|ke)\b""")
+
     /**
-     * "8:00 AM", "08:00", "7 pm", "19:30", "6.45", "8" → (hour, minute); null if it isn't one.
-     * Without am or pm, an hour up to 12 is taken as written (so "8" is 8 am, "12" noon).
+     * "8:00 AM", "08:00", "7 pm", "19:30", "6.45", "8", "5 o'clock", "five o'clock", "5 baje", "7 in
+     * the evening", "subah 5", "tomorrow at 6" → (hour, minute); null if it isn't one. Without am,
+     * pm or a word for the time of day, an hour up to 12 is taken as written (so "8" is 8 am, "12"
+     * noon). "5 o'clock" came back from the computer for "paanch baje" (2026-10-12) and was refused.
      */
     fun parse(text: String): Pair<Int, Int>? {
-        val t = text.trim().lowercase().let { if (it == "noon") "12" else if (it == "midnight") "0" else it }
+        val lower = text.trim().lowercase()
+        val hint = when {
+            MORNING.containsMatchIn(lower) -> "am"
+            LATER.containsMatchIn(lower) -> "pm"
+            else -> null
+        }
+        var t = lower.replace(MORNING, " ").replace(LATER, " ").replace(FILLER, " ")
+            .replace(SaidNumbers.WORD) { w -> SaidNumbers.WORDS.getValue(w.value).takeIf { it in 1..12 }?.toString() ?: w.value }
+            .replace(Regex("""\s+"""), " ").trim()
+        t = if (t == "noon") "12" else if (t == "midnight") "0" else t
+        // "12 at night" is midnight; otherwise the word gives am or pm when the time doesn't.
+        if (hint == "pm" && NIGHT.containsMatchIn(lower) && t == "12") t = "0"
+        else if (hint != null && Regex("""^\d{1,2}(?:\s*[:.h]\s*\d{2})?$""").matches(t)) t = "$t $hint"
         val m = PATTERN.matchEntire(t) ?: return null
         var hour = m.groupValues[1].toInt()
         val minute = m.groupValues[2].ifEmpty { "0" }.toInt()

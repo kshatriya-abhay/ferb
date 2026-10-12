@@ -6,6 +6,10 @@ set_alarm time=05:30 | alarm at 5:30 tomorrow morning
 set_alarm time=08:00 | set an alarm for 8 am
 set_alarm time=08:00 | set two alarms, one for 8 am and another for 9 am
 set_alarm time=08:00 | alarms at 8 and 9 am
+# Times as the computer's model writes spoken ones (2026-10-12: "5 o'clock" was refused).
+set_alarm time=05:00 | set an alarm for 5 o'clock
+set_alarm time=19:00 | wake me at 7 in the evening
+set_alarm time=06:00 | alarm for 6 tomorrow morning
 set_timer seconds=600 | Timer for 10 minutes
 set_timer seconds=90 | Set a 90 second timer for the eggs
 set_timer seconds=4500 | countdown 1 hour 15 minutes
@@ -180,6 +184,13 @@ get_directions destination="cubbon park" mode=bicycling | cycling route to Cubbo
 get_directions destination=bangalore mode=driving | driving directions to Bangalore
 get_directions destination=office mode=two-wheeler | route to the office on my scooter
 get_directions destination="mg road" mode=transit | how do I get to MG Road by bus
+# "go to" and "reach" (audio bench, 2026-10-12: "How do I go to Chandni Chowk" found no tool).
+get_directions destination="chandni chowk" | How do I go to Chandni Chowk
+get_directions destination="andheri station" | how to reach Andheri station
+get_directions destination="phoenix mall" | I want to go to Phoenix Mall
+none | I want to go to sleep
+none | I couldn't reach him on the phone
+none | when will we reach
 none | directions for this recipe
 none | how far is the moon
 none | what's the route of the tour de france
@@ -211,6 +222,12 @@ send_text name=dad | sms dad I'll be home by 9
 send_text name=vikram | msg Vikram happy birthday
 send_text name=anita | text Anita can you pick up the kids
 send_text name=priya | tell Priya I'm on my way
+# "tell" (audio bench, 2026-10-12: "tell rohit i am running 10 minutes late" found no tool).
+send_text name=rohit | tell rohit i am running 10 minutes late
+send_text name=neha | tell Neha the meeting moved to 4
+none | tell me the time
+none | tell me something interesting
+none | I'll tell her later
 none | read my messages
 none | any new messages
 none | what does this text mean

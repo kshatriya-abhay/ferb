@@ -8,9 +8,21 @@ the app reads them: times of day as HH:MM, durations as seconds (from a "seconds
 """
 import json, os, re, shlex, sys
 
+MORNING = r"\b(in the morning|morning|subah|subha)\b"
+LATER = r"\b(in the afternoon|afternoon|in the evening|evening|at night|tonight|night|dopahar|shaam|sham|raat)\b"
+NIGHT = r"\b(at night|tonight|night|raat)\b"
+TIME_FILLER = r"\b(o'clock|o’clock|oclock|o clock|baje|bje|sharp|at|tomorrow|today|kal|aaj|ka|ki|ke)\b"
+
 def time_of_day(text):
-    t = str(text).strip().lower()
+    """As the app's TimeOfDay.parse: "5 o'clock", "7 in the evening", "subah 5 baje" included."""
+    lower = str(text).strip().lower()
+    hint = "am" if re.search(MORNING, lower) else "pm" if re.search(LATER, lower) else None
+    t = re.sub(TIME_FILLER, " ", re.sub(LATER, " ", re.sub(MORNING, " ", lower)))
+    t = re.sub(r"\b(" + "|".join(WORDS) + r")\b", lambda m: str(WORDS[m[1]]) if 1 <= WORDS[m[1]] <= 12 else m[1], t)
+    t = re.sub(r"\s+", " ", t).strip()
     t = {"noon": "12", "midnight": "0"}.get(t, t)
+    if hint == "pm" and re.search(NIGHT, lower) and t == "12": t = "0"
+    elif hint and re.fullmatch(r"\d{1,2}(?:\s*[:.h]\s*\d{2})?", t): t = f"{t} {hint}"
     m = re.fullmatch(r"(\d{1,2})(?:\s*[:.h]\s*(\d{2}))?\s*(am|a\.m\.|pm|p\.m\.)?", t)
     if not m: return None
     h, mi, p = int(m[1]), int(m[2] or 0), (m[3] or "").replace(".", "")

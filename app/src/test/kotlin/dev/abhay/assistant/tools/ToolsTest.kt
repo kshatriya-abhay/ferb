@@ -35,6 +35,12 @@ class ToolsTest {
         )
         cases.forEach { (text, expected) -> assertThat(TimeOfDay.parse(text)).isEqualTo(expected) }
         listOf("25:00", "13 pm", "8:75", "tomorrow", "").forEach { assertThat(TimeOfDay.parse(it)).isNull() }
+        // As the computer's model writes them for spoken requests (2026-10-12: "5 o'clock" was refused).
+        val spoken = mapOf("5 o'clock" to (5 to 0), "five o'clock" to (5 to 0), "5 baje" to (5 to 0), "tomorrow at 6" to (6 to 0),
+            "6 am tomorrow" to (6 to 0), "7 in the evening" to (19 to 0), "5 in the morning" to (5 to 0), "9 at night" to (21 to 0),
+            "12 at night" to (0 to 0), "3 in the afternoon" to (15 to 0), "subah 5" to (5 to 0), "shaam 6 baje" to (18 to 0),
+            "7:30 in the evening" to (19 to 30), "6 pm tonight" to (18 to 0))
+        spoken.forEach { (text, expected) -> assertThat(TimeOfDay.parse(text)).isEqualTo(expected) }
     }
 
     @Test
