@@ -86,7 +86,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         val laptopErrorDetail: String? = null,
         /** For a spoken request: the words heard, when they differ from [request] (its English command). */
         val heard: String? = null,
-        /** Whether the request was spoken; its alarms and timers ask first ([LinkPolicy.spoken]). */
+        /** Whether the request was spoken; its alarms ask first ([LinkPolicy.spoken]). */
         val spoken: Boolean = false,
     )
 
