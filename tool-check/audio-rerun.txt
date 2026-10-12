@@ -1,0 +1,26 @@
+# The audio bench's rerun (2026-10-12), after the fixes it found: Hindi amounts in Ferb Link
+# (637a705), alarm times, "and a half" lengths, app and contact matching, keywords (Ferb a9e7cad to
+# ade87a9). Read aloud in this order in Ferb with Computer picked; scored by voice_score.py.
+# Alarms, timers and the text ask first; volume, media, the app and directions run.
+
+# @amounts
+set_alarm time=05:00 | subah 5 baje ka alarm laga do
+set_timer seconds=5400 | dedh ghante ka timer laga do
+set_alarm time=05:30 | saade paanch baje ka alarm lagao
+set_timer seconds=150 | dhai minute ka timer lagao
+set_alarm time=07:15 | sava saat baje utha dena
+set_alarm time=07:45 | paune aath baje ka alarm lagao
+set_alarm time=19:00 | shaam 7 baje ka alarm lagao
+set_alarm time=06:30 | alarm at half past six
+set_alarm time=07:45 | alarm at quarter to eight
+set_alarm time=19:00 | alarm for 7 in the evening
+set_timer seconds=5400 | an hour and a half timer
+set_timer seconds=90 | timer one and a half minutes
+
+# @others
+set_volume percent=50 | half volume
+control_media action=pause | stop
+control_media action=next | next
+open_app app_name=phonepe | open phonepe
+get_directions destination="chandni chowk" | chandni chowk kaise jaun
+send_text name=rohit | tell rohit im running 10 min late
