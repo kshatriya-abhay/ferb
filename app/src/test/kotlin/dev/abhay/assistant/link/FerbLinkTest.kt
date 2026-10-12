@@ -97,21 +97,6 @@ class FerbLinkTest {
     }
 
     @Test
-    fun aSpokenAlarmAsksFirst() {
-        val laptop = FerbLink.parse(laptopAlarm)
-        val verdict = LinkPolicy.verdict(laptop, configs, "wake me up at 6:45")
-        assertThat(verdict.decision).isEqualTo(Decision.Run)
-        assertThat(LinkPolicy.spoken(verdict, laptop).decision).isEqualTo(Decision.Confirm)
-        // Other tools run as typed requests do, timers too since the rerun.
-        val torch = laptop.copy(calls = listOf(ToolCall("set_flashlight", mapOf("on" to true))))
-        assertThat(LinkPolicy.spoken(verdict, torch).decision).isEqualTo(Decision.Run)
-        val timer = laptop.copy(calls = listOf(ToolCall("set_timer", mapOf("duration" to "10 minutes"))))
-        assertThat(LinkPolicy.spoken(verdict, timer).decision).isEqualTo(Decision.Run)
-        // No call stays no call.
-        assertThat(LinkPolicy.spoken(verdict.copy(decision = Decision.Refuse), laptop).decision).isEqualTo(Decision.Refuse)
-    }
-
-    @Test
     fun aTranscriptHasWhatWasHeardAndTheEnglishCommand() {
         val heard = Transcript.parse("""{"heard":"subah 5 baje ka alarm laga do","text":"Set an alarm for 5 am","model":"gemma-4-e2b","ms":640}""")
         assertThat(heard.heard).isEqualTo("subah 5 baje ka alarm laga do")

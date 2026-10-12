@@ -89,7 +89,9 @@ object SetAlarm : Tool(
     // turned "alarms at 8 and 9 am" into one alarm at 08:09 and scored single alarms around 0.3;
     // one time string got every request right (two alarms included) and scored higher. A label
     // parameter made the model invent labels ("Tomorrow morning"), so there isn't one.
-    override val keywords = listOf("alarm", "wake", "get up", "up at")
+    // Hindi for wake me ("6 baje utha dena", "jaga dena"): typed Hinglish without "alarm" reached
+    // every tool and became a calendar event (2026-10-12).
+    override val keywords = listOf("alarm", "wake", "get up", "up at", "utha", "uthana", "utha dena", "jaga", "jagana", "jaga dena")
 
     override val schema = """
         {"name": "set_alarm",

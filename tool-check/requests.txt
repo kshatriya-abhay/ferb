@@ -10,6 +10,14 @@ set_alarm time=08:00 | alarms at 8 and 9 am
 set_alarm time=05:00 | set an alarm for 5 o'clock
 set_alarm time=19:00 | wake me at 7 in the evening
 set_alarm time=06:00 | alarm for 6 tomorrow morning
+# Hindi for wake me (2026-10-12: "dopahar 2 baje utha dena" became a calendar event).
+set_alarm time=06:00 | subah 6 baje utha dena
+set_alarm time=07:00 | 7 baje jaga dena
+set_alarm time=14:00 | dopahar 2 baje utha dena
+none | utha ke rakh do
+none | phone utha
+none | pick it up
+none | main jaag gaya
 set_timer seconds=600 | Timer for 10 minutes
 set_timer seconds=90 | Set a 90 second timer for the eggs
 set_timer seconds=4500 | countdown 1 hour 15 minutes

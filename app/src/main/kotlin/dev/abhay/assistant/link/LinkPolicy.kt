@@ -1,6 +1,5 @@
 package dev.abhay.assistant.link
 
-import dev.abhay.assistant.engine.Decision
 import dev.abhay.assistant.engine.NeedleReply
 import dev.abhay.assistant.tools.ToolConfig
 import dev.abhay.assistant.tools.Verdict
@@ -30,17 +29,7 @@ object LinkPolicy {
     fun verdict(laptop: NeedleReply, configs: Map<String, ToolConfig>, request: String): Verdict =
         Verdict.of(laptop, configs, request, bar = 0.0)
 
-    /**
-     * A spoken request's [verdict]: an alarm asks first, as times said in Hindi are misheard or
-     * mistranslated most. On the audio bench (2026-10-12), 4 of 50 spoken requests would have run a
-     * wrong action without asking, 3 of them among the 12 alarms and timers; after Ferb Link's
-     * Hindi-amount fix, the rerun had 2 of 9 alarms wrong ("shaam saat" → 7:00, "quarter to 8" →
-     * 8:15) and every timer right, so timers stopped asking. An alarm can't be undone from here.
-     * Other tools follow their usual rules. To revisit after an alarm-only rerun.
-     */
-    fun spoken(verdict: Verdict, reply: NeedleReply): Verdict =
-        if (verdict.decision == Decision.Run && reply.calls.any { it.name in SPOKEN_ASK }) verdict.copy(decision = Decision.Confirm) else verdict
-
-    /** The tools whose spoken calls ask first ([spoken]). */
-    val SPOKEN_ASK = setOf("set_alarm")
+    // Spoken requests follow the same rules as typed ones. From 2026-10-12 until the same day,
+    // spoken alarms and timers asked first while the computer misheard Hindi times; after Ferb
+    // Link's fixes the alarm lines were 12/12 typed and right for real Hindi and clean English.
 }
