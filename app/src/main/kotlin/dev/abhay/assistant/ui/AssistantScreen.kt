@@ -532,7 +532,7 @@ private fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () ->
 @Composable
 private fun AnswererMenu(chosen: Answerer, enabled: Boolean, onChoose: (Answerer) -> Unit) {
     var open by remember { mutableStateOf(false) }
-    Box(Modifier.padding(start = 6.dp)) {
+    Box {
         TextButton(onClick = { open = true }, enabled = enabled, contentPadding = PaddingValues(start = 10.dp, end = 4.dp)) {
             Text(chosen.label, style = MaterialTheme.typography.labelLarge)
             Icon(Icons.Default.ArrowDropDown, contentDescription = "Choose who answers")
@@ -555,8 +555,10 @@ private fun AnswererMenu(chosen: Answerer, enabled: Boolean, onChoose: (Answerer
     }
 }
 
-/** A rounded input with the send button inside it; a loading indicator while Needle 3 thinks. */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+/**
+ * A rounded input with the send button inside it (a loading indicator while Needle 3 thinks) and,
+ * when Ferb Link is offered as an option, the choice of who answers under it.
+ */
 @Composable
 private fun InputBar(
     state: AssistantViewModel.UiState,
@@ -567,12 +569,25 @@ private fun InputBar(
     answerer: Answerer? = null,
     onAnswerer: (Answerer) -> Unit = {},
 ) {
+    Column(Modifier.padding(bottom = if (answerer == null) 12.dp else 4.dp)) {
+        InputField(state, ready, onChange, onSend)
+        // Who answers, in a row of its own under the box, so the box keeps its width for the request.
+        if (answerer != null) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                AnswererMenu(answerer, enabled = !state.busy, onChoose = onAnswerer)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun InputField(state: AssistantViewModel.UiState, ready: Boolean, onChange: (String) -> Unit, onSend: () -> Unit) {
     TextField(
         value = state.input,
         onValueChange = onChange,
-        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 12.dp),
+        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 4.dp),
         placeholder = { Text("Ask me to do something") },
-        leadingIcon = answerer?.let { chosen -> { AnswererMenu(chosen, enabled = !state.busy, onChoose = onAnswerer) } },
         enabled = ready,
         shape = RoundedCornerShape(28.dp),
         colors = TextFieldDefaults.colors(
