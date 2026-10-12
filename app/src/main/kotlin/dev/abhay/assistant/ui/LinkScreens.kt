@@ -56,7 +56,7 @@ private fun LinkMode.description() = when (this) {
 
 /** Ferb Link's status now, refreshed whenever the screen comes back (e.g. from Ferb Link or installing it). */
 @Composable
-private fun rememberLinkStatus(link: FerbLink): LinkStatus {
+internal fun rememberLinkStatus(link: FerbLink): LinkStatus {
     var status by remember { mutableStateOf(link.status()) }
     LifecycleResumeEffect(Unit) {
         status = link.status()

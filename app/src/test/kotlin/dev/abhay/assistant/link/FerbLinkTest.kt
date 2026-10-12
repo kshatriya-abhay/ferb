@@ -86,4 +86,16 @@ class FerbLinkTest {
         // So does a value the request doesn't say.
         assertThat(LinkPolicy.verdict(laptop, configs, "wake me up early").decision).isEqualTo(Decision.Confirm)
     }
+
+    @Test
+    fun aTranscriptHasWhatWasHeardAndTheEnglishCommand() {
+        val heard = Transcript.parse("""{"heard":"subah 5 baje ka alarm laga do","text":"Set an alarm for 5 am","model":"gemma-4-e2b","ms":640}""")
+        assertThat(heard.heard).isEqualTo("subah 5 baje ka alarm laga do")
+        assertThat(heard.text).isEqualTo("Set an alarm for 5 am")
+        assertThat(heard.ms).isEqualTo(640L)
+        assertThat(heard.error).isNull()
+        val failed = Transcript.parse("""{"heard":"","text":"","error":"The laptop took too long to answer","error_kind":"timeout"}""")
+        assertThat(failed.error).isEqualTo("The laptop took too long to answer")
+        assertThat(Transcript.parse("not json").error).contains("couldn't be read")
+    }
 }

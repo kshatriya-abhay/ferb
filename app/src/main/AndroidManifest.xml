@@ -18,6 +18,10 @@
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.WRITE_CALENDAR" />
 
+    <!-- Voice, only through Ferb Link: record a spoken request, which Ferb Link sends to the
+         user's computer to transcribe. Ferb itself still has no INTERNET permission. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
     <!-- open_app: see the launchable apps, to find one by name (package visibility).
          create_note: see the notes apps that take a note from another app. -->
     <queries>

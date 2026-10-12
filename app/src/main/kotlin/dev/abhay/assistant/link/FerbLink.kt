@@ -8,6 +8,7 @@ import androidx.core.os.bundleOf
 import dev.abhay.assistant.engine.NeedleReply
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 
 /**
  * Ferb's copy of Ferb Link's contract (`LinkContract` in /data/Projects/ferb-link): Ferb can't
@@ -24,11 +25,23 @@ object LinkContract {
     const val METHOD_COMPLETE = "complete"
     /** Added after version 1 without a bump: an older Ferb Link throws IllegalArgumentException. */
     const val METHOD_CHECK = "check"
+    /**
+     * Voice (added after version 1, like check): `wake` loads the computer's model if it's asleep,
+     * answering at once, and `transcribe` turns a recording into text. An older Ferb Link throws
+     * IllegalArgumentException.
+     */
+    const val METHOD_WAKE = "wake"
+    const val METHOD_TRANSCRIBE = "transcribe"
 
     const val EXTRA_REQUEST = "request"
     const val EXTRA_TOOLS = "tools"
     /** How long Ferb Link may wait for the computer (1–60 s); an older Ferb Link ignores it and waits 30 s. */
     const val EXTRA_TIMEOUT_MS = "timeout_ms"
+    /** For `transcribe`: the recording (byte[], at most 30 s and about 512 KB) and its type. */
+    const val EXTRA_AUDIO = "audio"
+    const val EXTRA_AUDIO_MIME = "audio_mime"
+    /** Reserved for names that help transcription (a string array); unused: they'd leave the phone. */
+    const val EXTRA_HINTS = "hints"
 
     const val RESULT_VERSION = "version"
     const val RESULT_ENABLED = "enabled"
@@ -39,6 +52,8 @@ object LinkContract {
     /** In `check`. */
     const val RESULT_REACHABLE = "reachable"
     const val RESULT_ERROR = "error"
+    /** In `status`: whether the computer's model takes audio, so voice works; missing in an older Ferb Link. */
+    const val RESULT_AUDIO = "audio"
 }
 
 /** Whether Ferb can use Ferb Link now, as its settings page shows it. */
@@ -52,8 +67,8 @@ sealed interface LinkStatus {
     data object Off : LinkStatus
     /** No server address and key entered in Ferb Link yet. */
     data object NotSetUp : LinkStatus
-    /** [model]: the computer's model as Ferb Link last saw it, when it says. */
-    data class Ready(val model: String? = null) : LinkStatus
+    /** [model]: the computer's model as Ferb Link last saw it, when it says; [audio]: whether it takes voice. */
+    data class Ready(val model: String? = null, val audio: Boolean = false) : LinkStatus
     data class Failed(val reason: String) : LinkStatus
 }
 
@@ -125,6 +140,44 @@ class FerbLink(private val context: Context) {
         )
     }
 
+    /**
+     * Asks Ferb Link to load the computer's model if it's asleep, when the user starts speaking, so
+     * the wake (2 s, at times 12 s) hides behind the speech. Returns at once; never throws.
+     */
+    suspend fun wake() {
+        withContext(Dispatchers.IO) {
+            try {
+                context.contentResolver.call(LinkContract.AUTHORITY, LinkContract.METHOD_WAKE, null, null)
+            } catch (e: Exception) {
+                // An older Ferb Link, or none: the transcription just waits for the wake.
+            }
+        }
+    }
+
+    /**
+     * The computer's transcription of [audio] (of type [mime]): what was heard, and the request as
+     * a plain English command. Blocks until the computer answers or Ferb Link gives up; never
+     * throws: a failure is a [Transcript] with [Transcript.error] set.
+     */
+    suspend fun transcribe(audio: ByteArray, mime: String): Transcript = withContext(Dispatchers.IO) {
+        val result = try {
+            context.contentResolver.call(LinkContract.AUTHORITY, LinkContract.METHOD_TRANSCRIBE, null, bundleOf(
+                LinkContract.EXTRA_AUDIO to audio,
+                LinkContract.EXTRA_AUDIO_MIME to mime,
+                LinkContract.EXTRA_TIMEOUT_MS to TRANSCRIBE_TIMEOUT_MS,
+            ))
+        } catch (e: IllegalArgumentException) {
+            return@withContext Transcript.failed("Update Ferb Link to use your voice")
+        } catch (e: SecurityException) {
+            return@withContext Transcript.failed("Ferb Link only answers apps signed with the same key")
+        } catch (e: Exception) {
+            return@withContext Transcript.failed("Ferb Link failed: ${e.message ?: e}")
+        } ?: return@withContext Transcript.failed("Ferb Link didn't answer")
+        val version = result.getInt(LinkContract.RESULT_VERSION, -1)
+        if (version != LinkContract.VERSION) return@withContext Transcript.failed("Ferb Link speaks version $version, Ferb version ${LinkContract.VERSION}: update the older one")
+        Transcript.parse(result.getString(LinkContract.RESULT_REPLY) ?: return@withContext Transcript.failed("Ferb Link sent no reply"))
+    }
+
     /** Ferb Link's own screen, where its server is set up and switched on. */
     fun openIntent(): Intent? = context.packageManager.getLaunchIntentForPackage(LinkContract.PACKAGE)
 
@@ -135,7 +188,7 @@ class FerbLink(private val context: Context) {
                 version != LinkContract.VERSION -> LinkStatus.Mismatch(version)
                 !result.getBoolean(LinkContract.RESULT_ENABLED) -> LinkStatus.Off
                 !result.getBoolean(LinkContract.RESULT_CONFIGURED) -> LinkStatus.NotSetUp
-                else -> LinkStatus.Ready(result.getString(LinkContract.RESULT_MODEL)?.ifBlank { null })
+                else -> LinkStatus.Ready(result.getString(LinkContract.RESULT_MODEL)?.ifBlank { null }, result.getBoolean(LinkContract.RESULT_AUDIO))
             }
         }
 
@@ -169,6 +222,13 @@ class FerbLink(private val context: Context) {
          */
         const val TIMEOUT_MS = 10_000
 
+        /**
+         * How long Ferb waits for a transcription: Gemma 4 E2B took 0.5–1 s for up to 11 s of
+         * speech and 1.9 s for 30 s on the laptop's GPU, plus a wake of about 2 s (once 12 s) if
+         * `wake` hasn't finished.
+         */
+        const val TRANSCRIBE_TIMEOUT_MS = 15_000
+
         private fun failed(reason: String) = NeedleReply(
             calls = emptyList(), suppressed = emptyList(), reasoning = "", confidence = null, ungrounded = emptyList(),
             negation = false, prefillTps = 0.0, decodeTps = 0.0, peakRamMb = 0.0, error = reason, source = SOURCE,
@@ -188,4 +248,29 @@ fun describe(status: LinkStatus): String = when (status) {
     LinkStatus.NotSetUp -> "Ferb Link has no computer set up yet"
     is LinkStatus.Ready -> status.model?.let { "Ready: $it" } ?: "Ready"
     is LinkStatus.Failed -> "Ferb Link failed: ${status.reason}"
+}
+
+/**
+ * A recording as the computer heard it: [heard], the words said (Hindi in Latin letters, as
+ * Hinglish is typed), and [text], the same request as a plain English command, which Ferb answers
+ * (its keywords, dates and Needle 3 need English). The same when the speech was English.
+ */
+data class Transcript(val heard: String, val text: String, val model: String? = null, val ms: Long? = null, val error: String? = null) {
+    companion object {
+        fun parse(json: String): Transcript = try {
+            val o = JSONObject(json)
+            val error = o.optString("error").ifBlank { null }
+            Transcript(
+                heard = o.optString("heard").trim(),
+                text = o.optString("text").trim(),
+                model = o.optString("model").ifBlank { null },
+                ms = if (o.has("ms")) o.optLong("ms") else null,
+                error = error,
+            )
+        } catch (e: Exception) {
+            failed("Ferb Link's reply couldn't be read: ${e.message}")
+        }
+
+        fun failed(reason: String) = Transcript("", "", error = reason)
+    }
 }

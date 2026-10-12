@@ -14,6 +14,7 @@ import dev.abhay.assistant.link.Answerer
 import dev.abhay.assistant.link.LinkMode
 import dev.abhay.assistant.link.LinkPolicy
 import dev.abhay.assistant.link.LinkStatus
+import dev.abhay.assistant.link.Recorder
 import dev.abhay.assistant.link.describe
 import dev.abhay.assistant.tools.CallRunner
 import dev.abhay.assistant.tools.Choice
@@ -42,7 +43,7 @@ import kotlinx.coroutines.sync.withLock
  * it's less sure, never when it found no tool for the request. Results can offer buttons (Turn off,
  * Undo…), which run follow-up actions.
  */
-class AssistantViewModel(app: Application) : AndroidViewModel(app) {
+class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
 
     /** One call from a reply: checked, and what became of it. */
     data class CallState(val call: ToolCall, val prepared: Prepared, val status: Status)
@@ -81,6 +82,8 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         val needleReply: NeedleReply? = null,
         /** Why the computer's answer isn't shown, when Ferb asked it and it failed (Needle 3 answered). */
         val laptopError: String? = null,
+        /** For a spoken request: the words heard, when they differ from [request] (its English command). */
+        val heard: String? = null,
     )
 
     data class UiState(
@@ -93,7 +96,15 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         /** What the thinking bubble says, when it's more than thinking (waiting for the computer). */
         val asking: String? = null,
         val notice: String? = null,
+        /** A spoken request being recorded, or recorded and waiting for Send. */
+        val voice: Voice? = null,
     )
+
+    sealed interface Voice {
+        data class Recording(val startedAt: Long) : Voice
+        /** [audio] is [Recorder.MIME], [ms] long. */
+        class Recorded(val audio: ByteArray, val ms: Long) : Voice
+    }
 
     private val assistant = app as AssistantApp
     val engine: StateFlow<AssistantEngine.State> = assistant.engine.state
@@ -101,7 +112,12 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
     /** How Ferb Link is used (Settings → Ferb Link), and who answers when the chat box offers a choice. */
     val linkMode: StateFlow<LinkMode> = assistant.linkSettings.mode
     val answerer: StateFlow<Answerer> = assistant.linkSettings.answerer
-    fun setAnswerer(answerer: Answerer) = assistant.linkSettings.setAnswerer(answerer)
+    fun setAnswerer(answerer: Answerer) {
+        // Voice goes only through Ferb Link.
+        if (answerer != Answerer.Link) discardRecording()
+        assistant.linkSettings.setAnswerer(answerer)
+    }
+    val link get() = assistant.link
 
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
@@ -127,65 +143,127 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
     fun onInputChange(text: String) = _state.update { it.copy(input = text) }
 
     fun send(text: String = _state.value.input) {
+        if (_state.value.voice is Voice.Recorded) return sendVoice()
         val request = text.trim()
         if (request.isEmpty() || _state.value.busy || engine.value !is AssistantEngine.State.Ready) return
         _state.update { it.copy(busy = true, input = "", notice = null, pending = request) }
-        viewModelScope.launch {
-            try {
-                val started = SystemClock.elapsedRealtime()
-                val enabled = enabledTools.value.mapNotNull(Tools::byName)
-                val configs = assistant.toolSettings.configs.value
-                val routed = ToolRouter.route(request, enabled, configs)
-                val checkAllOn = assistant.toolSettings.checkAllAsFallback.value
-                // Ferb Link, as chosen in Settings: the computer's model answers first when Ferb Link
-                // is picked in the chat box ("Option"), or after Needle 3 when it's unsure or finds no
-                // tool ("Fallback"). Needle 3 answers whenever the computer can't.
-                val mode = assistant.linkSettings.mode.value
-                val chosen = LinkPolicy.laptopFirst(mode, assistant.linkSettings.answerer.value)
-                var laptop: NeedleReply? = null
-                var laptopError: String? = null
-                suspend fun askLaptop() {
-                    val status = assistant.link.status()
-                    if (status is LinkStatus.Ready) {
-                        _state.update { it.copy(asking = "Asking your computer\u2026") }
-                        laptop = assistant.link.complete(request, Tools.json(routed.ifEmpty { enabled }))
-                        laptopError = laptop?.error
-                    } else if (chosen) {
-                        // Picked in the chat box, so say why it didn't answer; in Fallback, a Ferb Link
-                        // that's off or not set up is simply not asked.
-                        laptopError = describe(status)
-                    }
+        viewModelScope.launch { answer(request, heard = null) }
+    }
+
+    /** Answers [request] (typed, or the English command of a spoken one, [heard] as said) and runs what it can. */
+    private suspend fun answer(request: String, heard: String?) {
+        try {
+            val started = SystemClock.elapsedRealtime()
+            val enabled = enabledTools.value.mapNotNull(Tools::byName)
+            val configs = assistant.toolSettings.configs.value
+            val routed = ToolRouter.route(request, enabled, configs)
+            val checkAllOn = assistant.toolSettings.checkAllAsFallback.value
+            // Ferb Link, as chosen in Settings: the computer's model answers first when Ferb Link
+            // is picked in the chat box ("Option"), or after Needle 3 when it's unsure or finds no
+            // tool ("Fallback"). Needle 3 answers whenever the computer can't.
+            val mode = assistant.linkSettings.mode.value
+            val chosen = LinkPolicy.laptopFirst(mode, assistant.linkSettings.answerer.value)
+            var laptop: NeedleReply? = null
+            var laptopError: String? = null
+            suspend fun askLaptop() {
+                val status = assistant.link.status()
+                if (status is LinkStatus.Ready) {
+                    _state.update { it.copy(asking = "Asking your computer\u2026") }
+                    laptop = assistant.link.complete(request, Tools.json(routed.ifEmpty { enabled }))
+                    laptopError = laptop?.error
+                } else if (chosen) {
+                    // Picked in the chat box, so say why it didn't answer; in Fallback, a Ferb Link
+                    // that's off or not set up is simply not asked.
+                    laptopError = describe(status)
                 }
-                if (chosen && enabled.isNotEmpty()) askLaptop()
-                var needle: NeedleReply? = null
-                var checkAll = false
-                if (laptop?.error != null || laptop == null) {
-                    _state.update { it.copy(asking = null) }
-                    val (reply, checkedAll) = askNeedle(request, enabled, routed, checkAllOn)
-                    needle = reply
-                    checkAll = checkedAll
-                    if (!chosen && mode == LinkMode.Fallback && enabled.isNotEmpty() && reply.error == null &&
-                        LinkPolicy.askLaptopAfter(reply, Verdict.of(reply, configs, request))) askLaptop()
-                }
-                // The computer's answer whenever it gave one, including "no tool fits".
-                val shown = laptop?.takeIf { it.error == null } ?: needle!!
-                val verdict = if (shown.fromLaptop) LinkPolicy.verdict(shown, configs, request) else Verdict.of(shown, configs, request)
-                val calls = shown.calls.map { call -> CallState(call, prepare(call, request), Status.Waiting) }
-                val exchange = Exchange(nextId++, request, shown, verdict.decision, verdict.runAt, verdict.alwaysConfirm, verdict.unmentioned, verdict.ungrounded,
-                    routed.map { it.name }, checkAll, calls, SystemClock.elapsedRealtime() - started,
-                    needleReply = needle.takeIf { shown !== it },
-                    laptopError = laptopError.takeIf { !shown.fromLaptop })
-                _state.update { it.copy(history = it.history + exchange, pending = null, asking = null) }
-                if (verdict.decision == Decision.Run) run(exchange.id)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                _state.update { it.copy(notice = e.message ?: e.toString(), input = request) }
-            } finally {
-                _state.update { it.copy(busy = false, pending = null, asking = null) }
             }
+            if (chosen && enabled.isNotEmpty()) askLaptop()
+            var needle: NeedleReply? = null
+            var checkAll = false
+            if (laptop?.error != null || laptop == null) {
+                _state.update { it.copy(asking = null) }
+                val (reply, checkedAll) = askNeedle(request, enabled, routed, checkAllOn)
+                needle = reply
+                checkAll = checkedAll
+                if (!chosen && mode == LinkMode.Fallback && enabled.isNotEmpty() && reply.error == null &&
+                    LinkPolicy.askLaptopAfter(reply, Verdict.of(reply, configs, request))) askLaptop()
+            }
+            // The computer's answer whenever it gave one, including "no tool fits".
+            val shown = laptop?.takeIf { it.error == null } ?: needle!!
+            val verdict = if (shown.fromLaptop) LinkPolicy.verdict(shown, configs, request) else Verdict.of(shown, configs, request)
+            val calls = shown.calls.map { call -> CallState(call, prepare(call, request), Status.Waiting) }
+            val exchange = Exchange(nextId++, request, shown, verdict.decision, verdict.runAt, verdict.alwaysConfirm, verdict.unmentioned, verdict.ungrounded,
+                routed.map { it.name }, checkAll, calls, SystemClock.elapsedRealtime() - started,
+                needleReply = needle.takeIf { shown !== it },
+                laptopError = laptopError.takeIf { !shown.fromLaptop },
+                heard = heard)
+            _state.update { it.copy(history = it.history + exchange, pending = null, asking = null) }
+            if (verdict.decision == Decision.Run) run(exchange.id)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            _state.update { it.copy(notice = e.message ?: e.toString(), input = request) }
+        } finally {
+            _state.update { it.copy(busy = false, pending = null, asking = null) }
         }
     }
+
+    private val recorder by lazy { Recorder(app) }
+
+    /**
+     * Starts recording a spoken request (the microphone permission is granted), and has Ferb Link
+     * wake the computer's model meanwhile.
+     */
+    fun startRecording() {
+        if (_state.value.busy || recorder.recording) return
+        try {
+            recorder.start(onLimit = ::stopRecording)
+        } catch (e: Exception) {
+            _state.update { it.copy(notice = "The microphone can't be used: ${e.message ?: e}") }
+            return
+        }
+        _state.update { it.copy(voice = Voice.Recording(SystemClock.elapsedRealtime()), notice = null) }
+        viewModelScope.launch { assistant.link.wake() }
+    }
+
+    /** Stops recording; the recording waits for Send (or [discardRecording]). */
+    fun stopRecording() {
+        val recording = _state.value.voice as? Voice.Recording ?: return
+        val ms = SystemClock.elapsedRealtime() - recording.startedAt
+        val audio = recorder.stop()
+        _state.update {
+            it.copy(voice = audio?.let { a -> Voice.Recorded(a, ms) },
+                notice = if (audio == null) "Nothing recorded: tap the mic, speak, then tap it again" else null)
+        }
+    }
+
+    fun discardRecording() {
+        recorder.cancel()
+        _state.update { it.copy(voice = null) }
+    }
+
+    /**
+     * Sends the recording to the computer through Ferb Link, then answers its English command like a
+     * typed request. When the computer fails, the recording is kept, to send again.
+     */
+    private fun sendVoice() {
+        val clip = _state.value.voice as? Voice.Recorded ?: return
+        if (_state.value.busy || engine.value !is AssistantEngine.State.Ready) return
+        _state.update { it.copy(busy = true, voice = null, notice = null, pending = voiceLabel(clip.ms), asking = "Your computer is listening…") }
+        viewModelScope.launch {
+            val transcript = assistant.link.transcribe(clip.audio, Recorder.MIME)
+            val failed = transcript.error?.let { "Your computer couldn't hear it: ${it.replaceFirstChar(Char::lowercase)}" }
+                ?: "No words heard: try again, a little closer".takeIf { transcript.text.isBlank() }
+            if (failed != null) {
+                _state.update { it.copy(busy = false, pending = null, asking = null, voice = clip.takeIf { transcript.error != null }, notice = failed) }
+                return@launch
+            }
+            _state.update { it.copy(pending = transcript.text, asking = null) }
+            answer(transcript.text, heard = transcript.heard.takeUnless { it.isBlank() || it.equals(transcript.text, ignoreCase = true) })
+        }
+    }
+
+    override fun onCleared() = recorder.cancel()
 
     /**
      * Needle 3's answer: from the tools [routed] to (the request mentions them), else from every tool
@@ -321,3 +399,6 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 }
+
+/** "Voice request · 0:04", for the request's bubble until the computer has heard it. */
+internal fun voiceLabel(ms: Long): String = String.format(java.util.Locale.US, "Voice request \u00b7 %d:%02d", ms / 60_000, ms / 1000 % 60)

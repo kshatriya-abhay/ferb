@@ -1,5 +1,10 @@
 package dev.abhay.assistant.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.SystemClock
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
@@ -45,6 +51,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
@@ -65,6 +72,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -86,6 +94,7 @@ import dev.abhay.assistant.engine.AssistantEngine
 import dev.abhay.assistant.engine.Decision
 import dev.abhay.assistant.link.Answerer
 import dev.abhay.assistant.link.LinkMode
+import dev.abhay.assistant.link.LinkStatus
 import dev.abhay.assistant.tools.Choice
 import dev.abhay.assistant.tools.FollowUp
 import dev.abhay.assistant.tools.Line
@@ -94,6 +103,7 @@ import dev.abhay.assistant.tools.Prepared
 import dev.abhay.assistant.tools.Tools
 import dev.abhay.assistant.ui.AssistantViewModel.Status
 import java.util.Locale
+import kotlinx.coroutines.delay
 
 /**
  * The assistant, as a chat: requests on the right, what was done on the left, newest at the bottom
@@ -145,8 +155,21 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit) {
                     if (state.history.isEmpty() && state.pending == null) Welcome(enabled, linkMode, onTry = viewModel::send, Modifier.weight(1f))
                     else History(state, viewModel, onDetails = { details = it }, Modifier.weight(1f))
             }
+            // Voice: only with Ferb Link picked in the chat box, and a computer that takes audio.
+            val offered = answerer.takeIf { linkMode == LinkMode.Option }
+            val voice = offered == Answerer.Link && (rememberLinkStatus(viewModel.link) as? LinkStatus.Ready)?.audio == true
+            val context = LocalContext.current
+            val askMic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+                if (granted) viewModel.startRecording()
+            }
             InputBar(state, ready = engine is AssistantEngine.State.Ready, onChange = viewModel::onInputChange, onSend = { viewModel.send() },
-                answerer = answerer.takeIf { linkMode == LinkMode.Option }, onAnswerer = viewModel::setAnswerer)
+                answerer = offered, onAnswerer = viewModel::setAnswerer,
+                voice = voice,
+                onMic = {
+                    if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) viewModel.startRecording()
+                    else askMic.launch(Manifest.permission.RECORD_AUDIO)
+                },
+                onStop = viewModel::stopRecording, onDiscard = viewModel::discardRecording)
         }
     }
 
@@ -237,7 +260,7 @@ private fun History(
         }
         items(state.history.asReversed(), key = { it.id }) { exchange ->
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                RequestBubble(exchange.request)
+                RequestBubble(exchange.request, exchange.heard)
                 ReplyBubble(
                     exchange,
                     onRun = { viewModel.run(exchange.id) },
@@ -252,8 +275,9 @@ private fun History(
     }
 }
 
+/** A request on the right; for a spoken one, [heard] (what was said) under its English command. */
 @Composable
-private fun RequestBubble(text: String) {
+private fun RequestBubble(text: String, heard: String? = null) {
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
         Surface(
             color = MaterialTheme.colorScheme.primary,
@@ -261,7 +285,13 @@ private fun RequestBubble(text: String) {
             shape = RoundedCornerShape(24.dp, 24.dp, 6.dp, 24.dp),
             modifier = Modifier.widthIn(max = 300.dp),
         ) {
-            Text(text, Modifier.padding(horizontal = 16.dp, vertical = 10.dp), style = MaterialTheme.typography.bodyLarge)
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                Text(text, style = MaterialTheme.typography.bodyLarge)
+                heard?.let {
+                    Text("Heard: \u201c$it\u201d", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f))
+                }
+            }
         }
     }
 }
@@ -462,6 +492,9 @@ private fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () ->
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text("“${exchange.request}”", style = MaterialTheme.typography.titleMedium)
+            exchange.heard?.let {
+                Text("Spoken. Heard: \u201c$it\u201d", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             reply.confidence?.let { confidence ->
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row {
@@ -567,17 +600,58 @@ private fun InputBar(
     /** Who answers, when Ferb Link is offered as an option (Settings → Ferb Link); null: no choice to show. */
     answerer: Answerer? = null,
     onAnswerer: (Answerer) -> Unit = {},
+    /** Whether to offer the mic (Ferb Link picked, and the computer takes audio). */
+    voice: Boolean = false,
+    onMic: () -> Unit = {},
+    onStop: () -> Unit = {},
+    onDiscard: () -> Unit = {},
 ) {
     Column(Modifier.padding(bottom = if (answerer == null) 12.dp else 4.dp)) {
         InputField(state, ready, onChange, onSend)
-        // Who answers, in a row of its own under the box, so the box keeps its width for the request.
+        // Who answers, in a row of its own under the box, so the box keeps its width for the request;
+        // the mic at its end.
         if (answerer != null) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                AnswererMenu(answerer, enabled = !state.busy, onChoose = onAnswerer)
+                AnswererMenu(answerer, enabled = !state.busy && state.voice == null, onChoose = onAnswerer)
+                Spacer(Modifier.weight(1f))
+                if (voice || state.voice != null) VoiceControls(state, ready, onMic, onStop, onDiscard)
             }
         }
     }
 }
+
+/**
+ * Tap the mic to record, tap again to stop; the recording then waits for Send, or ✕ to drop it.
+ * While recording, the time so far (Ferb Link takes 30 s at most).
+ */
+@Composable
+private fun VoiceControls(state: AssistantViewModel.UiState, ready: Boolean, onMic: () -> Unit, onStop: () -> Unit, onDiscard: () -> Unit) {
+    when (val voice = state.voice) {
+        is AssistantViewModel.Voice.Recording -> {
+            val now by produceState(SystemClock.elapsedRealtime()) {
+                while (true) {
+                    delay(250)
+                    value = SystemClock.elapsedRealtime()
+                }
+            }
+            Text(elapsed(now - voice.startedAt), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.error)
+            FilledIconButton(onClick = onStop, Modifier.padding(start = 8.dp),
+                colors = IconButtonDefaults.filledIconButtonColors(containerColor = MaterialTheme.colorScheme.error)) {
+                Icon(painterResource(R.drawable.ic_stop), contentDescription = "Stop recording")
+            }
+        }
+        is AssistantViewModel.Voice.Recorded -> {
+            Text("Recorded ${elapsed(voice.ms)}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            IconButton(onClick = onDiscard) { Icon(Icons.Default.Close, contentDescription = "Discard the recording") }
+        }
+        null -> IconButton(onClick = onMic, enabled = ready && !state.busy) {
+            Icon(painterResource(R.drawable.ic_mic), contentDescription = "Speak")
+        }
+    }
+}
+
+/** "0:04". */
+private fun elapsed(ms: Long) = String.format(Locale.US, "%d:%02d", ms / 60_000, ms / 1000 % 60)
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -586,8 +660,15 @@ private fun InputField(state: AssistantViewModel.UiState, ready: Boolean, onChan
         value = state.input,
         onValueChange = onChange,
         modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 4.dp),
-        placeholder = { Text("Ask me to do something") },
-        enabled = ready,
+        placeholder = {
+            Text(when (state.voice) {
+                is AssistantViewModel.Voice.Recording -> "Listening\u2026 tap stop when done"
+                is AssistantViewModel.Voice.Recorded -> "Press send to send your voice"
+                null -> "Ask me to do something"
+            })
+        },
+        // A spoken request replaces typing until it's sent or dropped.
+        enabled = ready && state.voice == null,
         shape = RoundedCornerShape(28.dp),
         colors = TextFieldDefaults.colors(
             focusedIndicatorColor = Color.Transparent,
@@ -603,7 +684,7 @@ private fun InputField(state: AssistantViewModel.UiState, ready: Boolean, onChan
         trailingIcon = {
             Box(Modifier.padding(end = 4.dp).width(48.dp), contentAlignment = Alignment.Center) {
                 if (state.busy) LoadingIndicator(Modifier.size(36.dp))
-                else FilledIconButton(onClick = onSend, enabled = ready && state.input.isNotBlank()) {
+                else FilledIconButton(onClick = onSend, enabled = ready && (state.input.isNotBlank() || state.voice is AssistantViewModel.Voice.Recorded)) {
                     Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
                 }
             }
