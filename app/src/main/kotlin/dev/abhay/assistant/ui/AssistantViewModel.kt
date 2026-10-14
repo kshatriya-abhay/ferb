@@ -321,6 +321,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         val tool = Tools.byName(call.name)?.takeIf { it.name in enabledTools.value }
             ?: return Prepared.Invalid("No tool called ${call.name} is turned on")
         val env = PrepareEnv(assistant.apps, assistant.contacts, assistant.calendar, notes = assistant.notes,
+            reminders = assistant.reminders, remindersChanged = assistant::syncReminders,
+            granted = { assistant.checkSelfPermission(it) == android.content.pm.PackageManager.PERMISSION_GRANTED },
             options = assistant.toolSettings.configs.value[tool.name]?.options.orEmpty())
         return tool.prepare(tool.fromRequest(call.arguments, request), env)
     }

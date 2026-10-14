@@ -49,6 +49,7 @@ Five tools are on at first: **Alarms, Timers, Open apps, Settings pages** and **
 | Lists | | "Add milk and eggs to the shopping list" (a note with checkboxes in your notes folder) |
 | Show lists | | "What's on my shopping list?" (tick items off in the chat) |
 | Tick off | | "Tick milk off the shopping list" |
+| Reminders | | "Remind me on Friday to pay the rent" (Ferb's own notification, with Done and Snooze; can repeat, and be set on a note) |
 | Directions | | "Show me the way to the Taj Mahal" (opens Google Maps) |
 | Calls | | "Call Kritika" (always asks first) |
 | Messages | | "Text Priya I'm running late" (always asks first; you press send) |

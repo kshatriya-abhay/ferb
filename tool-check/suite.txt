@@ -80,7 +80,7 @@ send_text name=dad | text dad call me back
 show_agenda | am i free tmrw
 show_agenda | whats on this afternoon
 add_event | put dinner with neha on friday 8pm in my calendar
-add_event | remind me on monday to submit the form
+add_reminder | remind me on monday to submit the form
 
 # @indian: Indian English, Hinglish and Indian names and places
 set_alarm time=05:00 | subah 5 baje ka alarm laga do

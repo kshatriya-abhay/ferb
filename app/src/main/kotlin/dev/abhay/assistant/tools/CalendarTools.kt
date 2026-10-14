@@ -136,7 +136,8 @@ object AddEvent : Tool(
     val calendarOption = ToolOption.Calendar(key = "calendar", title = "Add events to")
     override val options = listOf(calendarOption)
 
-    override val keywords = listOf("calendar", "event", "meeting", "appointment", "schedule", "remind me on")
+    // "remind me" went to reminders (2026-10-14): the calendar keeps events.
+    override val keywords = listOf("calendar", "event", "meeting", "appointment", "schedule")
 
     // The time as said, read by the app ([When]) from the request, with Needle 3's "when" only a
     // fallback: it doesn't know today's date, and on tool-check (2026-10-10) gave dates of its

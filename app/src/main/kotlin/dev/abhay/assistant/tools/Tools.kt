@@ -31,7 +31,7 @@ import kotlin.math.roundToInt
  * launcher apps, notes apps, maps, the dialer and the messages app), plain Android APIs (torch, volume, media keys) or the phone's calendar (CalendarTools.kt). None needs the assistant role.
  */
 object Tools {
-    val all: List<Tool> = listOf(SetAlarm, SetTimer, OpenApp, OpenSettings, Flashlight, ShowAlarms, SetVolume, MediaControl, TakePhoto, CreateNote, AddToList, ShowList, CheckOff, GetDirections, MakeCall, SendText, ShowAgenda, AddEvent)
+    val all: List<Tool> = listOf(SetAlarm, SetTimer, OpenApp, OpenSettings, Flashlight, ShowAlarms, SetVolume, MediaControl, TakePhoto, CreateNote, AddToList, ShowList, CheckOff, AddReminder, GetDirections, MakeCall, SendText, ShowAgenda, AddEvent)
 
     fun byName(name: String): Tool? = all.firstOrNull { it.name == name }
 

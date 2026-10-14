@@ -1,0 +1,107 @@
+package dev.abhay.assistant.reminders
+
+import android.Manifest
+import android.app.AlarmManager
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import androidx.core.app.NotificationCompat
+import dev.abhay.assistant.AssistantApp
+import dev.abhay.assistant.MainActivity
+import dev.abhay.assistant.R
+import java.time.LocalDateTime
+import java.time.ZoneId
+import kotlin.concurrent.thread
+
+/**
+ * Schedules the reminders' notifications with exact alarms (`USE_EXACT_ALARM`, granted with the
+ * app on Android 13+ for reminders), one per reminder, cancelling those that went; and a daily
+ * rescan of the notes folder. All local: no network.
+ */
+class ReminderAlarms(private val context: Context) {
+    private val alarms = context.getSystemService(AlarmManager::class.java)
+    private val prefs = context.getSharedPreferences("reminder_alarms", Context.MODE_PRIVATE)
+
+    fun sync(reminders: List<Reminder>) {
+        val scheduled = prefs.getStringSet(SCHEDULED, emptySet()).orEmpty()
+        (scheduled - reminders.map { it.id }.toSet()).forEach { alarms.cancel(pending(context, ReminderReceiver.FIRE, it)) }
+        reminders.forEach { r ->
+            val at = r.due.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            val intent = pending(context, ReminderReceiver.FIRE, r.id)
+            if (alarms.canScheduleExactAlarms()) alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent)
+            else alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent)
+        }
+        prefs.edit().putStringSet(SCHEDULED, reminders.map { it.id }.toSet()).apply()
+        // Once a day, the folder again: reminders set or changed in Obsidian.
+        alarms.setInexactRepeating(AlarmManager.RTC, System.currentTimeMillis() + AlarmManager.INTERVAL_DAY, AlarmManager.INTERVAL_DAY,
+            pending(context, ReminderReceiver.RESCAN, "scan"))
+    }
+
+    companion object {
+        private const val SCHEDULED = "scheduled"
+        const val CHANNEL = "reminders"
+
+        fun pending(context: Context, action: String, id: String): PendingIntent = PendingIntent.getBroadcast(
+            context, 0,
+            Intent(context, ReminderReceiver::class.java).setAction(action).setData(Uri.parse("ferb-reminder://$id")),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+    }
+}
+
+/** Fires a reminder's notification, and handles its Done and Snooze, a reboot, and the daily rescan. */
+class ReminderReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val app = context.applicationContext as AssistantApp
+        val id = intent.data?.host
+        val result = goAsync()
+        // The notes folder may be read (SAF), so off the main thread.
+        thread {
+            try {
+                when (intent.action) {
+                    FIRE -> app.reminders.all().firstOrNull { it.id == id }?.let { notify(context, it) }
+                    DONE -> id?.let { app.reminders.done(it); cancel(context, it) }
+                    SNOOZE -> id?.let { app.reminders.snooze(it); cancel(context, it) }
+                    else -> app.reminders.scan() // boot, update, the daily rescan
+                }
+                app.alarms.sync(app.reminders.all().filter { it.due.isAfter(LocalDateTime.now()) })
+            } finally {
+                result.finish()
+            }
+        }
+    }
+
+    private fun notify(context: Context, reminder: Reminder) {
+        if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(NotificationChannel(ReminderAlarms.CHANNEL, "Reminders", NotificationManager.IMPORTANCE_HIGH))
+        val open = PendingIntent.getActivity(context, 0, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            PendingIntent.FLAG_IMMUTABLE)
+        val notification = NotificationCompat.Builder(context, ReminderAlarms.CHANNEL)
+            .setSmallIcon(R.drawable.ic_reminder)
+            .setContentTitle(reminder.title)
+            .setContentText(if (reminder.noteId != null) "From your notes" else "Reminder")
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(open)
+            .setAutoCancel(true)
+            .addAction(0, "Done", ReminderAlarms.pending(context, DONE, reminder.id))
+            .addAction(0, "Snooze ${ReminderBook.SNOOZE_MINUTES} min", ReminderAlarms.pending(context, SNOOZE, reminder.id))
+            .build()
+        manager.notify(reminder.id.hashCode(), notification)
+    }
+
+    private fun cancel(context: Context, id: String) = context.getSystemService(NotificationManager::class.java).cancel(id.hashCode())
+
+    companion object {
+        const val FIRE = "dev.abhay.assistant.reminder.FIRE"
+        const val DONE = "dev.abhay.assistant.reminder.DONE"
+        const val SNOOZE = "dev.abhay.assistant.reminder.SNOOZE"
+        const val RESCAN = "dev.abhay.assistant.reminder.RESCAN"
+    }
+}

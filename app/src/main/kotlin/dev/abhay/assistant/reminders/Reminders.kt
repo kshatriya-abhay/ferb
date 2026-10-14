@@ -1,0 +1,199 @@
+package dev.abhay.assistant.reminders
+
+import dev.abhay.assistant.notes.NoteRef
+import dev.abhay.assistant.notes.NoteStore
+import dev.abhay.assistant.notes.NoteText
+import dev.abhay.assistant.tools.Durations
+import dev.abhay.assistant.tools.When
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+import org.json.JSONArray
+import org.json.JSONObject
+
+/** How a reminder repeats, as the note's `repeat:` key says it. */
+enum class Repeat(val key: String) {
+    Daily("daily"), Weekly("weekly"), Monthly("monthly"), Yearly("yearly");
+
+    fun after(at: LocalDateTime): LocalDateTime = when (this) {
+        Daily -> at.plusDays(1)
+        Weekly -> at.plusWeeks(1)
+        Monthly -> at.plusMonths(1)
+        Yearly -> at.plusYears(1)
+    }
+
+    companion object {
+        /** The repeat a request says: "every day", "daily", "every Monday" (weekly), "every month"…; null if it says none. */
+        fun said(text: String): Repeat? {
+            val t = text.lowercase()
+            return when {
+                Regex("""\b(every ?day|daily|each day|every morning|every evening|every night)\b""").containsMatchIn(t) -> Daily
+                Regex("""\b(every|each) (week|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|\bweekly\b""").containsMatchIn(t) -> Weekly
+                Regex("""\b(every|each) month\b|\bmonthly\b""").containsMatchIn(t) -> Monthly
+                Regex("""\b(every|each) year\b|\byearly\b|\bannually\b""").containsMatchIn(t) -> Yearly
+                else -> null
+            }
+        }
+
+        fun of(text: String?): Repeat? = text?.trim()?.lowercase()?.let { t ->
+            entries.firstOrNull { it.key == t || t == it.name.lowercase() || t == "every " + mapOf("daily" to "day", "weekly" to "week", "monthly" to "month", "yearly" to "year")[it.key] }
+        }
+    }
+}
+
+/**
+ * One reminder: [title], due [at] (local time), maybe repeating, maybe linked to a note by its
+ * `ferb-id` ([noteId]). [snoozed] moves only the next notification, not the reminder itself.
+ */
+data class Reminder(val id: String, val title: String, val at: LocalDateTime, val repeat: Repeat? = null, val noteId: String? = null, val snoozed: LocalDateTime? = null) {
+    /** When the notification is due. */
+    val due: LocalDateTime get() = snoozed ?: at
+}
+
+/** Reminders' times as the note's `remind:` key holds them: "2026-10-20 09:00", or a date alone, meaning 09:00. */
+object ReminderTime {
+    private val FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.US)
+    val DEFAULT_TIME: LocalTime = LocalTime.of(9, 0)
+    private val RELATIVE = Regex("""\bin (an?|\d+(?:\.\d+)?|half an?) ?(minutes?|mins?|hours?|hrs?|h)\b(?: and (\d+) ?(?:minutes?|mins?))?""")
+
+    fun format(at: LocalDateTime): String = at.format(FORMAT)
+
+    /** A `remind:` value: a date and time, or a date (09:00); null if it's neither. */
+    fun parse(value: String): LocalDateTime? {
+        val v = value.trim().trim('"', '\'').replace('T', ' ')
+        return runCatching { LocalDateTime.parse(v.take(16), FORMAT) }.getOrNull()
+            ?: runCatching { java.time.LocalDate.parse(v.take(10)).atTime(DEFAULT_TIME) }.getOrNull()
+    }
+
+    /**
+     * When a spoken or typed reminder is due: "in 20 minutes" from [now]; else a day and a time
+     * ("tomorrow at 9", "Friday", "at 6 pm"), a day alone at 09:00, a time alone the next time it
+     * comes. Null if [text] says no time.
+     */
+    fun read(text: String, now: LocalDateTime): LocalDateTime? {
+        val t = text.lowercase()
+        RELATIVE.find(t)?.let { m ->
+            val seconds = Durations.parse(m.value.removePrefix("in ").trim()) ?: return@let
+            return now.plusSeconds(seconds.toLong()).withNano(0)
+        }
+        val said = When.read(text, now)
+        if (said.isEmpty) return null
+        val time = said.time ?: DEFAULT_TIME
+        val day = said.day ?: if (time.isAfter(now.toLocalTime())) now.toLocalDate() else now.toLocalDate().plusDays(1)
+        return day.atTime(time)
+    }
+}
+
+/** Where reminders are kept: Ferb's own file ([FileReminderStore]), or memory in tests. */
+interface ReminderStore {
+    fun load(): List<Reminder>
+    fun save(reminders: List<Reminder>)
+}
+
+/**
+ * Reminders: kept by Ferb, linked to notes in the notes folder through their frontmatter
+ * (`ferb-id`, `remind`, `repeat`), so a renamed note still matches and the reminders can be
+ * rebuilt from the folder ([scan]); a `remind:` added in Obsidian becomes one too. Reminders
+ * without a note need no folder. [Alarms][ReminderAlarms] schedule what this decides.
+ */
+class ReminderBook(private val store: ReminderStore, private val notes: NoteStore, private val now: () -> LocalDateTime) {
+    fun all(): List<Reminder> = store.load().sortedBy { it.due }
+
+    /** Adds a reminder; with [note], also writes its `remind` (and `repeat`) keys there, giving it a `ferb-id` if it has none. */
+    fun add(title: String, at: LocalDateTime, repeat: Repeat? = null, note: NoteRef? = null): Reminder? {
+        var noteId: String? = null
+        if (note != null) {
+            val ok = notes.update(note) { text ->
+                val id = NoteText.get(text, NoteText.ID) ?: NoteStore.newId()
+                noteId = id
+                var next = NoteText.set(text, NoteText.ID, id)
+                next = NoteText.set(next, NoteText.REMIND, ReminderTime.format(at))
+                NoteText.set(next, NoteText.REPEAT, repeat?.key)
+            }
+            if (!ok) return null
+        }
+        val reminder = Reminder(noteId ?: NoteStore.newId(), title, at, repeat, noteId)
+        store.save(store.load().filter { it.id != reminder.id } + reminder)
+        return reminder
+    }
+
+    /** Removes a reminder (Undo, or Done without a repeat), and the `remind`/`repeat` keys from its note. */
+    fun remove(id: String) {
+        val reminder = store.load().firstOrNull { it.id == id } ?: return
+        store.save(store.load().filter { it.id != id })
+        reminder.noteId?.let { noteId -> noteFor(noteId)?.let { note -> notes.update(note) { NoteText.set(NoteText.set(it, NoteText.REMIND, null), NoteText.REPEAT, null) } } }
+    }
+
+    /** Done: a repeat moves to its next time after now (in the note too); otherwise the reminder goes. */
+    fun done(id: String): Reminder? {
+        val reminder = store.load().firstOrNull { it.id == id } ?: return null
+        val repeat = reminder.repeat ?: return null.also { remove(id) }
+        var next = repeat.after(reminder.at)
+        while (!next.isAfter(now())) next = repeat.after(next)
+        val moved = reminder.copy(at = next, snoozed = null)
+        store.save(store.load().map { if (it.id == id) moved else it })
+        reminder.noteId?.let { noteId -> noteFor(noteId)?.let { note -> notes.update(note) { NoteText.set(it, NoteText.REMIND, ReminderTime.format(next)) } } }
+        return moved
+    }
+
+    /** Snooze: the notification again in [minutes]; the reminder (and its note) keep their time. */
+    fun snooze(id: String, minutes: Long = SNOOZE_MINUTES): Reminder? {
+        val snoozed = store.load().firstOrNull { it.id == id }?.copy(snoozed = now().plusMinutes(minutes).withNano(0)) ?: return null
+        store.save(store.load().map { if (it.id == id) snoozed else it })
+        return snoozed
+    }
+
+    /**
+     * Rebuilds the reminders linked to notes from the folder: each note with a `remind:` key is one
+     * (a note without a `ferb-id` gets one), keeping a snooze; a linked reminder whose note no
+     * longer has the key is gone. Reminders without a note stay. Without a folder, nothing changes.
+     */
+    fun scan(): List<Reminder> {
+        if (!notes.ready) return all()
+        val kept = store.load()
+        val fromNotes = notes.list().mapNotNull { note ->
+            val text = notes.read(note) ?: return@mapNotNull null
+            val at = NoteText.get(text, NoteText.REMIND)?.let(ReminderTime::parse) ?: return@mapNotNull null
+            val id = NoteText.get(text, NoteText.ID) ?: NoteStore.newId().also { id -> notes.update(note) { NoteText.set(it, NoteText.ID, id) } }
+            val before = kept.firstOrNull { it.id == id }
+            Reminder(id, note.name, at, Repeat.of(NoteText.get(text, NoteText.REPEAT)), id, before?.snoozed?.takeIf { before.at == at })
+        }
+        val result = kept.filter { it.noteId == null } + fromNotes
+        store.save(result)
+        return result.sortedBy { it.due }
+    }
+
+    /** The note with [noteId] in its frontmatter, wherever it is now (renamed or not). */
+    fun noteFor(noteId: String): NoteRef? = notes.list().firstOrNull { n -> notes.read(n)?.let { NoteText.get(it, NoteText.ID) } == noteId }
+
+    companion object {
+        const val SNOOZE_MINUTES = 10L
+    }
+}
+
+/** Reminders in Ferb's own storage, as JSON: id, title, at, repeat, note id, snoozed. */
+class FileReminderStore(private val file: java.io.File) : ReminderStore {
+    override fun load(): List<Reminder> = try {
+        if (!file.exists()) emptyList() else JSONArray(file.readText()).let { a ->
+            (0 until a.length()).map { i ->
+                val o = a.getJSONObject(i)
+                Reminder(o.getString("id"), o.getString("title"), LocalDateTime.parse(o.getString("at")), Repeat.of(o.optString("repeat").ifEmpty { null }),
+                    o.optString("note").ifEmpty { null }, o.optString("snoozed").ifEmpty { null }?.let(LocalDateTime::parse))
+            }
+        }
+    } catch (e: Exception) {
+        emptyList()
+    }
+
+    @Synchronized
+    override fun save(reminders: List<Reminder>) {
+        val a = JSONArray(reminders.map { r ->
+            JSONObject().put("id", r.id).put("title", r.title).put("at", r.at.toString()).put("repeat", r.repeat?.key ?: "")
+                .put("note", r.noteId ?: "").put("snoozed", r.snoozed?.toString() ?: "")
+        })
+        val tmp = java.io.File(file.parentFile, file.name + ".tmp")
+        tmp.writeText(a.toString())
+        tmp.renameTo(file)
+    }
+}

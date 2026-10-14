@@ -51,7 +51,7 @@ set_alarm time=07:45 | set a morning alarm at 7:45
 set_timer seconds=300 | 5 minute timer
 set_timer seconds=30 | start a timer for 30 seconds
 set_timer seconds=7200 | set a timer for 2 hours
-set_timer seconds=900 | remind me in 15 minutes
+set_timer/add_reminder | remind me in 15 minutes
 set_timer seconds=180 | count down 3 minutes for the tea
 set_timer seconds=2700 | timer 45 min
 open_app app_name=youtube | open youtube
@@ -268,7 +268,7 @@ add_event | schedule a call with the bank tomorrow morning
 add_event | I have a doctor's appointment on Thursday at 4:30, add it to my calendar
 add_event | add mum's birthday on 12 October to my calendar
 add_event | book a meeting with the design team next Tuesday from 2 to 3 pm
-add_event | remind me on Friday to pay the rent
+add_reminder | remind me on Friday to pay the rent
 none | cancel my meeting tomorrow
 none | what is a calendar year
 none | the meeting went well
@@ -291,3 +291,13 @@ none | what is a linked list
 none | list the planets
 none | got it, thanks
 none | tick tock goes the clock
+# Reminders (add_reminder, 2026-10-14): "remind me" moved here from Calendar.
+add_reminder | remind me in 20 minutes to check the oven
+add_reminder | remind me tomorrow at 9 to call the bank
+add_reminder | set a reminder for 6 pm to take my medicine
+add_reminder | remind me every Monday at 8 to take out the bins
+add_reminder | remind me to water the plants at 7 tonight
+none | I forgot to set a reminder
+none | can you remind me what the capital of Peru is
+none | reminders are annoying
+none | that reminds me of my childhood

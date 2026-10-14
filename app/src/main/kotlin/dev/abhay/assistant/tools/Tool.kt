@@ -2,6 +2,7 @@ package dev.abhay.assistant.tools
 
 import dev.abhay.assistant.notes.NoteRef
 import dev.abhay.assistant.notes.NoteStore
+import dev.abhay.assistant.reminders.ReminderBook
 
 import android.content.Context
 import android.content.Intent
@@ -143,6 +144,11 @@ class PrepareEnv(
     val options: Map<String, String> = emptyMap(),
     /** The notes folder (Notes, lists, reminders with a note); not ready until the user picks one. */
     val notes: NoteStore = NoNotes,
+    /** Ferb's reminders, and what to do after one is added or removed (schedule them again). */
+    val reminders: ReminderBook? = null,
+    val remindersChanged: () -> Unit = {},
+    /** Whether Ferb holds an Android permission (notifications for reminders). */
+    val granted: (String) -> Boolean = { true },
 )
 
 /** Reads an integer argument, whether the engine gave it as a number or a numeric string. */
