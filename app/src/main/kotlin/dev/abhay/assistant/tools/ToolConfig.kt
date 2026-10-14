@@ -92,6 +92,11 @@ sealed interface ToolOption {
         data class Item(val id: String, val label: String, val description: String)
     }
 
+    /** The notes folder in the user's vault ([dev.abhay.assistant.notes.SafNotes]), picked once and kept outside the tools' draft. */
+    data class NotesFolder(override val key: String, override val title: String) : ToolOption {
+        override val default = ""
+    }
+
     /** One of the phone's calendars that can take events, listed when the page opens; [default] "" is the account's own ([CalendarBook.target]). */
     data class Calendar(override val key: String, override val title: String) : ToolOption {
         override val default = ""

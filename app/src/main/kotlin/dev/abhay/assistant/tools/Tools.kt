@@ -1,6 +1,8 @@
 package dev.abhay.assistant.tools
 
 import android.Manifest
+import dev.abhay.assistant.notes.NoteStore
+import dev.abhay.assistant.notes.NoteText
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Context
@@ -609,9 +611,42 @@ object CreateNote : Tool(
     /** At least half the note's words must be the request's: a note Needle 3 made up asks first. */
     override fun grounded(arguments: Map<String, Any?>, request: String) = Tools.mostlySaid(arguments.text("text"), request)
 
+    /** Where notes go: the notes app (Keep), as before, or `.md` files in the user's vault folder. */
+    const val KEEP = "keep"
+    const val FOLDER = "folder"
+    val saveTo = ToolOption.Choice(
+        key = "save_to",
+        title = "Save notes to",
+        items = listOf(
+            ToolOption.Choice.Item(KEEP, "Your notes app", "Such as Keep, to save there"),
+            ToolOption.Choice.Item(FOLDER, "A folder", "Markdown files, e.g. in your Obsidian vault"),
+        ),
+        default = KEEP,
+    )
+    val folderOption = ToolOption.NotesFolder(key = "folder", title = "Notes folder")
+    override val options = listOf(saveTo, folderOption)
+
+    /** A note's file name: its first line, up to six words. */
+    fun titleFor(text: String): String = text.lineSequence().first().split(Regex("""\s+""")).filter { it.isNotEmpty() }.take(6).joinToString(" ")
+
+    /** A new note's file: Ferb's id in the frontmatter (it finds the note again after a rename), then the text. */
+    fun noteFile(text: String, id: String): String = "---\n${NoteText.ID}: $id\n---\n$text\n"
+
     override fun prepare(arguments: Map<String, Any?>, env: PrepareEnv): Prepared {
         val text = arguments.text("text") ?: return Prepared.Invalid("No text for the note")
-        return Prepared.Ready("Take a note: \u201c$text\u201d") { context ->
+        val toFolder = env.options[saveTo.key] == FOLDER
+        if (toFolder && env.notes.ready) {
+            return Prepared.Ready("Save a note: \u201c$text\u201d", opensApp = false) { _ ->
+                val written = noteFile(text, NoteStore.newId())
+                val note = env.notes.create(titleFor(text), written) ?: return@Ready Outcome.Failed("Couldn't save it in the notes folder")
+                Outcome.Done("Saved \u201c${note.name}\u201d in your notes", actions = listOf(FollowUp("Undo") {
+                    // Only the note as Ferb wrote it: once changed elsewhere (Obsidian), it stays.
+                    if (env.notes.read(note) == written && env.notes.delete(note)) Outcome.Done("Note removed") else Outcome.Failed("It has changed since, so it stays")
+                }))
+            }
+        }
+        // The notes app; set to a folder but none picked yet, the reply also asks for one.
+        return Prepared.Ready("Take a note: \u201c$text\u201d", needs = if (toFolder) listOf(NoteStore.NEEDS_FOLDER) else emptyList()) { context ->
             // Notes apps declare the action with a MIME type ("*/*" in Google's docs), so without one nothing matches.
             val intent = Intent(ACTION).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
             val handlers = context.packageManager.queryIntentActivities(intent, 0)

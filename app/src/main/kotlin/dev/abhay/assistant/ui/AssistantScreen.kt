@@ -117,6 +117,7 @@ import dev.abhay.assistant.engine.AssistantEngine
 import dev.abhay.assistant.engine.Decision
 import dev.abhay.assistant.link.Answerer
 import dev.abhay.assistant.link.LinkMode
+import dev.abhay.assistant.notes.NoteStore
 import dev.abhay.assistant.onboarding.Tip
 import dev.abhay.assistant.tools.Choice
 import dev.abhay.assistant.tools.FollowUp
@@ -164,6 +165,15 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
         refused = refused + result.filter { (permission, granted) -> !granted && activity?.shouldShowRequestPermissionRationale(permission) == false }.keys
         val request = state.history.firstOrNull { it.id == allowing }?.request
         if (request != null && result.values.any { it }) viewModel.send(request)
+        allowing = null
+    }
+    // A reply's "Pick a notes folder": the system's folder picker, then the request again.
+    val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
+        val request = state.history.firstOrNull { it.id == allowing }?.request
+        if (tree != null) {
+            viewModel.pickNotesFolder(tree)
+            if (request != null) viewModel.send(request)
+        }
         allowing = null
     }
     // Turning on a tool from a reply: its permissions first, then the request again (with or without them).
@@ -214,6 +224,11 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
                             }
                         },
                         onAllow = { id, needs ->
+                            if (NoteStore.NEEDS_FOLDER in needs) {
+                                allowing = id
+                                pickFolder.launch(null)
+                                return@History
+                            }
                             // Android asks no more once a permission was refused twice: then its page in Android's settings.
                             if (needs.any { it in refused }) {
                                 context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
@@ -543,7 +558,9 @@ private fun CallLine(state: AssistantViewModel.CallState, onChoose: (Choice) -> 
         }
         // Couldn't for want of a permission (contacts, calendar): ask for it here, then try again.
         state.needs().takeIf { it.isNotEmpty() }?.let { needs ->
-            FilledTonalButton(onClick = { onAllow(needs) }, Modifier.padding(start = 48.dp)) { Text("Allow") }
+            FilledTonalButton(onClick = { onAllow(needs) }, Modifier.padding(start = 48.dp)) {
+                Text(if (NoteStore.NEEDS_FOLDER in needs) "Pick a notes folder" else "Allow")
+            }
         }
         val ready = state.prepared as? Prepared.Ready
         if (ready != null && status !is Status.Finished) {

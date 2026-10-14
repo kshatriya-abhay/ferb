@@ -3,6 +3,7 @@
 package dev.abhay.assistant.ui
 
 import android.Manifest
+import dev.abhay.assistant.notes.SafNotes
 import dev.abhay.assistant.onboarding.Tip
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -321,6 +322,7 @@ fun ToolConfigScreen(settings: SettingsViewModel, name: String, onOpenKeywords: 
                     is ToolOption.Calendar -> CalendarSetting(option, config.options[option.key].orEmpty(), enabled = config.enabled) { id ->
                         change { it.copy(options = it.options + (option.key to id)) }
                     }
+                    is ToolOption.NotesFolder -> NotesFolderSetting(settings.notes, enabled = config.enabled)
                 }
             }
 
@@ -675,6 +677,31 @@ private fun where(calendar: CalendarInfo) = when {
     calendar.local -> "Only on this phone"
     calendar.account != calendar.name -> calendar.account
     else -> null
+}
+
+/**
+ * The notes folder: the one the user picked in their vault (Storage Access Framework), or none.
+ * Picking it is saved at once, apart from the tools' draft: Android grants it there and then.
+ */
+@Composable
+private fun NotesFolderSetting(notes: SafNotes, enabled: Boolean) {
+    var name by remember { mutableStateOf(notes.folderName().takeIf { notes.ready }) }
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
+        if (tree != null) {
+            notes.pick(tree)
+            name = notes.folderName()
+        }
+    }
+    Spacer(Modifier.height(16.dp))
+    Group(listOf { shapes ->
+        SegmentedListItem(
+            onClick = { pick.launch(null) },
+            shapes = shapes,
+            enabled = enabled,
+            supportingContent = { Text(name ?: "None yet: notes go to your notes app") },
+            trailingContent = { Text(if (name == null) "Pick" else "Change", color = MaterialTheme.colorScheme.primary) },
+        ) { Text("Notes folder") }
+    })
 }
 
 /** The JSON schema Needle 3 gets, behind a toggle: useful when tuning, noise otherwise. */

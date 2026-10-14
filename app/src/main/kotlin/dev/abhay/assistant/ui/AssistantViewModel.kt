@@ -320,7 +320,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     private fun prepare(call: ToolCall, request: String): Prepared {
         val tool = Tools.byName(call.name)?.takeIf { it.name in enabledTools.value }
             ?: return Prepared.Invalid("No tool called ${call.name} is turned on")
-        val env = PrepareEnv(assistant.apps, assistant.contacts, assistant.calendar,
+        val env = PrepareEnv(assistant.apps, assistant.contacts, assistant.calendar, notes = assistant.notes,
             options = assistant.toolSettings.configs.value[tool.name]?.options.orEmpty())
         return tool.prepare(tool.fromRequest(call.arguments, request), env)
     }
@@ -412,6 +412,9 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     fun clearHistory() = _state.update { it.copy(history = emptyList()) }
+
+    /** Makes [tree], picked by the user, the notes folder (kept across restarts). */
+    fun pickNotesFolder(tree: android.net.Uri) = assistant.notes.pick(tree)
 
     /** A short message at the bottom of the screen. */
     fun notify(text: String) = _state.update { it.copy(notice = text) }

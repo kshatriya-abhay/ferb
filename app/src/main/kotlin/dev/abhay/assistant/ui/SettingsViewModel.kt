@@ -28,6 +28,9 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     /** The one-time tips (a tool's page has one), and "Show tips again". */
     val onboarding = (app as AssistantApp).onboarding
 
+    /** The notes folder (Settings → Tools → Notes), picked at once, apart from the draft. */
+    val notes = (app as AssistantApp).notes
+
 
     private val _draft = MutableStateFlow(saved.value)
     val draft: StateFlow<Map<String, ToolConfig>> = _draft.asStateFlow()

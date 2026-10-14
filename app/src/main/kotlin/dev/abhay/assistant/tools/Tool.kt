@@ -1,5 +1,8 @@
 package dev.abhay.assistant.tools
 
+import dev.abhay.assistant.notes.NoteRef
+import dev.abhay.assistant.notes.NoteStore
+
 import android.content.Context
 import android.content.Intent
 import androidx.annotation.DrawableRes
@@ -137,6 +140,8 @@ class PrepareEnv(
     val calendar: CalendarBook = CalendarBook.NONE,
     val now: ZonedDateTime = ZonedDateTime.now(),
     val options: Map<String, String> = emptyMap(),
+    /** The notes folder (Notes, lists, reminders with a note); not ready until the user picks one. */
+    val notes: NoteStore = NoNotes,
 )
 
 /** Reads an integer argument, whether the engine gave it as a number or a numeric string. */
@@ -152,4 +157,14 @@ internal fun Map<String, Any?>.bool(key: String): Boolean? = when (val v = this[
     is Boolean -> v
     is String -> v.trim().lowercase().toBooleanStrictOrNull()
     else -> null
+}
+
+/** No notes folder picked. */
+object NoNotes : NoteStore {
+    override val ready = false
+    override fun list() = emptyList<NoteRef>()
+    override fun read(note: NoteRef): String? = null
+    override fun update(note: NoteRef, change: (String) -> String) = false
+    override fun create(name: String, text: String): NoteRef? = null
+    override fun delete(note: NoteRef) = false
 }
