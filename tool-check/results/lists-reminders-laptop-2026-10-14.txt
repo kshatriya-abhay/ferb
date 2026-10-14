@@ -1,0 +1,10 @@
+Lists and reminders through the computer's model (Gemma 4 E2B, tool-check/laptop.py with Ferb Link's own
+code), 2026-10-14: the 26 list and reminder requests of tool-check/requests.txt.
+
+23/26 right (the first 4 timed out on a cold model and were rerun warm: 4/4).
+Misses, all harmless in the app:
+- "the shopping list is long" -> show_list(shopping list): shows the list.
+- "tick tock goes the clock" -> check_off(item=tock, list=clock): no such list or item, nothing ticked.
+- "can you remind me what the capital of Peru is" -> add_reminder(time=now): "now" isn't a time, nothing set.
+Every right request got the right tool; "every Monday at 8" came with repeat=weekly, which the app also
+reads from the request's words.
