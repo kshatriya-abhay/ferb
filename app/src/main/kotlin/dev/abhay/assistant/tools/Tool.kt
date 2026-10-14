@@ -44,7 +44,8 @@ sealed interface Prepared {
      * When it asks first: [detail] under the summary (e.g. a message's text), and [confirm] and
      * [cancel] as the buttons. With [choices] (e.g. the contacts that match a name), each is a
      * button of its own instead of [confirm], and [other] a way to do it by hand (open the
-     * dialer); without asking, [run] runs, which is the first choice.
+     * dialer); without asking, [run] runs, which is the first choice. [needs]: Android permissions
+     * it does without (a way round, such as the dialer instead of a contact), for the reply to ask.
      */
     class Ready(
         val summary: String,
@@ -54,6 +55,7 @@ sealed interface Prepared {
         val other: Choice? = null,
         val confirm: String = "Do it",
         val cancel: String = "Not now",
+        val needs: List<String> = emptyList(),
         val run: (Context) -> Outcome,
     ) : Prepared
     /** Can't run: [reason]; when it's for want of Android permissions, [needs] lists them, for the reply to ask. */

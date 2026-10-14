@@ -17,7 +17,7 @@ The details behind the [README](../README.md): how a request becomes tool calls,
 - **Every tool is configurable:** Settings → Tools lists them; each row's switch turns the tool on or off, and the rest of the row opens its page:
   - on or off;
   - **always confirm before running** (on by default for Calls and Messages, which reach other people, and Calendar, where a day or time read wrong is easy to miss; turning it off warns that it's not recommended);
-  - Android permissions it needs, e.g. the contacts for Calls and Messages, calls for Calls, and the calendar for Agenda and Calendar: asked for when the tool is turned on, with a row to allow them later;
+  - Android permissions it needs, e.g. the contacts for Calls and Messages, calls for Calls, and the calendar for Agenda and Calendar: asked for when the tool is turned on, and from the reply (**Allow**) when a request needs one Ferb doesn't have. Without them a tool does what it can: Calls opens the dialer, Messages the messages app with the message written, Agenda and Calendar the calendar app;
   - a **confidence slider** (0.10–1.00, steps of 0.05) from which it runs without asking, with a reset to its default;
   - its **keywords**, on a page of their own: add, edit (tap a word), delete, or reset to the tool's own words. Saved only when changed, so later changes to the defaults reach everyone else;
   - the tool's own options, e.g. **which clock** alarms and timers go to (the phone's clock app for now; more providers later), or **which calendar** new events go to (your Google account's own until you pick one);

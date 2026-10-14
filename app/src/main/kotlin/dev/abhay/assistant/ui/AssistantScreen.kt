@@ -483,7 +483,11 @@ private fun source(exchange: AssistantViewModel.Exchange): Pair<Int, String>? {
 
 /** The Android permissions a call couldn't do without, if that's why it can't run or didn't work. */
 internal fun AssistantViewModel.CallState.needs(): List<String> =
-    ((status as? Status.Finished)?.outcome as? Outcome.Failed)?.needs ?: (prepared as? Prepared.Invalid)?.needs.orEmpty()
+    ((status as? Status.Finished)?.outcome as? Outcome.Failed)?.needs?.takeIf { it.isNotEmpty() }
+        ?: when (val p = prepared) {
+            is Prepared.Invalid -> p.needs
+            is Prepared.Ready -> p.needs
+        }
 
 /** One call: the tool's icon and what it does or did, then the result's buttons as chips. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)

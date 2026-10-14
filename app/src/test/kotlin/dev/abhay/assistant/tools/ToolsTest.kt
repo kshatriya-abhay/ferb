@@ -185,7 +185,10 @@ class ToolsTest {
         // A number is dialled as it is.
         val number = MakeCall.prepare(mapOf("name" to "98765 43210"), PrepareEnv(apps, contacts)) as Prepared.Ready
         assertThat(number.choices.map { it.label }).containsExactly("9876543210")
-        assertThat(reason(MakeCall.prepare(mapOf("name" to "Priya"), PrepareEnv(apps)))).contains("contacts")
+        // Without the contacts: the dialer, and the reply asks for them.
+        val noContacts = MakeCall.prepare(mapOf("name" to "Priya"), PrepareEnv(apps)) as Prepared.Ready
+        assertThat(noContacts.confirm).isEqualTo("Open dialer")
+        assertThat(noContacts.detail).contains("contacts")
         assertThat(MakeCall.grounded(mapOf("name" to "Priya"), "call Priya")).isTrue()
         assertThat(MakeCall.grounded(mapOf("name" to "Rahul"), "call her")).isFalse()
     }

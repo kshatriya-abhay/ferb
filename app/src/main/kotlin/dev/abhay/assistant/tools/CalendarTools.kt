@@ -68,6 +68,11 @@ object ShowAgenda : Tool(
         val today = env.now.toLocalDate()
         val day = dayFor(arguments, today)
         val zone = env.now.zone
+        // Without the calendar: the calendar app at that day.
+        if (env.calendar.calendars() == null) {
+            return Prepared.Ready("Open the calendar on ${dayName(day, today)}", detail = NO_CALENDAR, confirm = "Open calendar",
+                needs = listOf(Manifest.permission.READ_CALENDAR)) { context -> Tools.start(context, CalendarBook.viewDay(day, zone), "Opened the calendar") }
+        }
         return Prepared.Ready("Show ${dayName(day, today)}", opensApp = false) { _ ->
             val events = env.calendar.day(day) ?: return@Ready Outcome.Failed(NO_CALENDAR, needs = listOf(Manifest.permission.READ_CALENDAR))
             agenda(day, today, events, zone)
@@ -207,7 +212,7 @@ object AddEvent : Tool(
         val calendar = env.calendar.target(env.options[calendarOption.key])
             // No calendar permission: the calendar app's own new-event screen, filled in.
             ?: return Prepared.Ready(summary, detail = listOfNotNull("Opens in your calendar app, to save there", past).joinToString("\n"),
-                confirm = "Open calendar", cancel = "Cancel") { context -> openToSave(context, planned) }
+                confirm = "Open calendar", cancel = "Cancel", needs = listOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR)) { context -> openToSave(context, planned) }
 
         val clashes = planned.start?.let { env.calendar.overlapping(planned.begin, planned.end) }.orEmpty().filter { it.title != title }
         val clash = clashes.takeIf { it.isNotEmpty() }?.let { found ->

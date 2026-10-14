@@ -761,7 +761,9 @@ object MakeCall : Tool(
                 cancel = "Cancel", run = dialOnly(number, number))
         }
         // The best match only, one tap to call; anyone else is found in the dialer.
-        val contact = (env.contacts.find(name, limit = 1) ?: return Prepared.Invalid(NO_CONTACTS, needs = listOf(Manifest.permission.READ_CONTACTS))).firstOrNull()
+        // Without the contacts: the dialer, to find them there.
+        val contact = (env.contacts.find(name, limit = 1) ?: return Prepared.Ready("Call \u201c$name\u201d from the dialer", detail = NO_CONTACTS,
+            confirm = "Open dialer", cancel = "Cancel", needs = listOf(Manifest.permission.READ_CONTACTS), run = openDialer.run)).firstOrNull()
             ?: return Prepared.Ready("No contact matches \u201c$name\u201d", confirm = "Open dialer", cancel = "Cancel", run = openDialer.run)
         val choice = Choice(contact.name, listOfNotNull(contact.kind, contact.number).joinToString(" \u00b7 ")) { call(it, contact.number, contact.name) }
         return Prepared.Ready("Call \u201c$name\u201d?", choices = listOf(choice), other = openDialer, cancel = "Cancel",
@@ -812,7 +814,11 @@ object SendText : Tool(
         val message = arguments.text("message") ?: return Prepared.Invalid("No message to send")
         val draft = "\u201c$message\u201d"
         val number = numberIn(name)
-        val contact = if (number == null) (env.contacts.find(name, limit = 1) ?: return Prepared.Invalid(NO_CONTACTS, needs = listOf(Manifest.permission.READ_CONTACTS))).firstOrNull() else null
+        // Without the contacts: the message written in the messages app, to pick them there.
+        val contact = if (number == null) (env.contacts.find(name, limit = 1) ?: return Prepared.Ready("Write to \u201c$name\u201d in your messages app",
+            detail = "$draft\n$NO_CONTACTS", confirm = "Open messages", cancel = "Cancel", needs = listOf(Manifest.permission.READ_CONTACTS)) { context ->
+            Tools.start(context, compose(null, message), "Message written: choose who to send it to, then send")
+        }).firstOrNull() else null
         val to = when {
             number != null -> number
             contact != null -> "${contact.name} \u00b7 ${contact.number}"
