@@ -413,6 +413,9 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
 
     fun clearHistory() = _state.update { it.copy(history = emptyList()) }
 
+    /** A short message at the bottom of the screen. */
+    fun notify(text: String) = _state.update { it.copy(notice = text) }
+
     private fun updateExchange(id: Long, change: (Exchange) -> Exchange) =
         _state.update { s -> s.copy(history = s.history.map { if (it.id == id) change(it) else it }) }
 

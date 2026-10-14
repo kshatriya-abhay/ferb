@@ -235,6 +235,11 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit) {
             }
             val askMic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
                 if (granted) viewModel.startRecording()
+                else {
+                    // Refused: typing still works. Once Android won't ask again, the mic opens Ferb's settings page.
+                    if ((context as? Activity)?.shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO) == false) refused = refused + Manifest.permission.RECORD_AUDIO
+                    viewModel.notify("Ferb needs the microphone to hear you. You can still type.")
+                }
             }
             InputBar(state, ready = engine is AssistantEngine.State.Ready, onChange = viewModel::onInputChange, onSend = { viewModel.send() },
                 // With the computer picked, a tap on the box wakes its model while the request is typed.
@@ -243,8 +248,12 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit) {
                 voice = voice,
                 onMic = {
                     seen(Tip.Mic)
-                    if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) viewModel.startRecording()
-                    else askMic.launch(Manifest.permission.RECORD_AUDIO)
+                    when {
+                        context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED -> viewModel.startRecording()
+                        Manifest.permission.RECORD_AUDIO in refused ->
+                            context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
+                        else -> askMic.launch(Manifest.permission.RECORD_AUDIO)
+                    }
                 },
                 onStop = viewModel::stopRecording, onDiscard = viewModel::discardRecording)
         }
