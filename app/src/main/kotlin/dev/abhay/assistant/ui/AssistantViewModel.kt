@@ -85,6 +85,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         val laptopErrorDetail: String? = null,
         /** For a spoken request: the words heard, when they differ from [request] (its English command). */
         val heard: String? = null,
+        /** When no tool did it: the tools that are off but that the request mentions, offered to turn on. */
+        val turnOn: List<String> = emptyList(),
     )
 
     data class UiState(
@@ -120,6 +122,19 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         if (answerer == Answerer.Link) wakeComputer()
     }
     val link get() = assistant.link
+    /**
+     * Turns on [tool], offered under a reply no tool could do ([Exchange.turnOn]), and asks again.
+     * Its Android permissions, if any, are asked for by the screen at the same time.
+     */
+    fun turnOn(exchangeId: Long, tool: String) {
+        val exchange = _state.value.history.firstOrNull { it.id == exchangeId } ?: return
+        val configs = assistant.toolSettings.configs.value
+        val config = configs[tool] ?: return
+        assistant.toolSettings.save(configs + (tool to config.copy(enabled = true)))
+        updateExchange(exchangeId) { it.copy(turnOn = emptyList()) }
+        send(exchange.request)
+    }
+
     /** The welcome screen and the one-time tips. */
     val onboarding get() = assistant.onboarding
 
@@ -216,7 +231,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
                 needleReply = needle.takeIf { shown !== it },
                 laptopError = laptopError.takeIf { !shown.fromLaptop },
                 laptopErrorDetail = laptopErrorDetail.takeIf { !shown.fromLaptop },
-                heard = heard)
+                heard = heard,
+                turnOn = if (shown.calls.isEmpty() && shown.error == null) ToolRouter.off(request, configs).map { it.name } else emptyList())
             _state.update { it.copy(history = it.history + exchange, pending = null, asking = null) }
             if (verdict.decision == Decision.Run) run(exchange.id)
         } catch (e: CancellationException) {

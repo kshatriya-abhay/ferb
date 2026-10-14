@@ -15,4 +15,11 @@ object ToolRouter {
     /** The tools in [enabled] that [request] mentions (by their keywords in [configs]), in [enabled]'s order. Empty: none. */
     fun route(request: String, enabled: List<Tool>, configs: Map<String, ToolConfig>): List<Tool> =
         enabled.filter { tool -> (configs[tool.name] ?: ToolConfig.defaults(tool)).mentionedIn(request) }
+
+    /**
+     * The tools that are off but that [request] mentions: when no tool on could do it, Ferb offers
+     * to turn one on ("pause the music" with Media controls off).
+     */
+    fun off(request: String, configs: Map<String, ToolConfig>): List<Tool> =
+        route(request, Tools.all.filter { configs[it.name]?.enabled == false }, configs)
 }

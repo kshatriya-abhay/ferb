@@ -150,6 +150,13 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit) {
         micShown = voice && state.voice == null && state.input.isBlank())
     val tip = Tip.next(places.map { it.tip }, onboarding.seen)?.let { t -> places.first { it.tip == t } }
     val seen = viewModel.onboarding::seen
+    val context = LocalContext.current
+    // Turning on a tool from a reply: its permissions first, then the request again (with or without them).
+    var turningOn by remember { mutableStateOf<Pair<Long, String>?>(null) }
+    val askPermissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        turningOn?.let { (id, tool) -> viewModel.turnOn(id, tool) }
+        turningOn = null
+    }
 
     Scaffold(
         topBar = {
@@ -182,7 +189,15 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit) {
                 is AssistantEngine.State.Ready ->
                     if (startScreen) Welcome(enabled, onTry = { seen(Tip.TryOne); viewModel.send(it) }, Modifier.weight(1f),
                         tip = tip?.tip?.takeIf { it == Tip.TryOne }, onTipSeen = seen)
-                    else History(state, viewModel, onDetails = { seen(Tip.Details); details = it }, Modifier.weight(1f), tip = tip, onTipSeen = seen)
+                    else History(state, viewModel, onDetails = { seen(Tip.Details); details = it }, Modifier.weight(1f), tip = tip, onTipSeen = seen,
+                        onTurnOn = { id, tool ->
+                            val missing = Tools.byName(tool)?.permissions.orEmpty().filter { context.checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
+                            if (missing.isEmpty()) viewModel.turnOn(id, tool)
+                            else {
+                                turningOn = id to tool
+                                askPermissions.launch(missing.toTypedArray())
+                            }
+                        })
             }
             // A tip about the box, the toggle or the mic, above them.
             tip?.takeIf { it.exchange == null && it.tip != Tip.TryOne }?.let {
@@ -194,7 +209,6 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit) {
                 if (holding) viewModel.link.hold()
                 onDispose { if (holding) viewModel.link.release() }
             }
-            val context = LocalContext.current
             val askMic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
                 if (granted) viewModel.startRecording()
             }
@@ -292,6 +306,7 @@ private fun History(
     modifier: Modifier,
     /** The tip to show, when it belongs under one of the replies. */
     tip: TipPlace? = null,
+    onTurnOn: (Long, String) -> Unit = { _, _ -> },
     onTipSeen: (Tip) -> Unit = {},
 ) {
     val list = rememberLazyListState()
@@ -319,6 +334,7 @@ private fun History(
                     onFollowUp = { index, action -> onTipSeen(Tip.Undo); viewModel.followUp(exchange.id, index, action) },
                     onAdjust = { index, value -> viewModel.adjust(exchange.id, index, value) },
                     onDetails = { onDetails(exchange) },
+                    onTurnOn = { tool -> onTurnOn(exchange.id, tool) },
                 )
                 tip?.takeIf { it.exchange == exchange.id }?.let { TipCard(it.tip, onDismiss = { onTipSeen(it.tip) }) }
             }
@@ -386,6 +402,7 @@ private fun ReplyBubble(
     onFollowUp: (Int, FollowUp) -> Unit,
     onAdjust: (Int, Float) -> Unit,
     onDetails: () -> Unit,
+    onTurnOn: (String) -> Unit = {},
 ) {
     val reply = exchange.reply
     val asking = exchange.calls.any { it.status == Status.Waiting }
@@ -393,10 +410,13 @@ private fun ReplyBubble(
     // A call with choices (contacts) is answered by picking one; its tool's words on the buttons when it's alone.
     val choosing = waiting.any { it.choices.isNotEmpty() }
     val only = exchange.calls.singleOrNull()?.prepared as? Prepared.Ready
+    // No tool on could do it, but one that's off could: offer it.
+    val offered = exchange.turnOn.firstOrNull()?.let(Tools::byName)
     AssistantBubble(onClick = onDetails) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             when {
                 reply.error != null -> Text("Something went wrong. Try again.", style = MaterialTheme.typography.bodyLarge)
+                offered != null -> Text("${offered.title} is off.", style = MaterialTheme.typography.bodyLarge)
                 exchange.calls.isEmpty() -> Text("I can't do that yet.", style = MaterialTheme.typography.bodyLarge)
                 asking && !choosing -> Text("Shall I do this?", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -409,6 +429,7 @@ private fun ReplyBubble(
                     Text(text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
+            offered?.let { tool -> Button(onClick = { onTurnOn(tool.name) }) { Text("Turn on") } }
             if (asking) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (!choosing) Button(onClick = onRun) { Text(only?.confirm ?: "Do it") }

@@ -34,4 +34,16 @@ class ToolRouterTest {
         assertThat(ToolRouter.route("lamp on", enabled, lamp).map { it.name }).containsExactly("set_flashlight")
         assertThat(ToolRouter.route("torch on", enabled, lamp)).isEmpty()
     }
+
+    @Test
+    fun aToolThatsOffIsOfferedWhenTheRequestMentionsIt() {
+        // The defaults: five tools on, Media controls among the ones off.
+        assertThat(ToolRouter.off("pause the music", configs).map { it.name }).containsExactly("control_media")
+        // Nothing to offer for a tool that's on, or for a request no tool's words match.
+        assertThat(ToolRouter.off("turn on the flashlight", configs)).isEmpty()
+        assertThat(ToolRouter.off("what's the capital of France", configs)).isEmpty()
+        // Once turned on, it's no longer offered.
+        val on = configs + ("control_media" to configs.getValue("control_media").copy(enabled = true))
+        assertThat(ToolRouter.off("pause the music", on)).isEmpty()
+    }
 }
