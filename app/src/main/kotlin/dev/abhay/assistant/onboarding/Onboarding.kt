@@ -22,7 +22,8 @@ enum class Tip(val text: String) {
     Answerer("Pick who answers: this phone, or your computer through Ferb Link."),
     OnPhone("Your computer couldn't answer, so your phone did. Tap the reply for why."),
     Mic("Speak English or Hindi: tap the mic, tap again to stop, then send."),
-    Heard("What your computer heard. The line above is what Ferb did with it.");
+    Heard("What your computer heard. The line above is what Ferb did with it."),
+    SuggestLink("Want Ferb to understand more? Ferb Link uses a bigger model on a computer of your own.");
 
     companion object {
         /** The tip to show among those whose thing is on screen ([showing]): the first not [seen] yet, or none. One at a time. */

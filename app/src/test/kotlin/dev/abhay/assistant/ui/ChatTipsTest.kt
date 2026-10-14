@@ -63,4 +63,14 @@ class ChatTipsTest {
         val places = tips(history, toggle = true, mic = true)
         assertThat(places).containsAtLeast(TipPlace(Tip.Answerer, null), TipPlace(Tip.Mic, null), TipPlace(Tip.OnPhone, 2), TipPlace(Tip.Heard, 1))
     }
+
+    @Test
+    fun ferbLinkIsSuggestedAfterAFewRepliesWithNoToolWhileItsOff() {
+        val noTool = (1L..3L).map { exchange(it) }
+        assertThat(chatTips(noTool, false, false, false, linkOff = true).map { it.tip }).contains(Tip.SuggestLink)
+        // Not while Ferb Link is in use, nor before a few such replies, nor after replies that worked.
+        assertThat(chatTips(noTool, false, false, false, linkOff = false).map { it.tip }).doesNotContain(Tip.SuggestLink)
+        assertThat(chatTips(noTool.take(2), false, false, false, linkOff = true).map { it.tip }).doesNotContain(Tip.SuggestLink)
+        assertThat(chatTips((1L..5L).map { exchange(it, withUndo) }, false, false, false, linkOff = true).map { it.tip }).doesNotContain(Tip.SuggestLink)
+    }
 }

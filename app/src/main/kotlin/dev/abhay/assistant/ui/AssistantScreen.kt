@@ -136,7 +136,7 @@ import kotlinx.coroutines.delay
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit) {
+fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, onOpenLink: () -> Unit = onOpenSettings) {
     val engine by viewModel.engine.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val enabled by viewModel.enabledTools.collectAsStateWithLifecycle()
@@ -152,7 +152,7 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit) {
     // The one tip to show, if any, among those whose thing is on screen.
     val startScreen = engine is AssistantEngine.State.Ready && state.history.isEmpty() && state.pending == null
     val places = chatTips(state.history, startScreen, answererShown = offered != null,
-        micShown = voice && state.voice == null && state.input.isBlank())
+        micShown = voice && state.voice == null && state.input.isBlank(), linkOff = linkMode == LinkMode.Off)
     val tip = Tip.next(places.map { it.tip }, onboarding.seen)?.let { t -> places.first { it.tip == t } }
     val seen = viewModel.onboarding::seen
     val context = LocalContext.current
@@ -225,7 +225,8 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit) {
             }
             // A tip about the box, the toggle or the mic, above them.
             tip?.takeIf { it.exchange == null && it.tip != Tip.TryOne }?.let {
-                TipCard(it.tip, onDismiss = { seen(it.tip) }, Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+                TipCard(it.tip, onDismiss = { seen(it.tip) }, Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    action = ("Set up" to onOpenLink).takeIf { _ -> it.tip == Tip.SuggestLink })
             }
             // With the computer picked, keep Ferb Link's process up, so a request doesn't wait for it to start.
             DisposableEffect(offered == Answerer.Link) {

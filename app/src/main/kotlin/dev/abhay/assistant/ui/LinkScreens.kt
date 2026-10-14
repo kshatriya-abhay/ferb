@@ -3,6 +3,12 @@
 package dev.abhay.assistant.ui
 
 import androidx.activity.compose.BackHandler
+import dev.abhay.assistant.link.setupSteps
+import dev.abhay.assistant.link.SetupStep
+import dev.abhay.assistant.link.SetupAction
+import androidx.compose.material.icons.filled.CheckCircle
+import android.net.Uri
+import android.content.Intent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -111,55 +117,71 @@ internal fun rememberVoiceAvailable(link: FerbLink, active: Boolean): Boolean {
 }
 
 /**
- * The settings home's Ferb Link row: the way it's used, or, when Ferb Link isn't installed, that,
- * dimmed, and a tap explains what it is.
+ * The settings home's Ferb Link row: the way it's used, or, until it's set up, an invitation to
+ * set it up (the page then has the checklist).
  */
 @Composable
 fun LinkRow(settings: SettingsViewModel, onOpen: () -> Unit, shapes: ListItemShapes) {
     val mode by settings.linkMode.collectAsStateWithLifecycle()
     val status = rememberLinkStatus(settings.link)
-    var explaining by rememberSaveable { mutableStateOf(false) }
     val installed = status != LinkStatus.NotInstalled
-    if (explaining) AboutLinkDialog(onDismiss = { explaining = false })
     SegmentedListItem(
-        onClick = { if (installed) onOpen() else explaining = true },
+        onClick = onOpen,
         shapes = shapes,
         leadingContent = { IconBadge(R.drawable.ic_link, active = installed && mode != LinkMode.Off) },
         supportingContent = {
             Text(
                 when {
-                    !installed -> "Not installed. Tap to learn more"
+                    !installed -> "A bigger model on your computer. Tap to set up"
+                    status == LinkStatus.NotSetUp -> "Not connected yet. Tap to set up"
                     mode == LinkMode.Off -> "Off. Use a bigger model on your computer"
                     status is LinkStatus.Ready -> mode.title()
                     else -> "${mode.title()} · ${describe(status)}"
                 },
             )
         },
-        trailingContent = { if (installed) Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
+        trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
     ) { Text("Ferb Link", color = if (installed) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant) }
 }
 
-/** What Ferb Link is and how to get it, for when it isn't installed. */
-@Composable
-fun AboutLinkDialog(onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        icon = { Icon(painterResource(R.drawable.ic_link), contentDescription = null) },
-        title = { Text("Ferb Link") },
-        text = { AboutLink() },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } },
-    )
-}
-
+/** What Ferb Link is, above its checklist while it isn't working yet. */
 @Composable
 private fun AboutLink() {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Ferb Link is a companion app that lets Ferb use a bigger model on your own computer, such as a laptop on your Tailscale network.")
-        Text("Ferb itself stays offline: Ferb Link holds the internet access and passes requests to your computer. Needle 3 answers whenever your computer can't.")
-        Text("To use it, install Ferb Link and Tailscale on this phone, run Ferb Link's server on your computer, and enter its address and key in Ferb Link.")
-        // The download link comes at release.
-        Text("Download: coming soon (work in progress).", color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
+    Text("Ferb Link lets Ferb use a bigger model on a computer of your own, for more requests, Hinglish and voice. Ferb stays offline: Ferb Link holds the internet access.",
+        Modifier.padding(horizontal = 16.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+/** Where a step's button goes: Ferb Link's releases, its quick start (in the browser; Ferb itself stays offline), or Ferb Link. */
+private const val RELEASES = "https://github.com/kshatriya-abhay/ferb-link/releases/latest"
+private const val QUICK_START = "https://github.com/kshatriya-abhay/ferb-link#quick-start"
+
+/** The steps to a working Ferb Link ([setupSteps]), each ticked when done, with a button where Ferb can help. */
+@Composable
+private fun SetupChecklist(steps: List<SetupStep>, onOpenFerbLink: (() -> Unit)?) {
+    val context = LocalContext.current
+    fun browse(url: String) = context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    SectionTitle("Set up")
+    Group(steps.mapIndexed { i, step ->
+        { shapes ->
+            SegmentedListItem(
+                shapes = shapes,
+                leadingContent = {
+                    if (step.done) Icon(Icons.Default.CheckCircle, contentDescription = "Done", tint = MaterialTheme.colorScheme.primary)
+                    else Text("${i + 1}", Modifier.size(24.dp), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                },
+                supportingContent = { Text(step.detail) },
+                trailingContent = step.action?.let { action ->
+                    {
+                        when (action) {
+                            SetupAction.Download -> TextButton(onClick = { browse(RELEASES) }) { Text("Get it") }
+                            SetupAction.Guide -> TextButton(onClick = { browse(QUICK_START) }) { Text("How") }
+                            SetupAction.OpenFerbLink -> onOpenFerbLink?.let { TextButton(onClick = it) { Text("Open") } }
+                        }
+                    }
+                },
+            ) { Text(step.title, color = if (step.done) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface) }
+        }
+    })
 }
 
 /**
@@ -190,13 +212,18 @@ fun LinkScreen(settings: SettingsViewModel, onBack: () -> Unit) {
     BackHandler(onBack = onBack)
     Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer, topBar = { TopBar("Ferb Link", onBack = onBack, scroll = bar) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(top = 8.dp, bottom = 24.dp)) {
-            if (!installed) {
-                Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) { AboutLink() }
-            } else {
+            // Until it works: what it is and the steps, ticking themselves off (once a check has run, when Ferb Link is ready).
+            val steps = setupSteps(status, checked?.reachable)
+            val openFerbLink = settings.link.openIntent()?.let { intent -> { context.startActivity(intent) } }
+            if (steps.isNotEmpty() && !(status is LinkStatus.Ready && checked == null)) {
+                AboutLink()
+                SetupChecklist(steps, openFerbLink)
+            }
+            if (installed) {
                 StatusCard(
                     status, checked, checking,
                     onCheck = ::check,
-                    onOpen = settings.link.openIntent()?.let { intent -> { context.startActivity(intent) } },
+                    onOpen = openFerbLink,
                 )
             }
 

@@ -55,7 +55,8 @@ class MainActivity : ComponentActivity() {
                 val back = { stack = stack.dropLast(1) }
                 val screen = stack.last()
                 when {
-                    screen == "assistant" -> AssistantScreen(viewModel, onOpenSettings = { open("settings") })
+                    screen == "assistant" -> AssistantScreen(viewModel, onOpenSettings = { open("settings") },
+                        onOpenLink = { stack = stack + "settings" + "link" })
                     screen == "settings" -> SettingsScreen(settings, onOpenTools = { open("tools") }, onOpenLink = { open("link") }, onBack = back)
                     screen == "link" -> LinkScreen(settings, onBack = back)
                     screen == "tools" -> ToolsScreen(settings, onOpenTool = { open("tool:$it") }, onBack = back)
