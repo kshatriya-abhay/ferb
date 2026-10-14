@@ -21,7 +21,8 @@ sealed interface Outcome {
 }
 
 /** One line of a result's list: [lead] (e.g. a time) beside [text], [detail] under it; tapping it starts [open]'s intent, if any. */
-class Line(val lead: String, val text: String, val detail: String? = null, val open: (() -> Intent)? = null)
+/** One line of a result's list: [lead] in a column of its own (a time), [open] when tapped; with [tick], a checkbox that does it (a list's item). */
+class Line(val lead: String, val text: String, val detail: String? = null, val open: (() -> Intent)? = null, val tick: FollowUp? = null)
 
 /** A slider on a result, at [value] (0..1): [set] applies a value and gives the result's new message. */
 data class Level(val value: Float, val set: (Context, Float) -> String)

@@ -90,7 +90,7 @@ object ShowAgenda : Tool(
             else -> "$name: ${events.size} events"
         }
         val lines = events.map { e ->
-            Line(lead(e, day, zone), e.title, e.location) { CalendarBook.viewEvent(e.id, e.begin, e.end) }
+            Line(lead(e, day, zone), e.title, e.location, open = { CalendarBook.viewEvent(e.id, e.begin, e.end) })
         }
         fun shown(): Outcome.Done = Outcome.Done(message, lines = lines, actions = listOf(FollowUp("Open calendar") { env ->
             val opened = Tools.start(env.context, CalendarBook.viewDay(day, zone), "")

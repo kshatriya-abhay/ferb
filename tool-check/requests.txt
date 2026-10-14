@@ -275,3 +275,19 @@ none | the meeting went well
 none | I missed the event yesterday
 none | my schedule is too tight this week
 none | move my dentist appointment to Friday
+# Lists (add_to_list, show_list, check_off, 2026-10-14): notes with tasks in the notes folder.
+add_to_list | add milk and eggs to the shopping list
+add_to_list | put bread on my shopping list
+add_to_list | add call the plumber to my to-do list
+add_to_list | add sunscreen to the packing list
+show_list | what's on my shopping list
+show_list | show my to-do list
+check_off | tick milk off the shopping list
+check_off | cross off call the plumber
+check_off | I got the eggs
+none | the shopping list is long
+none | I lost my to-do list
+none | what is a linked list
+none | list the planets
+none | got it, thanks
+none | tick tock goes the clock

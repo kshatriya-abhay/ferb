@@ -62,6 +62,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -587,7 +588,7 @@ private fun CallLine(state: AssistantViewModel.CallState, onChoose: (Choice) -> 
             Slider(value = level.value, onValueChange = onAdjust, modifier = Modifier.padding(start = 48.dp))
         }
         val lines = done?.lines.orEmpty()
-        if (lines.isNotEmpty()) ResultLines(lines)
+        if (lines.isNotEmpty()) ResultLines(lines, onTick = onFollowUp)
         val actions = done?.actions.orEmpty()
         if (actions.isNotEmpty()) {
             FlowRow(Modifier.padding(start = 48.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -599,17 +600,22 @@ private fun CallLine(state: AssistantViewModel.CallState, onChoose: (Choice) -> 
 
 /** A result's list, e.g. a day's events: the lead (a time) in a column of its own; a line with something to open is tappable. */
 @Composable
-private fun ResultLines(lines: List<Line>) {
+private fun ResultLines(lines: List<Line>, onTick: (FollowUp) -> Unit = {}) {
     val context = LocalContext.current
     Column(Modifier.padding(start = 40.dp)) {
         lines.forEach { line ->
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                    .clickable(enabled = line.open != null) { line.open?.let { Tools.start(context, it(), "") } }
+                    .clickable(enabled = line.open != null || line.tick != null) {
+                        line.tick?.let(onTick) ?: line.open?.let { Tools.start(context, it(), "") }
+                    }
                     .padding(horizontal = 8.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(line.lead, Modifier.width(92.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                // A list's item: a box to tick it (in the note), else the lead (e.g. a time).
+                if (line.tick != null) Checkbox(checked = false, onCheckedChange = { onTick(line.tick) }, Modifier.size(24.dp))
+                else Text(line.lead, Modifier.width(92.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                 Column(Modifier.weight(1f)) {
                     Text(line.text, style = MaterialTheme.typography.bodyMedium)
                     line.detail?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
