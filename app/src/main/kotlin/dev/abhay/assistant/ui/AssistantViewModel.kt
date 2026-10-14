@@ -76,7 +76,6 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         val ungrounded: Boolean,
         /** The tools the request mentioned, which Needle 3 was given ([ToolRouter]); empty: none, so it got every tool turned on. */
         val routed: List<String>,
-        /** Set when every tool was also tried, because the mentioned ones gave no call. */
         val calls: List<CallState>,
         val wallMs: Long,
         /** Needle 3's answer, when the computer's replaced it (Ferb Link's "When Needle 3 is unsure"). */
@@ -121,6 +120,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         if (answerer == Answerer.Link) wakeComputer()
     }
     val link get() = assistant.link
+    /** The welcome screen and the one-time tips. */
+    val onboarding get() = assistant.onboarding
 
     private var wokeAt = 0L
 

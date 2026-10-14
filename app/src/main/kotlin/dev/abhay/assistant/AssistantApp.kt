@@ -8,6 +8,7 @@ import dev.abhay.assistant.tools.InstalledApps
 import dev.abhay.assistant.tools.ToolSettings
 import dev.abhay.assistant.link.FerbLink
 import dev.abhay.assistant.link.LinkSettings
+import dev.abhay.assistant.onboarding.Onboarding
 
 /** One model, one tool configuration, one app list, one contact book and one calendar per process, shared by the screens. */
 class AssistantApp : Application() {
@@ -18,6 +19,7 @@ class AssistantApp : Application() {
     val calendar by lazy { CalendarBook.from(this) }
     val link by lazy { FerbLink(this) }
     val linkSettings by lazy { LinkSettings(this) }
+    val onboarding by lazy { Onboarding.from(this) }
     lateinit var foreground: ForegroundTracker
         private set
 

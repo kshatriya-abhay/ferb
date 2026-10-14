@@ -25,6 +25,9 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     fun setLinkMode(mode: LinkMode) = linkSettings.setMode(mode)
     val saved: StateFlow<Map<String, ToolConfig>> = settings.configs
 
+    /** The one-time tips (a tool's page has one), and "Show tips again". */
+    val onboarding = (app as AssistantApp).onboarding
+
 
     private val _draft = MutableStateFlow(saved.value)
     val draft: StateFlow<Map<String, ToolConfig>> = _draft.asStateFlow()

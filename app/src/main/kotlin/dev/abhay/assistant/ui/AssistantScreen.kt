@@ -112,6 +112,7 @@ import dev.abhay.assistant.engine.AssistantEngine
 import dev.abhay.assistant.engine.Decision
 import dev.abhay.assistant.link.Answerer
 import dev.abhay.assistant.link.LinkMode
+import dev.abhay.assistant.onboarding.Tip
 import dev.abhay.assistant.tools.Choice
 import dev.abhay.assistant.tools.FollowUp
 import dev.abhay.assistant.tools.Line
@@ -139,6 +140,16 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit) {
     var details by remember { mutableStateOf<AssistantViewModel.Exchange?>(null) }
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(state.notice) { state.notice?.let { snackbar.showSnackbar(it) } }
+    val onboarding by viewModel.onboarding.state.collectAsStateWithLifecycle()
+    // Voice: only with Ferb Link picked in the chat box, and a computer that takes audio.
+    val offered = answerer.takeIf { linkMode == LinkMode.Option }
+    val voice = rememberVoiceAvailable(viewModel.link, active = offered == Answerer.Link)
+    // The one tip to show, if any, among those whose thing is on screen.
+    val startScreen = engine is AssistantEngine.State.Ready && state.history.isEmpty() && state.pending == null
+    val places = chatTips(state.history, startScreen, answererShown = offered != null,
+        micShown = voice && state.voice == null && state.input.isBlank())
+    val tip = Tip.next(places.map { it.tip }, onboarding.seen)?.let { t -> places.first { it.tip == t } }
+    val seen = viewModel.onboarding::seen
 
     Scaffold(
         topBar = {
@@ -146,7 +157,7 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit) {
                 title = { Text(stringResource(R.string.app_name)) },
                 subtitle = { Text(subtitle(engine, linkMode, answerer)) },
                 actions = {
-                    IconButton(onClick = onOpenSettings) { Icon(Icons.Default.Settings, contentDescription = "Settings") }
+                    IconButton(onClick = { seen(Tip.MoreTools); onOpenSettings() }) { Icon(Icons.Default.Settings, contentDescription = "Settings") }
                     var menu by remember { mutableStateOf(false) }
                     Box {
                         IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, contentDescription = "More") }
@@ -169,12 +180,14 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit) {
                 AssistantEngine.State.Loading -> Loading(Modifier.weight(1f))
                 is AssistantEngine.State.Failed -> Failed(e.message, viewModel::retry, Modifier.weight(1f))
                 is AssistantEngine.State.Ready ->
-                    if (state.history.isEmpty() && state.pending == null) Welcome(enabled, onTry = viewModel::send, Modifier.weight(1f))
-                    else History(state, viewModel, onDetails = { details = it }, Modifier.weight(1f))
+                    if (startScreen) Welcome(enabled, onTry = { seen(Tip.TryOne); viewModel.send(it) }, Modifier.weight(1f),
+                        tip = tip?.tip?.takeIf { it == Tip.TryOne }, onTipSeen = seen)
+                    else History(state, viewModel, onDetails = { seen(Tip.Details); details = it }, Modifier.weight(1f), tip = tip, onTipSeen = seen)
             }
-            // Voice: only with Ferb Link picked in the chat box, and a computer that takes audio.
-            val offered = answerer.takeIf { linkMode == LinkMode.Option }
-            val voice = rememberVoiceAvailable(viewModel.link, active = offered == Answerer.Link)
+            // A tip about the box, the toggle or the mic, above them.
+            tip?.takeIf { it.exchange == null && it.tip != Tip.TryOne }?.let {
+                TipCard(it.tip, onDismiss = { seen(it.tip) }, Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+            }
             // With the computer picked, keep Ferb Link's process up, so a request doesn't wait for it to start.
             DisposableEffect(offered == Answerer.Link) {
                 val holding = offered == Answerer.Link
@@ -188,9 +201,10 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit) {
             InputBar(state, ready = engine is AssistantEngine.State.Ready, onChange = viewModel::onInputChange, onSend = { viewModel.send() },
                 // With the computer picked, a tap on the box wakes its model while the request is typed.
                 onFocus = { if (offered == Answerer.Link) viewModel.wakeComputer() },
-                answerer = offered, onAnswerer = viewModel::setAnswerer,
+                answerer = offered, onAnswerer = { seen(Tip.Answerer); viewModel.setAnswerer(it) },
                 voice = voice,
                 onMic = {
+                    seen(Tip.Mic)
                     if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) viewModel.startRecording()
                     else askMic.launch(Manifest.permission.RECORD_AUDIO)
                 },
@@ -233,7 +247,7 @@ private val WELCOME = listOf(SetAlarm, ShowAgenda, SendText, GetDirections, Flas
 /** Before the first request: what to say, as chips with the tools' icons. Scrolls when the screen is short. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun Welcome(enabled: List<String>, onTry: (String) -> Unit, modifier: Modifier) {
+private fun Welcome(enabled: List<String>, onTry: (String) -> Unit, modifier: Modifier, tip: Tip? = null, onTipSeen: (Tip) -> Unit = {}) {
     val tools = (WELCOME + Tools.all).distinct().filter { it.name in enabled }.take(5)
     BoxWithConstraints(modifier.fillMaxWidth()) {
         Column(
@@ -258,6 +272,10 @@ private fun Welcome(enabled: List<String>, onTry: (String) -> Unit, modifier: Mo
                     )
                 }
             }
+            tip?.let {
+                Spacer(Modifier.height(16.dp))
+                TipCard(it, onDismiss = { onTipSeen(it) })
+            }
         }
     }
 }
@@ -272,6 +290,9 @@ private fun History(
     viewModel: AssistantViewModel,
     onDetails: (AssistantViewModel.Exchange) -> Unit,
     modifier: Modifier,
+    /** The tip to show, when it belongs under one of the replies. */
+    tip: TipPlace? = null,
+    onTipSeen: (Tip) -> Unit = {},
 ) {
     val list = rememberLazyListState()
     // A request sent, or an answer arriving: back to the newest message.
@@ -292,13 +313,14 @@ private fun History(
                 RequestBubble(exchange.request, exchange.heard)
                 ReplyBubble(
                     exchange,
-                    onRun = { viewModel.run(exchange.id) },
-                    onSkip = { viewModel.skip(exchange.id) },
-                    onChoose = { index, choice -> viewModel.choose(exchange.id, index, choice) },
-                    onFollowUp = { index, action -> viewModel.followUp(exchange.id, index, action) },
+                    onRun = { onTipSeen(Tip.AskFirst); viewModel.run(exchange.id) },
+                    onSkip = { onTipSeen(Tip.AskFirst); viewModel.skip(exchange.id) },
+                    onChoose = { index, choice -> onTipSeen(Tip.AskFirst); viewModel.choose(exchange.id, index, choice) },
+                    onFollowUp = { index, action -> onTipSeen(Tip.Undo); viewModel.followUp(exchange.id, index, action) },
                     onAdjust = { index, value -> viewModel.adjust(exchange.id, index, value) },
                     onDetails = { onDetails(exchange) },
                 )
+                tip?.takeIf { it.exchange == exchange.id }?.let { TipCard(it.tip, onDismiss = { onTipSeen(it.tip) }) }
             }
         }
     }

@@ -3,6 +3,7 @@
 package dev.abhay.assistant.ui
 
 import android.Manifest
+import dev.abhay.assistant.onboarding.Tip
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -137,6 +138,14 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
             ))
             Group(listOf { shapes ->
                 SegmentedListItem(
+                    onClick = { settings.onboarding.reset() },
+                    shapes = shapes,
+                    leadingContent = { IconBadge(R.drawable.ic_lightbulb) },
+                    supportingContent = { Text("The welcome screen and the tips, as on the first launch") },
+                ) { Text("Show tips again") }
+            })
+            Group(listOf { shapes ->
+                SegmentedListItem(
                     shapes = shapes,
                     leadingContent = { IconBadge(R.drawable.ic_lock) },
                     supportingContent = {
@@ -241,6 +250,7 @@ fun ToolConfigScreen(settings: SettingsViewModel, name: String, onOpenKeywords: 
     }
     val draft by settings.draft.collectAsStateWithLifecycle()
     val saved by settings.saved.collectAsStateWithLifecycle()
+    val onboarding by settings.onboarding.state.collectAsStateWithLifecycle()
     val config = draft.getValue(name)
     val default = ToolConfig.defaults(tool)
     fun change(change: (ToolConfig) -> ToolConfig) = settings.update(name, change)
@@ -289,7 +299,7 @@ fun ToolConfigScreen(settings: SettingsViewModel, name: String, onOpenKeywords: 
                 { shapes -> ConfidenceSetting(config, default, shapes, enabled = config.enabled && !config.alwaysConfirm) { value -> change { it.copy(runFrom = value) } } },
                 { shapes ->
                     SegmentedListItem(
-                        onClick = onOpenKeywords,
+                        onClick = { settings.onboarding.seen(Tip.Keywords); onOpenKeywords() },
                         shapes = shapes,
                         supportingContent = {
                             Text(config.keywords.joinToString(", ").ifEmpty { "None: asked only when a request names no tool" },
@@ -299,6 +309,9 @@ fun ToolConfigScreen(settings: SettingsViewModel, name: String, onOpenKeywords: 
                     ) { Text(if (config.keywords == default.keywords) "Keywords" else "Keywords (changed)") }
                 },
             ))
+            if (Tip.Keywords !in onboarding.seen) {
+                TipCard(Tip.Keywords, onDismiss = { settings.onboarding.seen(Tip.Keywords) }, Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp))
+            }
 
             tool.options.forEach { option ->
                 when (option) {
