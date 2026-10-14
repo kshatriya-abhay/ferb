@@ -12,13 +12,9 @@ Ferb doesn't chat or answer questions; it runs tools on your phone, and says so 
 
 ### Install
 
-There are no ready-made downloads yet (see *Download*, below). For now, build Ferb from source and install it on your phone over USB: [Build from source](#build-from-source) takes a few commands.
+Grab the latest APK from [Releases](https://github.com/kshatriya-abhay/ferb/releases) and open it on your phone (Android asks you to allow installing from your browser or files app). Or [build it from source](#build-from-source).
 
 You need an Android phone with a 64-bit ARM processor (most phones since 2017) and Android 13 or later.
-
-### Download
-
-*Coming: signed APKs on GitHub Releases. Until then, build from source.*
 
 ### First launch
 
@@ -60,7 +56,7 @@ How each one works, and when Ferb asks first: [docs/how-it-works.md](docs/how-it
 
 ## Ferb Link (optional)
 
-**Ferb Link** is a companion app for a bigger model on a computer of your own (one with a GPU, such as a gaming laptop, reached over Tailscale). It holds the internet access Ferb doesn't have. With it, you can pick **Computer** under Ferb's chat box, and Ferb understands more phrasings and Hinglish, and gains voice input: tap the mic, speak, and the computer transcribes. Ferb Link answers only a Ferb signed with the same key, so build or install both the same way. It's in its own repository, not yet published.
+**Ferb Link** is a companion app for a bigger model on a computer of your own (one with a GPU, such as a gaming laptop, reached over Tailscale). It holds the internet access Ferb doesn't have. With it, you can pick **Computer** under Ferb's chat box, and Ferb understands more phrasings and Hinglish, and gains voice input: tap the mic, speak, and the computer transcribes. Ferb Link answers only a Ferb signed with the same key, so get both the same way: both from Releases, or both built on the same computer. It's in its own repository, not yet published.
 
 ## Build from source
 
