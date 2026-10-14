@@ -13,7 +13,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /** What the calendar tools say without the permission. */
-private const val NO_CALENDAR = "Ferb can't read your calendar: allow it on this tool's page in Settings"
+private const val NO_CALENDAR = "Ferb needs your calendar to show your day. It stays on this phone."
 
 /**
  * The request itself, added to the arguments by [Tool.fromRequest]: the calendar tools read the day
@@ -69,7 +69,7 @@ object ShowAgenda : Tool(
         val day = dayFor(arguments, today)
         val zone = env.now.zone
         return Prepared.Ready("Show ${dayName(day, today)}", opensApp = false) { _ ->
-            val events = env.calendar.day(day) ?: return@Ready Outcome.Failed(NO_CALENDAR)
+            val events = env.calendar.day(day) ?: return@Ready Outcome.Failed(NO_CALENDAR, needs = listOf(Manifest.permission.READ_CALENDAR))
             agenda(day, today, events, zone)
         }
     }

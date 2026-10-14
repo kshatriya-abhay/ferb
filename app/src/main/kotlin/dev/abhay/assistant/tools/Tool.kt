@@ -13,7 +13,8 @@ sealed interface Outcome {
      * e.g. a day's events.
      */
     data class Done(val message: String, val actions: List<FollowUp> = emptyList(), val level: Level? = null, val lines: List<Line> = emptyList()) : Outcome
-    data class Failed(val reason: String) : Outcome
+    /** Didn't work: [reason]; when it's for want of Android permissions, [needs] lists them, for the reply to ask. */
+    data class Failed(val reason: String, val needs: List<String> = emptyList()) : Outcome
 }
 
 /** One line of a result's list: [lead] (e.g. a time) beside [text], [detail] under it; tapping it starts [open]'s intent, if any. */
@@ -55,7 +56,8 @@ sealed interface Prepared {
         val cancel: String = "Not now",
         val run: (Context) -> Outcome,
     ) : Prepared
-    data class Invalid(val reason: String) : Prepared
+    /** Can't run: [reason]; when it's for want of Android permissions, [needs] lists them, for the reply to ask. */
+    data class Invalid(val reason: String, val needs: List<String> = emptyList()) : Prepared
 }
 
 /** One of a call's [Prepared.Ready.choices]: [label] and [detail] on its button, [run] when it's picked. */

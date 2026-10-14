@@ -695,7 +695,7 @@ object GetDirections : Tool(
 }
 
 /** What [MakeCall] and [SendText] say without the contacts permission. */
-private const val NO_CONTACTS = "Ferb can't read your contacts: allow it on this tool's page in Settings"
+private const val NO_CONTACTS = "Ferb needs your contacts to find who you mean. They stay on this phone."
 
 /** Why [MakeCall] and [SendText] ask first. */
 private const val WRONG_PERSON = "Ferb may pick the wrong person. Without asking, the best match opens straight away, " +
@@ -761,7 +761,7 @@ object MakeCall : Tool(
                 cancel = "Cancel", run = dialOnly(number, number))
         }
         // The best match only, one tap to call; anyone else is found in the dialer.
-        val contact = (env.contacts.find(name, limit = 1) ?: return Prepared.Invalid(NO_CONTACTS)).firstOrNull()
+        val contact = (env.contacts.find(name, limit = 1) ?: return Prepared.Invalid(NO_CONTACTS, needs = listOf(Manifest.permission.READ_CONTACTS))).firstOrNull()
             ?: return Prepared.Ready("No contact matches \u201c$name\u201d", confirm = "Open dialer", cancel = "Cancel", run = openDialer.run)
         val choice = Choice(contact.name, listOfNotNull(contact.kind, contact.number).joinToString(" \u00b7 ")) { call(it, contact.number, contact.name) }
         return Prepared.Ready("Call \u201c$name\u201d?", choices = listOf(choice), other = openDialer, cancel = "Cancel",
@@ -812,7 +812,7 @@ object SendText : Tool(
         val message = arguments.text("message") ?: return Prepared.Invalid("No message to send")
         val draft = "\u201c$message\u201d"
         val number = numberIn(name)
-        val contact = if (number == null) (env.contacts.find(name, limit = 1) ?: return Prepared.Invalid(NO_CONTACTS)).firstOrNull() else null
+        val contact = if (number == null) (env.contacts.find(name, limit = 1) ?: return Prepared.Invalid(NO_CONTACTS, needs = listOf(Manifest.permission.READ_CONTACTS))).firstOrNull() else null
         val to = when {
             number != null -> number
             contact != null -> "${contact.name} \u00b7 ${contact.number}"

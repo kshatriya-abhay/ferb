@@ -1,6 +1,11 @@
 package dev.abhay.assistant.ui
 
 import android.Manifest
+import androidx.compose.runtime.saveable.rememberSaveable
+import android.provider.Settings
+import android.net.Uri
+import android.content.Intent
+import android.app.Activity
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
@@ -151,6 +156,16 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit) {
     val tip = Tip.next(places.map { it.tip }, onboarding.seen)?.let { t -> places.first { it.tip == t } }
     val seen = viewModel.onboarding::seen
     val context = LocalContext.current
+    // A reply's Allow: the permission, then the request again if it was given.
+    var allowing by remember { mutableStateOf<Long?>(null) }
+    var refused by rememberSaveable { mutableStateOf(setOf<String>()) }
+    val askAllow = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        val activity = context as? Activity
+        refused = refused + result.filter { (permission, granted) -> !granted && activity?.shouldShowRequestPermissionRationale(permission) == false }.keys
+        val request = state.history.firstOrNull { it.id == allowing }?.request
+        if (request != null && result.values.any { it }) viewModel.send(request)
+        allowing = null
+    }
     // Turning on a tool from a reply: its permissions first, then the request again (with or without them).
     var turningOn by remember { mutableStateOf<Pair<Long, String>?>(null) }
     val askPermissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
@@ -196,6 +211,15 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit) {
                             else {
                                 turningOn = id to tool
                                 askPermissions.launch(missing.toTypedArray())
+                            }
+                        },
+                        onAllow = { id, needs ->
+                            // Android asks no more once a permission was refused twice: then its page in Android's settings.
+                            if (needs.any { it in refused }) {
+                                context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
+                            } else {
+                                allowing = id
+                                askAllow.launch(needs.toTypedArray())
                             }
                         })
             }
@@ -307,6 +331,7 @@ private fun History(
     /** The tip to show, when it belongs under one of the replies. */
     tip: TipPlace? = null,
     onTurnOn: (Long, String) -> Unit = { _, _ -> },
+    onAllow: (Long, List<String>) -> Unit = { _, _ -> },
     onTipSeen: (Tip) -> Unit = {},
 ) {
     val list = rememberLazyListState()
@@ -335,6 +360,7 @@ private fun History(
                     onAdjust = { index, value -> viewModel.adjust(exchange.id, index, value) },
                     onDetails = { onDetails(exchange) },
                     onTurnOn = { tool -> onTurnOn(exchange.id, tool) },
+                    onAllow = { needs -> onAllow(exchange.id, needs) },
                 )
                 tip?.takeIf { it.exchange == exchange.id }?.let { TipCard(it.tip, onDismiss = { onTipSeen(it.tip) }) }
             }
@@ -403,6 +429,7 @@ private fun ReplyBubble(
     onAdjust: (Int, Float) -> Unit,
     onDetails: () -> Unit,
     onTurnOn: (String) -> Unit = {},
+    onAllow: (List<String>) -> Unit = {},
 ) {
     val reply = exchange.reply
     val asking = exchange.calls.any { it.status == Status.Waiting }
@@ -421,7 +448,7 @@ private fun ReplyBubble(
                 asking && !choosing -> Text("Shall I do this?", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             exchange.calls.forEachIndexed { i, call ->
-                CallLine(call, onChoose = { choice -> onChoose(i, choice) }, onFollowUp = { action -> onFollowUp(i, action) }, onAdjust = { value -> onAdjust(i, value) })
+                CallLine(call, onChoose = { choice -> onChoose(i, choice) }, onFollowUp = { action -> onFollowUp(i, action) }, onAdjust = { value -> onAdjust(i, value) }, onAllow = onAllow)
             }
             source(exchange)?.let { (icon, text) ->
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -454,10 +481,14 @@ private fun source(exchange: AssistantViewModel.Exchange): Pair<Int, String>? {
     }
 }
 
+/** The Android permissions a call couldn't do without, if that's why it can't run or didn't work. */
+internal fun AssistantViewModel.CallState.needs(): List<String> =
+    ((status as? Status.Finished)?.outcome as? Outcome.Failed)?.needs ?: (prepared as? Prepared.Invalid)?.needs.orEmpty()
+
 /** One call: the tool's icon and what it does or did, then the result's buttons as chips. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun CallLine(state: AssistantViewModel.CallState, onChoose: (Choice) -> Unit, onFollowUp: (FollowUp) -> Unit, onAdjust: (Float) -> Unit) {
+private fun CallLine(state: AssistantViewModel.CallState, onChoose: (Choice) -> Unit, onFollowUp: (FollowUp) -> Unit, onAdjust: (Float) -> Unit, onAllow: (List<String>) -> Unit = {}) {
     val tool = Tools.byName(state.call.name)
     val status = state.status
     val (text, failed) = when (status) {
@@ -495,6 +526,10 @@ private fun CallLine(state: AssistantViewModel.CallState, onChoose: (Choice) -> 
                 textDecoration = if (muted) TextDecoration.LineThrough else null,
                 modifier = Modifier.weight(1f, fill = false),
             )
+        }
+        // Couldn't for want of a permission (contacts, calendar): ask for it here, then try again.
+        state.needs().takeIf { it.isNotEmpty() }?.let { needs ->
+            FilledTonalButton(onClick = { onAllow(needs) }, Modifier.padding(start = 48.dp)) { Text("Allow") }
         }
         val ready = state.prepared as? Prepared.Ready
         if (ready != null && status !is Status.Finished) {
