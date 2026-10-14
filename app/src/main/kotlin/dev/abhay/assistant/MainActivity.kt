@@ -2,6 +2,7 @@ package dev.abhay.assistant
 
 import android.os.Bundle
 import dev.abhay.assistant.ui.NotesScreen
+import dev.abhay.assistant.ui.NoteEditorScreen
 import dev.abhay.assistant.ui.NoteScreen
 import dev.abhay.assistant.notes.NoteRef
 import androidx.compose.runtime.LaunchedEffect
@@ -84,6 +85,10 @@ class MainActivity : ComponentActivity() {
                     screen == "assistant" -> AssistantScreen(viewModel, onOpenSettings = { open("settings") },
                         onOpenLink = { stack = stack + "settings" + "link" }, onOpenNotes = { open("notes") })
                     screen == "notes" -> NotesScreen(viewModel.notes, onOpen = { open("note:${it.id}\n${it.name}") }, onBack = back)
+                    screen.startsWith("edit:") -> {
+                        val (id, name) = screen.removePrefix("edit:").split("\n", limit = 2)
+                        NoteEditorScreen(viewModel.notes, NoteRef(id, name, 0), onDone = back)
+                    }
                     screen.startsWith("note:") -> {
                         val (id, name) = screen.removePrefix("note:").split("\n", limit = 2)
                         NoteScreen(viewModel.notes, NoteRef(id, name, 0), onEdit = { open("edit:$id\n$name") }, onBack = back)

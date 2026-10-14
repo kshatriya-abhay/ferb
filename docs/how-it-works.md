@@ -71,7 +71,7 @@ A setting to check every tool, five at a time, when the mentioned ones gave no c
 
 ## Notes in Ferb
 
-With a notes folder picked, the chat's top bar has **Notes**: the folder's `.md` files, newest first. A note shows as formatted Markdown (mikepenz's multiplatform-markdown-renderer, on JetBrains' Markdown parser; no images, so no network), its frontmatter folded into **Properties**, its tasks as boxes that tick in the file: one character, found again by order and text if Obsidian or Syncthing changed the file meanwhile. **Open** on a list or a saved note, and tapping a reminder's notification, show it there.
+With a notes folder picked, the chat's top bar has **Notes**: the folder's `.md` files, newest first. A note shows as formatted Markdown (mikepenz's multiplatform-markdown-renderer, on JetBrains' Markdown parser; no images, so no network), its frontmatter folded into **Properties**, its tasks as boxes that tick in the file: one character, found again by order and text if Obsidian or Syncthing changed the file meanwhile. **Open** on a list or a saved note, and tapping a reminder's notification, show it there. **Edit** opens it as raw Markdown, styled as it's typed (headings, bold, italic, links and `[[links]]`, tasks, quotes) without changing a character; the frontmatter is kept apart and joined back as it was, the file keeps its line endings, and nothing is written when nothing changed. If the note changed elsewhere meanwhile, a change to the frontmatter only (a reminder moved) is kept with the edit; a change to the text asks: keep mine or keep theirs.
 
 ## Inside the app
 
