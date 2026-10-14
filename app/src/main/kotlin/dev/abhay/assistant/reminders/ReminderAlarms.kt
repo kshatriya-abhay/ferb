@@ -80,8 +80,10 @@ class ReminderReceiver : BroadcastReceiver() {
         if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel(ReminderAlarms.CHANNEL, "Reminders", NotificationManager.IMPORTANCE_HIGH))
-        val open = PendingIntent.getActivity(context, 0, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-            PendingIntent.FLAG_IMMUTABLE)
+        // Tapped: Ferb, at the reminder's note when it has one.
+        val note = reminder.noteId?.let { (context.applicationContext as AssistantApp).reminders.noteFor(it) }
+        val target = note?.let { MainActivity.openNote(context, it) } ?: Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val open = PendingIntent.getActivity(context, reminder.id.hashCode(), target, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val notification = NotificationCompat.Builder(context, ReminderAlarms.CHANNEL)
             .setSmallIcon(R.drawable.ic_reminder)
             .setContentTitle(reminder.title)

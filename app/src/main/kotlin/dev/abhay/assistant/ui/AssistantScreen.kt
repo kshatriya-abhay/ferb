@@ -138,7 +138,7 @@ import kotlinx.coroutines.delay
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, onOpenLink: () -> Unit = onOpenSettings) {
+fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, onOpenLink: () -> Unit = onOpenSettings, onOpenNotes: () -> Unit = {}) {
     val engine by viewModel.engine.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val enabled by viewModel.enabledTools.collectAsStateWithLifecycle()
@@ -190,6 +190,8 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
                 title = { Text(stringResource(R.string.app_name)) },
                 subtitle = { Text(subtitle(engine, linkMode, answerer)) },
                 actions = {
+                    // Notes, once there's a folder for them.
+                    if (viewModel.notes.ready) IconButton(onClick = onOpenNotes) { Icon(painterResource(R.drawable.ic_note), contentDescription = "Notes") }
                     IconButton(onClick = { seen(Tip.MoreTools); onOpenSettings() }) { Icon(Icons.Default.Settings, contentDescription = "Settings") }
                     var menu by remember { mutableStateOf(false) }
                     Box {

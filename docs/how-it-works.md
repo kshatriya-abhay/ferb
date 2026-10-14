@@ -69,6 +69,10 @@ On the desktop check with all nine tools, routing kept as many answers right as 
 
 A setting to check every tool, five at a time, when the mentioned ones gave no call was removed on 2026-10-12: on the desktop check it added one right call that runs and let unrelated requests reach tools, and Ferb Link now answers when Needle 3 finds nothing. `tool-check`'s `fallback` mode still measures it.
 
+## Notes in Ferb
+
+With a notes folder picked, the chat's top bar has **Notes**: the folder's `.md` files, newest first. A note shows as formatted Markdown (mikepenz's multiplatform-markdown-renderer, on JetBrains' Markdown parser; no images, so no network), its frontmatter folded into **Properties**, its tasks as boxes that tick in the file: one character, found again by order and text if Obsidian or Syncthing changed the file meanwhile. **Open** on a list or a saved note, and tapping a reminder's notification, show it there.
+
 ## Inside the app
 
 ```

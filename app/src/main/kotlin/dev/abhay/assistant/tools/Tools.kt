@@ -639,7 +639,10 @@ object CreateNote : Tool(
             return Prepared.Ready("Save a note: \u201c$text\u201d", opensApp = false) { _ ->
                 val written = noteFile(text, NoteStore.newId())
                 val note = env.notes.create(titleFor(text), written) ?: return@Ready Outcome.Failed("Couldn't save it in the notes folder")
-                Outcome.Done("Saved \u201c${note.name}\u201d in your notes", actions = listOf(FollowUp("Undo") {
+                Outcome.Done("Saved \u201c${note.name}\u201d in your notes", actions = listOf(FollowUp("Open") { e ->
+                    env.openNote(e.context, note)
+                    Outcome.Done("Saved \u201c${note.name}\u201d in your notes")
+                }, FollowUp("Undo") {
                     // Only the note as Ferb wrote it: once changed elsewhere (Obsidian), it stays.
                     if (env.notes.read(note) == written && env.notes.delete(note)) Outcome.Done("Note removed") else Outcome.Failed("It has changed since, so it stays")
                 }))

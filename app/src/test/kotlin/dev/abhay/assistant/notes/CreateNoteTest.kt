@@ -25,7 +25,7 @@ class CreateNoteTest {
         assertThat(NoteText.get(text, NoteText.ID)).isNotEmpty()
         assertThat(NoteText.body(text)).isEqualTo("the car is parked on level 3\n")
         // Undo removes it, as Ferb wrote it.
-        val undo = runBlocking { done.actions.single().run(FollowUpEnv(unusedContext()) { true }) }
+        val undo = runBlocking { done.actions.first { it.label == "Undo" }.run(FollowUpEnv(unusedContext()) { true }) }
         assertThat(undo).isInstanceOf(Outcome.Done::class.java)
         assertThat(folder.files).isEmpty()
     }
@@ -35,7 +35,7 @@ class CreateNoteTest {
         val folder = MemoryNotes()
         val done = (CreateNote.prepare(note, PrepareEnv(notes = folder, options = toFolder)) as Prepared.Ready).run(unusedContext()) as Outcome.Done
         folder.files.replaceAll { _, text -> text + "edited in Obsidian\n" }
-        assertThat(runBlocking { done.actions.single().run(FollowUpEnv(unusedContext()) { true }) }).isInstanceOf(Outcome.Failed::class.java)
+        assertThat(runBlocking { done.actions.first { it.label == "Undo" }.run(FollowUpEnv(unusedContext()) { true }) }).isInstanceOf(Outcome.Failed::class.java)
         assertThat(folder.files).hasSize(1)
     }
 

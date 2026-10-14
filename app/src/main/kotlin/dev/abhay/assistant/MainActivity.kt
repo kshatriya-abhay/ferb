@@ -1,6 +1,12 @@
 package dev.abhay.assistant
 
 import android.os.Bundle
+import dev.abhay.assistant.ui.NotesScreen
+import dev.abhay.assistant.ui.NoteScreen
+import dev.abhay.assistant.notes.NoteRef
+import androidx.compose.runtime.LaunchedEffect
+import android.content.Intent
+import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -34,9 +40,23 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 class MainActivity : ComponentActivity() {
+    /** A note to show, from an intent ([openNote]): its id and name. */
+    private val noteToOpen = mutableStateOf<Pair<String, String>?>(null)
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        read(intent)
+    }
+
+    private fun read(intent: Intent?) {
+        val id = intent?.getStringExtra(EXTRA_NOTE_ID) ?: return
+        noteToOpen.value = id to intent.getStringExtra(EXTRA_NOTE_NAME).orEmpty()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        if (savedInstanceState == null) read(intent)
         setContent {
             // minSdk 33, so the wallpaper-based dynamic colours are always available.
             val context = LocalContext.current
@@ -52,11 +72,22 @@ class MainActivity : ComponentActivity() {
                 }
                 var stack by rememberSaveable { mutableStateOf(listOf("assistant")) }
                 val open = { screen: String -> stack = stack + screen }
+                // "Open" on a list or note in the chat (or a reminder's notification): that note.
+                val opening by noteToOpen
+                LaunchedEffect(opening) {
+                    opening?.let { (id, name) -> stack = listOf("assistant", "notes", "note:$id\n$name") }
+                    noteToOpen.value = null
+                }
                 val back = { stack = stack.dropLast(1) }
                 val screen = stack.last()
                 when {
                     screen == "assistant" -> AssistantScreen(viewModel, onOpenSettings = { open("settings") },
-                        onOpenLink = { stack = stack + "settings" + "link" })
+                        onOpenLink = { stack = stack + "settings" + "link" }, onOpenNotes = { open("notes") })
+                    screen == "notes" -> NotesScreen(viewModel.notes, onOpen = { open("note:${it.id}\n${it.name}") }, onBack = back)
+                    screen.startsWith("note:") -> {
+                        val (id, name) = screen.removePrefix("note:").split("\n", limit = 2)
+                        NoteScreen(viewModel.notes, NoteRef(id, name, 0), onEdit = { open("edit:$id\n$name") }, onBack = back)
+                    }
                     screen == "settings" -> SettingsScreen(settings, onOpenTools = { open("tools") }, onOpenLink = { open("link") }, onBack = back)
                     screen == "link" -> LinkScreen(settings, onBack = back)
                     screen == "tools" -> ToolsScreen(settings, onOpenTool = { open("tool:$it") }, onBack = back)
@@ -69,5 +100,15 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    companion object {
+        private const val EXTRA_NOTE_ID = "note_id"
+        private const val EXTRA_NOTE_NAME = "note_name"
+
+        /** Opens [note] in Ferb's notes screen. */
+        fun openNote(context: Context, note: NoteRef): Intent = Intent(context, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            .putExtra(EXTRA_NOTE_ID, note.id).putExtra(EXTRA_NOTE_NAME, note.name)
     }
 }

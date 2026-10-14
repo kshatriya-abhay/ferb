@@ -98,6 +98,8 @@ Working on Ferb itself (tests, tuning the tools, comparing models): [docs/develo
 | [Material Components for Android](https://github.com/material-components/material-components-android) | Apache-2.0 | The Material 3 window theme behind Compose |
 | [Kotlin coroutines](https://github.com/Kotlin/kotlinx.coroutines) | Apache-2.0 | Background work |
 | [Material Icons](https://github.com/google/material-design-icons) | Apache-2.0 | Icons |
+| [multiplatform-markdown-renderer](https://github.com/mikepenz/multiplatform-markdown-renderer) by Mike Penz | Apache-2.0 | Shows notes' Markdown, with tickable task lists |
+| [JetBrains Markdown](https://github.com/JetBrains/markdown) | Apache-2.0 | Parses Markdown (for the renderer) |
 | [Zig](https://ziglang.org) (via the `ziglang` Python package) | MIT | Builds the desktop `tool-check` against libc++ (not shipped) |
 | [llama.cpp](https://github.com/ggml-org/llama.cpp) | MIT | Runs other models for `mise run bench` (not shipped) |
 | [FunctionGemma 270M](https://huggingface.co/google/functiongemma-270m-it) by Google (GGUF by Unsloth) | Gemma terms | Compared in `mise run bench` (not shipped) |

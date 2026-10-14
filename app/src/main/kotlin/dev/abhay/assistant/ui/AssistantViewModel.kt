@@ -122,6 +122,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         if (answerer == Answerer.Link) wakeComputer()
     }
     val link get() = assistant.link
+    val notes get() = assistant.notes
     /**
      * Turns on [tool], offered under a reply no tool could do ([Exchange.turnOn]), and asks again.
      * Its Android permissions, if any, are asked for by the screen at the same time.
@@ -322,6 +323,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             ?: return Prepared.Invalid("No tool called ${call.name} is turned on")
         val env = PrepareEnv(assistant.apps, assistant.contacts, assistant.calendar, notes = assistant.notes,
             reminders = assistant.reminders, remindersChanged = assistant::syncReminders,
+            openNote = { context, note -> context.startActivity(dev.abhay.assistant.MainActivity.openNote(context, note)) },
             granted = { assistant.checkSelfPermission(it) == android.content.pm.PackageManager.PERMISSION_GRANTED },
             options = assistant.toolSettings.configs.value[tool.name]?.options.orEmpty())
         return tool.prepare(tool.fromRequest(call.arguments, request), env)

@@ -24,21 +24,21 @@ internal object Lists {
     fun needsFolder() = Prepared.Invalid(NO_FOLDER, needs = listOf(NoteStore.NEEDS_FOLDER))
 
     /** The list's unticked tasks, each tickable from the chat; the result refreshes after each tick. */
-    fun shown(notes: NoteStore, note: NoteRef): Outcome {
+    fun shown(notes: NoteStore, note: NoteRef, open: (android.content.Context, NoteRef) -> Unit = { _, _ -> }): Outcome {
         val text = notes.read(note) ?: return Outcome.Failed("Couldn't read “${note.name}”")
-        val open = NoteText.tasks(text).filter { !it.checked }
-        val message = when (open.size) {
+        val unticked = NoteText.tasks(text).filter { !it.checked }
+        val message = when (unticked.size) {
             0 -> "${note.name}: nothing left"
             1 -> "${note.name}: 1 item"
-            else -> "${note.name}: ${open.size} items"
+            else -> "${note.name}: ${unticked.size} items"
         }
-        return Outcome.Done(message, lines = open.map { task ->
+        return Outcome.Done(message, actions = listOf(FollowUp("Open") { env -> open(env.context, note); shown(notes, note, open) }), lines = unticked.map { task ->
             Line("", task.text, tick = FollowUp("Tick ${task.text}") { _ ->
                 // Ticks that task as the file is now: the first unticked one with the same text.
                 val ticked = notes.update(note) { now ->
                     NoteText.tasks(now).firstOrNull { !it.checked && it.text == task.text }?.let { NoteText.flip(now, it.mark) } ?: now
                 }
-                if (ticked) shown(notes, note) else Outcome.Failed("Couldn't change “${note.name}”")
+                if (ticked) shown(notes, note, open) else Outcome.Failed("Couldn't change “${note.name}”")
             })
         })
     }
@@ -95,7 +95,7 @@ object AddToList : Tool(
                     val undone = env.notes.update(note) { now -> if (added.isNotEmpty() && now.endsWith(added)) now.dropLast(added.length) else now }
                     if (undone) Outcome.Done("Removed them from ${note.name}") else Outcome.Failed("Couldn't change “${note.name}”")
                 },
-                FollowUp("Show list") { _ -> Lists.shown(env.notes, note) },
+                FollowUp("Show list") { _ -> Lists.shown(env.notes, note, env.openNote) },
             ))
         }
     }
@@ -124,7 +124,7 @@ object ShowList : Tool(
         val list = arguments.text("list") ?: return Prepared.Invalid("Which list?")
         if (!env.notes.ready) return Lists.needsFolder()
         val note = NoteStore.find(list, env.notes.list()) ?: return Prepared.Invalid("No list called “${Lists.title(list)}” in your notes folder")
-        return Prepared.Ready("Show ${note.name}", opensApp = false) { _ -> Lists.shown(env.notes, note) }
+        return Prepared.Ready("Show ${note.name}", opensApp = false) { _ -> Lists.shown(env.notes, note, env.openNote) }
     }
 }
 
@@ -166,7 +166,7 @@ object CheckOff : Tool(
             if (!toggle(false)) return@Ready Outcome.Failed("Couldn't change “${note.name}”")
             Outcome.Done("Ticked “${task.text}” on ${note.name}", actions = listOf(
                 FollowUp("Undo") { _ -> if (toggle(true)) Outcome.Done("“${task.text}” is back on ${note.name}") else Outcome.Failed("Couldn't change “${note.name}”") },
-                FollowUp("Show list") { _ -> Lists.shown(env.notes, note) },
+                FollowUp("Show list") { _ -> Lists.shown(env.notes, note, env.openNote) },
             ))
         }
     }

@@ -147,6 +147,8 @@ class PrepareEnv(
     /** Ferb's reminders, and what to do after one is added or removed (schedule them again). */
     val reminders: ReminderBook? = null,
     val remindersChanged: () -> Unit = {},
+    /** Opens a note in Ferb's notes screen ("Open" on a list or a note). */
+    val openNote: (Context, NoteRef) -> Unit = { _, _ -> },
     /** Whether Ferb holds an Android permission (notifications for reminders). */
     val granted: (String) -> Boolean = { true },
 )
