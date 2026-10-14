@@ -56,7 +56,7 @@ How each one works, and when Ferb asks first: [docs/how-it-works.md](docs/how-it
 
 ## Ferb Link (optional)
 
-**Ferb Link** is a companion app for a bigger model on a computer of your own (one with a GPU, such as a gaming laptop, reached over Tailscale). It holds the internet access Ferb doesn't have. With it, you can pick **Computer** under Ferb's chat box, and Ferb understands more phrasings and Hinglish, and gains voice input: tap the mic, speak, and the computer transcribes. Ferb Link answers only a Ferb signed with the same key, so get both the same way: both from Releases, or both built on the same computer. It's in its own repository, not yet published.
+**[Ferb Link](https://github.com/kshatriya-abhay/ferb-link)** is a companion app for a bigger model on a computer of your own (one with a GPU, such as a gaming laptop, reached over Tailscale). It holds the internet access Ferb doesn't have. With it, you can pick **Computer** under Ferb's chat box, and Ferb understands more phrasings and Hinglish, and gains voice input: tap the mic, speak, and the computer transcribes. Ferb Link answers only a Ferb signed with the same key, so get both the same way: both from Releases, or both built on the same computer. Set it up with [Ferb Link's quick start](https://github.com/kshatriya-abhay/ferb-link#quick-start).
 
 ## Build from source
 

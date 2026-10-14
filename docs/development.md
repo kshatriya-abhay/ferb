@@ -28,7 +28,7 @@ Four tiers, cheapest first:
    - `SpokenRequestsTest` keeps what the audio bench found, at the component that handles it.
 2. **Contract tests** (in `mise run test` too): Ferb's side of the link to Ferb Link, replayed from Ferb Link's example requests and results.
    - Status, check, complete, transcribe, wake, each error kind, and an older Ferb Link.
-   - Ferb Link owns the fixtures; Ferb keeps a copy in `app/src/test/resources/ferb-link-contract/v1` (with `SOURCE`, the commit it came from).
+   - Ferb Link owns the fixtures ([contract/v1](https://github.com/kshatriya-abhay/ferb-link/tree/main/contract/v1)); Ferb keeps a copy in `app/src/test/resources/ferb-link-contract/v1` (with `SOURCE`, the commit it came from).
    - `mise run link:contract-sync` updates the copy, and `link:contract-check` says whether it's current. Both need `../ferb-link` (or `$FERB_LINK`); neither repo needs the other to build or test.
 3. **Model evaluations**, only when tuning the tool config (schemas, descriptions, keywords, bars, the prompt), never per change:
    - `mise run tool-check` (Needle 3, `tool-check/requests.txt`) and `mise run bench` (local models, plus `suite.txt`).
