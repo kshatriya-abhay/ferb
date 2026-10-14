@@ -3,10 +3,11 @@ java = "temurin-21"   # JDK for Gradle/AGP
 gradle = "9.8.0"      # only used to bootstrap the wrapper; builds use ./gradlew
 
 [env]
-ANDROID_HOME = "{{env.HOME}}/Android/Sdk"
+# Android Studio's SDK on Linux unless ANDROID_HOME says otherwise (macOS: ~/Library/Android/sdk).
+ANDROID_HOME = "{{ get_env(name='ANDROID_HOME', default=env.HOME ~ '/Android/Sdk') }}"
 _.path = [
-  "{{env.HOME}}/Android/Sdk/cmdline-tools/latest/bin",
-  "{{env.HOME}}/Android/Sdk/platform-tools",
+  "{{ get_env(name='ANDROID_HOME', default=env.HOME ~ '/Android/Sdk') }}/cmdline-tools/latest/bin",
+  "{{ get_env(name='ANDROID_HOME', default=env.HOME ~ '/Android/Sdk') }}/platform-tools",
 ]
 
 [tasks.bootstrap]
