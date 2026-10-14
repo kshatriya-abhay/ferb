@@ -157,20 +157,16 @@ python3 tool-check/score.py "app/build/tool-check/${usage_set}.json" tool-check/
 [tasks.check-offline]
 description = "Fail if the built APK can use the network: an INTERNET permission, or networking calls in its native code"
 depends = ["build"]
-run = """
-set -euo pipefail
-APK=app/build/outputs/apk/debug/app-debug.apk
-AAPT=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)aapt2
-if "$AAPT" dump permissions "$APK" | grep -q 'android.permission.INTERNET'; then echo "FAIL: INTERNET permission"; exit 1; fi
-TMP=$(mktemp -d)
-unzip -q -o "$APK" 'lib/*' -d "$TMP"
-NM=$(ls -d "$ANDROID_HOME"/ndk/*/ | sort -V | tail -1)toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-nm
-for so in "$TMP"/lib/*/*.so; do
-  if "$NM" -D --undefined-only "$so" | grep -Ew 'socket|connect|getaddrinfo|gethostbyname|sendto|recvfrom'; then echo "FAIL: networking symbols in $so"; exit 1; fi
-done
-rm -rf "$TMP"
-echo "Offline: no INTERNET permission, no networking calls in native code."
-"""
+run = "scripts/check-offline.sh"
+
+[tasks.release]
+description = "Build, sign (with the release key, asked for or from FERB_RELEASE_* variables), check and write dist/ferb-<version>.apk; see docs/development.md"
+depends = ["fetch"]
+run = "scripts/release.sh"
+
+[tasks."release:publish"]
+description = "Publish dist/ferb-<version>.apk as a GitHub release (the maintainer only, at a terminal)"
+run = "scripts/publish.sh"
 
 [tasks.build]
 description = "Build the debug APK"

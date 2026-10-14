@@ -17,3 +17,6 @@ app/src/main/assets/
 # Local instructions for coding agents; they point into a private notes vault
 CLAUDE.md
 __pycache__/
+
+# Signed release APKs (mise run release)
+dist/

@@ -17,6 +17,38 @@ mise run bench          # other models on the same requests (tuning only)
 
 Gradle runs with `--no-daemon` and compiles Kotlin in-process, so no daemon stays behind (a model server on the same computer, such as Ferb Link's, keeps its memory). Don't run `./gradlew --stop`: it stops every Gradle build on the computer.
 
+## Releases
+
+Releases are built and signed on the maintainer's computer with one release key, which Ferb Link's releases share: Ferb Link answers only a Ferb signed with the same key. Nothing secret is in the repo, Gradle, a file or a log.
+
+```sh
+mise run release           # build, sign, check: dist/ferb-<versionName>.apk and its .sha256
+mise run release:publish   # the maintainer only: create the GitHub release v<versionName>
+```
+
+`mise run release` (`scripts/release.sh`):
+1. Builds the release APK unsigned (Gradle never sees the key).
+2. Aligns it, and signs it with `apksigner`, which reads the passwords from the environment, not its command line.
+3. Checks the signing certificate against `release-cert.sha256`, the committed SHA-256 of the release certificate. It's public, and Ferb Link's repo holds the same line.
+4. Runs `scripts/check-offline.sh` on the signed APK.
+5. Writes the APK and its checksum to `dist/` (git-ignored).
+
+On the very first release there's no `release-cert.sha256` yet: the task writes it, then stops so it can be checked and committed.
+
+Signing settings, from the environment or asked for (the password without echo):
+
+| Variable | |
+|---|---|
+| `FERB_RELEASE_KEYSTORE` | the keystore; default `~/.android/keystores/release-key-abhay.jks` |
+| `FERB_RELEASE_KEY_ALIAS` | the key's alias |
+| `FERB_RELEASE_STORE_PASSWORD` | the keystore's password |
+| `FERB_RELEASE_KEY_PASSWORD` | the key's password, only when it isn't the keystore's |
+| `FERB_RELEASE_CERT_FILE` | for tests with a throwaway key only: another file in place of `release-cert.sha256` |
+
+`mise run release:publish` (`scripts/publish.sh`) runs only at a terminal, from a clean tree that matches `origin/main`. It checks the APK's certificate and checksum, and refuses a version that's already released. It asks for the version to be typed before `gh release create`. Raise `versionName` (and `versionCode`) in `app/build.gradle.kts` for each release.
+
+Before publishing, install the release APK on a phone and run the smoke test below: the release build is shrunk by R8, which debug builds aren't.
+
 ## Testing
 
 Four tiers, cheapest first:
