@@ -101,13 +101,38 @@ Requires [mise](https://mise.jdx.dev), the Android SDK with NDK 28.2.13676358 an
 ```sh
 mise run bootstrap      # local.properties
 mise run fetch          # Needle engine and the bundled model (pinned, checksummed)
-mise run test           # JVM unit tests
+mise run test           # unit and contract tests (see Testing)
 mise run tool-check     # the tools against the real model, on the desktop
 mise run check-offline  # fails if the APK has the INTERNET permission or networking calls in native code
 mise run device-test    # on the phone: loads the bundled model, swaps tools
 mise run run            # install and launch
 mise run send-over-tailscale my-phone   # or send the APK with Taildrop
 ```
+
+## Testing
+
+Four tiers, cheapest first:
+
+1. **Unit tests** (`mise run test`, every change): the bulk, with no model, server or phone.
+   - Routing and keywords; the time and length readers; Verdict and the bars; LinkPolicy.
+   - App and contact matching; NeedleReply parsing; the tool schemas.
+   - What a transcription leads to (`VoiceOutcome`).
+   - `SpokenRequestsTest` keeps what the audio bench found, at the component that handles it.
+2. **Contract tests** (in `mise run test` too): Ferb's side of the link to Ferb Link, replayed from Ferb Link's example requests and results.
+   - Status, check, complete, transcribe, wake, each error kind, and an older Ferb Link.
+   - Ferb Link owns the fixtures; Ferb keeps a copy in `app/src/test/resources/ferb-link-contract/v1` (with `SOURCE`, the commit it came from).
+   - `mise run link:contract-sync` updates the copy, and `link:contract-check` says whether it's current. Both need `../ferb-link` (or `$FERB_LINK`); neither repo needs the other to build or test.
+3. **Model evaluations**, only when tuning the tool config (schemas, descriptions, keywords, bars, the prompt), never per change:
+   - `mise run tool-check` (Needle 3, `tool-check/requests.txt`) and `mise run bench` (local models, plus `suite.txt`).
+   - `tool-check/laptop.py` runs Ferb's routing and reading with Ferb Link's own code against the laptop's model server. Take `/tmp/ferb-validate.lock` first.
+   - Scored results go in `tool-check/results`.
+4. **Smoke test**, by hand on the phone before an install-worthy release, not per change. First `mise run check-offline` and `mise run device-test`, then:
+   1. Phone picked, type "Turn on the flashlight": the torch comes on (no source line).
+   2. Computer picked, type "Set volume to 40": runs, with a laptop icon and its time.
+   3. Computer picked, say "torch on karo": "Heard: …" under "Turn on the torch", and the torch comes on.
+   4. Computer picked, record 3 s of silence and send: "No words heard", nothing runs.
+   5. Switch off "Answer Ferb's requests" in Ferb Link, type "Set volume to 30": Needle 3 answers, with "On phone · turned off".
+   6. Type "Text Priya I'm running late": "Shall I do this?" (messages always ask); Cancel.
 
 ## Credits
 

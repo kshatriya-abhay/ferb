@@ -5,7 +5,9 @@ Ferb reads them (score.py's copies of its time and length readers), scored again
 
     laptop.py bench.txt [texts.txt]
 
-bench.txt is in requests.txt's format (audio.txt, audio-alarms.txt…). Without texts.txt each
+A model evaluation, for tuning the tool config (keywords, schemas) against the computer's model
+as Ferb uses it; not part of `mise run test`. bench.txt is in requests.txt's format (requests.txt,
+suite.txt, or a short list for the change at hand). Without texts.txt each
 request is sent as written (typed); with it, its lines ("NN | text", NN the bench line, or plain
 text in order) are sent instead, e.g. what transcribe returned for each clip. Take
 /tmp/ferb-validate.lock first: the model server runs one thing at a time.
@@ -15,7 +17,8 @@ from score import arguments, normalise, cued, grounded
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BUILD = os.path.join(HERE, "..", "app", "build", "tool-check")
-FERB_LINK = "/data/Projects/ferb-link"
+# Ferb Link's repo, next to this one unless FERB_LINK says otherwise.
+FERB_LINK = os.environ.get("FERB_LINK", os.path.join(HERE, "..", "..", "ferb-link"))
 
 def bench(path):
     out = []

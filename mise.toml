@@ -177,8 +177,30 @@ depends = ["fetch"]
 run = "./gradlew assembleDebug"
 
 [tasks.test]
-description = "JVM unit tests"
+description = "Unit and contract tests: fast, no model, server or phone (see README, Testing)"
 run = "./gradlew testDebugUnitTest"
+
+[tasks."link:contract-check"]
+description = "Check Ferb's copy of Ferb Link's contract fixtures against ../ferb-link (or $FERB_LINK); skipped without it"
+run = """
+set -euo pipefail
+SRC="${FERB_LINK:-../ferb-link}/contract/v1"
+DST=app/src/test/resources/ferb-link-contract/v1
+if [ ! -d "$SRC" ]; then echo "skipped: no $SRC"; exit 0; fi
+if diff -r -q -x SOURCE "$SRC" "$DST"; then echo "Ferb's copy matches $SRC"; else echo "out of date: mise run link:contract-sync"; exit 1; fi
+"""
+
+[tasks."link:contract-sync"]
+description = "Copy Ferb Link's contract fixtures from ../ferb-link (or $FERB_LINK) into Ferb's tests, with the commit they came from"
+run = """
+set -euo pipefail
+ROOT="${FERB_LINK:-../ferb-link}"
+DST=app/src/test/resources/ferb-link-contract/v1
+rm -rf "$DST" && mkdir -p "$DST"
+cp -r "$ROOT/contract/v1/." "$DST/"
+git -C "$ROOT" log -1 --format='%h %cs %s' -- contract > "$DST/SOURCE"
+echo "Copied $(ls "$DST" | grep -c json) fixtures from $(cat "$DST/SOURCE")"
+"""
 
 [tasks.device-test]
 description = "Run the device tests on the connected phone"

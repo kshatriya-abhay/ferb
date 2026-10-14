@@ -168,7 +168,7 @@ class FerbLink(private val context: Context) {
         } catch (e: Exception) {
             return LinkStatus.Failed(e.message ?: e.toString())
         } ?: return LinkStatus.Failed("Ferb Link didn't answer")
-        return statusOf(result)
+        return statusOf(result.values())
     }
 
     /**
@@ -190,7 +190,7 @@ class FerbLink(private val context: Context) {
         } catch (e: Exception) {
             return@withContext if (installed()) failed("Ferb Link failed", "Ferb Link failed: ${e.message ?: e}") else failed("not installed", "Ferb Link isn't installed")
         } ?: return@withContext failed("no answer", "Ferb Link didn't answer")
-        replyOf(result)
+        replyOf(result.values())
     }
 
     /**
@@ -207,13 +207,7 @@ class FerbLink(private val context: Context) {
         } catch (e: Exception) {
             return@withContext Reachability(false, null, e.message ?: e.toString())
         } ?: return@withContext Reachability(false, null, "Ferb Link didn't answer")
-        Reachability(
-            reachable = result.getBoolean(LinkContract.RESULT_REACHABLE),
-            model = result.getString(LinkContract.RESULT_MODEL)?.ifBlank { null },
-            error = result.getString(LinkContract.RESULT_ERROR)?.ifBlank { null },
-            audio = result.getBoolean(LinkContract.RESULT_AUDIO),
-            errorDetail = result.getString(LinkContract.RESULT_ERROR_DETAIL)?.ifBlank { null },
-        )
+        reachabilityOf(result.values())
     }
 
     /**
@@ -254,9 +248,7 @@ class FerbLink(private val context: Context) {
         } catch (e: Exception) {
             return@withContext Transcript.failed("Ferb Link failed: ${e.message ?: e}")
         } ?: return@withContext Transcript.failed("Ferb Link didn't answer")
-        val version = result.getInt(LinkContract.RESULT_VERSION, -1)
-        if (version != LinkContract.VERSION) return@withContext Transcript.failed("Ferb Link speaks version $version, Ferb version ${LinkContract.VERSION}: update the older one")
-        Transcript.parse(result.getString(LinkContract.RESULT_REPLY) ?: return@withContext Transcript.failed("Ferb Link sent no reply"))
+        transcriptOf(result.values())
     }
 
     /**
@@ -277,21 +269,39 @@ class FerbLink(private val context: Context) {
     fun openIntent(): Intent? = context.packageManager.getLaunchIntentForPackage(LinkContract.PACKAGE)
 
     companion object {
-        fun statusOf(result: Bundle): LinkStatus {
-            val version = result.getInt(LinkContract.RESULT_VERSION, -1)
+        /** A `status` result. */
+        fun statusOf(result: LinkResult): LinkStatus {
+            val version = result.int(LinkContract.RESULT_VERSION)
             return when {
                 version != LinkContract.VERSION -> LinkStatus.Mismatch(version)
-                !result.getBoolean(LinkContract.RESULT_ENABLED) -> LinkStatus.Off
-                !result.getBoolean(LinkContract.RESULT_CONFIGURED) -> LinkStatus.NotSetUp
-                else -> LinkStatus.Ready(result.getString(LinkContract.RESULT_MODEL)?.ifBlank { null }, result.getBoolean(LinkContract.RESULT_AUDIO))
+                !result.bool(LinkContract.RESULT_ENABLED) -> LinkStatus.Off
+                !result.bool(LinkContract.RESULT_CONFIGURED) -> LinkStatus.NotSetUp
+                else -> LinkStatus.Ready(result.text(LinkContract.RESULT_MODEL), result.bool(LinkContract.RESULT_AUDIO))
             }
         }
 
-        fun replyOf(result: Bundle): NeedleReply {
-            val version = result.getInt(LinkContract.RESULT_VERSION, -1)
+        /** A `complete` result. */
+        fun replyOf(result: LinkResult): NeedleReply {
+            val version = result.int(LinkContract.RESULT_VERSION)
             if (version != LinkContract.VERSION) return failed("versions differ", "Ferb Link speaks version $version, Ferb version ${LinkContract.VERSION}: update the older one")
-            val json = result.getString(LinkContract.RESULT_REPLY) ?: return failed("unexpected answer", "Ferb Link sent no reply")
+            val json = result.text(LinkContract.RESULT_REPLY) ?: return failed("unexpected answer", "Ferb Link sent no reply")
             return parse(json)
+        }
+
+        /** A `check` result. */
+        fun reachabilityOf(result: LinkResult) = Reachability(
+            reachable = result.bool(LinkContract.RESULT_REACHABLE),
+            model = result.text(LinkContract.RESULT_MODEL),
+            error = result.text(LinkContract.RESULT_ERROR),
+            audio = result.bool(LinkContract.RESULT_AUDIO),
+            errorDetail = result.text(LinkContract.RESULT_ERROR_DETAIL),
+        )
+
+        /** A `transcribe` result. */
+        fun transcriptOf(result: LinkResult): Transcript {
+            val version = result.int(LinkContract.RESULT_VERSION)
+            if (version != LinkContract.VERSION) return Transcript.failed("Ferb Link speaks version $version, Ferb version ${LinkContract.VERSION}: update the older one")
+            return Transcript.parse(result.text(LinkContract.RESULT_REPLY) ?: return Transcript.failed("Ferb Link sent no reply"))
         }
 
         /**
@@ -334,6 +344,22 @@ class FerbLink(private val context: Context) {
         )
     }
 }
+
+/**
+ * A result from Ferb Link (its Bundle's values by key), so the parsing above runs without
+ * Android: the contract tests replay Ferb Link's fixtures through it.
+ */
+fun interface LinkResult {
+    operator fun get(key: String): Any?
+
+    fun int(key: String) = (get(key) as? Number)?.toInt() ?: -1
+    fun bool(key: String) = get(key) as? Boolean ?: false
+    /** A string, null when missing or blank. */
+    fun text(key: String) = (get(key) as? String)?.ifBlank { null }
+}
+
+@Suppress("DEPRECATION")
+private fun Bundle.values() = LinkResult { get(it) }
 
 /** What Ferb Link's `check` found: whether the computer answers, its model, or why not. */
 data class Reachability(val reachable: Boolean, val model: String?, val error: String?, val audio: Boolean = false, val errorDetail: String? = null)

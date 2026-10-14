@@ -15,7 +15,7 @@ import dev.abhay.assistant.link.LinkMode
 import dev.abhay.assistant.link.LinkPolicy
 import dev.abhay.assistant.link.LinkStatus
 import dev.abhay.assistant.link.Recorder
-import dev.abhay.assistant.link.VoiceLog
+import dev.abhay.assistant.link.Transcript
 import dev.abhay.assistant.link.brief
 import dev.abhay.assistant.link.describe
 import dev.abhay.assistant.tools.CallRunner
@@ -86,8 +86,6 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         val laptopErrorDetail: String? = null,
         /** For a spoken request: the words heard, when they differ from [request] (its English command). */
         val heard: String? = null,
-        /** Whether the request was spoken (it runs as a typed one would). */
-        val spoken: Boolean = false,
     )
 
     data class UiState(
@@ -167,11 +165,11 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         val request = text.trim()
         if (request.isEmpty() || _state.value.busy || engine.value !is AssistantEngine.State.Ready) return
         _state.update { it.copy(busy = true, input = "", notice = null, pending = request) }
-        viewModelScope.launch { answer(request, heard = null, spoken = false) }
+        viewModelScope.launch { answer(request, heard = null) }
     }
 
-    /** Answers [request] (typed, or the English command of a [spoken] one, [heard] as said) and runs what it can. */
-    private suspend fun answer(request: String, heard: String?, spoken: Boolean) {
+    /** Answers [request] (typed, or the English command of a spoken one, [heard] as said) and runs what it can. */
+    private suspend fun answer(request: String, heard: String?) {
         try {
             val started = SystemClock.elapsedRealtime()
             val enabled = enabledTools.value.mapNotNull(Tools::byName)
@@ -217,10 +215,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
                 needleReply = needle.takeIf { shown !== it },
                 laptopError = laptopError.takeIf { !shown.fromLaptop },
                 laptopErrorDetail = laptopErrorDetail.takeIf { !shown.fromLaptop },
-                heard = heard, spoken = spoken)
+                heard = heard)
             _state.update { it.copy(history = it.history + exchange, pending = null, asking = null) }
-            if (spoken) voiceLog.add(heard ?: request, request, shown.calls, calls.map { summaryOf(it.prepared) },
-                asked = verdict.decision != Decision.Run, fromComputer = shown.fromLaptop, ms = exchange.wallMs)
             if (verdict.decision == Decision.Run) run(exchange.id)
         } catch (e: CancellationException) {
             throw e
@@ -232,7 +228,6 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     private val recorder by lazy { Recorder(app) }
-    private val voiceLog by lazy { VoiceLog(app) }
 
     /**
      * Starts recording a spoken request (the microphone permission is granted), and has Ferb Link
@@ -275,15 +270,14 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         if (_state.value.busy || engine.value !is AssistantEngine.State.Ready) return
         _state.update { it.copy(busy = true, voice = null, notice = null, pending = voiceLabel(clip.ms), asking = "Your computer is listening…") }
         viewModelScope.launch {
-            val transcript = assistant.link.transcribe(clip.audio, Recorder.MIME)
-            val failed = transcript.error?.let { "Your computer couldn't hear it: ${it.replaceFirstChar(Char::lowercase)}" }
-                ?: "No words heard: try again, a little closer".takeIf { transcript.text.isBlank() }
-            if (failed != null) {
-                _state.update { it.copy(busy = false, pending = null, asking = null, voice = clip.takeIf { transcript.error != null }, notice = failed) }
-                return@launch
+            when (val next = VoiceOutcome.of(assistant.link.transcribe(clip.audio, Recorder.MIME))) {
+                is VoiceOutcome.Failed ->
+                    _state.update { it.copy(busy = false, pending = null, asking = null, voice = clip.takeIf { next.keepClip }, notice = next.notice) }
+                is VoiceOutcome.Answer -> {
+                    _state.update { it.copy(pending = next.request, asking = null) }
+                    answer(next.request, heard = next.heard)
+                }
             }
-            _state.update { it.copy(pending = transcript.text, asking = null) }
-            answer(transcript.text, heard = transcript.heard.takeUnless { it.isBlank() || it.equals(transcript.text, ignoreCase = true) }, spoken = true)
         }
     }
 
@@ -416,11 +410,22 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 }
 
-/** "Voice request · 0:04", for the request's bubble until the computer has heard it. */
-/** How Ferb read a call, for the voice log: its summary ("Open Paytm") and choices (the contact found), or why it can't run. */
-private fun summaryOf(prepared: Prepared) = when (prepared) {
-    is Prepared.Ready -> prepared.summary + prepared.choices.joinToString(prefix = " \u2192 ", separator = ", ") { it.label }.takeIf { prepared.choices.isNotEmpty() }.orEmpty()
-    is Prepared.Invalid -> "invalid: ${prepared.reason}"
+/**
+ * What a transcription leads to: answering its English command (with what was heard, when that
+ * differs), or a notice. A failure keeps the recording, to send again; no words don't.
+ */
+internal sealed interface VoiceOutcome {
+    data class Answer(val request: String, val heard: String?) : VoiceOutcome
+    data class Failed(val notice: String, val keepClip: Boolean) : VoiceOutcome
+
+    companion object {
+        fun of(transcript: Transcript): VoiceOutcome = when {
+            transcript.error != null -> Failed("Your computer couldn't hear it: ${transcript.error.replaceFirstChar(Char::lowercase)}", keepClip = true)
+            transcript.text.isBlank() -> Failed("No words heard: try again, a little closer", keepClip = false)
+            else -> Answer(transcript.text, transcript.heard.takeUnless { it.isBlank() || it.equals(transcript.text, ignoreCase = true) })
+        }
+    }
 }
 
+/** "Voice request · 0:04", for the request's bubble until the computer has heard it. */
 internal fun voiceLabel(ms: Long): String = String.format(java.util.Locale.US, "Voice request \u00b7 %d:%02d", ms / 60_000, ms / 1000 % 60)
