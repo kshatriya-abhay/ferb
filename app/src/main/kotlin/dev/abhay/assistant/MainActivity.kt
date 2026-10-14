@@ -24,6 +24,8 @@ import dev.abhay.assistant.ui.SettingsScreen
 import dev.abhay.assistant.ui.SettingsViewModel
 import dev.abhay.assistant.ui.ToolConfigScreen
 import dev.abhay.assistant.ui.ToolsScreen
+import dev.abhay.assistant.ui.WelcomeScreen
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * The assistant, and its settings: Settings → Tools → one tool's page → its keywords. The
@@ -42,6 +44,12 @@ class MainActivity : ComponentActivity() {
             MaterialExpressiveTheme(colorScheme = colors, motionScheme = MotionScheme.expressive()) {
                 val viewModel: AssistantViewModel = viewModel()
                 val settings: SettingsViewModel = viewModel()
+                // The first launch (or after Settings → Show tips again): the welcome screen first.
+                val onboarding by viewModel.onboarding.state.collectAsStateWithLifecycle()
+                if (!onboarding.welcomed) {
+                    WelcomeScreen(onStart = { viewModel.onboarding.welcomed() })
+                    return@MaterialExpressiveTheme
+                }
                 var stack by rememberSaveable { mutableStateOf(listOf("assistant")) }
                 val open = { screen: String -> stack = stack + screen }
                 val back = { stack = stack.dropLast(1) }

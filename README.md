@@ -18,7 +18,7 @@ You need an Android phone with a 64-bit ARM processor (most phones since 2017) a
 
 ### First launch
 
-Ferb opens on "How can I help?" with a few requests to try; tap one, or type your own in the box at the bottom. Try:
+A short welcome says what Ferb does and that it runs on the phone; tap **Start**. Then "How can I help?" shows a few requests to try; tap one, or type your own in the box at the bottom. Try:
 
 - "Set a timer for 10 minutes"
 - "Turn on the flashlight"
@@ -26,7 +26,7 @@ Ferb opens on "How can I help?" with a few requests to try; tap one, or type you
 - "Open the calculator"
 - "Open Wi-Fi settings"
 
-Each reply shows what Ferb did, with buttons such as **Turn off**, **Undo** or **Open again**. When Ferb isn't sure enough, or the tool is one that reaches other people, it asks first: **Shall I do this?** Tap a reply to see the details (how sure Needle 3 was, and why it asked or ran).
+Each reply shows what Ferb did, with buttons such as **Turn off**, **Undo** or **Open again**. When Ferb isn't sure enough, or the tool is one that reaches other people, it asks first: **Shall I do this?** Tap a reply to see the details (how sure Needle 3 was, and why it asked or ran). Tips explain each of these once, the first time it appears; **Settings → Show tips again** brings them back.
 
 ### Turn on more tools
 
