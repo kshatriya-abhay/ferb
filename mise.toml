@@ -80,7 +80,7 @@ fetch() { # url path sha256
   echo "$3  $2.part" | sha256sum -c --quiet
   mv "$2.part" "$2"
 }
-./gradlew -q testDebugUnitTest --tests '*ToolSchemasTest*'
+./gradlew --no-daemon -q testDebugUnitTest --tests '*ToolSchemasTest*'
 cat tool-check/requests.txt tool-check/suite.txt > "$DIR/requests.txt"
 TOOLS="app/build/tool-check/${usage_set}.json"
 # Answers are kept per model in tool-check/results/ (route.Cache): only requests and tool sets not
@@ -141,7 +141,7 @@ depends = ["tool-check-engine"]
 run = """
 set -euo pipefail
 DIR=build/tool-check
-./gradlew -q testDebugUnitTest --tests '*ToolSchemasTest*'
+./gradlew --no-daemon -q testDebugUnitTest --tests '*ToolSchemasTest*'
 if [ "$usage_mode" = unrouted ]; then
   TOOL_CHECK_RAW=1 "$DIR/tool_check" app/src/main/assets/needle3.cact "app/build/tool-check/${usage_set}.json" tool-check/requests.txt ${FACTS:+"$FACTS"} \
     > "app/build/tool-check/${usage_set}.answers"
@@ -174,11 +174,11 @@ echo "Offline: no INTERNET permission, no networking calls in native code."
 [tasks.build]
 description = "Build the debug APK"
 depends = ["fetch"]
-run = "./gradlew assembleDebug"
+run = "./gradlew --no-daemon assembleDebug"
 
 [tasks.test]
 description = "Unit and contract tests: fast, no model, server or phone (see README, Testing)"
-run = "./gradlew testDebugUnitTest"
+run = "./gradlew --no-daemon testDebugUnitTest"
 
 [tasks."link:contract-check"]
 description = "Check Ferb's copy of Ferb Link's contract fixtures against ../ferb-link (or $FERB_LINK); skipped without it"
@@ -205,11 +205,11 @@ echo "Copied $(ls "$DST" | grep -c json) fixtures from $(cat "$DST/SOURCE")"
 [tasks.device-test]
 description = "Run the device tests on the connected phone"
 depends = ["fetch"]
-run = "./gradlew connectedDebugAndroidTest"
+run = "./gradlew --no-daemon connectedDebugAndroidTest"
 
 [tasks.install]
 depends = ["fetch"]
-run = "./gradlew installDebug"
+run = "./gradlew --no-daemon installDebug"
 
 [tasks.run]
 description = "Install and launch on the connected phone"
