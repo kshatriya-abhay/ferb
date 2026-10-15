@@ -24,6 +24,7 @@ run bench needle3` keeps them; any missing one is run here, on the laptop, free)
 """
 import json, os, re, shlex, subprocess, sys, tempfile, time
 from score import arguments, normalise, cued, grounded
+from lines import kept
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BUILD = os.path.join(HERE, "..", "app", "build", "tool-check")
@@ -32,9 +33,10 @@ BUILD = os.path.join(HERE, "..", "app", "build", "tool-check")
 NEEDLE_SALT = "c9d915eca282ed42d1a09b143b592adb4cc6744ffe2d294adf5cfc5548170c38"
 FERB_LINK = os.environ.get("FERB_LINK", os.path.join(HERE, "..", "..", "ferb-link"))
 
-def bench(path):
+def bench(path, skip=()):
+    """The bench lines (request, tools, values), without the sections in [skip] (lines.py)."""
     out = []
-    for line in open(path):
+    for line in kept([path], set(skip)):
         line = line.strip()
         if not line or line.startswith("#"): continue
         spec, request = [x.strip() for x in line.split("|", 1)]
@@ -73,7 +75,8 @@ def decide(argv):
         elif argv[i] == "--replies": saved = argv[i + 1]; i += 2
         else: sys.exit(f"Unknown option {argv[i]}")
     import route
-    expected = bench(path)
+    # Neither Jev nor Needle 3 understands Hindi: the @hi section is for the computer only.
+    expected = bench(path, skip={"hi"})
     tools = json.load(open(os.path.join(BUILD, "all.json")))
     cues = json.load(open(os.path.join(BUILD, "cues.json")))
     bars = json.load(open(os.path.join(BUILD, "bars.json")))
@@ -191,6 +194,8 @@ def decide(argv):
 def main():
     if sys.argv[1:2] == ["--decide"]: return decide(sys.argv[2:])
     expected = bench(sys.argv[1])
+    hindi = {r for r, _, _ in expected} - {r for r, _, _ in bench(sys.argv[1], skip={"hi"})}
+    right_hi = 0
     if len(sys.argv) > 2:
         sends = []
         for i, l in enumerate(x.strip() for x in open(sys.argv[2]) if x.strip() and not x.startswith("#")):
@@ -221,6 +226,7 @@ def main():
             args = arguments(match, text) if match else {}
             ok = match is not None and all(args.get(k) == v for k, v in want.items())
         right += ok
+        right_hi += ok and text in hindi
         got = "; ".join(f"{c['name']}({', '.join(f'{k}={v}' for k, v in (c.get('arguments') or {}).items())})" for c in calls) or reply.get("harness_error") or reply.get("error") or "no tool"
         read = ""
         if calls and calls[0]["name"] in ("set_alarm", "set_timer"):
@@ -228,5 +234,9 @@ def main():
         sent = reply.get("sent")
         print(f"{'OK  ' if ok else 'MISS'} {i + 1:02d} {text}" + (f"  [sent: {sent}]" if sent and sent != text else "") + f"\n     {got}{read}  ({reply.get('ms', '-')} ms)")
     print(f"\n{right}/{len(sends)} right")
+    if hindi:
+        n_hi = sum(1 for _, text in sends if text in hindi)
+        print(f"of them @hi (Hindi and Hinglish): {right_hi}/{n_hi} right; the rest {right - right_hi}/{len(sends) - n_hi}")
 
-main()
+if __name__ == "__main__":
+    main()

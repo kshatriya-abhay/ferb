@@ -10,14 +10,8 @@ set_alarm time=08:00 | alarms at 8 and 9 am
 set_alarm time=05:00 | set an alarm for 5 o'clock
 set_alarm time=19:00 | wake me at 7 in the evening
 set_alarm time=06:00 | alarm for 6 tomorrow morning
-# Hindi for wake me (2026-10-12: "dopahar 2 baje utha dena" became a calendar event).
-set_alarm time=06:00 | subah 6 baje utha dena
-set_alarm time=07:00 | 7 baje jaga dena
-set_alarm time=14:00 | dopahar 2 baje utha dena
-none | utha ke rakh do
-none | phone utha
+# English for "phone utha" (pick the phone up): not an alarm.
 none | pick it up
-none | main jaag gaya
 set_timer seconds=600 | Timer for 10 minutes
 set_timer seconds=90 | Set a 90 second timer for the eggs
 set_timer seconds=4500 | countdown 1 hour 15 minutes
@@ -301,3 +295,14 @@ none | I forgot to set a reminder
 none | can you remind me what the capital of Peru is
 none | reminders are annoying
 none | that reminds me of my childhood
+
+# @hi: Hindi and Hinglish, for the computer's model (Computer mode) only. Neither Needle 3 nor Jev
+# understands Hindi (the user's decision, 2026-10-16), so tool-check, laptop.py --decide and jev.py
+# skip this section (lines.py --skip hi); bench.py and laptop.py keep it, scored as its own category.
+# Hindi for wake me (2026-10-12: "dopahar 2 baje utha dena" became a calendar event).
+set_alarm time=06:00 | subah 6 baje utha dena
+set_alarm time=07:00 | 7 baje jaga dena
+set_alarm time=14:00 | dopahar 2 baje utha dena
+none | utha ke rakh do
+none | phone utha
+none | main jaag gaya

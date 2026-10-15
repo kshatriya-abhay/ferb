@@ -66,6 +66,8 @@ Four tiers, cheapest first:
    - `mise run tool-check` (Needle 3, `tool-check/requests.txt`) and `mise run bench` (local models, plus `suite.txt`).
    - `tool-check/laptop.py` runs Ferb's routing and reading with Ferb Link's own code against the laptop's model server. Take `/tmp/ferb-validate.lock` first.
      `laptop.py --decide` measures Jev (TypeSafe, through Ferb Link) as a second opinion where Needle 3 is unsure. Each call costs money: Ferb Link's harness keeps a ledger with a cap; use `--dry-run` first, and `--replies` to score a kept run again for free.
+     `tool-check/jev.py` measures the Jev answerer (Jev picks the tool, Needle 3 fills it) against Phone and Computer. It keeps replies by request text and sends only the missing ones (same ledger, `--dry-run`, `--replies`).
+   - **Hindi and Hinglish** (`# @hi`, at the end of `requests.txt` and `suite.txt`) are for the computer's model only: neither Needle 3 nor Jev understands Hindi. `tool-check`, the Needle 3 runs in `bench`, `laptop.py --decide` and `jev.py`'s Phone and Jev scores skip them (`tool-check/lines.py --skip hi`); `bench`'s other models and `laptop.py` keep them, scored apart.
    - Scored results go in `tool-check/results`.
 4. **Smoke test**, by hand on the phone before an install-worthy release, not per change. First `mise run check-offline` and `mise run device-test`, then:
    1. Phone picked, type "Turn on the flashlight": the torch comes on (no source line).

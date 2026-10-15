@@ -82,31 +82,13 @@ show_agenda | whats on this afternoon
 add_event | put dinner with neha on friday 8pm in my calendar
 add_reminder | remind me on monday to submit the form
 
-# @indian: Indian English, Hinglish and Indian names and places
-set_alarm time=05:00 | subah 5 baje ka alarm laga do
-set_alarm time=06:00 | 6 baje utha dena
-set_timer seconds=600 | 10 minute ka timer lagao
-open_app app_name=paytm | paytm kholo
+# @indian: Indian English and Indian names and places (Hinglish is in @hi, at the end)
 open_app app_name=phonepe | open phonepe
-open_app app_name=zomato | zomato open karo
 open_app app_name=hotstar | open hotstar
-set_flashlight on=true | torch on karo
-set_flashlight on=false | torch band karo
-set_volume percent=0 | awaaz band karo
-control_media action=next | agla gaana
-control_media action=pause | gaana roko
-get_directions destination="india gate" | india gate ka rasta batao
-get_directions destination="chandni chowk" | chandni chowk kaise jaun
 get_directions destination=koramangala | navigate to koramangala
 get_directions destination="charminar" | directions to charminar by metro
-make_call name=mummy | mummy ko call karo
 make_call name="sharma ji" | call sharma ji
-make_call name=didi | didi ko phone lagao
-send_text name=papa | papa ko message karo ki main pahunch gaya
 send_text name=ananya | text ananya happy diwali
-create_note | note karo ki doodh khatam ho gaya
-show_agenda | kal ka schedule kya hai
-add_event | kal 4 baje meeting calendar mein daal do
 
 # @typos: misspellings and missing spaces
 set_alarm time=07:30 | set an alram for 7:30
@@ -220,3 +202,25 @@ none | find my keys
 none | delete all my photos
 none | hello
 none | good night
+
+# @hi: Hindi and Hinglish, for the computer's model (Computer mode) only. Neither Needle 3 nor Jev
+# understands Hindi (the user's decision, 2026-10-16), so tool-check, laptop.py --decide and jev.py
+# skip this section (lines.py --skip hi); bench.py and laptop.py keep it, scored as its own category.
+set_alarm time=05:00 | subah 5 baje ka alarm laga do
+set_alarm time=06:00 | 6 baje utha dena
+set_timer seconds=600 | 10 minute ka timer lagao
+open_app app_name=paytm | paytm kholo
+open_app app_name=zomato | zomato open karo
+set_flashlight on=true | torch on karo
+set_flashlight on=false | torch band karo
+set_volume percent=0 | awaaz band karo
+control_media action=next | agla gaana
+control_media action=pause | gaana roko
+get_directions destination="india gate" | india gate ka rasta batao
+get_directions destination="chandni chowk" | chandni chowk kaise jaun
+make_call name=mummy | mummy ko call karo
+make_call name=didi | didi ko phone lagao
+send_text name=papa | papa ko message karo ki main pahunch gaya
+create_note | note karo ki doodh khatam ho gaya
+show_agenda | kal ka schedule kya hai
+add_event | kal 4 baje meeting calendar mein daal do

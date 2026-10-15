@@ -83,6 +83,8 @@ fetch() { # url path sha256
 }
 ./gradlew --no-daemon -q testDebugUnitTest --tests '*ToolSchemasTest*'
 cat tool-check/requests.txt tool-check/suite.txt > "$DIR/requests.txt"
+# Needle 3 doesn't understand Hindi: its runs skip the @hi sections, which the other models keep.
+python3 tool-check/lines.py --skip hi tool-check/requests.txt tool-check/suite.txt > "$DIR/requests-no-hi.txt"
 TOOLS="app/build/tool-check/${usage_set}.json"
 # Answers are kept per model in tool-check/results/ (route.Cache): only requests and tool sets not
 # answered before are run.
@@ -101,14 +103,16 @@ newer_engine() {
 MODELS="needle3 needle3-2026-10-10 $(grep -v '^#' tool-check/models.txt | cut -d' ' -f1)"
 bench() { # model
   local OUT="$DIR/results/$1-${usage_set}-${usage_mode}"
+  local REQUESTS="$DIR/requests.txt"
+  case "$1" in needle3*) REQUESTS="$DIR/requests-no-hi.txt" ;; esac
   if [ "$1" = needle3-2026-10-10 ]; then
     newer_engine
     BENCH_CACHE="tool-check/results/$1.jsonl" BENCH_SALT=c9d915eca282ed42d1a09b143b592adb4cc6744ffe2d294adf5cfc5548170c38/5f8ed375f304cf7e7ba9e6e37d105b51549597e014afbd006407a0836804e5cd \
-      python3 tool-check/route.py "$NEWER/tool_check" app/src/main/assets/needle3.cact "$TOOLS" "$DIR/requests.txt" \
+      python3 tool-check/route.py "$NEWER/tool_check" app/src/main/assets/needle3.cact "$TOOLS" "$REQUESTS" \
       app/build/tool-check/cues.json "$usage_mode" > "$OUT.answers"
   elif [ "$1" = needle3 ]; then
     BENCH_CACHE="tool-check/results/needle3.jsonl" BENCH_SALT=c9d915eca282ed42d1a09b143b592adb4cc6744ffe2d294adf5cfc5548170c38 \
-      python3 tool-check/route.py build/tool-check/tool_check app/src/main/assets/needle3.cact "$TOOLS" "$DIR/requests.txt" \
+      python3 tool-check/route.py build/tool-check/tool_check app/src/main/assets/needle3.cact "$TOOLS" "$REQUESTS" \
       app/build/tool-check/cues.json "$usage_mode" > "$OUT.answers"
   else
     read -r _ REPO REV FILE SHA < <(grep "^$1 " tool-check/models.txt) || { echo "No model $1 in tool-check/models.txt"; exit 1; }
@@ -120,7 +124,7 @@ bench() { # model
       python3 tool-check/bench.py "$DIR/llama/llama-b11541/llama-server" "$DIR/models/$FILE" "$TOOLS" "$DIR/requests.txt" \
       app/build/tool-check/cues.json "$usage_mode" > "$OUT.answers"
   fi
-  python3 tool-check/score.py "$TOOLS" "$DIR/requests.txt" app/build/tool-check/bars.json app/build/tool-check/cues.json < "$OUT.answers" > "$OUT.txt"
+  python3 tool-check/score.py "$TOOLS" "$REQUESTS" app/build/tool-check/bars.json app/build/tool-check/cues.json < "$OUT.answers" > "$OUT.txt"
 }
 if [ "$usage_model" = all ]; then
   for m in $MODELS; do echo "== $m"; bench "$m"; done
@@ -143,14 +147,16 @@ run = """
 set -euo pipefail
 DIR=build/tool-check
 ./gradlew --no-daemon -q testDebugUnitTest --tests '*ToolSchemasTest*'
+# Needle 3 doesn't understand Hindi: the @hi section is for the computer's model only.
+python3 tool-check/lines.py --skip hi tool-check/requests.txt > "$DIR/requests.txt"
 if [ "$usage_mode" = unrouted ]; then
-  TOOL_CHECK_RAW=1 "$DIR/tool_check" app/src/main/assets/needle3.cact "app/build/tool-check/${usage_set}.json" tool-check/requests.txt ${FACTS:+"$FACTS"} \
+  TOOL_CHECK_RAW=1 "$DIR/tool_check" app/src/main/assets/needle3.cact "app/build/tool-check/${usage_set}.json" "$DIR/requests.txt" ${FACTS:+"$FACTS"} \
     > "app/build/tool-check/${usage_set}.answers"
 else
-  python3 tool-check/route.py "$DIR/tool_check" app/src/main/assets/needle3.cact "app/build/tool-check/${usage_set}.json" tool-check/requests.txt \
+  python3 tool-check/route.py "$DIR/tool_check" app/src/main/assets/needle3.cact "app/build/tool-check/${usage_set}.json" "$DIR/requests.txt" \
     app/build/tool-check/cues.json "$usage_mode" > "app/build/tool-check/${usage_set}.answers"
 fi
-python3 tool-check/score.py "app/build/tool-check/${usage_set}.json" tool-check/requests.txt app/build/tool-check/bars.json app/build/tool-check/cues.json \
+python3 tool-check/score.py "app/build/tool-check/${usage_set}.json" "$DIR/requests.txt" app/build/tool-check/bars.json app/build/tool-check/cues.json \
   < "app/build/tool-check/${usage_set}.answers"
 """
 
