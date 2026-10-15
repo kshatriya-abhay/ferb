@@ -37,6 +37,13 @@ object LinkContract {
      */
     const val METHOD_WAKE = "wake"
     const val METHOD_TRANSCRIBE = "transcribe"
+    /**
+     * Jev (TypeSafe's cloud model, opt-in in Ferb Link): which of [EXTRA_TOOLS] fits [EXTRA_REQUEST],
+     * or "none", with each option's probability. Ferb Link sends Jev only the request and the
+     * tools' names and descriptions. Added after version 1: an older Ferb Link throws
+     * IllegalArgumentException.
+     */
+    const val METHOD_DECIDE = "decide"
 
     const val EXTRA_REQUEST = "request"
     const val EXTRA_TOOLS = "tools"
@@ -69,6 +76,10 @@ object LinkContract {
      * missing in an older Ferb Link, which counts as loaded.
      */
     const val RESULT_MODEL_STATE = "model_state"
+    /** In `status`: whether Jev is on in Ferb Link, with a key; missing (false) in an older one. */
+    const val RESULT_JEV = "jev"
+    /** In `status`, when Jev is off: "cap" when it turned itself off at its spending limit; missing when the user turned it off. */
+    const val RESULT_JEV_OFF_REASON = "jev_off_reason"
 }
 
 /** Whether Ferb can use Ferb Link now, as its settings page shows it. */
@@ -84,7 +95,14 @@ sealed interface LinkStatus {
     data object NotSetUp : LinkStatus
     /** [model]: the computer's model as Ferb Link last saw it, when it says; [audio]: whether it takes voice. */
     /** [asleep]: the computer's model isn't loaded (asleep or unloaded, as last seen), so the next request waits for it to load. */
-    data class Ready(val model: String? = null, val audio: Boolean = false, val asleep: Boolean = false) : LinkStatus
+    /** [jev]: Jev is on in Ferb Link ([LinkContract.METHOD_DECIDE]); [jevCapped]: it turned itself off at its spending limit. */
+    data class Ready(
+        val model: String? = null,
+        val audio: Boolean = false,
+        val asleep: Boolean = false,
+        val jev: Boolean = false,
+        val jevCapped: Boolean = false,
+    ) : LinkStatus
     data class Failed(val reason: String) : LinkStatus
 }
 
@@ -200,6 +218,29 @@ class FerbLink(private val context: Context) {
     }
 
     /**
+     * Jev's pick among [toolsJson]'s tools (or "none") for [request], as a second opinion when
+     * Needle 3 is unsure ([LinkPolicy.jev]). Ferb Link gives up after [JEV_TIMEOUT_MS]; never throws.
+     */
+    suspend fun decide(request: String, toolsJson: String): JevReply = withContext(Dispatchers.IO) {
+        val result = try {
+            lowLatency { timed(LinkContract.METHOD_DECIDE) {
+                provider(LinkContract.METHOD_DECIDE, null, bundleOf(
+                    LinkContract.EXTRA_REQUEST to request,
+                    LinkContract.EXTRA_TOOLS to toolsJson,
+                    LinkContract.EXTRA_TIMEOUT_MS to JEV_TIMEOUT_MS,
+                ))
+            } }
+        } catch (e: IllegalArgumentException) {
+            return@withContext JevReply.failed("update Ferb Link", "This Ferb Link is too old for Jev")
+        } catch (e: SecurityException) {
+            return@withContext JevReply.failed("not allowed", "Ferb Link only answers apps signed with the same key")
+        } catch (e: Exception) {
+            return@withContext JevReply.failed("Ferb Link failed", "Ferb Link failed: ${e.message ?: e}")
+        } ?: return@withContext JevReply.failed("no answer", "Ferb Link didn't answer")
+        decisionOf(result.values())
+    }
+
+    /**
      * Whether the computer answers now (Ferb Link checks its server, about 2 s at most), for the
      * settings page. Null when this Ferb Link is too old to check.
      */
@@ -282,7 +323,9 @@ class FerbLink(private val context: Context) {
                 version != LinkContract.VERSION -> LinkStatus.Mismatch(version)
                 !result.bool(LinkContract.RESULT_ENABLED) -> LinkStatus.Off
                 !result.bool(LinkContract.RESULT_CONFIGURED) -> LinkStatus.NotSetUp
-                else -> LinkStatus.Ready(result.text(LinkContract.RESULT_MODEL), result.bool(LinkContract.RESULT_AUDIO), asleep = asleep(result.text(LinkContract.RESULT_MODEL_STATE)))
+                else -> LinkStatus.Ready(result.text(LinkContract.RESULT_MODEL), result.bool(LinkContract.RESULT_AUDIO),
+                    asleep = asleep(result.text(LinkContract.RESULT_MODEL_STATE)), jev = result.bool(LinkContract.RESULT_JEV),
+                    jevCapped = result.text(LinkContract.RESULT_JEV_OFF_REASON) == "cap")
             }
         }
 
@@ -292,6 +335,13 @@ class FerbLink(private val context: Context) {
             if (version != LinkContract.VERSION) return failed("versions differ", "Ferb Link speaks version $version, Ferb version ${LinkContract.VERSION}: update the older one")
             val json = result.text(LinkContract.RESULT_REPLY) ?: return failed("unexpected answer", "Ferb Link sent no reply")
             return parse(json)
+        }
+
+        /** A `decide` result. */
+        fun decisionOf(result: LinkResult): JevReply {
+            val version = result.int(LinkContract.RESULT_VERSION)
+            if (version != LinkContract.VERSION) return JevReply.failed("versions differ", "Ferb Link speaks version $version, Ferb version ${LinkContract.VERSION}: update the older one")
+            return JevReply.parse(result.text(LinkContract.RESULT_REPLY) ?: return JevReply.failed("unexpected answer", "Ferb Link sent no reply"))
         }
 
         /** A `check` result. */
@@ -348,6 +398,13 @@ class FerbLink(private val context: Context) {
          * the laptop (2026-10-15) and timed out the request, so Ferb waits the longest it allows.
          */
         const val WAKING_TIMEOUT_MS = 60_000
+
+        /**
+         * How long Jev may take: 260–350 ms in ferb-link's smoke run and 286 ms (median) in Ferb's
+         * bench (2026-10-15), 670 ms on a new connection. It's asked alongside the computer, so
+         * this only bounds a request the computer can't answer.
+         */
+        const val JEV_TIMEOUT_MS = 3_000
 
         /** The timeout for a request: [normal], or [WAKING_TIMEOUT_MS] while the model is [waking]. */
         fun timeout(normal: Int, waking: Boolean) = if (waking) WAKING_TIMEOUT_MS else normal
@@ -426,5 +483,45 @@ data class Transcript(val heard: String, val text: String, val model: String? = 
         }
 
         fun failed(reason: String) = Transcript("", "", error = reason)
+    }
+}
+
+/**
+ * Jev's answer to `decide`: [choice], a tool's name or "none", with [probabilities] for every option
+ * it was asked; [error] (a few words), [errorDetail] and [errorKind] when it failed.
+ */
+data class JevReply(
+    val choice: String?,
+    val probabilities: Map<String, Double>,
+    val model: String? = null,
+    val ms: Long? = null,
+    val error: String? = null,
+    val errorDetail: String? = null,
+    val errorKind: String? = null,
+) {
+    /** The probability of [choice], when Jev answered. */
+    val p: Double? get() = if (error == null) choice?.let { probabilities[it] } else null
+
+    companion object {
+        const val NONE = "none"
+
+        fun parse(json: String): JevReply = try {
+            val o = JSONObject(json)
+            val probabilities = o.optJSONObject("probabilities")?.let { p -> p.keys().asSequence().associateWith { p.getDouble(it) } } ?: emptyMap()
+            val success = o.optBoolean("success", false)
+            JevReply(
+                choice = o.optString("choice").ifBlank { null },
+                probabilities = probabilities,
+                model = o.optString("model").ifBlank { null },
+                ms = if (o.has("ms")) o.optLong("ms") else null,
+                error = if (success) null else o.optString("error").ifBlank { "Jev failed" },
+                errorDetail = o.optString("error_detail").ifBlank { null },
+                errorKind = o.optString("error_kind").ifBlank { null },
+            )
+        } catch (e: Exception) {
+            failed("unexpected answer", "Jev's reply couldn't be read: ${e.message}")
+        }
+
+        fun failed(reason: String, detail: String) = JevReply(null, emptyMap(), error = reason, errorDetail = detail)
     }
 }

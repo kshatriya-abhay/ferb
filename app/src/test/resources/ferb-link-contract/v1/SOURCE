@@ -1,1 +1,1 @@
-0d09773 2026-10-15 model_state in status and check: loaded, asleep or unloaded, so Ferb waits longer for a cold load
+3baa5a3 2026-10-15 decide: TypeSafe's Jev as a second opinion on the tool, off by default, with a spend counter and a $3 cap that turns Jev off

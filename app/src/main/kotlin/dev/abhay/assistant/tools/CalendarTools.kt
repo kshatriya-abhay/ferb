@@ -37,6 +37,7 @@ object ShowAgenda : Tool(
     // On tool-check (2026-10-10), right calls scored 0.22–0.94; the one wrong call that gets past
     // the keywords and the day check, 0.15. A wrong one only shows a list.
     defaultRunFrom = 0.3,
+    jevMayRun = true,
     examples = listOf("What's on tomorrow?", "Am I free on Friday?"),
 ) {
     override val permissions = listOf(Manifest.permission.READ_CALENDAR)

@@ -95,6 +95,14 @@ abstract class Tool(
     val defaultRunFrom: Double = 0.7,
     /** Its calls always ask first until the user changes it: for those that reach other people (calls, messages). */
     val confirmByDefault: Boolean = false,
+    /**
+     * Whether Jev agreeing ([dev.abhay.assistant.link.LinkPolicy.jev]) may run Needle 3's unsure
+     * call when the computer can't answer. Only for actions that are harmless or a tap undoes:
+     * Jev checks the tool, never the values, and an unsure Needle 3's values are what's wrong
+     * (Jev bench, 2026-10-15: "wake me up at 11:30 at night" set 11:30 in the morning, "resume
+     * the song" paused it). Never alarms or timers, nor tools that always ask.
+     */
+    val jevMayRun: Boolean = false,
 ) {
     /** For tools that ask first by default ([confirmByDefault]): why that's best, when the user turns it off. */
     open val whyAsk: String = "Ferb may get it wrong, and it would run without you seeing it first."

@@ -21,6 +21,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.Switch
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.LaunchedEffect
@@ -241,6 +242,7 @@ fun LinkScreen(settings: SettingsViewModel, onBack: () -> Unit) {
                     ) { Text(option.title()) }
                 }
             })
+            if (mode == LinkMode.Fallback) JevSetting(settings, status)
             Text(
                 "Requests your computer answers leave this phone over Tailscale.",
                 Modifier.padding(horizontal = 32.dp, vertical = 12.dp),
@@ -249,6 +251,33 @@ fun LinkScreen(settings: SettingsViewModel, onBack: () -> Unit) {
             )
         }
     }
+}
+
+/**
+ * Jev's second opinion when Needle 3 is unsure ([dev.abhay.assistant.link.LinkPolicy.jev]): off
+ * until turned on, and only while Jev is on in Ferb Link, which holds its key and spending limit.
+ */
+@Composable
+private fun JevSetting(settings: SettingsViewModel, status: LinkStatus) {
+    val on by settings.jev.collectAsStateWithLifecycle()
+    val ready = status as? LinkStatus.Ready
+    val available = ready?.jev == true
+    SectionTitle("Second opinion")
+    Group(listOf { shapes ->
+        SegmentedListItem(
+            onClick = { settings.setJev(!on) },
+            shapes = shapes,
+            enabled = available,
+            supportingContent = {
+                Text(when {
+                    ready?.jevCapped == true -> "Jev reached its spending limit: raise it in Ferb Link"
+                    !available -> "Turn on Jev in Ferb Link first"
+                    else -> "When Needle 3 is unsure, Jev checks the tool. Your request and the tools' names go to TypeSafe (US)."
+                })
+            },
+            trailingContent = { Switch(checked = on && available, onCheckedChange = null, enabled = available) },
+        ) { Text("Ask Jev") }
+    })
 }
 
 /**

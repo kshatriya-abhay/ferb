@@ -23,6 +23,9 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     private val linkSettings = (app as AssistantApp).linkSettings
     val linkMode: StateFlow<LinkMode> = linkSettings.mode
     fun setLinkMode(mode: LinkMode) = linkSettings.setMode(mode)
+    /** Jev's second opinion (Settings → Ferb Link), saved at once. */
+    val jev: StateFlow<Boolean> = linkSettings.jev
+    fun setJev(on: Boolean) = linkSettings.setJev(on)
     val saved: StateFlow<Map<String, ToolConfig>> = settings.configs
 
     /** The one-time tips (a tool's page has one), and "Show tips again". */

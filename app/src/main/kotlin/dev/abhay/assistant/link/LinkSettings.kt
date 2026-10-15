@@ -43,6 +43,18 @@ class LinkSettings(context: Context) {
     /** The chat box's choice in [LinkMode.Option], kept until changed. */
     val answerer: StateFlow<Answerer> = _answerer.asStateFlow()
 
+    private val _jev = MutableStateFlow(prefs.getBoolean(KEY_JEV, false))
+    /**
+     * Whether Ferb asks Jev for a second opinion when Needle 3 is unsure ([LinkPolicy.jev]): off
+     * until the user turns it on, and used only while Ferb Link has Jev on too.
+     */
+    val jev: StateFlow<Boolean> = _jev.asStateFlow()
+
+    fun setJev(on: Boolean) {
+        prefs.edit().putBoolean(KEY_JEV, on).apply()
+        _jev.value = on
+    }
+
     fun setMode(mode: LinkMode) {
         prefs.edit().putString(KEY_MODE, mode.id).apply()
         _mode.value = mode
@@ -56,5 +68,6 @@ class LinkSettings(context: Context) {
     companion object {
         private const val KEY_MODE = "mode"
         private const val KEY_ANSWERER = "answerer"
+        private const val KEY_JEV = "jev"
     }
 }

@@ -117,6 +117,7 @@ import dev.abhay.assistant.R
 import dev.abhay.assistant.engine.AssistantEngine
 import dev.abhay.assistant.engine.Decision
 import dev.abhay.assistant.link.Answerer
+import dev.abhay.assistant.link.LinkPolicy
 import dev.abhay.assistant.link.LinkMode
 import dev.abhay.assistant.notes.NoteStore
 import dev.abhay.assistant.onboarding.Tip
@@ -657,6 +658,10 @@ private fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () ->
                                 exchange.alwaysConfirm -> "Asked first: the tool is set to always ask."
                                 exchange.unmentioned -> "Asked first: the request doesn't mention what this tool does."
                                 exchange.ungrounded -> "Asked first: the request doesn't say these numbers."
+                                exchange.jev?.p?.let { it >= LinkPolicy.JEV_BAR && exchange.calls.any { c -> c.call.name != exchange.jev.choice } } == true ->
+                                    "Asked first: Jev picked something else."
+                                !reply.fromLaptop && exchange.decision == Decision.Run && exchange.jev?.p != null ->
+                                    "Ran without asking: Jev agreed, and this is easy to undo."
                                 reply.fromLaptop -> "Ran without asking: your computer's answer passed the usual checks."
                                 exchange.decision == Decision.Run -> String.format(Locale.US, "Ran without asking: needed %.2f.", exchange.runAt)
                                 else -> String.format(Locale.US, "Asked first: runs without asking from %.2f.", exchange.runAt)
@@ -693,6 +698,9 @@ private fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () ->
                 Text(String.format(Locale.US, "Needle 3 said (confidence %.2f):", needle.confidence ?: 0.0), style = MaterialTheme.typography.labelLarge)
                 Text(needle.calls.joinToString("\n") { it.signature() }.ifEmpty { "no tool" },
                     style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+            }
+            LinkPolicy.jevLine(exchange.jev, exchange.calls.map { it.call.name })?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             (exchange.laptopErrorDetail ?: exchange.laptopError)?.let {
                 Text("Your computer didn't answer: ${it.replaceFirstChar { c -> c.lowercase() }}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

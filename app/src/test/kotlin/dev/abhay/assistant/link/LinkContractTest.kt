@@ -46,8 +46,9 @@ class LinkContractTest {
     @Test
     fun theFixturesAreHereAndKnown() {
         assertThat(cases).isNotEmpty()
-        cases.filter { !it.result.has("throws") }.forEach { assertThat(it.method).isIn(listOf("status", "check", "complete", "transcribe", "wake")) }
-        listOf("status", "check", "complete", "transcribe", "wake").forEach { assertThat(of(it)).isNotEmpty() }
+        val methods = listOf("status", "check", "complete", "transcribe", "wake", "decide")
+        cases.filter { !it.result.has("throws") }.forEach { assertThat(it.method).isIn(methods) }
+        methods.forEach { assertThat(of(it)).isNotEmpty() }
     }
 
     @Test
@@ -57,6 +58,7 @@ class LinkContractTest {
         val sent = mapOf(
             "complete" to setOf(LinkContract.EXTRA_REQUEST, LinkContract.EXTRA_TOOLS, LinkContract.EXTRA_TIMEOUT_MS),
             "transcribe" to setOf(LinkContract.EXTRA_AUDIO, LinkContract.EXTRA_AUDIO_MIME, LinkContract.EXTRA_TIMEOUT_MS),
+            "decide" to setOf(LinkContract.EXTRA_REQUEST, LinkContract.EXTRA_TOOLS, LinkContract.EXTRA_TIMEOUT_MS),
         )
         sent.forEach { (method, keys) ->
             val taken = of(method).flatMap { it.extras.keys().asSequence().toList() }.toSet()
@@ -74,7 +76,8 @@ class LinkContractTest {
                 !r.optBoolean("enabled") -> assertThat(status).isEqualTo(LinkStatus.Off)
                 !r.optBoolean("configured") -> assertThat(status).isEqualTo(LinkStatus.NotSetUp)
                 else -> assertThat(status).isEqualTo(LinkStatus.Ready(r.optString("model").ifBlank { null }, r.optBoolean("audio"),
-                    asleep = FerbLink.asleep(r.optString("model_state").ifEmpty { null })))
+                    asleep = FerbLink.asleep(r.optString("model_state").ifEmpty { null }),
+                    jev = r.optBoolean("jev"), jevCapped = r.optString("jev_off_reason") == "cap"))
             }
         }
         // model_state: asleep (or unloaded) means the next request waits longer; loaded or missing doesn't.
@@ -88,6 +91,42 @@ class LinkContractTest {
         val ready = of("status").map { FerbLink.statusOf(values(it.result)) }.filterIsInstance<LinkStatus.Ready>()
         assertThat(ready).isNotEmpty()
         ready.forEach { assertThat(it.model).isNotNull() }
+    }
+
+    @Test
+    fun statusSaysWhetherJevIsOnAndWhenItsLimitTurnedItOff() {
+        val ready = of("status").map { FerbLink.statusOf(values(it.result)) }.filterIsInstance<LinkStatus.Ready>()
+        assertThat(ready.any { it.jev }).isTrue()
+        assertThat(ready.any { it.jevCapped && !it.jev }).isTrue()
+    }
+
+    @Test
+    fun decideIsAPickWithItsProbabilityOrAShortError() {
+        of("decide").forEach { case ->
+            val jev = FerbLink.decisionOf(values(case.result))
+            val wire = case.result.getJSONObject("reply")
+            if (wire.optBoolean("success")) {
+                // A pick among the options it was asked, "none" included, with its probability.
+                val options = wire.getJSONArray("options").let { a -> (0 until a.length()).map(a::getString) }
+                assertThat(jev.choice).isIn(options)
+                assertThat(jev.p).isWithin(1e-9).of(wire.getJSONObject("probabilities").getDouble(jev.choice!!))
+                assertThat(jev.error).isNull()
+            } else {
+                // Never read as a pick: Ferb behaves as without Jev, and the details say why.
+                assertThat(jev.p).isNull()
+                // A few words, lower case but for Jev's name ("Jev's limit reached").
+                val error = jev.error!!
+                assertThat(error.length).isAtMost(40)
+                assertThat(error).doesNotContain(".")
+                assertThat(error.first().isLowerCase() || error.startsWith("Jev")).isTrue()
+                assertThat(LinkPolicy.jevLine(jev, emptyList())).isNotEmpty()
+            }
+        }
+        assertThat(of("decide").map { FerbLink.decisionOf(values(it.result)).choice }).contains(JevReply.NONE)
+        // At the spending limit, the details say so.
+        val capped = of("decide").map { FerbLink.decisionOf(values(it.result)) }.filter { it.errorDetail?.contains("spending limit") == true }
+        assertThat(capped).isNotEmpty()
+        capped.forEach { assertThat(LinkPolicy.jevLine(it, emptyList())).contains("spending limit") }
     }
 
     @Test

@@ -11,6 +11,7 @@ import dev.abhay.assistant.engine.Decision
 import dev.abhay.assistant.engine.NeedleReply
 import dev.abhay.assistant.engine.ToolCall
 import dev.abhay.assistant.link.Answerer
+import dev.abhay.assistant.link.JevReply
 import dev.abhay.assistant.link.LinkMode
 import dev.abhay.assistant.link.LinkPolicy
 import dev.abhay.assistant.link.LinkStatus
@@ -30,6 +31,8 @@ import dev.abhay.assistant.tools.ToolRouter
 import dev.abhay.assistant.tools.Tools
 import dev.abhay.assistant.tools.Verdict
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -87,6 +90,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         val heard: String? = null,
         /** When no tool did it: the tools that are off but that the request mentions, offered to turn on. */
         val turnOn: List<String> = emptyList(),
+        /** Jev's second opinion, when Ferb asked it ([LinkPolicy.jev]); its pick, or why it failed, shows in the details. */
+        val jev: JevReply? = null,
     )
 
     data class UiState(
@@ -217,16 +222,29 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             }
             if (chosen && enabled.isNotEmpty()) askLaptop()
             var needle: NeedleReply? = null
+            var jev: JevReply? = null
             if (laptop?.error != null || laptop == null) {
                 _state.update { it.copy(asking = null) }
                 val reply = askNeedle(request, enabled, routed)
                 needle = reply
                 if (!chosen && mode == LinkMode.Fallback && enabled.isNotEmpty() && reply.error == null &&
-                    LinkPolicy.askLaptopAfter(reply, Verdict.of(reply, configs, request))) askLaptop()
+                    LinkPolicy.askLaptopAfter(reply, Verdict.of(reply, configs, request))) {
+                    // Jev alongside the computer, when it's on in both apps: a second opinion on the
+                    // tool, whichever of the two answers.
+                    val status = assistant.link.status()
+                    coroutineScope {
+                        val asked = if (status is LinkStatus.Ready && status.jev && assistant.linkSettings.jev.value) {
+                            async { assistant.link.decide(request, Tools.json(routed.ifEmpty { enabled })) }
+                        } else null
+                        askLaptop()
+                        jev = asked?.await()
+                    }
+                }
             }
             // The computer's answer whenever it gave one, including "no tool fits".
             val shown = laptop?.takeIf { it.error == null } ?: needle!!
-            val verdict = if (shown.fromLaptop) LinkPolicy.verdict(shown, configs, request) else Verdict.of(shown, configs, request)
+            val verdict = (if (shown.fromLaptop) LinkPolicy.verdict(shown, configs, request) else Verdict.of(shown, configs, request))
+                .let { it.copy(decision = LinkPolicy.jev(it, shown, jev)) }
             val calls = shown.calls.map { call -> CallState(call, prepare(call, request), Status.Waiting) }
             val exchange = Exchange(nextId++, request, shown, verdict.decision, verdict.runAt, verdict.alwaysConfirm, verdict.unmentioned, verdict.ungrounded,
                 routed.map { it.name }, calls, SystemClock.elapsedRealtime() - started,
@@ -234,7 +252,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
                 laptopError = laptopError.takeIf { !shown.fromLaptop },
                 laptopErrorDetail = laptopErrorDetail.takeIf { !shown.fromLaptop },
                 heard = heard,
-                turnOn = if (shown.calls.isEmpty() && shown.error == null) ToolRouter.off(request, configs).map { it.name } else emptyList())
+                turnOn = if (shown.calls.isEmpty() && shown.error == null) ToolRouter.off(request, configs).map { it.name } else emptyList(),
+                jev = jev)
             _state.update { it.copy(history = it.history + exchange, pending = null, asking = null) }
             if (verdict.decision == Decision.Run) run(exchange.id)
         } catch (e: CancellationException) {
