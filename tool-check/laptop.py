@@ -50,7 +50,7 @@ def scored(call, want_tools, want, text):
     return all(args.get(k) == v for k, v in want.items())
 
 def harness(lines, extra=()):
-    """Ferb Link's replies to [lines] (dicts), by id; with --dry-run, None (the harness prints the estimate)."""
+    """Ferb Link's replies to [lines] (dicts), by id; with --dry-run, None, after printing the harness's estimate."""
     with tempfile.TemporaryDirectory() as tmp:
         src, dst = os.path.join(tmp, "in.jsonl"), os.path.join(tmp, "out.jsonl")
         with open(src, "w") as f:
@@ -58,7 +58,9 @@ def harness(lines, extra=()):
         dry = "--dry-run" in extra
         subprocess.run(["mise", "run", "companion:harness", src, dst, *extra], cwd=FERB_LINK, check=True,
                        stdout=None if dry else subprocess.DEVNULL, stderr=None if dry else subprocess.DEVNULL)
-        if dry: return None
+        if dry:  # the harness writes only its estimate
+            print(open(dst).read().strip())
+            return None
         return {r["id"]: r for r in (json.loads(l) for l in open(dst) if l.strip())}
 
 def decide(argv):
@@ -171,6 +173,17 @@ def decide(argv):
         print(f"{label + ', today':<22}" + "".join(f"{x:>11}" for x in tally(lambda r, c: today(source, c, r["text"]))))
         for bar in (0.5, 0.6, 0.7, 0.8, 0.9, 0.95):
             print(f"{f'  Jev bar {bar:.2f}':<22}" + "".join(f"{x:>11}" for x in tally(lambda r, c, b=bar: with_jev(source, c, r["text"], r, b))))
+    # What still runs wrongly with Jev (at JEV_BAR, 0.7 unless set): a wrong tool Jev agreed
+    # with, or the right tool with wrong values, which Jev can't see (it never sees arguments).
+    bar = float(os.environ.get("JEV_BAR", "0.7"))
+    for source in ("computer", "phone"):
+        for r in rows:
+            call, ok = r[source]
+            if with_jev(source, call, r["text"], r, bar) == "run" and not ok:
+                kind = "wrong values" if call["name"] in r["want"] else "wrong tool"
+                print(f"wrong run at {bar:.2f} ({'computer answered' if source == 'computer' else 'computer off'}, {kind}): "
+                      f"{r['text']} -> {call['name']}({', '.join(f'{k}={v}' for k, v in (call.get('arguments') or {}).items())}), "
+                      f"jev {r['jev'].get('choice')} {r['p']:.2f}")
 
 def main():
     if sys.argv[1:2] == ["--decide"]: return decide(sys.argv[2:])
