@@ -76,6 +76,13 @@ class LinkContractTest {
                 else -> assertThat(status).isEqualTo(LinkStatus.Ready(r.optString("model").ifBlank { null }, r.optBoolean("audio")))
             }
         }
+        // model_state: asleep (or unloaded) means the next request waits longer; loaded or missing doesn't.
+        of("status").filter { it.result.optInt("version", -1) == LinkContract.VERSION && it.result.optBoolean("enabled") && it.result.optBoolean("configured") }
+            .forEach { case ->
+                val asleep = (FerbLink.statusOf(values(case.result)) as LinkStatus.Ready).asleep
+                assertThat(asleep).isEqualTo(FerbLink.asleep(case.result.optString("model_state").ifEmpty { null }))
+            }
+        assertThat(of("status").map { FerbLink.statusOf(values(it.result)) }.filterIsInstance<LinkStatus.Ready>().any { it.asleep }).isTrue()
         // A ready Ferb Link names its model, and whether it takes audio (the mic needs it).
         val ready = of("status").map { FerbLink.statusOf(values(it.result)) }.filterIsInstance<LinkStatus.Ready>()
         assertThat(ready).isNotEmpty()
