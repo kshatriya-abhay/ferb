@@ -63,8 +63,9 @@ class Onboarding(private val load: () -> OnboardingState, private val store: (On
         private const val WELCOMED = "welcomed"
         private const val SEEN = "tips_seen"
 
-        fun from(context: Context): Onboarding {
-            val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        /** [prefs]: device tests use their own, so the user's progress is untouched. */
+        fun from(context: Context, prefsName: String = PREFS): Onboarding {
+            val prefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
             return Onboarding(
                 load = {
                     OnboardingState(

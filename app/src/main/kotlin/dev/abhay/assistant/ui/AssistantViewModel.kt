@@ -203,8 +203,9 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             suspend fun askLaptop() {
                 val status = assistant.link.status()
                 if (status is LinkStatus.Ready) {
-                    _state.update { it.copy(asking = "Asking your computer\u2026") }
-                    laptop = assistant.link.complete(request, Tools.json(routed.ifEmpty { enabled }))
+                    // The model not loaded: it loads first, so a longer wait, said so.
+                    _state.update { it.copy(asking = if (status.asleep) "Waking your computer\u2026" else "Asking your computer\u2026") }
+                    laptop = assistant.link.complete(request, Tools.json(routed.ifEmpty { enabled }), waking = status.asleep)
                     laptopError = laptop?.error
                     laptopErrorDetail = laptop?.let { it.errorDetail ?: it.error }
                 } else if (chosen) {
@@ -288,7 +289,9 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         if (_state.value.busy || engine.value !is AssistantEngine.State.Ready) return
         _state.update { it.copy(busy = true, voice = null, notice = null, pending = voiceLabel(clip.ms), asking = "Your computer is listening…") }
         viewModelScope.launch {
-            when (val next = VoiceOutcome.of(assistant.link.transcribe(clip.audio, Recorder.MIME))) {
+            val waking = (assistant.link.status() as? LinkStatus.Ready)?.asleep == true
+            if (waking) _state.update { it.copy(asking = "Waking your computer\u2026") }
+            when (val next = VoiceOutcome.of(assistant.link.transcribe(clip.audio, Recorder.MIME, waking))) {
                 is VoiceOutcome.Failed ->
                     _state.update { it.copy(busy = false, pending = null, asking = null, voice = clip.takeIf { next.keepClip }, notice = next.notice) }
                 is VoiceOutcome.Answer -> {

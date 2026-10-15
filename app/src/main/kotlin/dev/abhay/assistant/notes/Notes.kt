@@ -58,8 +58,14 @@ interface NoteStore {
  * kept with a persistable permission; its `.md` files, not its subfolders. No permission beyond
  * the user's pick, and no network.
  */
-class SafNotes(private val context: Context) : NoteStore {
-    private val prefs = context.getSharedPreferences("notes", Context.MODE_PRIVATE)
+class SafNotes(
+    private val context: Context,
+    /** Whether Ferb may use [folder]: the user's pick, kept as a persistable grant. Device tests use their own folder. */
+    private val granted: (Uri) -> Boolean = { tree -> context.contentResolver.persistedUriPermissions.any { it.uri == tree && it.isWritePermission } },
+    /** Where the folder is remembered; device tests use their own, so the user's pick is untouched. */
+    prefsName: String = "notes",
+) : NoteStore {
+    private val prefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
 
     /** The picked folder, or null. */
     var folder: Uri?
@@ -78,7 +84,7 @@ class SafNotes(private val context: Context) : NoteStore {
     fun folderName(): String? = folder?.let { DocumentsContract.getTreeDocumentId(it).substringAfterLast(':').substringAfterLast('/').ifEmpty { "Notes" } }
 
     override val ready: Boolean
-        get() = folder?.let { tree -> context.contentResolver.persistedUriPermissions.any { it.uri == tree && it.isWritePermission } } == true
+        get() = folder?.let(granted) == true
 
     override fun list(): List<NoteRef> {
         val tree = folder ?: return emptyList()

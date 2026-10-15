@@ -64,6 +64,11 @@ object LinkContract {
      * an older Ferb Link. Status keeps the last value seen, false until a check, wake or complete.
      */
     const val RESULT_AUDIO = "audio"
+    /**
+     * In `status` and `check`: the computer's model as last seen, "loaded", "asleep" or "unloaded";
+     * missing in an older Ferb Link, which counts as loaded.
+     */
+    const val RESULT_MODEL_STATE = "model_state"
 }
 
 /** Whether Ferb can use Ferb Link now, as its settings page shows it. */
@@ -78,7 +83,8 @@ sealed interface LinkStatus {
     /** No server address and key entered in Ferb Link yet. */
     data object NotSetUp : LinkStatus
     /** [model]: the computer's model as Ferb Link last saw it, when it says; [audio]: whether it takes voice. */
-    data class Ready(val model: String? = null, val audio: Boolean = false) : LinkStatus
+    /** [asleep]: the computer's model isn't loaded (asleep or unloaded, as last seen), so the next request waits for it to load. */
+    data class Ready(val model: String? = null, val audio: Boolean = false, val asleep: Boolean = false) : LinkStatus
     data class Failed(val reason: String) : LinkStatus
 }
 
@@ -176,13 +182,13 @@ class FerbLink(private val context: Context) {
      * until the computer answers or Ferb Link gives up, so it runs off the main thread. Never throws:
      * a failure is a reply with [NeedleReply.error] set, and Needle 3 answers instead.
      */
-    suspend fun complete(request: String, toolsJson: String): NeedleReply = withContext(Dispatchers.IO) {
+    suspend fun complete(request: String, toolsJson: String, waking: Boolean = false): NeedleReply = withContext(Dispatchers.IO) {
         val result = try {
             lowLatency { timed(LinkContract.METHOD_COMPLETE) {
                 provider(LinkContract.METHOD_COMPLETE, null, bundleOf(
                     LinkContract.EXTRA_REQUEST to request,
                     LinkContract.EXTRA_TOOLS to toolsJson,
-                    LinkContract.EXTRA_TIMEOUT_MS to TIMEOUT_MS,
+                    LinkContract.EXTRA_TIMEOUT_MS to timeout(TIMEOUT_MS, waking),
                 ))
             } }
         } catch (e: SecurityException) {
@@ -232,13 +238,13 @@ class FerbLink(private val context: Context) {
      * a plain English command. Blocks until the computer answers or Ferb Link gives up; never
      * throws: a failure is a [Transcript] with [Transcript.error] set.
      */
-    suspend fun transcribe(audio: ByteArray, mime: String): Transcript = withContext(Dispatchers.IO) {
+    suspend fun transcribe(audio: ByteArray, mime: String, waking: Boolean = false): Transcript = withContext(Dispatchers.IO) {
         val result = try {
             lowLatency { timed(LinkContract.METHOD_TRANSCRIBE) {
                 provider(LinkContract.METHOD_TRANSCRIBE, null, bundleOf(
                     LinkContract.EXTRA_AUDIO to audio,
                     LinkContract.EXTRA_AUDIO_MIME to mime,
-                    LinkContract.EXTRA_TIMEOUT_MS to TRANSCRIBE_TIMEOUT_MS,
+                    LinkContract.EXTRA_TIMEOUT_MS to timeout(TRANSCRIBE_TIMEOUT_MS, waking),
                 ))
             } }
         } catch (e: IllegalArgumentException) {
@@ -276,7 +282,7 @@ class FerbLink(private val context: Context) {
                 version != LinkContract.VERSION -> LinkStatus.Mismatch(version)
                 !result.bool(LinkContract.RESULT_ENABLED) -> LinkStatus.Off
                 !result.bool(LinkContract.RESULT_CONFIGURED) -> LinkStatus.NotSetUp
-                else -> LinkStatus.Ready(result.text(LinkContract.RESULT_MODEL), result.bool(LinkContract.RESULT_AUDIO))
+                else -> LinkStatus.Ready(result.text(LinkContract.RESULT_MODEL), result.bool(LinkContract.RESULT_AUDIO), asleep = asleep(result.text(LinkContract.RESULT_MODEL_STATE)))
             }
         }
 
@@ -336,6 +342,18 @@ class FerbLink(private val context: Context) {
          * `wake` hasn't finished.
          */
         const val TRANSCRIBE_TIMEOUT_MS = 15_000
+
+        /**
+         * While the computer's model loads (from asleep or unloaded): a cold load took about 30 s on
+         * the laptop (2026-10-15) and timed out the request, so Ferb waits the longest it allows.
+         */
+        const val WAKING_TIMEOUT_MS = 60_000
+
+        /** The timeout for a request: [normal], or [WAKING_TIMEOUT_MS] while the model is [waking]. */
+        fun timeout(normal: Int, waking: Boolean) = if (waking) WAKING_TIMEOUT_MS else normal
+
+        /** Whether a `model_state` means the model has to load first. */
+        fun asleep(state: String?) = state == "asleep" || state == "unloaded"
 
         /** A failure: [reason] in a few words, for the chat, and at length in [detail], for the details. */
         private fun failed(reason: String, detail: String) = NeedleReply(

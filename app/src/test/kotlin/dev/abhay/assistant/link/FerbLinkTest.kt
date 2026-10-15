@@ -107,4 +107,18 @@ class FerbLinkTest {
         assertThat(failed.error).isEqualTo("The laptop took too long to answer")
         assertThat(Transcript.parse("not json").error).contains("couldn't be read")
     }
+
+    @Test
+    fun aSleepingModelGetsTheLongestWait() {
+        // status with model_state: asleep or unloaded means the next request waits for a load.
+        assertThat(FerbLink.statusOf(LinkResult { mapOf("version" to 1, "enabled" to true, "configured" to true, "model_state" to "asleep")[it] }))
+            .isEqualTo(LinkStatus.Ready(asleep = true))
+        assertThat((FerbLink.statusOf(LinkResult { mapOf("version" to 1, "enabled" to true, "configured" to true, "model_state" to "unloaded")[it] }) as LinkStatus.Ready).asleep).isTrue()
+        // Loaded, or an older Ferb Link that doesn't say: the normal timeouts.
+        assertThat((FerbLink.statusOf(LinkResult { mapOf("version" to 1, "enabled" to true, "configured" to true, "model_state" to "loaded")[it] }) as LinkStatus.Ready).asleep).isFalse()
+        assertThat((FerbLink.statusOf(LinkResult { mapOf("version" to 1, "enabled" to true, "configured" to true)[it] }) as LinkStatus.Ready).asleep).isFalse()
+        assertThat(FerbLink.timeout(FerbLink.TIMEOUT_MS, waking = false)).isEqualTo(10_000)
+        assertThat(FerbLink.timeout(FerbLink.TIMEOUT_MS, waking = true)).isEqualTo(60_000)
+        assertThat(FerbLink.timeout(FerbLink.TRANSCRIBE_TIMEOUT_MS, waking = true)).isEqualTo(60_000)
+    }
 }
