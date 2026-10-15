@@ -1,5 +1,6 @@
 package dev.abhay.assistant
 
+import android.os.SystemClock
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -43,5 +44,29 @@ class AssistantEngineDeviceTest {
         assertThat(again.tools).containsExactly(SetVolume.name)
         assertThat(again.loadMs).isEqualTo(ready.loadMs)
         assertThat(calls("Torch off", listOf(SetVolume))).isEmpty()
+    }
+
+    /**
+     * Jev mode's phone side, timed (`adb logcat -s AssistantEngineDeviceTest`): Needle 3 re-initialised
+     * with the one tool Jev picked, then the call, for a few tools in turn. Jev itself isn't called:
+     * it costs money, and device tests make no live Jev calls.
+     */
+    @Test
+    fun jevModesPhoneSideIsQuick() = runBlocking<Unit> {
+        val picks = listOf("set_alarm" to "wake me up at 6:30", "set_timer" to "timer for 10 minutes",
+            "set_volume" to "volume to 40 percent", "control_media" to "pause the music", "open_app" to "open spotify")
+        // The model loaded first, as it is in the chat; only the re-init and the call are timed.
+        app.engine.configure(listOf(SetVolume.name), Tools.json(listOf(SetVolume)))
+        val times = picks.map { (name, request) ->
+            val tool = Tools.byName(name)!!
+            val started = SystemClock.elapsedRealtime()
+            val got = calls(request, listOf(tool))
+            val ms = SystemClock.elapsedRealtime() - started
+            val ready = app.engine.state.value as AssistantEngine.State.Ready
+            Log.i("AssistantEngineDeviceTest", "jev mode, $name: $ms ms in all (re-init ${ready.initMs} ms) -> $got")
+            assertThat(got).containsExactly(name)
+            ms
+        }
+        Log.i("AssistantEngineDeviceTest", "jev mode, Needle 3 with one tool: median ${times.sorted()[times.size / 2]} ms, max ${times.max()} ms")
     }
 }
