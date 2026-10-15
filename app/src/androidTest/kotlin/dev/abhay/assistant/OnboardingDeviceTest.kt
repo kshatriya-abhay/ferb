@@ -17,6 +17,8 @@ class OnboardingDeviceTest {
 
     @After
     fun clean() {
+        // Preferences are written asynchronously (apply): let the last write land, then delete.
+        Thread.sleep(500)
         context.deleteSharedPreferences(PREFS)
     }
 

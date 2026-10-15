@@ -28,9 +28,17 @@ class NotesDeviceTest {
     private val dir = File(context.cacheDir, "testdocs")
     private val notes = testNotes(context)
 
-    @Before @After
+    @Before
+    fun start() {
+        dir.deleteRecursively()
+    }
+
+    @After
     fun clean() {
         dir.deleteRecursively()
+        // The folder is remembered asynchronously (apply): let it land, then delete.
+        Thread.sleep(500)
+        context.deleteSharedPreferences("notes_devicetest")
     }
 
     @Test
