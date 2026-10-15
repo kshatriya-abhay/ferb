@@ -65,6 +65,7 @@ Four tiers, cheapest first:
 3. **Model evaluations**, only when tuning the tool config (schemas, descriptions, keywords, bars, the prompt), never per change:
    - `mise run tool-check` (Needle 3, `tool-check/requests.txt`) and `mise run bench` (local models, plus `suite.txt`).
    - `tool-check/laptop.py` runs Ferb's routing and reading with Ferb Link's own code against the laptop's model server. Take `/tmp/ferb-validate.lock` first.
+     `laptop.py --decide` measures Jev (TypeSafe, through Ferb Link) as a second opinion where Needle 3 is unsure. Each call costs money: Ferb Link's harness keeps a ledger with a cap; use `--dry-run` first, and `--replies` to score a kept run again for free.
    - Scored results go in `tool-check/results`.
 4. **Smoke test**, by hand on the phone before an install-worthy release, not per change. First `mise run check-offline` and `mise run device-test`, then:
    1. Phone picked, type "Turn on the flashlight": the torch comes on (no source line).

@@ -134,7 +134,7 @@ data class Verdict(
     companion object {
         /**
          * [bar], when given, replaces the tools' bars: for answers from Ferb Link, whose confidence
-         * isn't Needle 3's ([dev.abhay.assistant.link.LinkSettings.bar]). The other checks apply as they are.
+         * isn't Needle 3's ([dev.abhay.assistant.link.LinkPolicy.verdict] passes 0: no bar). The other checks apply as they are.
          */
         fun of(reply: NeedleReply, configs: Map<String, ToolConfig>, request: String, bar: Double? = null): Verdict {
             val called = reply.calls.map { configs[it.name] }
