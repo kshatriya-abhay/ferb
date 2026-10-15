@@ -73,7 +73,8 @@ class LinkContractTest {
                 r.optInt("version", -1) != LinkContract.VERSION -> assertThat(status).isInstanceOf(LinkStatus.Mismatch::class.java)
                 !r.optBoolean("enabled") -> assertThat(status).isEqualTo(LinkStatus.Off)
                 !r.optBoolean("configured") -> assertThat(status).isEqualTo(LinkStatus.NotSetUp)
-                else -> assertThat(status).isEqualTo(LinkStatus.Ready(r.optString("model").ifBlank { null }, r.optBoolean("audio")))
+                else -> assertThat(status).isEqualTo(LinkStatus.Ready(r.optString("model").ifBlank { null }, r.optBoolean("audio"),
+                    asleep = FerbLink.asleep(r.optString("model_state").ifEmpty { null })))
             }
         }
         // model_state: asleep (or unloaded) means the next request waits longer; loaded or missing doesn't.
