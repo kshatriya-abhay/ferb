@@ -80,6 +80,28 @@ class JevTest {
     }
 
     @Test
+    fun inJevModeJevPicksTheToolOrNoneFromHalfAndPhoneAnswersOtherwise() {
+        val on = listOf(SetAlarm.name, MediaControl.name)
+        assertThat(LinkPolicy.pick(jev(SetAlarm.name, 0.5), on)).isEqualTo(JevPick.Tool(SetAlarm.name))
+        assertThat(LinkPolicy.pick(jev(JevReply.NONE, 0.8), on)).isEqualTo(JevPick.NoTool)
+        // Unsure, failed, or a tool that's off: Phone answers, and the chat says why in a few words.
+        val unsure = LinkPolicy.pick(jev(SetAlarm.name, 0.49), on) as JevPick.Fallback
+        assertThat(unsure.reason).isEqualTo("Jev wasn't sure")
+        val late = LinkPolicy.pick(JevReply.failed("timed out", "Jev took longer than 6 s"), on) as JevPick.Fallback
+        assertThat(late.reason).isEqualTo("Jev: timed out")
+        assertThat(late.detail).isEqualTo("Jev took longer than 6 s")
+        assertThat(LinkPolicy.pick(jev(SetTimer.name, 0.9), on)).isInstanceOf(JevPick.Fallback::class.java)
+        val capped = JevReply(null, emptyMap(), error = "Jev's limit reached", errorDetail = "Jev reached its spending limit (\$3.00). Raise it in Ferb Link to turn Jev on again.", errorKind = "off")
+        assertThat((LinkPolicy.pick(capped, on) as JevPick.Fallback).reason).isEqualTo("Jev's limit reached")
+    }
+
+    @Test
+    fun inJevModeTheDetailsSayWhatJevPicked() {
+        assertThat(LinkPolicy.jevLine(jev(SetAlarm.name, 0.93), listOf(SetAlarm.name), answered = true)).isEqualTo("Jev picked ${SetAlarm.title} (0.93)")
+        assertThat(LinkPolicy.jevLine(jev(JevReply.NONE, 0.8), emptyList(), answered = true)).isEqualTo("Jev picked no tool (0.80)")
+    }
+
+    @Test
     fun aReplyIsReadOnlyWhenItSucceeded() {
         val ok = JevReply.parse("""{"success":true,"choice":"set_alarm","probabilities":{"none":0.03,"set_alarm":0.97},"options":["none","set_alarm"],"model":"jev-1.13.0","ms":44}""")
         assertThat(ok.p).isWithin(1e-9).of(0.97)

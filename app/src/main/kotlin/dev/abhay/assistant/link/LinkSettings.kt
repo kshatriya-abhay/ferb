@@ -22,7 +22,9 @@ enum class LinkMode(val id: String) {
 /** Who answers in [LinkMode.Option], as picked in the chat box. */
 enum class Answerer(val id: String, val label: String) {
     Needle("needle", "Phone"),
-    Link("link", "Computer");
+    Link("link", "Computer"),
+    /** Jev picks the tool, and Needle 3 makes the call with only that tool ([LinkPolicy.pick]); offered while Ferb Link has Jev on. */
+    Jev("jev", "Jev");
 
     companion object {
         fun of(id: String?) = entries.firstOrNull { it.id == id } ?: Needle

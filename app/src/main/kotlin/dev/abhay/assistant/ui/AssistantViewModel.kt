@@ -3,6 +3,7 @@ package dev.abhay.assistant.ui
 import android.app.Application
 import android.content.Context
 import android.os.SystemClock
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.abhay.assistant.AssistantApp
@@ -11,6 +12,8 @@ import dev.abhay.assistant.engine.Decision
 import dev.abhay.assistant.engine.NeedleReply
 import dev.abhay.assistant.engine.ToolCall
 import dev.abhay.assistant.link.Answerer
+import dev.abhay.assistant.link.FerbLink
+import dev.abhay.assistant.link.JevPick
 import dev.abhay.assistant.link.JevReply
 import dev.abhay.assistant.link.LinkMode
 import dev.abhay.assistant.link.LinkPolicy
@@ -92,6 +95,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         val turnOn: List<String> = emptyList(),
         /** Jev's second opinion, when Ferb asked it ([LinkPolicy.jev]); its pick, or why it failed, shows in the details. */
         val jev: JevReply? = null,
+        /** Jev mode: Jev picked the tool (or none) and Needle 3 made the call; false when Phone answered instead. */
+        val jevAnswered: Boolean = false,
     )
 
     data class UiState(
@@ -223,7 +228,26 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             if (chosen && enabled.isNotEmpty()) askLaptop()
             var needle: NeedleReply? = null
             var jev: JevReply? = null
-            if (laptop?.error != null || laptop == null) {
+            // Jev mode: Jev picks the tool, and Needle 3 makes the call with only that one; Phone
+            // answers when Jev can't (failed, late or unsure), saying why.
+            val jevMode = mode == LinkMode.Option && assistant.linkSettings.answerer.value == Answerer.Jev && enabled.isNotEmpty()
+            if (jevMode) {
+                _state.update { it.copy(asking = "Asking Jev\u2026") }
+                val reply = assistant.link.decide(request, Tools.json(routed.ifEmpty { enabled }), FerbLink.JEV_ANSWER_TIMEOUT_MS)
+                jev = reply
+                val decided = SystemClock.elapsedRealtime()
+                when (val pick = LinkPolicy.pick(reply, enabled.map { it.name })) {
+                    is JevPick.Tool -> needle = ask(request, listOf(Tools.byName(pick.name)!!))
+                    JevPick.NoTool -> needle = NO_TOOL
+                    is JevPick.Fallback -> {
+                        laptopError = pick.reason
+                        laptopErrorDetail = pick.detail
+                    }
+                }
+                // The phone side's timing (`adb logcat -s Ferb`): Jev through Ferb Link, then Needle 3 with one tool.
+                Log.i(TAG, "jev mode: decide ${decided - started} ms, needle ${SystemClock.elapsedRealtime() - decided} ms")
+            }
+            if (needle == null && (laptop?.error != null || laptop == null)) {
                 _state.update { it.copy(asking = null) }
                 val reply = askNeedle(request, enabled, routed)
                 needle = reply
@@ -244,7 +268,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             // The computer's answer whenever it gave one, including "no tool fits".
             val shown = laptop?.takeIf { it.error == null } ?: needle!!
             val verdict = (if (shown.fromLaptop) LinkPolicy.verdict(shown, configs, request) else Verdict.of(shown, configs, request))
-                .let { it.copy(decision = LinkPolicy.jev(it, shown, jev)) }
+                .let { if (jevMode) it else it.copy(decision = LinkPolicy.jev(it, shown, jev)) }
             val calls = shown.calls.map { call -> CallState(call, prepare(call, request), Status.Waiting) }
             val exchange = Exchange(nextId++, request, shown, verdict.decision, verdict.runAt, verdict.alwaysConfirm, verdict.unmentioned, verdict.ungrounded,
                 routed.map { it.name }, calls, SystemClock.elapsedRealtime() - started,
@@ -253,7 +277,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
                 laptopErrorDetail = laptopErrorDetail.takeIf { !shown.fromLaptop },
                 heard = heard,
                 turnOn = if (shown.calls.isEmpty() && shown.error == null) ToolRouter.off(request, configs).map { it.name } else emptyList(),
-                jev = jev)
+                jev = jev,
+                jevAnswered = jevMode && laptopError == null)
             _state.update { it.copy(history = it.history + exchange, pending = null, asking = null) }
             if (verdict.decision == Decision.Run) run(exchange.id)
         } catch (e: CancellationException) {
@@ -451,7 +476,9 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     private companion object {
         const val WAKE_EVERY_MS = 60_000L
 
-        /** The answer when no tool is on. */
+        const val TAG = "Ferb"
+
+        /** The answer when no tool is on, or Jev says none fits. */
         val NO_TOOL = NeedleReply(
             calls = emptyList(), suppressed = emptyList(), reasoning = "", confidence = null, ungrounded = emptyList(),
             negation = false, prefillTps = 0.0, decodeTps = 0.0, peakRamMb = 0.0, error = null,

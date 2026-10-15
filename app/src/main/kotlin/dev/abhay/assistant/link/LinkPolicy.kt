@@ -61,8 +61,30 @@ object LinkPolicy {
         }
     }
 
+    /**
+     * In Jev mode, Jev's pick counts from here, a tool or "none". Lower than [JEV_BAR]: whether the
+     * call runs also needs Needle 3's own bar for that tool and the usual checks ([Verdict]). In
+     * Ferb's bench (2026-10-16, 460 requests, no Hindi) Jev at 0.5 with Needle 3's bar got 426
+     * right with 6 wrong runs; at 0.7, 420 and 6 (more asked wrongly); Phone 360 and 19,
+     * Computer 418 and 21.
+     */
+    const val JEV_ANSWER_BAR = 0.5
+
+    /** What Jev mode does with Jev's [jev] reply, among the tools turned on ([enabled]). */
+    fun pick(jev: JevReply, enabled: Collection<String>): JevPick {
+        val p = jev.p ?: return JevPick.Fallback(
+            if (jev.errorDetail?.startsWith("Jev reached its spending limit") == true) "Jev's limit reached" else "Jev: ${jev.error}",
+            jev.errorDetail ?: jev.error ?: "Jev failed")
+        return when {
+            p < JEV_ANSWER_BAR -> JevPick.Fallback("Jev wasn't sure", String.format(Locale.US, "Jev's best pick had %.2f, below %.2f", p, JEV_ANSWER_BAR))
+            jev.choice == JevReply.NONE -> JevPick.NoTool
+            jev.choice in enabled -> JevPick.Tool(jev.choice!!)
+            else -> JevPick.Fallback("Jev: unknown tool", "Jev picked ${jev.choice}, which isn't turned on")
+        }
+    }
+
     /** Jev's opinion on [calls] (the shown answer's tool names) in a few words, for the details; null when Ferb didn't ask it. */
-    fun jevLine(jev: JevReply?, calls: List<String>): String? {
+    fun jevLine(jev: JevReply?, calls: List<String>, answered: Boolean = false): String? {
         jev ?: return null
         val p = jev.p ?: return when {
             jev.errorDetail?.startsWith("Jev reached its spending limit") == true -> "Jev's spending limit is reached: raise it in Ferb Link"
@@ -70,6 +92,7 @@ object LinkPolicy {
         }
         val picked = jev.choice?.let { Tools.byName(it)?.title } ?: "no tool"
         return when {
+            answered -> String.format(Locale.US, "Jev picked %s (%.2f)", picked, p)
             p < JEV_BAR -> String.format(Locale.US, "Jev wasn't sure (%s, %.2f)", picked, p)
             calls.isNotEmpty() && calls.all { it == jev.choice } -> String.format(Locale.US, "Jev agreed (%.2f)", p)
             else -> String.format(Locale.US, "Jev suggested %s (%.2f)", picked, p)
@@ -79,4 +102,14 @@ object LinkPolicy {
     // Spoken requests follow the same rules as typed ones. From 2026-10-12 until the same day,
     // spoken alarms and timers asked first while the computer misheard Hindi times; after Ferb
     // Link's fixes the alarm lines were 12/12 typed and right for real Hindi and clean English.
+}
+
+/** Jev mode's next step after Jev answers ([LinkPolicy.pick]). */
+sealed interface JevPick {
+    /** Needle 3 makes the call with only this tool. */
+    data class Tool(val name: String) : JevPick
+    /** Jev says no tool fits. */
+    data object NoTool : JevPick
+    /** Phone answers instead: [reason] in a few words, for the chat, and [detail] at length. */
+    data class Fallback(val reason: String, val detail: String) : JevPick
 }
