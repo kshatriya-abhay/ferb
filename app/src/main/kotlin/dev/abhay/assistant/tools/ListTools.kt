@@ -108,7 +108,6 @@ object ShowList : Tool(
     description = "Show what's left on a list from your notes folder, here in the chat, to tick off.",
     onByDefault = false,
     defaultRunFrom = 0.3,
-    jevMayRun = true,
     examples = listOf("What's on my shopping list?", "Show my to-do list"),
 ) {
     override val keywords = listOf("list", "lists", "to-do", "todo", "shopping")

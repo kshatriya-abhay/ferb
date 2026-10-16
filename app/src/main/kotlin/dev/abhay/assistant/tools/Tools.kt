@@ -314,7 +314,6 @@ object OpenApp : Tool(
     onByDefault = true,
     // Low: opening an app is harmless, and the keywords hold back the wrong calls ("uninstall instagram" 0.83).
     defaultRunFrom = 0.3,
-    jevMayRun = true,
     examples = listOf("Open the calculator", "Launch WhatsApp"),
 ) {
     override val keywords = listOf("open", "launch", "start", "go to", "run", "show")
@@ -350,7 +349,6 @@ object OpenSettings : Tool(
     // Questions about a setting came back as calls: "what's my wifi password" 0.56, a wrong page
     // 0.41. Right pages mostly score 0.73+.
     defaultRunFrom = 0.6,
-    jevMayRun = true,
     examples = listOf("Open Wi-Fi settings", "Show me the battery settings"),
 ) {
     /** The page names Needle 3 can pick, and the Settings action for each. */
@@ -417,7 +415,6 @@ object Flashlight : Tool(
     // Talk about the torch reads as "turn it on": "my flashlight is broken" 0.70, "buy a torch" 0.62.
     // Right calls score 0.82+.
     defaultRunFrom = 0.75,
-    jevMayRun = true,
     examples = listOf("Turn on the flashlight", "Torch off"),
 ) {
     override val keywords = listOf("torch", "flashlight", "flash light", "light", "dark")
@@ -460,7 +457,6 @@ object SetVolume : Tool(
     // Right calls 0.59–0.95, none wrong; a little higher than the harmless tools, since a wrong
     // volume can be loud.
     defaultRunFrom = 0.5,
-    jevMayRun = true,
     examples = listOf("Set volume to 40", "Mute the media"),
 ) {
     private const val STREAM = AudioManager.STREAM_MUSIC
@@ -519,7 +515,6 @@ object MediaControl : Tool(
     onByDefault = false,
     // "resume" became pause at 0.56, and at 0.66 when routed to it alone; right calls 0.69+ when routed.
     defaultRunFrom = 0.7,
-    jevMayRun = true,
     examples = listOf("Pause the music", "Next song"),
 ) {
     val ACTIONS = linkedMapOf(
@@ -677,7 +672,6 @@ object GetDirections : Tool(
     // the worst wrong ones, "how do I get to level 5 in this game" 0.56 and "directions for this
     // recipe" 0.35. A wrong one only opens Maps, to close.
     defaultRunFrom = 0.6,
-    jevMayRun = true,
     examples = listOf("Show me the way to the Taj Mahal", "How do I get to Lodhi Garden"),
 ) {
     /**

@@ -242,7 +242,7 @@ fun LinkScreen(settings: SettingsViewModel, onBack: () -> Unit) {
                     ) { Text(option.title()) }
                 }
             })
-            if (mode == LinkMode.Fallback) JevSetting(settings, status)
+            if (mode != LinkMode.Off) JevSetting(settings, status)
             Text(
                 "Requests your computer answers leave this phone over Tailscale.",
                 Modifier.padding(horizontal = 32.dp, vertical = 12.dp),
@@ -254,15 +254,17 @@ fun LinkScreen(settings: SettingsViewModel, onBack: () -> Unit) {
 }
 
 /**
- * Jev's second opinion when Needle 3 is unsure ([dev.abhay.assistant.link.LinkPolicy.jev]): off
- * until turned on, and only while Jev is on in Ferb Link, which holds its key and spending limit.
+ * "Use Jev to select the tool" ([dev.abhay.assistant.link.LinkPolicy.select]): every request goes
+ * to Jev first, which picks the tool for whichever model answers. Off until turned on, and only
+ * while Jev is on in Ferb Link, which holds its key and spending limit. The text says plainly
+ * that every request's text leaves for TypeSafe, not only some.
  */
 @Composable
 private fun JevSetting(settings: SettingsViewModel, status: LinkStatus) {
     val on by settings.jev.collectAsStateWithLifecycle()
     val ready = status as? LinkStatus.Ready
     val available = ready?.jev == true
-    SectionTitle("Second opinion")
+    SectionTitle("Jev")
     Group(listOf { shapes ->
         SegmentedListItem(
             onClick = { settings.setJev(!on) },
@@ -272,11 +274,11 @@ private fun JevSetting(settings: SettingsViewModel, status: LinkStatus) {
                 Text(when {
                     ready?.jevCapped == true -> "Jev reached its spending limit: raise it in Ferb Link"
                     !available -> "Turn on Jev in Ferb Link first"
-                    else -> "When Needle 3 is unsure, Jev checks the tool. Your request and the tools' names go to TypeSafe (US)."
+                    else -> "The text of every request, and your tools' names, go to TypeSafe (US), which picks the tool."
                 })
             },
             trailingContent = { Switch(checked = on && available, onCheckedChange = null, enabled = available) },
-        ) { Text("Ask Jev") }
+        ) { Text("Use Jev to select the tool") }
     })
 }
 

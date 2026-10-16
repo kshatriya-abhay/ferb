@@ -1,104 +1,58 @@
 package dev.abhay.assistant.link
 
 import com.google.common.truth.Truth.assertThat
-import dev.abhay.assistant.engine.Decision
-import dev.abhay.assistant.engine.NeedleReply
-import dev.abhay.assistant.engine.ToolCall
-import dev.abhay.assistant.tools.MakeCall
+import dev.abhay.assistant.tools.Flashlight
 import dev.abhay.assistant.tools.MediaControl
 import dev.abhay.assistant.tools.SetAlarm
 import dev.abhay.assistant.tools.SetTimer
-import dev.abhay.assistant.tools.Tools
-import dev.abhay.assistant.tools.Verdict
+import dev.abhay.assistant.tools.TakePhoto
 import org.junit.Test
 
-/** Jev's second opinion ([LinkPolicy.jev]): when it runs, asks, or changes nothing. */
+/** "Use Jev to select the tool" ([LinkPolicy.select]): Jev's tool, no tool, or going on without Jev. */
 class JevTest {
-    private fun reply(source: String?, vararg calls: ToolCall) = NeedleReply(
-        calls = calls.toList(), suppressed = emptyList(), reasoning = "", confidence = 0.3, ungrounded = emptyList(),
-        negation = false, prefillTps = 0.0, decodeTps = 0.0, peakRamMb = 0.0, error = null, source = source,
-    )
+    private val on = listOf(SetAlarm.name, MediaControl.name, Flashlight.name, TakePhoto.name)
 
-    private val alarm = ToolCall(SetAlarm.name, mapOf("time" to "7:00"))
-    private val pause = ToolCall(MediaControl.name, mapOf("action" to "pause"))
-    private val computer = reply(FerbLink.SOURCE, alarm)
-    private val phoneAlarm = reply(null, alarm)
-    private val phonePause = reply(null, pause)
-
-    /** The verdict without Jev: the computer's passes the checks and runs; Needle 3's unsure one asks. */
-    private val runs = Verdict(Decision.Run, 0.0, alwaysConfirm = false)
-    private val asks = Verdict(Decision.Confirm, 0.7, alwaysConfirm = false)
-
-    private fun jev(choice: String, p: Double) = JevReply(choice, if (choice == JevReply.NONE) mapOf(choice to p) else mapOf(choice to p, JevReply.NONE to 1 - p))
+    private fun jev(choice: String, p: Double, vararg others: Pair<String, Double>) =
+        JevReply(choice, mapOf(choice to p) + others)
 
     @Test
-    fun theComputersCallRunsWhenJevAgreesAndAsksWhenItIsSureOfAnother() {
-        assertThat(LinkPolicy.jev(runs, computer, jev(SetAlarm.name, 0.97))).isEqualTo(Decision.Run)
-        assertThat(LinkPolicy.jev(runs, computer, jev(SetTimer.name, 0.9))).isEqualTo(Decision.Confirm)
-        assertThat(LinkPolicy.jev(runs, computer, jev(JevReply.NONE, 0.7))).isEqualTo(Decision.Confirm)
+    fun jevsToolFromHalfGoesToTheAnsweringModel() {
+        assertThat(LinkPolicy.select(jev(SetAlarm.name, 0.5), on)).isEqualTo(JevPick.Tool(SetAlarm.name))
+        assertThat(LinkPolicy.select(jev(JevReply.NONE, 0.8), on)).isEqualTo(JevPick.NoTool)
     }
 
     @Test
-    fun anUnsureFailedOrMissingJevChangesNothing() {
-        // Hinglish: an unsure Jev mustn't make the computer's answers ask.
-        assertThat(LinkPolicy.jev(runs, computer, jev(JevReply.NONE, 0.65))).isEqualTo(Decision.Run)
-        assertThat(LinkPolicy.jev(runs, computer, JevReply.failed("timed out", "Jev took too long"))).isEqualTo(Decision.Run)
-        assertThat(LinkPolicy.jev(runs, computer, null)).isEqualTo(Decision.Run)
-        assertThat(LinkPolicy.jev(asks, phonePause, jev(MediaControl.name, 0.69))).isEqualTo(Decision.Confirm)
+    fun theComputerAlsoGetsJevsNextToolsForRequestsForTwoThings() {
+        // "turn on the torch and open the camera": the flashlight first, the camera too.
+        val two = jev(Flashlight.name, 0.6, TakePhoto.name to 0.3, MediaControl.name to 0.05, JevReply.NONE to 0.05)
+        assertThat(LinkPolicy.select(two, on)).isEqualTo(JevPick.Tool(Flashlight.name, listOf(TakePhoto.name)))
+        // Three tools at most, never "none" or a tool that's off.
+        val many = jev(Flashlight.name, 0.5, TakePhoto.name to 0.4, MediaControl.name to 0.3, SetAlarm.name to 0.28,
+            JevReply.NONE to 0.35, SetTimer.name to 0.3)
+        assertThat(LinkPolicy.select(many, on)).isEqualTo(JevPick.Tool(Flashlight.name, listOf(TakePhoto.name, MediaControl.name)))
     }
 
     @Test
-    fun withTheComputerOffJevRunsNeedle3sCallOnlyForToolsThatMay() {
-        assertThat(LinkPolicy.jev(asks, phonePause, jev(MediaControl.name, 0.99))).isEqualTo(Decision.Run)
-        // Jev checks the tool, never the values: "wake me up at 11:30 at night" became 11:30 am.
-        assertThat(LinkPolicy.jev(asks, phoneAlarm, jev(SetAlarm.name, 1.0))).isEqualTo(Decision.Confirm)
-    }
-
-    @Test
-    fun theUsualChecksStillAsk() {
-        val call = ToolCall(MakeCall.name, mapOf("name" to "mummy"))
-        val alwaysAsks = Verdict(Decision.Confirm, 0.0, alwaysConfirm = true)
-        assertThat(LinkPolicy.jev(alwaysAsks, reply(FerbLink.SOURCE, call), jev(MakeCall.name, 0.98))).isEqualTo(Decision.Confirm)
-        val unmentioned = Verdict(Decision.Confirm, 0.0, alwaysConfirm = false, unmentioned = true)
-        assertThat(LinkPolicy.jev(unmentioned, computer, jev(SetAlarm.name, 0.98))).isEqualTo(Decision.Confirm)
-    }
-
-    @Test
-    fun noAlarmsTimersOrAlwaysAskingToolsMayRunOnJevsWord() {
-        val may = Tools.all.filter { it.jevMayRun }
-        assertThat(may.map { it.name }).containsNoneOf(SetAlarm.name, SetTimer.name)
-        may.forEach { assertThat(it.confirmByDefault).isFalse() }
-    }
-
-    @Test
-    fun theDetailsSayWhatJevThought() {
-        assertThat(LinkPolicy.jevLine(null, listOf(SetAlarm.name))).isNull()
-        assertThat(LinkPolicy.jevLine(jev(SetAlarm.name, 0.93), listOf(SetAlarm.name))).isEqualTo("Jev agreed (0.93)")
-        assertThat(LinkPolicy.jevLine(jev(SetTimer.name, 0.81), listOf(SetAlarm.name))).isEqualTo("Jev suggested ${SetTimer.title} (0.81)")
-        assertThat(LinkPolicy.jevLine(jev(JevReply.NONE, 0.55), listOf(SetAlarm.name))).isEqualTo("Jev wasn't sure (no tool, 0.55)")
-        assertThat(LinkPolicy.jevLine(JevReply.failed("timed out", "Jev took too long"), emptyList())).isEqualTo("Jev didn't answer: Jev took too long")
-    }
-
-    @Test
-    fun inJevModeJevPicksTheToolOrNoneFromHalfAndPhoneAnswersOtherwise() {
-        val on = listOf(SetAlarm.name, MediaControl.name)
-        assertThat(LinkPolicy.pick(jev(SetAlarm.name, 0.5), on)).isEqualTo(JevPick.Tool(SetAlarm.name))
-        assertThat(LinkPolicy.pick(jev(JevReply.NONE, 0.8), on)).isEqualTo(JevPick.NoTool)
-        // Unsure, failed, or a tool that's off: Phone answers, and the chat says why in a few words.
-        val unsure = LinkPolicy.pick(jev(SetAlarm.name, 0.49), on) as JevPick.Fallback
+    fun withoutAPickItGoesOnWithoutJevSayingWhyInAFewWords() {
+        val unsure = LinkPolicy.select(jev(SetAlarm.name, 0.49), on) as JevPick.Fallback
         assertThat(unsure.reason).isEqualTo("Jev wasn't sure")
-        val late = LinkPolicy.pick(JevReply.failed("timed out", "Jev took longer than 6 s"), on) as JevPick.Fallback
+        val late = LinkPolicy.select(JevReply.failed("timed out", "Jev took longer than 6 s"), on) as JevPick.Fallback
         assertThat(late.reason).isEqualTo("Jev: timed out")
         assertThat(late.detail).isEqualTo("Jev took longer than 6 s")
-        assertThat(LinkPolicy.pick(jev(SetTimer.name, 0.9), on)).isInstanceOf(JevPick.Fallback::class.java)
-        val capped = JevReply(null, emptyMap(), error = "Jev's limit reached", errorDetail = "Jev reached its spending limit (\$3.00). Raise it in Ferb Link to turn Jev on again.", errorKind = "off")
-        assertThat((LinkPolicy.pick(capped, on) as JevPick.Fallback).reason).isEqualTo("Jev's limit reached")
+        val capped = JevReply(null, emptyMap(), error = "Jev's limit reached",
+            errorDetail = "Jev reached its spending limit (\$3.00). Raise it in Ferb Link to turn Jev on again.", errorKind = "off")
+        assertThat((LinkPolicy.select(capped, on) as JevPick.Fallback).reason).isEqualTo("Jev's limit reached")
+        // A tool that's off: as without Jev.
+        assertThat(LinkPolicy.select(jev(SetTimer.name, 0.9), on)).isInstanceOf(JevPick.Fallback::class.java)
     }
 
     @Test
-    fun inJevModeTheDetailsSayWhatJevPicked() {
-        assertThat(LinkPolicy.jevLine(jev(SetAlarm.name, 0.93), listOf(SetAlarm.name), answered = true)).isEqualTo("Jev picked ${SetAlarm.title} (0.93)")
-        assertThat(LinkPolicy.jevLine(jev(JevReply.NONE, 0.8), emptyList(), answered = true)).isEqualTo("Jev picked no tool (0.80)")
+    fun theDetailsSayWhatJevPicked() {
+        assertThat(LinkPolicy.jevLine(null)).isNull()
+        assertThat(LinkPolicy.jevLine(jev(SetAlarm.name, 0.93))).isEqualTo("Jev picked ${SetAlarm.title} (0.93)")
+        assertThat(LinkPolicy.jevLine(jev(JevReply.NONE, 0.8))).isEqualTo("Jev picked no tool (0.80)")
+        assertThat(LinkPolicy.jevLine(jev(JevReply.NONE, 0.45))).isEqualTo("Jev wasn't sure (no tool, 0.45)")
+        assertThat(LinkPolicy.jevLine(JevReply.failed("timed out", "Jev took too long"))).isEqualTo("Jev didn't answer: Jev took too long")
     }
 
     @Test

@@ -218,8 +218,9 @@ class FerbLink(private val context: Context) {
     }
 
     /**
-     * Jev's pick among [toolsJson]'s tools (or "none") for [request], as a second opinion when
-     * Needle 3 is unsure ([LinkPolicy.jev]). Ferb Link gives up after [JEV_TIMEOUT_MS]; never throws.
+     * Jev's pick among [toolsJson]'s tools (or "none") for [request], which selects the tool when
+     * "Use Jev to select the tool" is on ([LinkPolicy.select]). Ferb Link gives up after
+     * [JEV_TIMEOUT_MS]; never throws.
      */
     suspend fun decide(request: String, toolsJson: String, timeoutMs: Int = JEV_TIMEOUT_MS): JevReply = withContext(Dispatchers.IO) {
         val result = try {
@@ -401,13 +402,10 @@ class FerbLink(private val context: Context) {
 
         /**
          * How long Jev may take: 260–350 ms in ferb-link's smoke run and 286 ms (median) in Ferb's
-         * bench (2026-10-15), 670 ms on a new connection. It's asked alongside the computer, so
-         * this only bounds a request the computer can't answer.
+         * bench (2026-10-15), 670 ms on a new connection; every request waits for it, so after
+         * this the request goes on without Jev.
          */
-        const val JEV_TIMEOUT_MS = 3_000
-
-        /** How long Jev may take when it answers (Jev mode), not just checks: longer, as Phone is the alternative. */
-        const val JEV_ANSWER_TIMEOUT_MS = 6_000
+        const val JEV_TIMEOUT_MS = 6_000
 
         /** The timeout for a request: [normal], or [WAKING_TIMEOUT_MS] while the model is [waking]. */
         fun timeout(normal: Int, waking: Boolean) = if (waking) WAKING_TIMEOUT_MS else normal

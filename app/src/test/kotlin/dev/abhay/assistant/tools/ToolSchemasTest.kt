@@ -37,8 +37,6 @@ class ToolSchemasTest {
         File(dir, "bars.json").writeText(JSONObject(Tools.all.associate { it.name to it.defaultRunFrom }).toString(1))
         // The tools that always ask by default, for laptop.py --decide's "runs" or "asks".
         File(dir, "confirm.json").writeText(JSONArray(Tools.all.filter { it.confirmByDefault }.map { it.name }).toString())
-        // The tools whose unsure Needle 3 calls Jev may run when the computer can't answer.
-        File(dir, "jev.json").writeText(JSONArray(Tools.all.filter { it.jevMayRun }.map { it.name }).toString())
     }
 
     @Test

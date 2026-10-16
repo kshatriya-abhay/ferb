@@ -22,9 +22,7 @@ enum class LinkMode(val id: String) {
 /** Who answers in [LinkMode.Option], as picked in the chat box. */
 enum class Answerer(val id: String, val label: String) {
     Needle("needle", "Phone"),
-    Link("link", "Computer"),
-    /** Jev picks the tool, and Needle 3 makes the call with only that tool ([LinkPolicy.pick]); offered while Ferb Link has Jev on. */
-    Jev("jev", "Jev");
+    Link("link", "Computer");
 
     companion object {
         fun of(id: String?) = entries.firstOrNull { it.id == id } ?: Needle
@@ -47,8 +45,8 @@ class LinkSettings(context: Context) {
 
     private val _jev = MutableStateFlow(prefs.getBoolean(KEY_JEV, false))
     /**
-     * Whether Ferb asks Jev for a second opinion when Needle 3 is unsure ([LinkPolicy.jev]): off
-     * until the user turns it on, and used only while Ferb Link has Jev on too.
+     * "Use Jev to select the tool" ([LinkPolicy.select]): every request goes to Jev first, in
+     * every mode but Off. Off until the user turns it on, and used only while Ferb Link has Jev on.
      */
     val jev: StateFlow<Boolean> = _jev.asStateFlow()
 
@@ -70,6 +68,6 @@ class LinkSettings(context: Context) {
     companion object {
         private const val KEY_MODE = "mode"
         private const val KEY_ANSWERER = "answerer"
-        private const val KEY_JEV = "jev"
+        private const val KEY_JEV = "jev_selects"
     }
 }

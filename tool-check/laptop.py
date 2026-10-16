@@ -81,7 +81,9 @@ def decide(argv):
     cues = json.load(open(os.path.join(BUILD, "cues.json")))
     bars = json.load(open(os.path.join(BUILD, "bars.json")))
     confirm = set(json.load(open(os.path.join(BUILD, "confirm.json"))))
-    jev_may_run = set(json.load(open(os.path.join(BUILD, "jev.json"))))
+    # The tools Jev's agreement could run with the computer off, as the second opinion had them
+    # (Tool.jevMayRun, removed with it on 2026-10-16 for "Use Jev to select the tool").
+    jev_may_run = {"open_app", "open_settings", "set_flashlight", "set_volume", "control_media", "show_list", "get_directions", "show_agenda"}
     texts = [r for r, _, _ in expected]
     # Needle 3 as `mise run bench needle3` runs it (the same cache and salt), routed as the app does.
     engine, model = os.path.join(HERE, "..", "build", "tool-check", "tool_check"), os.path.join(HERE, "..", "app", "src", "main", "assets", "needle3.cact")

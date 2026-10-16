@@ -119,14 +119,14 @@ class LinkContractTest {
                 assertThat(error.length).isAtMost(40)
                 assertThat(error).doesNotContain(".")
                 assertThat(error.first().isLowerCase() || error.startsWith("Jev")).isTrue()
-                assertThat(LinkPolicy.jevLine(jev, emptyList())).isNotEmpty()
+                assertThat(LinkPolicy.jevLine(jev)).isNotEmpty()
             }
         }
         assertThat(of("decide").map { FerbLink.decisionOf(values(it.result)).choice }).contains(JevReply.NONE)
         // At the spending limit, the details say so.
         val capped = of("decide").map { FerbLink.decisionOf(values(it.result)) }.filter { it.errorDetail?.contains("spending limit") == true }
         assertThat(capped).isNotEmpty()
-        capped.forEach { assertThat(LinkPolicy.jevLine(it, emptyList())).contains("spending limit") }
+        capped.forEach { assertThat(LinkPolicy.jevLine(it)).contains("spending limit") }
     }
 
     @Test

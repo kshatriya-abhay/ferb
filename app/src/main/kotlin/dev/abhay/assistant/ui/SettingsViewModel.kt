@@ -23,7 +23,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     private val linkSettings = (app as AssistantApp).linkSettings
     val linkMode: StateFlow<LinkMode> = linkSettings.mode
     fun setLinkMode(mode: LinkMode) = linkSettings.setMode(mode)
-    /** Jev's second opinion (Settings → Ferb Link), saved at once. */
+    /** "Use Jev to select the tool" (Settings → Ferb Link), saved at once. */
     val jev: StateFlow<Boolean> = linkSettings.jev
     fun setJev(on: Boolean) = linkSettings.setJev(on)
     val saved: StateFlow<Map<String, ToolConfig>> = settings.configs
