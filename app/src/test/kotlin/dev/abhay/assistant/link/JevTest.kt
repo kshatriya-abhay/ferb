@@ -37,7 +37,7 @@ class JevTest {
         val unsure = LinkPolicy.select(jev(SetAlarm.name, 0.49), on) as JevPick.Fallback
         assertThat(unsure.reason).isEqualTo("Jev wasn't sure")
         val late = LinkPolicy.select(JevReply.failed("timed out", "Jev took longer than 6 s"), on) as JevPick.Fallback
-        assertThat(late.reason).isEqualTo("Jev: timed out")
+        assertThat(late.reason).isEqualTo("Jev timed out")
         assertThat(late.detail).isEqualTo("Jev took longer than 6 s")
         val capped = JevReply(null, emptyMap(), error = "Jev's limit reached",
             errorDetail = "Jev reached its spending limit (\$3.00). Raise it in Ferb Link to turn Jev on again.", errorKind = "off")

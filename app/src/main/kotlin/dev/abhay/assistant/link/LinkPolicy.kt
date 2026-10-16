@@ -57,7 +57,7 @@ object LinkPolicy {
      */
     fun select(jev: JevReply, enabled: Collection<String>): JevPick {
         val p = jev.p ?: return JevPick.Fallback(
-            if (jev.errorDetail?.startsWith("Jev reached its spending limit") == true) "Jev's limit reached" else "Jev: ${jev.error}",
+            if (jev.errorDetail?.startsWith("Jev reached its spending limit") == true) "Jev's limit reached" else "Jev ${jev.error}",
             jev.errorDetail ?: jev.error ?: "Jev failed")
         return when {
             p < JEV_BAR -> JevPick.Fallback("Jev wasn't sure", String.format(Locale.US, "Jev's best pick had %.2f, below %.2f", p, JEV_BAR))

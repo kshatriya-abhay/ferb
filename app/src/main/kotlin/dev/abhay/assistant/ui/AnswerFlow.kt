@@ -1,0 +1,273 @@
+package dev.abhay.assistant.ui
+
+import dev.abhay.assistant.engine.Decision
+import dev.abhay.assistant.engine.NeedleReply
+import dev.abhay.assistant.engine.ToolCall
+import dev.abhay.assistant.link.Answerer
+import dev.abhay.assistant.link.JevPick
+import dev.abhay.assistant.link.JevReply
+import dev.abhay.assistant.link.LinkCalls
+import dev.abhay.assistant.link.LinkMode
+import dev.abhay.assistant.link.LinkPolicy
+import dev.abhay.assistant.link.LinkStatus
+import dev.abhay.assistant.link.brief
+import dev.abhay.assistant.link.describe
+import dev.abhay.assistant.tools.Tool
+import dev.abhay.assistant.tools.ToolConfig
+import dev.abhay.assistant.tools.ToolRouter
+import dev.abhay.assistant.tools.Tools
+import dev.abhay.assistant.tools.Verdict
+import java.util.Locale
+
+/**
+ * One step a request took, recorded as it ran, for the details' chain ("Typed → Jev (Alarm, 0.93)
+ * → Needle 3 (0.81)"): [name], and [detail] such as the pick and its probability. A step that
+ * failed says so in its name ("Jev timed out"), and the next step is what answered instead.
+ */
+data class Step(val name: String, val detail: String? = null) {
+    val text get() = if (detail == null) name else "$name ($detail)"
+
+    companion object {
+        fun chain(steps: List<Step>) = steps.joinToString(" → ") { it.text }
+    }
+}
+
+/** One command of a rewritten request ("Understood as"), the steps it took, and its calls. */
+data class CommandPath(val text: String, val steps: List<Step>, val calls: List<ToolCall>)
+
+/**
+ * Ferb's answer to a request before anything runs: [shown], the reply whose calls are offered,
+ * each call with the text its values are read from ([callTexts]: the request, or the command it
+ * came from); the decision; and how it got there ([path], [commands]).
+ */
+data class Answer(
+    val shown: NeedleReply,
+    val callTexts: List<String>,
+    val verdict: Verdict,
+    /** The tools the answering model was given (empty: every tool turned on). */
+    val checked: List<String>,
+    val path: List<Step>,
+    /** For a rewritten request: its commands, in order, each with its steps. */
+    val commands: List<CommandPath> = emptyList(),
+    val needleReply: NeedleReply? = null,
+    val laptopError: String? = null,
+    val laptopErrorDetail: String? = null,
+    val jev: JevReply? = null,
+    val jevNote: String? = null,
+    val jevNoteDetail: String? = null,
+)
+
+/**
+ * Who answers a request, in which order, and with which tools, by mode (Settings → Ferb Link),
+ * the chat box's choice and "Use Jev to select the tool"; [link] and [needle] do the asking.
+ * Every step is recorded as it runs ([Step]). With Jev on, in Computer mode, a spoken request
+ * takes the commands path: the transcription's English text (already a rewrite by the computer's
+ * model) to Jev, then to Needle 3 with Jev's tool. On the audio bench's real speech (2026-10-16)
+ * that got 58 of 67 right with 36 run, against Gemma with Jev's tools' 57 and 23. A failed Jev
+ * falls back to Gemma, saying why. Typed requests in Computer mode stay with Gemma and Jev's
+ * tools until a "comprehend" step (Gemma deciding whether to rewrite) has been benched.
+ */
+class AnswerFlow(
+    private val link: LinkCalls,
+    private val needle: suspend (request: String, tools: List<Tool>) -> NeedleReply,
+    private val asking: (String?) -> Unit = {},
+) {
+    suspend fun answer(
+        request: String,
+        heard: String?,
+        enabled: List<Tool>,
+        configs: Map<String, ToolConfig>,
+        mode: LinkMode,
+        answerer: Answerer,
+        jevSwitch: Boolean,
+    ): Answer {
+        val routed = ToolRouter.route(request, enabled, configs)
+        val chosen = LinkPolicy.laptopFirst(mode, answerer)
+        val path = mutableListOf<Step>()
+        if (heard != null) path += listOf(Step("Voice"), Step("Gemma transcription")) else path += Step("Typed")
+        val status = if (mode != LinkMode.Off && enabled.isNotEmpty()) link.status() else null
+        val jevOn = jevSwitch && status is LinkStatus.Ready && status.jev
+        var jevNote: String? = null
+        var jevNoteDetail: String? = null
+        if (jevSwitch && status is LinkStatus.Ready && !status.jev && status.jevCapped) {
+            jevNote = "Jev's limit reached"
+            jevNoteDetail = "Jev reached its spending limit: raise it in Ferb Link"
+        }
+
+        // Computer mode with Jev on: speech takes the commands path.
+        if (chosen && jevOn && heard != null) {
+            when (val got = commands(listOf(request), enabled, configs, path)) {
+                is Commands.Answered -> return got.answer
+                is Commands.Failed -> {
+                    jevNote = got.reason
+                    jevNoteDetail = got.detail
+                }
+            }
+        }
+
+        var jev: JevReply? = null
+        var jevNone = false
+        var jevPicked = false
+        var needleTools = routed
+        var laptopTools = routed.ifEmpty { enabled }
+        // "Use Jev to select the tool" for the request itself, unless the commands path already fell back from it.
+        if (jevOn && jevNote == null) {
+            asking("Asking Jev…")
+            val reply = link.decide(request, Tools.json(routed.ifEmpty { enabled }))
+            jev = reply
+            when (val pick = LinkPolicy.select(reply, enabled.map { it.name })) {
+                is JevPick.Tool -> {
+                    needleTools = listOfNotNull(Tools.byName(pick.name))
+                    laptopTools = (listOf(pick.name) + pick.also).mapNotNull(Tools::byName)
+                    jevPicked = true
+                    path += Step("Jev", pick(reply))
+                }
+                JevPick.NoTool -> {
+                    jevNone = true
+                    path += Step("Jev", pick(reply))
+                }
+                is JevPick.Fallback -> {
+                    jevNote = pick.reason
+                    jevNoteDetail = pick.detail
+                    path += Step(pick.reason)
+                }
+            }
+        }
+
+        var laptop: NeedleReply? = null
+        var laptopError: String? = null
+        var laptopErrorDetail: String? = null
+        suspend fun askLaptop() {
+            val now = link.status()
+            if (now is LinkStatus.Ready) {
+                // The model not loaded: it loads first, so a longer wait, said so.
+                asking(if (now.asleep) "Waking your computer…" else "Asking your computer…")
+                val reply = link.complete(request, Tools.json(laptopTools), waking = now.asleep)
+                laptop = reply
+                laptopError = reply.error
+                laptopErrorDetail = reply.errorDetail ?: reply.error
+                path += Step(if (reply.error == null) "Gemma" else "Gemma: ${reply.error}")
+            } else if (chosen) {
+                // Picked in the chat box, so say why it didn't answer; in Fallback, a Ferb Link
+                // that's off or not set up is simply not asked.
+                laptopError = brief(now)
+                laptopErrorDetail = describe(now)
+                path += Step("Computer: ${brief(now)}")
+            }
+        }
+        var needleReply: NeedleReply? = null
+        if (jevNone) {
+            // Jev says no tool fits: neither model is asked.
+            needleReply = NO_TOOL
+        } else {
+            if (chosen && enabled.isNotEmpty()) askLaptop()
+            if (laptop?.error != null || laptop == null) {
+                asking(null)
+                val reply = askNeedle(request, enabled, needleTools)
+                needleReply = reply
+                if (enabled.isNotEmpty()) path += needleStep(reply)
+                if (!chosen && mode == LinkMode.Fallback && enabled.isNotEmpty() && reply.error == null &&
+                    LinkPolicy.askLaptopAfter(reply, Verdict.of(reply, configs, request))) askLaptop()
+            }
+        }
+        // The computer's answer whenever it gave one, including "no tool fits".
+        val shown = laptop?.takeIf { it.error == null } ?: needleReply!!
+        val verdict = if (shown.fromLaptop) LinkPolicy.verdict(shown, configs, request) else Verdict.of(shown, configs, request)
+        return Answer(
+            shown = shown,
+            callTexts = shown.calls.map { request },
+            verdict = verdict,
+            checked = (if (jevPicked && shown.fromLaptop) laptopTools else needleTools).map { it.name },
+            path = path,
+            needleReply = needleReply.takeIf { it !== shown },
+            laptopError = laptopError.takeIf { !shown.fromLaptop },
+            laptopErrorDetail = laptopErrorDetail.takeIf { !shown.fromLaptop },
+            jev = jev,
+            jevNote = jevNote,
+            jevNoteDetail = jevNoteDetail,
+        )
+    }
+
+    private sealed interface Commands {
+        data class Answered(val answer: Answer) : Commands
+        data class Failed(val reason: String, val detail: String) : Commands
+    }
+
+    /**
+     * The commands path: English commands (a spoken request's transcription), each to Jev and to
+     * Needle 3 with Jev's tool, checked against the command. [invented]: a command holds a fact
+     * the request didn't (never runs without asking). Failed when Jev fails: the request then goes
+     * on as without it (to the computer), and [path] says where it stopped.
+     */
+    private suspend fun commands(texts: List<String>, enabled: List<Tool>, configs: Map<String, ToolConfig>, path: MutableList<Step>, invented: Boolean = false): Commands {
+        val names = enabled.map { it.name }
+        val done = mutableListOf<Triple<String, NeedleReply?, List<Step>>>()
+        for (text in texts) {
+            asking("Asking Jev…")
+            val tools = ToolRouter.route(text, enabled, configs).ifEmpty { enabled }
+            val jev = link.decide(text, Tools.json(tools))
+            when (val pick = LinkPolicy.select(jev, names)) {
+                is JevPick.Fallback -> {
+                    path += Step(pick.reason)
+                    return Commands.Failed(pick.reason, pick.detail)
+                }
+                JevPick.NoTool -> done += Triple(text, null, listOf(Step("Jev", pick(jev))))
+                is JevPick.Tool -> {
+                    asking(null)
+                    val reply = needle(text, listOfNotNull(Tools.byName(pick.name)))
+                    done += Triple(text, reply, listOf(Step("Jev", pick(jev)), needleStep(reply)))
+                }
+            }
+        }
+        // One command: its steps continue the chain; several: each has its own, under "Understood as".
+        if (done.size == 1) path += done.single().third
+        val calls = done.flatMap { (text, reply, _) -> reply?.calls.orEmpty().map { it to text } }
+        val verdicts = done.mapNotNull { (text, reply, _) -> reply?.let { Verdict.of(it, configs, text) } }
+        val decision = when {
+            calls.isEmpty() -> Decision.Refuse
+            // A fact the request didn't hold (Ferb Link's `invented`): never without asking.
+            invented || verdicts.any { it.decision != Decision.Run } -> Decision.Confirm
+            else -> Decision.Run
+        }
+        val first = done.firstNotNullOfOrNull { it.second } ?: NO_TOOL
+        val shown = first.copy(calls = calls.map { it.first }, suppressed = done.flatMap { it.second?.suppressed.orEmpty() })
+        val verdict = Verdict(
+            decision = decision,
+            runAt = verdicts.maxOfOrNull { it.runAt } ?: Decision.RUN_AT,
+            alwaysConfirm = verdicts.any { it.alwaysConfirm },
+            unmentioned = verdicts.any { it.unmentioned },
+            ungrounded = verdicts.any { it.ungrounded } || invented,
+        )
+        return Commands.Answered(Answer(
+            shown = shown,
+            callTexts = calls.map { it.second },
+            verdict = verdict,
+            checked = calls.map { it.first.name }.distinct(),
+            path = path,
+            commands = done.map { (text, reply, steps) -> CommandPath(text, steps, reply?.calls.orEmpty()) },
+        ))
+    }
+
+    private suspend fun askNeedle(request: String, enabled: List<Tool>, routed: List<Tool>): NeedleReply = when {
+        routed.isNotEmpty() -> needle(request, routed)
+        enabled.isEmpty() -> NO_TOOL
+        else -> needle(request, enabled)
+    }
+
+    companion object {
+        /** The answer when no tool is on, or Jev says none fits. */
+        val NO_TOOL = NeedleReply(
+            calls = emptyList(), suppressed = emptyList(), reasoning = "", confidence = null, ungrounded = emptyList(),
+            negation = false, prefillTps = 0.0, decodeTps = 0.0, peakRamMb = 0.0, error = null,
+        )
+
+        /** Jev's pick for the chain: "Alarm, 0.93", or "no tool, 0.80". */
+        fun pick(jev: JevReply) = String.format(Locale.US, "%s, %.2f", jev.choice?.let { Tools.byName(it)?.title } ?: "no tool", jev.p ?: 0.0)
+
+        /** Needle 3's step: its confidence, or why it failed. */
+        fun needleStep(reply: NeedleReply) = when {
+            reply.error != null -> Step("Needle 3: ${reply.error}")
+            else -> Step("Needle 3", reply.confidence?.let { String.format(Locale.US, "%.2f", it) })
+        }
+    }
+}

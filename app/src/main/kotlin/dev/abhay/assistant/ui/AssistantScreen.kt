@@ -652,6 +652,20 @@ private fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () ->
             exchange.heard?.let {
                 Text("Spoken. Heard: \u201c$it\u201d", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            // The path the request took, as it ran, with each step's pick or confidence.
+            if (exchange.path.isNotEmpty()) {
+                Text(Step.chain(exchange.path), style = MaterialTheme.typography.bodyMedium)
+            }
+            // A rewritten request: what Ferb understood, and each command's own steps when there are several.
+            if (exchange.heard == null && exchange.commands.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Understood as", style = MaterialTheme.typography.labelLarge)
+                    exchange.commands.forEach { command ->
+                        Text(if (exchange.commands.size == 1) "\u201c${command.text}\u201d" else "\u201c${command.text}\u201d: ${Step.chain(command.steps)}",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
             reply.confidence?.let { confidence ->
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row {

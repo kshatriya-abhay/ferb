@@ -44,6 +44,14 @@ object LinkContract {
      * IllegalArgumentException.
      */
     const val METHOD_DECIDE = "decide"
+    /**
+     * The computer's model turning a typed request into plain English commands, for Jev and
+     * Needle 3: for Hinglish, which neither understands. Ferb doesn't use it yet: a "comprehend"
+     * step (the computer deciding whether a request needs it) is being benched first. Ferb Link resolves times
+     * and dates against the phone's clock. Added after version 1: an older Ferb Link throws
+     * IllegalArgumentException.
+     */
+    const val METHOD_REWRITE = "rewrite"
 
     const val EXTRA_REQUEST = "request"
     const val EXTRA_TOOLS = "tools"
@@ -112,7 +120,7 @@ sealed interface LinkStatus {
  * one `ContentResolver.call`, so Ferb itself stays offline; Needle 3 answers whenever Ferb Link
  * can't.
  */
-class FerbLink(private val context: Context) {
+class FerbLink(private val context: Context) : LinkCalls {
     /**
      * Held while the chat has the computer picked ([hold]): Android then keeps Ferb Link's process
      * at Ferb's importance instead of killing it, which cost about 250 ms on the next call (twice
@@ -183,7 +191,7 @@ class FerbLink(private val context: Context) {
     }
 
     /** No network: whether Ferb Link is installed, on and set up. Quick; fine on the main thread. */
-    fun status(): LinkStatus {
+    override fun status(): LinkStatus {
         if (!installed()) return LinkStatus.NotInstalled
         val result = try {
             timed(LinkContract.METHOD_STATUS) { provider(LinkContract.METHOD_STATUS, null, null) }
@@ -200,7 +208,7 @@ class FerbLink(private val context: Context) {
      * until the computer answers or Ferb Link gives up, so it runs off the main thread. Never throws:
      * a failure is a reply with [NeedleReply.error] set, and Needle 3 answers instead.
      */
-    suspend fun complete(request: String, toolsJson: String, waking: Boolean = false): NeedleReply = withContext(Dispatchers.IO) {
+    override suspend fun complete(request: String, toolsJson: String, waking: Boolean): NeedleReply = withContext(Dispatchers.IO) {
         val result = try {
             lowLatency { timed(LinkContract.METHOD_COMPLETE) {
                 provider(LinkContract.METHOD_COMPLETE, null, bundleOf(
@@ -222,7 +230,7 @@ class FerbLink(private val context: Context) {
      * "Use Jev to select the tool" is on ([LinkPolicy.select]). Ferb Link gives up after
      * [JEV_TIMEOUT_MS]; never throws.
      */
-    suspend fun decide(request: String, toolsJson: String, timeoutMs: Int = JEV_TIMEOUT_MS): JevReply = withContext(Dispatchers.IO) {
+    override suspend fun decide(request: String, toolsJson: String, timeoutMs: Int): JevReply = withContext(Dispatchers.IO) {
         val result = try {
             lowLatency { timed(LinkContract.METHOD_DECIDE) {
                 provider(LinkContract.METHOD_DECIDE, null, bundleOf(
@@ -239,6 +247,28 @@ class FerbLink(private val context: Context) {
             return@withContext JevReply.failed("Ferb Link failed", "Ferb Link failed: ${e.message ?: e}")
         } ?: return@withContext JevReply.failed("no answer", "Ferb Link didn't answer")
         decisionOf(result.values())
+    }
+
+    /**
+     * [request] as plain English commands from the computer's model ([LinkContract.METHOD_REWRITE]);
+     * never throws: a failure is a [RewriteReply] with its error set.
+     */
+    suspend fun rewrite(request: String, timeoutMs: Int = REWRITE_TIMEOUT_MS): RewriteReply = withContext(Dispatchers.IO) {
+        val result = try {
+            lowLatency { timed(LinkContract.METHOD_REWRITE) {
+                provider(LinkContract.METHOD_REWRITE, null, bundleOf(
+                    LinkContract.EXTRA_REQUEST to request,
+                    LinkContract.EXTRA_TIMEOUT_MS to timeoutMs,
+                ))
+            } }
+        } catch (e: IllegalArgumentException) {
+            return@withContext RewriteReply.failed("update Ferb Link", "This Ferb Link is too old to rewrite requests")
+        } catch (e: SecurityException) {
+            return@withContext RewriteReply.failed("not allowed", "Ferb Link only answers apps signed with the same key")
+        } catch (e: Exception) {
+            return@withContext RewriteReply.failed("Ferb Link failed", "Ferb Link failed: ${e.message ?: e}")
+        } ?: return@withContext RewriteReply.failed("no answer", "Ferb Link didn't answer")
+        rewriteOf(result.values())
     }
 
     /**
@@ -345,6 +375,13 @@ class FerbLink(private val context: Context) {
             return JevReply.parse(result.text(LinkContract.RESULT_REPLY) ?: return JevReply.failed("unexpected answer", "Ferb Link sent no reply"))
         }
 
+        /** A `rewrite` result. */
+        fun rewriteOf(result: LinkResult): RewriteReply {
+            val version = result.int(LinkContract.RESULT_VERSION)
+            if (version != LinkContract.VERSION) return RewriteReply.failed("versions differ", "Ferb Link speaks version $version, Ferb version ${LinkContract.VERSION}: update the older one")
+            return RewriteReply.parse(result.text(LinkContract.RESULT_REPLY) ?: return RewriteReply.failed("unexpected answer", "Ferb Link sent no reply"))
+        }
+
         /** A `check` result. */
         fun reachabilityOf(result: LinkResult) = Reachability(
             reachable = result.bool(LinkContract.RESULT_REACHABLE),
@@ -406,6 +443,9 @@ class FerbLink(private val context: Context) {
          * this the request goes on without Jev.
          */
         const val JEV_TIMEOUT_MS = 6_000
+
+        /** How long the rewrite may take: 0.26 s (median) and 0.35 s (90th percentile) on the laptop's GPU, 2026-10-16. */
+        const val REWRITE_TIMEOUT_MS = 10_000
 
         /** The timeout for a request: [normal], or [WAKING_TIMEOUT_MS] while the model is [waking]. */
         fun timeout(normal: Int, waking: Boolean) = if (waking) WAKING_TIMEOUT_MS else normal
@@ -525,4 +565,46 @@ data class JevReply(
 
         fun failed(reason: String, detail: String) = JevReply(null, emptyMap(), error = reason, errorDetail = detail)
     }
+}
+
+/**
+ * The computer's rewrite of a request ([LinkContract.METHOD_REWRITE]): [commands] in plain English,
+ * none when it asks for nothing; [invented], facts in them the request didn't hold (Ferb runs none
+ * of those without asking); [error] (a few words) and [errorDetail] when it failed.
+ */
+data class RewriteReply(
+    val commands: List<String>,
+    val invented: List<String> = emptyList(),
+    val model: String? = null,
+    val ms: Long? = null,
+    val error: String? = null,
+    val errorDetail: String? = null,
+    val errorKind: String? = null,
+) {
+    companion object {
+        fun parse(json: String): RewriteReply = try {
+            val o = JSONObject(json)
+            fun strings(key: String) = o.optJSONArray(key)?.let { a -> (0 until a.length()).map { a.get(it).toString() } }.orEmpty()
+            RewriteReply(
+                commands = strings("commands").map { it.trim() }.filter { it.isNotEmpty() },
+                invented = strings("invented"),
+                model = o.optString("model").ifBlank { null },
+                ms = if (o.has("ms")) o.optLong("ms") else null,
+                error = if (o.optBoolean("success", false)) null else o.optString("error").ifBlank { "rewrite failed" },
+                errorDetail = o.optString("error_detail").ifBlank { null },
+                errorKind = o.optString("error_kind").ifBlank { null },
+            )
+        } catch (e: Exception) {
+            failed("unexpected answer", "The rewrite couldn't be read: ${e.message}")
+        }
+
+        fun failed(reason: String, detail: String) = RewriteReply(emptyList(), error = reason, errorDetail = detail)
+    }
+}
+
+/** What answering needs from Ferb Link ([FerbLink]), so [dev.abhay.assistant.ui.AnswerFlow] runs in tests with a fake. */
+interface LinkCalls {
+    fun status(): LinkStatus
+    suspend fun complete(request: String, toolsJson: String, waking: Boolean = false): NeedleReply
+    suspend fun decide(request: String, toolsJson: String, timeoutMs: Int = FerbLink.JEV_TIMEOUT_MS): JevReply
 }

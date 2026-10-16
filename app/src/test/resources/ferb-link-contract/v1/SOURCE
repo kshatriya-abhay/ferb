@@ -1,1 +1,1 @@
-3baa5a3 2026-10-15 decide: TypeSafe's Jev as a second opinion on the tool, off by default, with a spend counter and a $3 cap that turns Jev off
+edf84e0 2026-10-16 rewrite in the provider: a typed request as English commands for Needle 3 (contract v1 addition)

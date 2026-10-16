@@ -3,7 +3,6 @@ package dev.abhay.assistant.ui
 import android.app.Application
 import android.content.Context
 import android.os.SystemClock
-import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.abhay.assistant.AssistantApp
@@ -12,16 +11,12 @@ import dev.abhay.assistant.engine.Decision
 import dev.abhay.assistant.engine.NeedleReply
 import dev.abhay.assistant.engine.ToolCall
 import dev.abhay.assistant.link.Answerer
-import dev.abhay.assistant.link.FerbLink
-import dev.abhay.assistant.link.JevPick
 import dev.abhay.assistant.link.JevReply
 import dev.abhay.assistant.link.LinkMode
 import dev.abhay.assistant.link.LinkPolicy
 import dev.abhay.assistant.link.LinkStatus
 import dev.abhay.assistant.link.Recorder
 import dev.abhay.assistant.link.Transcript
-import dev.abhay.assistant.link.brief
-import dev.abhay.assistant.link.describe
 import dev.abhay.assistant.tools.CallRunner
 import dev.abhay.assistant.tools.Choice
 import dev.abhay.assistant.tools.FollowUp
@@ -96,6 +91,10 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         /** Why Jev's pick wasn't used, when it was asked (or is at its spending limit): in a few words, and at length. */
         val jevNote: String? = null,
         val jevNoteDetail: String? = null,
+        /** The steps the request took, as they ran ("Typed → Jev (Alarm, 0.93) → Needle 3 (0.81)"). */
+        val path: List<Step> = emptyList(),
+        /** For a rewritten request: its commands ("Understood as"), each with its steps. */
+        val commands: List<CommandPath> = emptyList(),
     )
 
     data class UiState(
@@ -202,93 +201,20 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             val started = SystemClock.elapsedRealtime()
             val enabled = enabledTools.value.mapNotNull(Tools::byName)
             val configs = assistant.toolSettings.configs.value
-            val routed = ToolRouter.route(request, enabled, configs)
-            // Ferb Link, as chosen in Settings: the computer's model answers first when Ferb Link
-            // is picked in the chat box ("Option"), or after Needle 3 when it's unsure or finds no
-            // tool ("Fallback"). Needle 3 answers whenever the computer can't.
-            val mode = assistant.linkSettings.mode.value
-            val chosen = LinkPolicy.laptopFirst(mode, assistant.linkSettings.answerer.value)
-            var laptop: NeedleReply? = null
-            var laptopError: String? = null
-            var laptopErrorDetail: String? = null
-            // "Use Jev to select the tool" (Settings → Ferb Link), in every mode but Off: Jev picks
-            // the tool first, and the answering model gets only that one (the computer also Jev's
-            // next ones, for a request for two things). Without a pick (unsure, failed, late, or at
-            // its spending limit), as without Jev, with the reason in the reply.
-            var jev: JevReply? = null
-            var jevNote: String? = null
-            var jevNoteDetail: String? = null
-            var jevNone = false
-            var jevPicked = false
-            var needleTools = routed
-            var laptopTools = routed.ifEmpty { enabled }
-            if (mode != LinkMode.Off && enabled.isNotEmpty() && assistant.linkSettings.jev.value) {
-                val status = assistant.link.status()
-                if (status is LinkStatus.Ready && status.jev) {
-                    _state.update { it.copy(asking = "Asking Jev\u2026") }
-                    val reply = assistant.link.decide(request, Tools.json(routed.ifEmpty { enabled }), FerbLink.JEV_TIMEOUT_MS)
-                    jev = reply
-                    when (val pick = LinkPolicy.select(reply, enabled.map { it.name })) {
-                        is JevPick.Tool -> {
-                            needleTools = listOfNotNull(Tools.byName(pick.name))
-                            laptopTools = (listOf(pick.name) + pick.also).mapNotNull(Tools::byName)
-                            jevPicked = true
-                        }
-                        JevPick.NoTool -> jevNone = true
-                        is JevPick.Fallback -> {
-                            jevNote = pick.reason
-                            jevNoteDetail = pick.detail
-                        }
-                    }
-                    // How long Jev took on the phone, through Ferb Link (`adb logcat -s Ferb`).
-                    Log.i(TAG, "jev: ${SystemClock.elapsedRealtime() - started} ms")
-                } else if (status is LinkStatus.Ready && status.jevCapped) {
-                    jevNote = "Jev's limit reached"
-                    jevNoteDetail = "Jev reached its spending limit: raise it in Ferb Link"
-                }
-            }
-            suspend fun askLaptop() {
-                val status = assistant.link.status()
-                if (status is LinkStatus.Ready) {
-                    // The model not loaded: it loads first, so a longer wait, said so.
-                    _state.update { it.copy(asking = if (status.asleep) "Waking your computer\u2026" else "Asking your computer\u2026") }
-                    laptop = assistant.link.complete(request, Tools.json(laptopTools), waking = status.asleep)
-                    laptopError = laptop?.error
-                    laptopErrorDetail = laptop?.let { it.errorDetail ?: it.error }
-                } else if (chosen) {
-                    // Picked in the chat box, so say why it didn't answer; in Fallback, a Ferb Link
-                    // that's off or not set up is simply not asked.
-                    laptopError = brief(status)
-                    laptopErrorDetail = describe(status)
-                }
-            }
-            var needle: NeedleReply? = null
-            if (jevNone) {
-                // Jev says no tool fits: neither model is asked.
-                needle = NO_TOOL
-            } else {
-                if (chosen && enabled.isNotEmpty()) askLaptop()
-                if (laptop?.error != null || laptop == null) {
-                    _state.update { it.copy(asking = null) }
-                    val reply = askNeedle(request, enabled, needleTools)
-                    needle = reply
-                    if (!chosen && mode == LinkMode.Fallback && enabled.isNotEmpty() && reply.error == null &&
-                        LinkPolicy.askLaptopAfter(reply, Verdict.of(reply, configs, request))) askLaptop()
-                }
-            }
-            // The computer's answer whenever it gave one, including "no tool fits".
-            val shown = laptop?.takeIf { it.error == null } ?: needle!!
-            val verdict = if (shown.fromLaptop) LinkPolicy.verdict(shown, configs, request) else Verdict.of(shown, configs, request)
-            val calls = shown.calls.map { call -> CallState(call, prepare(call, request), Status.Waiting) }
+            val answer = flow.answer(request, heard, enabled, configs, assistant.linkSettings.mode.value,
+                assistant.linkSettings.answerer.value, assistant.linkSettings.jev.value)
+            val shown = answer.shown
+            val verdict = answer.verdict
+            val calls = shown.calls.mapIndexed { i, call -> CallState(call, prepare(call, answer.callTexts[i]), Status.Waiting) }
             val exchange = Exchange(nextId++, request, shown, verdict.decision, verdict.runAt, verdict.alwaysConfirm, verdict.unmentioned, verdict.ungrounded,
-                (if (jevPicked && shown.fromLaptop) laptopTools else needleTools).map { it.name },
-                calls, SystemClock.elapsedRealtime() - started,
-                needleReply = needle.takeIf { shown !== it },
-                laptopError = laptopError.takeIf { !shown.fromLaptop },
-                laptopErrorDetail = laptopErrorDetail.takeIf { !shown.fromLaptop },
+                answer.checked, calls, SystemClock.elapsedRealtime() - started,
+                needleReply = answer.needleReply,
+                laptopError = answer.laptopError,
+                laptopErrorDetail = answer.laptopErrorDetail,
                 heard = heard,
                 turnOn = if (shown.calls.isEmpty() && shown.error == null) ToolRouter.off(request, configs).map { it.name } else emptyList(),
-                jev = jev, jevNote = jevNote, jevNoteDetail = jevNoteDetail)
+                jev = answer.jev, jevNote = answer.jevNote, jevNoteDetail = answer.jevNoteDetail,
+                path = answer.path, commands = answer.commands)
             _state.update { it.copy(history = it.history + exchange, pending = null, asking = null) }
             if (verdict.decision == Decision.Run) run(exchange.id)
         } catch (e: CancellationException) {
@@ -299,6 +225,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             _state.update { it.copy(busy = false, pending = null, asking = null) }
         }
     }
+
+    private val flow = AnswerFlow(assistant.link, needle = ::ask, asking = { text -> _state.update { it.copy(asking = text) } })
 
     private val recorder by lazy { Recorder(app) }
 
@@ -357,19 +285,6 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     override fun onCleared() = recorder.cancel()
-
-    /**
-     * Needle 3's answer: from the tools [routed] to (the request mentions them), else from every tool
-     * turned on, as Needle 3 weighs the five that match best (its own retrieval). Until 2026-10-12
-     * a setting could check every tool, five at a time, instead; removed: on tool-check it added
-     * one right call that runs and let unrelated requests reach tools, and Ferb Link now covers
-     * Needle 3 finding nothing.
-     */
-    private suspend fun askNeedle(request: String, enabled: List<Tool>, routed: List<Tool>): NeedleReply = when {
-        routed.isNotEmpty() -> ask(request, routed)
-        enabled.isEmpty() -> NO_TOOL
-        else -> ask(request, enabled)
-    }
 
     private suspend fun ask(request: String, tools: List<Tool>): NeedleReply =
         NeedleReply.parse(assistant.engine.complete(request, tools.map { it.name }, Tools.json(tools)))
@@ -485,14 +400,6 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
 
     private companion object {
         const val WAKE_EVERY_MS = 60_000L
-
-        const val TAG = "Ferb"
-
-        /** The answer when no tool is on, or Jev says none fits. */
-        val NO_TOOL = NeedleReply(
-            calls = emptyList(), suppressed = emptyList(), reasoning = "", confidence = null, ungrounded = emptyList(),
-            negation = false, prefillTps = 0.0, decodeTps = 0.0, peakRamMb = 0.0, error = null,
-        )
     }
 }
 

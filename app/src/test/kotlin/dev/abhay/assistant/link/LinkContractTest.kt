@@ -46,7 +46,7 @@ class LinkContractTest {
     @Test
     fun theFixturesAreHereAndKnown() {
         assertThat(cases).isNotEmpty()
-        val methods = listOf("status", "check", "complete", "transcribe", "wake", "decide")
+        val methods = listOf("status", "check", "complete", "transcribe", "wake", "decide", "rewrite")
         cases.filter { !it.result.has("throws") }.forEach { assertThat(it.method).isIn(methods) }
         methods.forEach { assertThat(of(it)).isNotEmpty() }
     }
@@ -127,6 +127,25 @@ class LinkContractTest {
         val capped = of("decide").map { FerbLink.decisionOf(values(it.result)) }.filter { it.errorDetail?.contains("spending limit") == true }
         assertThat(capped).isNotEmpty()
         capped.forEach { assertThat(LinkPolicy.jevLine(it)).contains("spending limit") }
+    }
+
+    @Test
+    fun rewriteIsCommandsOrAShortError() {
+        of("rewrite").forEach { case ->
+            val rewrite = FerbLink.rewriteOf(values(case.result))
+            val wire = case.result.getJSONObject("reply")
+            if (wire.optBoolean("success")) {
+                assertThat(rewrite.error).isNull()
+                assertThat(rewrite.commands).hasSize(wire.getJSONArray("commands").length())
+            } else {
+                assertThat(rewrite.commands).isEmpty()
+                assertShort(rewrite.error)
+            }
+        }
+        val all = of("rewrite").map { FerbLink.rewriteOf(values(it.result)) }
+        // One command, two, none, and one with a fact the request didn't hold.
+        assertThat(all.map { it.commands.size }).containsAtLeast(0, 1, 2)
+        assertThat(all.any { it.invented.isNotEmpty() }).isTrue()
     }
 
     @Test
