@@ -40,13 +40,14 @@ def bench_lines():
     return out
 
 def main(argv):
-    extra, kept_paths, switch = [], [], False
+    extra, kept_paths, switch, multi = [], [], False, False
     i = 0
     while i < len(argv):
         if argv[i] == "--limit": extra += ["--limit", argv[i + 1]]; i += 2
         elif argv[i] == "--dry-run": extra.append("--dry-run"); i += 1
         elif argv[i] == "--replies": kept_paths.append(argv[i + 1]); i += 2
         elif argv[i] == "--switch": switch = True; i += 1
+        elif argv[i] == "--multi": multi = True; i += 1
         else: sys.exit(f"Unknown option {argv[i]}")
     lines = bench_lines()
     texts = [r for r, _, _, _ in lines]
@@ -71,9 +72,22 @@ def main(argv):
         if d.get("choice") in by_name: return ("tool", d["choice"])
         return ("none",)
 
+    def picks_for_computer(text):
+        """With --multi: Jev's top tool and the others it rates at 0.25 or more, three at most (for two-action requests)."""
+        got = pick(text)
+        if not got or got[0] != "tool": return []
+        probabilities = kept[text]["decide"].get("probabilities") or {}
+        others = sorted((n for n, p in probabilities.items() if n in by_name and n != got[1] and p >= 0.25), key=lambda n: -probabilities[n])
+        return [got[1]] + others[:2]
+
     send = []
     for n, text in enumerate(texts):
         have = kept.get(text, {})
+        if switch and multi:
+            names = picks_for_computer(text)
+            if len(names) > 1 and "complete_jev3" not in have:
+                send.append({"id": f"m{n}", "request": text, "tools": [by_name[x] for x in names], "timeout_ms": 10000})
+            continue
         if switch:
             # Only Gemma with Jev's tool: Jev's picks are all kept, and no new Jev call goes out.
             got = pick(text)
@@ -83,6 +97,11 @@ def main(argv):
         if "complete" not in have: send.append({"id": f"c{n}", "request": text, "tools": routed(text), "timeout_ms": 10000})
         if "decide" not in have and lines[n][3] != "hi": send.append({"id": f"d{n}", "method": "decide", "request": text, "tools": routed(text), "timeout_ms": 10000})
     print(f"{len(texts)} requests; {sum(1 for s in send if s.get('method'))} decide and {sum(1 for s in send if not s.get('method'))} complete lines to send")
+    # A dry run without decide lines stops here: the harness only treats a run as dry when it has
+    # decide lines, and would otherwise send the complete lines to the model server.
+    if send and "--dry-run" in extra and not any(x.get("method") == "decide" for x in send):
+        print("Dry run: no decide lines, so nothing to estimate; nothing sent")
+        return
     if send:
         replies = harness(send, extra)
         if replies is None: return
@@ -90,7 +109,7 @@ def main(argv):
         with open(path, "w") as f:
             for rid, r in replies.items():
                 n = int(rid[1:])
-                r = {**r, "request": texts[n], "kind": {"d": "decide", "c": "complete", "g": "complete_jev"}[rid[0]]}
+                r = {**r, "request": texts[n], "kind": {"d": "decide", "c": "complete", "g": "complete_jev", "m": "complete_jev3"}[rid[0]]}
                 kept.setdefault(texts[n], {})[r["kind"]] = r
                 f.write(json.dumps(r, ensure_ascii=False) + "\n")
         print(f"Replies kept in {os.path.relpath(path)}")
@@ -160,9 +179,10 @@ def main(argv):
             got = pick(text)
             if got is None: return computer_outcome(text)
             if got[0] == "none": return None, None
-            call = first(kept.get(text, {}).get("complete_jev", {}))
+            reply = kept.get(text, {}).get("complete_jev3" if multi and len(picks_for_computer(text)) > 1 else "complete_jev", {})
+            call = first(reply)
             if call is None: return None, None
-            return call, "run" if checks(call, text) else "ask"
+            return call, "run" if all(checks(c, text) for c in reply["function_calls"]) else "ask"
 
         def needle_runs(reply, text):
             call = first(reply)
