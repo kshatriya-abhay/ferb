@@ -3,6 +3,10 @@ plain English commands (Ferb Link's harness, `rewrite`), and each command goes t
 
     rewrite.py --variant v1 [--tuning] [--jev] [--bjev] [--bench audio.txt] [--dry-run] [--limit N] [--replies kept.jsonl ...]
 
+--comprehend: the variant is ferb-link's "comprehend" (Gemma decides: {"direct": true} when the
+request is already a clear English command, else its commands, [] for none), scored as U1 (direct
+-> B+Jev; commands -> Jev -> Needle 3 each) and U2 (direct -> Jev -> Needle 3 on the request);
+a failed comprehend or Jev falls back to B. Needs --bjev and --jev.
 --bjev adds B+Jev, Computer with "Use Jev to select the tool" as the app has it: Jev on the request,
 then Gemma with Jev's tool and its next ones at 0.25 or more (three in all); "none" no tool; below
 0.5 as B. --bench scores another file in requests.txt's format (audio.txt: the heard text of the
@@ -53,7 +57,7 @@ def invented(command, said, vocabulary, numbers_only=False):
 NOW = "2026-10-16T09:00 (Friday)"
 
 def main(argv):
-    extra, kept_paths, variant, use_jev, tuning, use_bjev, bench_file = [], [], None, False, False, False, None
+    extra, kept_paths, variant, use_jev, tuning, use_bjev, bench_file, comprehend = [], [], None, False, False, False, None, False
     i = 0
     while i < len(argv):
         if argv[i] == "--limit": extra += ["--limit", argv[i + 1]]; i += 2
@@ -63,6 +67,7 @@ def main(argv):
         elif argv[i] == "--jev": use_jev = True; i += 1
         elif argv[i] == "--tuning": tuning = True; i += 1
         elif argv[i] == "--bjev": use_bjev = True; i += 1
+        elif argv[i] == "--comprehend": comprehend = True; i += 1
         elif argv[i] == "--bench": bench_file = argv[i + 1]; i += 2
         else: sys.exit(f"Unknown option {argv[i]}")
     if not variant: sys.exit("--variant is needed")
@@ -162,17 +167,22 @@ def main(argv):
     for n, text in enumerate(texts):
         if (text, variant) not in rewrites:
             ids[f"r{n}"] = ("rewrite", text)
-            send.append({"id": f"r{n}", "method": "rewrite", "request": text, "now": NOW, "variant": variant,
-                         "tools": [t["name"] for t in tools]})
+            send.append({"id": f"r{n}", "method": "comprehend" if comprehend else "rewrite", "request": text, "now": NOW,
+                         "variant": variant, "tools": [t["name"] for t in tools]})
     print(f"{len(texts)} requests; {len(send)} rewrites to send (variant {variant})")
     if send:
         replies = harness(send, extra)
         if replies is None: return
         save(replies, ids)
 
+    def direct(text):
+        """Comprehend: Gemma says the request is already a clear English command."""
+        return bool(rewrites.get((text, variant), {}).get("direct"))
+
     def commands(text):
         r = rewrites.get((text, variant), {})
-        return [c.strip() for c in (r.get("commands") or []) if c and c.strip()] if r.get("success") else None
+        if not r.get("success") or direct(text): return None
+        return [c.strip() for c in (r.get("commands") or []) if c and c.strip()]
 
     # 2. Jev on each command (arm D; costs money).
     all_commands = sorted({c for t in texts for c in (commands(t) or [])})
@@ -212,6 +222,16 @@ def main(argv):
     def first(reply):
         return next(iter(reply.get("function_calls") or []), None)
 
+    # U2: Needle 3 with Jev's tool on the request itself, for the requests comprehend calls direct.
+    alone_request = {}
+    if comprehend:
+        groups = {}
+        for t in texts:
+            names = jev_pick(t)
+            if direct(t) and names and names != ["none"]: groups.setdefault(names[0], []).append(t)
+        for name, asked in groups.items():
+            for r, a in ask([by_name[name]], asked).items(): alone_request[r] = json.loads(a)
+
     def needle_how(reply, said):
         """A Needle 3 reply's call and whether it runs, with the checks against [said]."""
         call = first(reply)
@@ -242,6 +262,29 @@ def main(argv):
     def arm_e(text):
         """C, gated by Gemma's own tool call (B): when Gemma, given the tools, calls none, no tool."""
         return arm_c(text) if arm_b(text) else []
+    def commands_with_jev(text):
+        """Each command to Jev and Needle 3 with Jev's tool; None when Jev fails on one (the app then goes to B)."""
+        out = []
+        for c in commands(text):
+            t = jev_tool(c)
+            if t is None: return None
+            if t != "none":
+                got = needle_how(alone.get(c, {}), c)
+                if got: out.append(got)
+        return out
+    def arm_u1(text):
+        if direct(text): return arm_bj(text)
+        if commands(text) is None: return arm_b(text)
+        got = commands_with_jev(text)
+        return arm_b(text) if got is None else got
+    def arm_u2(text):
+        if direct(text):
+            names = jev_pick(text)
+            if names is None: return arm_b(text)
+            if names == ["none"]: return []
+            got = needle_how(alone_request.get(text, {}), text)
+            return [got] if got else []
+        return arm_u1(text)
     def arm_d(text):
         cs = commands(text)
         if cs is None: return arm_a(text)
@@ -273,7 +316,10 @@ def main(argv):
             t["wrong_asks"] += not ok and bool(others) and not any(h == "run" for _, _, h in others)
         return t
 
-    arms = [("A Needle 3", arm_a), ("B Gemma calls", arm_b)] + ([("B+Jev", arm_bj)] if use_bjev else []) + [(f"C rewrite {variant}", arm_c), (f"E C gated by B", arm_e)] + ([(f"D rewrite {variant} + Jev", arm_d)] if use_jev else [])
+    if comprehend:
+        arms = [("A Needle 3", arm_a), ("B Gemma calls", arm_b), ("B+Jev", arm_bj), (f"U1 {variant}", arm_u1), (f"U2 {variant}", arm_u2)]
+    else:
+        arms = [("A Needle 3", arm_a), ("B Gemma calls", arm_b)] + ([("B+Jev", arm_bj)] if use_bjev else []) + [(f"C rewrite {variant}", arm_c), (f"E C gated by B", arm_e)] + ([(f"D rewrite {variant} + Jev", arm_d)] if use_jev else [])
     if bench_file:
         def oct_tally(subset):
             marks = [october.get((l[0], i + 1)) for i, l in enumerate(lines) if l in subset]
@@ -295,6 +341,11 @@ def main(argv):
                 ok = (not got) if want_tools == ["none"] else any(scored(g[0], want_tools, want, g[1]) for g in got)
                 marks.append(("✓" if ok else "✗") + ("r" if any(h == "run" for _, _, h in got) else " "))
             print(f"  {category:<9} oct {october.get((request, i + 1)) or '-':<4} {' '.join(marks)}  {request[:44]:<44} -> {commands(request)}")
+        if comprehend:
+            print("\nComprehend said direct, by category:")
+            for category in dict.fromkeys(l[3] for l in lines):
+                sub = [l[0] for l in lines if l[3] == category]
+                print(f"  {category:<10} {sum(map(direct, sub)):>3}/{len(sub)}")
         return
     if tuning: lines = [l for l in lines]
     sets = [("requests.txt (tuning)", [l for l in lines if sources.get(l[0]) == "requests.txt" and l[3] != "hi"]),
@@ -308,6 +359,18 @@ def main(argv):
             if name.startswith("@hi") and arm is arm_a: continue
             t = tally(arm, subset)
             print(f"{label:<24}{t['right']:>7}{t['right_runs']:>9}{t['wrong_runs']:>8}{t['right_asks']:>9}{t['wrong_asks']:>8}{t['missed']:>8}")
+    # SHOW=<arm label start>: that arm's misses on the first set, to read.
+    show = os.environ.get("SHOW")
+    if show:
+        arm = next(a for label, a in arms if label.startswith(show))
+        print(f"\n{show} misses on {sets[0][0]}:")
+        for request, want_tools, want, _ in sets[0][1]:
+            got = arm(request)
+            ok = (not got) if want_tools == ["none"] else any(scored(g[0], want_tools, want, g[1]) for g in got)
+            if not ok:
+                r = rewrites.get((request, variant), {})
+                how = "direct" if r.get("direct") else r.get("commands")
+                print(f"  {'/'.join(want_tools):<14} {request[:46]:<46} {str(how)[:50]:<50} -> {[(g[0]['name'], g[2]) for g in got]}")
     held = [] if tuning else sets[1][1]
     if held: print(f"\nsuite.txt by category, right runs / wrong runs: " + ", ".join(label.split()[0] for label, _ in arms))
     for category in dict.fromkeys(l[3] for l in held):
@@ -326,7 +389,7 @@ def main(argv):
         print(f"  {request}  ->  {commands(request)}  ->  {[(g[0]['name'], g[0].get('arguments'), g[2]) for g in got]}  {'OK' if any(scored(g[0], want_tools, want, g[1]) for g in got) or (want_tools == ['none'] and not got) else 'MISS'}")
 
     ms = sorted(r["ms"] for (t, v), r in rewrites.items() if v == variant and r.get("success") and r.get("ms"))
-    if ms: print(f"\nRewrite: median {statistics.median(ms):.0f} ms, 90th {ms[int(len(ms) * 0.9)]} ms; failed {sum(1 for t in texts if commands(t) is None)}")
+    if ms: print(f"\nRewrite: median {statistics.median(ms):.0f} ms, 90th {ms[int(len(ms) * 0.9)]} ms; failed {sum(1 for t in texts if not rewrites.get((t, variant), {}).get('success'))}")
     needle_ms = sorted(on_commands[c]["ms"] for c in all_commands if on_commands[c].get("ms"))
     if needle_ms: print(f"Needle 3 per command, on the laptop: median {statistics.median(needle_ms):.0f} ms")
     if use_jev:
@@ -349,6 +412,11 @@ def main(argv):
     for t, new in flagged: print(f"  {t}  ->  {commands(t)}   [{', '.join(map(str, new))}]")
     print(f"Words the request lacks (a wider check, to read): {len(found)} commands")
     for t, c, new in found: print(f"  {t}  ->  {c}   [{', '.join(new)}]")
+    if comprehend:
+        print("\nComprehend said direct, by category:")
+        for category in dict.fromkeys(l[3] for l in lines):
+            sub = [l[0] for l in lines if l[3] == category]
+            print(f"  {category:<10} {sum(map(direct, sub)):>3}/{len(sub):<3}  commands {sum(1 for t in sub if commands(t))}, none {sum(1 for t in sub if commands(t) == [])}")
     counts = [len(commands(t) or []) for t in texts]
     print(f"Commands per request: none {counts.count(0)}, one {counts.count(1)}, more {sum(1 for c in counts if c > 1)}")
 

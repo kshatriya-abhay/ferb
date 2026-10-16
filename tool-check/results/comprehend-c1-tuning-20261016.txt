@@ -1,0 +1,67 @@
+283 requests; 0 rewrites to send (variant c1)
+97 commands; 0 decide calls to send
+
+== requests.txt (tuning): 277 requests
+                          right  runs ok  runs ✗  asks ok  asks ✗  missed
+A Needle 3                  223      132       6       47      39       9
+B Gemma calls               251      158      12       29       7       7
+B+Jev                       263      156       3       30       4       7
+U1 c1                       245      136       3       34       4      25
+U2 c1                       247      130       3       42       4      23
+
+== @hi (requests.txt): 6 requests
+                          right  runs ok  runs ✗  asks ok  asks ✗  missed
+B Gemma calls                 6        3       0        0       0       0
+B+Jev                         6        3       0        0       0       0
+U1 c1                         6        3       0        0       0       0
+U2 c1                         6        3       0        0       0       0
+
+Requests for no tool that C's rewrite turned into commands:
+  [requests] pick it up  ->  ['Pick up']  ->  []
+  [requests] send a message to mom  ->  ['Send a message to mom']  ->  [('send_text', 'ask')]
+  [requests] translate hello to french  ->  ['Translate hello to french']  ->  [('create_note', 'ask')]
+  [requests] how do I set an alarm on android  ->  ['Set an alarm on Android']  ->  [('set_alarm', 'ask')]
+  [requests] what's my wifi password  ->  ['Tell me my wifi password']  ->  []
+  [requests] buy a torch  ->  ['Buy a torch']  ->  [('set_flashlight', 'ask')]
+  [requests] set alarm volume to 80 percent  ->  ['Set the volume to 80 percent']  ->  [('set_volume', 'run')]
+  [requests] directions for this recipe  ->  ['Tell me the recipe.']  ->  []
+  [requests] what's the route of the tour de france  ->  ['Tell me the route of the Tour de France']  ->  []
+  [requests] how do I get to level 5 in this game  ->  ['Tell me how to get to level 5 in this game']  ->  []
+  [requests] read my messages  ->  ['Read my messages']  ->  []
+  [requests] copy this text  ->  ['Copy this text']  ->  []
+  [requests] what's on netflix  ->  ['Tell me what is on Netflix']  ->  []
+  [requests] the schedule for the IPL final  ->  ['Show my agenda for the IPL final']  ->  [('show_agenda', 'ask')]
+  [requests] move my dentist appointment to Friday  ->  ['Move my dentist appointment to on Friday 23 October']  ->  []
+  [requests] the shopping list is long  ->  ['Show the shopping list']  ->  [('show_list', 'run')]
+  [requests] I lost my to-do list  ->  ['Show my to-do list']  ->  [('show_list', 'run')]
+  [requests] list the planets  ->  ['List the planets']  ->  [('show_list', 'run')]
+  [requests] I forgot to set a reminder  ->  ['Set a reminder']  ->  []
+  [hi] utha ke rakh do  ->  ['Put it down']  ->  []
+  [hi] phone utha  ->  ['Pick up the phone']  ->  [('make_call', 'ask')]
+  [hi] main jaag gaya  ->  ['I woke up']  ->  [('show_alarms', 'ask')]
+
+@hi rewrites:
+  subah 6 baje utha dena  ->  ['Set an alarm for 6:00 am']  ->  [('set_alarm', {'time': '6:00 am'}, 'run')]  OK
+  7 baje jaga dena  ->  ['Set an alarm for 7:00']  ->  [('set_alarm', {'time': '7:00'}, 'run')]  OK
+  dopahar 2 baje utha dena  ->  ['Wake me up at 2:00 pm']  ->  [('set_alarm', {'time': '14:00'}, 'run')]  OK
+  utha ke rakh do  ->  ['Put it down']  ->  []  OK
+  phone utha  ->  ['Pick up the phone']  ->  [('make_call', {'name': 'Priya'}, 'ask')]  MISS
+  main jaag gaya  ->  ['I woke up']  ->  [('show_alarms', {}, 'ask')]  MISS
+
+Rewrite: median 302 ms, 90th 432 ms; failed 124
+Needle 3 per command, on the laptop: median 86 ms
+Jev per command: median 285 ms; cost $0.00178
+
+Invented (Ferb Link's field): 1 requests
+  wifi settings  ->  ['Turn off Wi-Fi']   [Wi, Fi]
+Words the request lacks (a wider check, to read): 5 commands
+  how far is the dentist from here  ->  Find the dentist   [find]
+  cycling route to Cubbon Park  ->  Find a cycling route to Cubbon Park   [find]
+  how do I get to MG Road by bus  ->  Find directions to MG Road by bus   [find]
+  How do I go to Chandni Chowk  ->  Find directions to Chandni Chowk   [find]
+  how to reach Andheri station  ->  Find directions to Andheri station   [find]
+
+Comprehend said direct, by category:
+  requests   124/277  commands 88, none 65
+  hi           0/6    commands 6, none 0
+Commands per request: none 189, one 92, more 2
