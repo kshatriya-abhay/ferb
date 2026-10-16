@@ -1,0 +1,162 @@
+# The audio bench's heard text (2026-10-12: 50 lines, and 17 of the rerun), from the user's real
+# voice as Ferb Link's transcription heard it, in requests.txt's format with the heard text as the
+# request. It measures understanding of real recognition output, not the recognition (the audio
+# wasn't kept). Each line's comment: what was said, and October's voice-path result (OK or MISS).
+# App and contact names are left out where recognition garbled them (ptm, phone pay, shriansh):
+# the app matches those names to the phone's apps and contacts itself.
+
+# @hinglish
+# said: subah 5 baje ka alarm laga do · october (2026-10-12): MISS
+set_alarm time=05:00 | subah 6 baje ka alarm laga do
+# said: 6 baje utha dena · october (2026-10-12): OK
+set_alarm time=06:00 | 6 baje utha dena
+# said: 10 minute ka timer lagao · october (2026-10-12): OK
+set_timer seconds=600 | das minute ka timer laga do
+# said: torch on karo · october (2026-10-12): OK
+set_flashlight on=true | torch on karo
+# said: torch band karo · october (2026-10-12): OK
+set_flashlight on=false | torch band karo
+# said: awaaz band karo · october (2026-10-12): OK
+set_volume percent=0 | aawaz band karo
+# said: agla gaana · october (2026-10-12): OK
+control_media action=next | agla gaana
+# said: gaana roko · october (2026-10-12): OK
+control_media action=pause | gana roko
+# said: note karo ki doodh khatam ho gaya · october (2026-10-12): OK
+create_note | note karo ki doodh khatam ho gaya
+# said: kal ka schedule kya hai · october (2026-10-12): OK
+show_agenda | kal ka schedule kya hai
+# said: kal 4 baje meeting calendar mein daal do · october (2026-10-12): MISS
+add_event | kal 4 baje meeting calendar mein dal do
+
+# @amounts
+# said: dedh ghante ka timer laga do · october (2026-10-12): OK
+set_timer seconds=5400 | pedh ghante ka timer laga do
+# said: saade paanch baje ka alarm lagao · october (2026-10-12): OK
+set_alarm time=05:30 | saade paanch baje ka alarm lagao
+# said: dhai minute ka timer lagao · october (2026-10-12): MISS
+set_timer seconds=150 | thai minute ka timer lagao
+# said: sava saat baje utha dena · october (2026-10-12): MISS
+set_alarm time=07:15 | sava 7 baje utha dena
+# said: alarm at half past six · october (2026-10-12): OK
+set_alarm time=06:30 | alarm at half past six
+# said: alarm at quarter to eight · october (2026-10-12): OK
+set_alarm time=07:45 | alarm at quarter to eight
+# said: alarm for 7 in the evening · october (2026-10-12): OK
+set_alarm time=19:00 | alarm for seven in the evening
+# said: an hour and a half timer · october (2026-10-12): MISS
+set_timer seconds=5400 | an hour and a half timer
+# said: timer one and a half minutes · october (2026-10-12): MISS
+set_timer seconds=90 | timer one and a half minutes
+# said: half volume · october (2026-10-12): OK
+set_volume percent=50 | half volume
+
+# @apps
+# said: paytm kholo · october (2026-10-12): OK
+open_app | ptm kholo
+# said: open phonepe · october (2026-10-12): MISS
+open_app | open phone pay
+# said: zomato open karo · october (2026-10-12): OK
+open_app app_name=zomato | zomato open karo
+# said: swiggy kholo · october (2026-10-12): OK
+open_app app_name=swiggy | swiggi kholo
+# said: open hotstar · october (2026-10-12): OK
+open_app app_name=hotstar | open Hotstar
+# said: open up whatsapp for me · october (2026-10-12): OK
+open_app app_name=whatsapp | open up whatsapp for me
+
+# @places
+# said: india gate ka rasta batao · october (2026-10-12): OK
+get_directions destination="india gate" | india gate ka rasta batao
+# said: chandni chowk kaise jaun · october (2026-10-12): MISS
+get_directions destination="chandni chowk" | chandni chowk kaise jaaun
+# said: navigate to koramangala · october (2026-10-12): OK
+get_directions destination=koramangala | Navigate to Koramangala
+# said: directions to charminar by metro · october (2026-10-12): OK
+get_directions destination=charminar | directions to charminar by metro
+# said: gateway of india le chalo · october (2026-10-12): OK
+get_directions destination="gateway of india" | gateway of india le chalo
+
+# @names
+# said: mummy ko call karo · october (2026-10-12): OK
+make_call name=mummy | mummy ko call karo
+# said: call sharma ji · october (2026-10-12): OK
+make_call name="sharma ji" | call Sharma ji
+# said: didi ko phone lagao · october (2026-10-12): OK
+make_call name=didi | didi ko phone lagao
+# said: call bhaiya · october (2026-10-12): OK
+make_call name=bhaiya | call bhaiya
+# said: papa ko message karo ki main pahunch gaya · october (2026-10-12): OK
+send_text name=papa | papa ko message karo ki main pahunch gaya
+# said: text ananya happy diwali · october (2026-10-12): OK
+send_text name=ananya | text ananya happy diwali
+# said: tell rohit im running 10 min late · october (2026-10-12): MISS
+send_text name=rohit | tell rohit i am running 10 minutes late
+# said: message shreyansh that I'll be late · october (2026-10-12): MISS
+send_text | message shriansh that i will be late
+# said: put dinner with neha on friday 8pm in my calendar · october (2026-10-12): OK
+add_event | potluck dinner with neha on friday 8 pm in my calendar
+# said: am i free tomorrow · october (2026-10-12): OK
+show_agenda | am i free tomorrow
+
+# @nothing
+# said: my alarm clock is broken · october (2026-10-12): OK
+none | my alarm clock is broken
+# said: what's the best music app · october (2026-10-12): OK
+none | whats the best music app
+# said: did anyone call · october (2026-10-12): OK
+none | did anyone call
+# said: Diwali is on 1 November · october (2026-10-12): MISS
+none | Diwali is on 1 November
+# said: send money to Rahul · october (2026-10-12): OK
+none | send money to rahul
+# said: open a bank account · october (2026-10-12): OK
+none | open a bank account
+# said: kal mausam kaisa rahega · october (2026-10-12): OK
+none | kal mausam kaisa rahega
+# said: mujhe chai banana sikhao · october (2026-10-12): OK
+none | mujhe chai banana sikhao
+
+# @amounts
+# said: subah 5 baje ka alarm laga do · october (rerun): OK
+set_alarm time=05:00 | subah 5 baje ka alarm laga do
+# said: dedh ghante ka timer laga do · october (rerun): OK
+set_timer seconds=5400 | dedh ghante ka timer laga do
+# said: saade paanch baje ka alarm lagao · october (rerun): OK
+set_alarm time=05:30 | saade paanch baje ka alarm laga do
+# said: dhai minute ka timer lagao · october (rerun): OK
+set_timer seconds=150 | dhai minute ka timer laga do
+# said: sava saat baje utha dena · october (rerun): OK
+set_alarm time=07:15 | sava 7 baje utha dena
+# said: paune aath baje ka alarm lagao · october (rerun): OK
+set_alarm time=07:45 | paune 8 baje ka alarm lagao
+# said: shaam 7 baje ka alarm lagao · october (rerun): MISS
+set_alarm time=19:00 | shaam saat baje ka alarm lagao
+# said: alarm at half past six · october (rerun): OK
+set_alarm time=06:30 | alarm at half past 6
+# said: alarm at quarter to eight · october (rerun): MISS
+set_alarm time=07:45 | alarm add quarter to 8
+# said: alarm for 7 in the evening · october (rerun): OK
+set_alarm time=19:00 | alarm for seven in the evening
+# said: an hour and a half timer · october (rerun): OK
+set_timer seconds=5400 | one hour and a half timer
+# said: half volume · october (rerun): OK
+set_volume percent=50 | half volume
+
+# @media
+# said: stop · october (rerun): OK
+control_media action=pause | stop
+# said: next · october (rerun): OK
+control_media action=next | next
+
+# @apps
+# said: open phonepe · october (rerun): OK
+open_app | open phone pay
+
+# @places
+# said: chandni chowk kaise jaun · october (rerun): OK
+get_directions destination="chandni chowk" | chandni chowk kaise jaaun
+
+# @names
+# said: tell rohit im running 10 min late · october (rerun): OK
+send_text name=rohit | tell rohit i am running 10 minutes late

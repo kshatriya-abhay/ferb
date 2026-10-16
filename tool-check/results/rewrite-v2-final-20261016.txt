@@ -5,6 +5,7 @@
                           right  runs ok  runs ✗  asks ok  asks ✗  missed
 A Needle 3                  223      132       6       47      39       9
 B Gemma calls               251      158      12       29       7       7
+B+Jev                       263      156       3       30       4       7
 C rewrite v2                245      134      10       44      15       9
 E C gated by B              251      132       6       43       9      13
 D rewrite v2 + Jev          255      140       6       41       6      12
@@ -13,6 +14,7 @@ D rewrite v2 + Jev          255      140       6       41       6      12
                           right  runs ok  runs ✗  asks ok  asks ✗  missed
 A Needle 3                  137       67      13       41      27       6
 B Gemma calls               167       86       9       33       4       3
+B+Jev                       171       86       7       32       1       4
 C rewrite v2                149       78      10       27      15       9
 E C gated by B              157       78       8       27       9       9
 D rewrite v2 + Jev          161       81       7       26       6       9
@@ -20,20 +22,21 @@ D rewrite v2 + Jev          161       81       7       26       6       9
 == @hi (both files): 24 requests
                           right  runs ok  runs ✗  asks ok  asks ✗  missed
 B Gemma calls                20       10       0        7       0       4
+B+Jev                        22       10       0        9       0       2
 C rewrite v2                 22       16       0        4       2       0
 E C gated by B               20       13       0        4       0       4
 D rewrite v2 + Jev           23       16       0        4       0       1
 
-suite.txt by category, right runs / wrong runs: A, B, C, E, D
-  plain       44   33/1     36/1     32/2     32/2     33/2 
-  casual      32   16/0     21/0     18/0     18/0     19/0 
-  indian       6    3/0      3/1      4/0      4/0      4/0 
-  typos       14    2/0      3/1      9/1      9/1      9/1 
-  numbers     13    5/3     10/1      6/3      6/3      6/3 
-  multi        7    3/0      6/0      5/1      5/1      6/0 
-  context     12    5/1      7/1      4/1      4/1      4/1 
-  near        36    0/8      0/4      0/2      0/0      0/0 
-  out         19    0/0      0/0      0/0      0/0      0/0 
+suite.txt by category, right runs / wrong runs: A, B, B+Jev, C, E, D
+  plain       44   33/1     36/1     36/1     32/2     32/2     33/2 
+  casual      32   16/0     21/0     22/0     18/0     18/0     19/0 
+  indian       6    3/0      3/1      3/1      4/0      4/0      4/0 
+  typos       14    2/0      3/1      3/1      9/1      9/1      9/1 
+  numbers     13    5/3     10/1     10/1      6/3      6/3      6/3 
+  multi        7    3/0      6/0      5/1      5/1      5/1      6/0 
+  context     12    5/1      7/1      7/1      4/1      4/1      4/1 
+  near        36    0/8      0/4      0/1      0/2      0/0      0/0 
+  out         19    0/0      0/0      0/0      0/0      0/0      0/0 
 
 Requests for no tool that C's rewrite turned into commands:
   [requests] pick it up  ->  ['Pick up']  ->  []

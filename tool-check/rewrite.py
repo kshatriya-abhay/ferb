@@ -1,7 +1,12 @@
 """Gemma for comprehension, Needle 3 for the tool call: the computer's model rewrites a request into
 plain English commands (Ferb Link's harness, `rewrite`), and each command goes to Needle 3 on its own.
 
-    rewrite.py --variant v1 [--tuning] [--jev] [--dry-run] [--limit N] [--replies kept.jsonl ...]
+    rewrite.py --variant v1 [--tuning] [--jev] [--bjev] [--bench audio.txt] [--dry-run] [--limit N] [--replies kept.jsonl ...]
+
+--bjev adds B+Jev, Computer with "Use Jev to select the tool" as the app has it: Jev on the request,
+then Gemma with Jev's tool and its next ones at 0.25 or more (three in all); "none" no tool; below
+0.5 as B. --bench scores another file in requests.txt's format (audio.txt: the heard text of the
+audio bench), by its "# @" categories, with October's result from its "october …: OK" comments.
 
 --tuning: requests.txt only (its @hi lines too), so suite.txt stays unseen until the final
 variant. Variants are ferb-link's, combined with "+": v1, +shots, +tools, +think, +free.
@@ -48,7 +53,7 @@ def invented(command, said, vocabulary, numbers_only=False):
 NOW = "2026-10-16T09:00 (Friday)"
 
 def main(argv):
-    extra, kept_paths, variant, use_jev, tuning = [], [], None, False, False
+    extra, kept_paths, variant, use_jev, tuning, use_bjev, bench_file = [], [], None, False, False, False, None
     i = 0
     while i < len(argv):
         if argv[i] == "--limit": extra += ["--limit", argv[i + 1]]; i += 2
@@ -57,16 +62,34 @@ def main(argv):
         elif argv[i] == "--variant": variant = argv[i + 1]; i += 2
         elif argv[i] == "--jev": use_jev = True; i += 1
         elif argv[i] == "--tuning": tuning = True; i += 1
+        elif argv[i] == "--bjev": use_bjev = True; i += 1
+        elif argv[i] == "--bench": bench_file = argv[i + 1]; i += 2
         else: sys.exit(f"Unknown option {argv[i]}")
     if not variant: sys.exit("--variant is needed")
     lines = bench_lines()
+    october = {}
+    if bench_file:
+        # Another bench: its lines, categories, and October's result per heard text.
+        from score import normalise
+        import shlex
+        lines, category, mark = [], None, None
+        for l in open(os.path.join(HERE, bench_file)):
+            l = l.strip()
+            if l.startswith("# @"): category = l[3:].strip()
+            m = re.search(r"october \([^)]*\): (OK|MISS)", l)
+            if m: mark = m[1]
+            if not l or l.startswith("#"): continue
+            spec, request = [x.strip() for x in l.split("|", 1)]
+            tool, *pairs = shlex.split(spec)
+            lines.append((request, tool.split("/"), {k: normalise(tool, k, v) for k, v in (p.split("=", 1) for p in pairs)}, category))
+            october[(request, len(lines))] = mark
     sources = {}
     for name in ("requests.txt", "suite.txt"):
         from lines import kept as kept_lines
         for l in kept_lines([os.path.join(HERE, name)], set()):
             if "|" in l and not l.startswith("#"): sources[l.split("|", 1)[1].strip()] = name
     if tuning: lines = [l for l in lines if sources.get(l[0]) == "requests.txt"]
-    texts = [l[0] for l in lines]
+    texts = list(dict.fromkeys(l[0] for l in lines))
     tools = json.load(open(os.path.join(BUILD, "all.json")))
     by_name = {t["name"]: t for t in tools}
     cues = json.load(open(os.path.join(BUILD, "cues.json")))
@@ -91,8 +114,48 @@ def main(argv):
                 r = {**r, "request": key, "kind": kind, **({"variant": variant} if kind == "rewrite" else {})}
                 f.write(json.dumps(r, ensure_ascii=False) + "\n")
                 if kind == "rewrite": rewrites[(key, variant)] = r
-                else: command_picks[key] = r
+                elif kind == "decide_command": command_picks[key] = r
+                else: kept.setdefault(key, {})[kind] = r
         print(f"Replies kept in {os.path.relpath(path)}")
+
+    def jev_pick(text):
+        """B+Jev: Jev's pick on the request at 0.5: [tool, next tools…], ["none"], or None (as B)."""
+        d = kept.get(text, {}).get("decide", {})
+        p = (d.get("probabilities") or {}).get(d.get("choice"), 0.0) if d.get("success") else 0.0
+        if p < 0.5: return None
+        if d.get("choice") not in by_name: return ["none"]
+        probabilities = d.get("probabilities") or {}
+        others = sorted((n for n, q in probabilities.items() if n in by_name and n != d["choice"] and q >= 0.25), key=lambda n: -probabilities[n])
+        return [d["choice"]] + others[:2]
+
+    # 0. Gemma calling the tools (B, free), and Jev on each request (B+Jev, costs money).
+    ids, send = {}, []
+    for n, text in enumerate(texts):
+        if "complete" not in kept.get(text, {}):
+            ids[f"c{n}"] = ("complete", text)
+            send.append({"id": f"c{n}", "request": text, "tools": routed(text), "timeout_ms": 10000})
+        if use_bjev and "decide" not in kept.get(text, {}):
+            ids[f"d{n}"] = ("decide", text)
+            send.append({"id": f"d{n}", "method": "decide", "request": text, "tools": routed(text), "timeout_ms": 10000})
+    if send:
+        print(f"{sum(1 for x in send if x.get('method'))} decide and {sum(1 for x in send if not x.get('method'))} complete lines to send")
+        replies = harness(send, extra)
+        if replies is None: return
+        save(replies, ids)
+    if use_bjev:
+        ids, send = {}, []
+        for n, text in enumerate(texts):
+            names = jev_pick(text)
+            if not names or names == ["none"]: continue
+            kind = "complete_jev3" if len(names) > 1 else "complete_jev"
+            if kind not in kept.get(text, {}):
+                ids[f"g{n}"] = (kind, text)
+                send.append({"id": f"g{n}", "request": text, "tools": [by_name[x] for x in names], "timeout_ms": 10000})
+        if send:
+            print(f"{len(send)} complete lines with Jev's tools to send")
+            replies = harness(send, extra)
+            if replies is None: return
+            save(replies, ids)
 
     # 1. Gemma's rewrites (free, under the lock).
     ids, send = {}, []
@@ -167,6 +230,15 @@ def main(argv):
         cs = commands(text)
         if cs is None: return arm_a(text)  # the rewrite failed: as Needle 3 alone
         return [x for c in cs for x in [needle_how(on_commands[c], c)] if x]
+    def arm_bj(text):
+        names = jev_pick(text)
+        if names is None: return arm_b(text)
+        if names == ["none"]: return []
+        reply = kept.get(text, {}).get("complete_jev3" if len(names) > 1 else "complete_jev", {})
+        call = first(reply)
+        if call is None: return []
+        return [(call, text, "run" if all(c["name"] not in confirm and cued(c["name"], text, cues) and grounded(c, text)
+                                          for c in reply["function_calls"]) else "ask")]
     def arm_e(text):
         """C, gated by Gemma's own tool call (B): when Gemma, given the tools, calls none, no tool."""
         return arm_c(text) if arm_b(text) else []
@@ -201,7 +273,29 @@ def main(argv):
             t["wrong_asks"] += not ok and bool(others) and not any(h == "run" for _, _, h in others)
         return t
 
-    arms = [("A Needle 3", arm_a), ("B Gemma calls", arm_b), (f"C rewrite {variant}", arm_c), (f"E C gated by B", arm_e)] + ([(f"D rewrite {variant} + Jev", arm_d)] if use_jev else [])
+    arms = [("A Needle 3", arm_a), ("B Gemma calls", arm_b)] + ([("B+Jev", arm_bj)] if use_bjev else []) + [(f"C rewrite {variant}", arm_c), (f"E C gated by B", arm_e)] + ([(f"D rewrite {variant} + Jev", arm_d)] if use_jev else [])
+    if bench_file:
+        def oct_tally(subset):
+            marks = [october.get((l[0], i + 1)) for i, l in enumerate(lines) if l in subset]
+            return f"{marks.count('OK')}/{len(marks)}"
+        print(f"\n== {bench_file}: {len(lines)} lines; October's voice path (transcribe's text, then Computer) {oct_tally(lines)} right")
+        print(f"{'':<24}{'right':>7}{'runs ok':>9}{'runs ✗':>8}{'asks ok':>9}{'asks ✗':>8}{'missed':>8}")
+        for label, arm in arms:
+            t = tally(arm, lines)
+            print(f"{label:<24}{t['right']:>7}{t['right_runs']:>9}{t['wrong_runs']:>8}{t['right_asks']:>9}{t['wrong_asks']:>8}{t['missed']:>8}")
+        print(f"\nBy category, right (right runs / wrong runs): October, " + ", ".join(label.split()[0] for label, _ in arms))
+        for category in dict.fromkeys(l[3] for l in lines):
+            subset = [l for l in lines if l[3] == category]
+            print(f"  {category:<9}{len(subset):>3}  oct {oct_tally(subset):>5}  " + "  ".join(f"{t['right']:>2} ({t['right_runs']}/{t['wrong_runs']})" for t in (tally(a, subset) for _, a in arms)))
+        print("\nPer line (✓ right): " + " ".join(label.split()[0] for label, _ in arms))
+        for i, (request, want_tools, want, category) in enumerate(lines):
+            marks = []
+            for _, arm in arms:
+                got = arm(request)
+                ok = (not got) if want_tools == ["none"] else any(scored(g[0], want_tools, want, g[1]) for g in got)
+                marks.append(("✓" if ok else "✗") + ("r" if any(h == "run" for _, _, h in got) else " "))
+            print(f"  {category:<9} oct {october.get((request, i + 1)) or '-':<4} {' '.join(marks)}  {request[:44]:<44} -> {commands(request)}")
+        return
     if tuning: lines = [l for l in lines]
     sets = [("requests.txt (tuning)", [l for l in lines if sources.get(l[0]) == "requests.txt" and l[3] != "hi"]),
             ("suite.txt (held out)", [l for l in lines if sources.get(l[0]) == "suite.txt" and l[3] != "hi"]),
