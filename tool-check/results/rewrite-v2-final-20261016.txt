@@ -1,0 +1,147 @@
+484 requests; 0 rewrites to send (variant v2)
+346 commands; 0 decide calls to send
+
+== requests.txt (tuning): 277 requests
+                          right  runs ok  runs ✗  asks ok  asks ✗  missed
+A Needle 3                  223      132       6       47      39       9
+B Gemma calls               251      158      12       29       7       7
+C rewrite v2                245      134      10       44      15       9
+E C gated by B              251      132       6       43       9      13
+D rewrite v2 + Jev          255      140       6       41       6      12
+
+== suite.txt (held out): 183 requests
+                          right  runs ok  runs ✗  asks ok  asks ✗  missed
+A Needle 3                  137       67      13       41      27       6
+B Gemma calls               167       86       9       33       4       3
+C rewrite v2                149       78      10       27      15       9
+E C gated by B              157       78       8       27       9       9
+D rewrite v2 + Jev          161       81       7       26       6       9
+
+== @hi (both files): 24 requests
+                          right  runs ok  runs ✗  asks ok  asks ✗  missed
+B Gemma calls                20       10       0        7       0       4
+C rewrite v2                 22       16       0        4       2       0
+E C gated by B               20       13       0        4       0       4
+D rewrite v2 + Jev           23       16       0        4       0       1
+
+suite.txt by category, right runs / wrong runs: A, B, C, E, D
+  plain       44   33/1     36/1     32/2     32/2     33/2 
+  casual      32   16/0     21/0     18/0     18/0     19/0 
+  indian       6    3/0      3/1      4/0      4/0      4/0 
+  typos       14    2/0      3/1      9/1      9/1      9/1 
+  numbers     13    5/3     10/1      6/3      6/3      6/3 
+  multi        7    3/0      6/0      5/1      5/1      6/0 
+  context     12    5/1      7/1      4/1      4/1      4/1 
+  near        36    0/8      0/4      0/2      0/0      0/0 
+  out         19    0/0      0/0      0/0      0/0      0/0 
+
+Requests for no tool that C's rewrite turned into commands:
+  [requests] pick it up  ->  ['Pick up']  ->  []
+  [requests] Mute the ringer  ->  ['Mute the ringer']  ->  [('set_volume', 'ask')]
+  [requests] send a message to mom  ->  ['Send a message to mom']  ->  [('send_text', 'ask')]
+  [requests] translate hello to french  ->  ['Translate hello to french']  ->  [('create_note', 'ask')]
+  [requests] how do I set an alarm on android  ->  ['Tell me how to set an alarm on Android']  ->  []
+  [requests] my alarm didn't go off this morning  ->  ['Check my alarms']  ->  [('show_alarms', 'run')]
+  [requests] what apps do I have  ->  ['Show my apps']  ->  []
+  [requests] uninstall instagram  ->  ['Uninstall Instagram']  ->  [('open_app', 'ask')]
+  [requests] my flashlight is broken  ->  ['Fix my flashlight']  ->  [('set_flashlight', 'run')]
+  [requests] buy a torch  ->  ['buy a torch']  ->  [('set_flashlight', 'ask')]
+  [requests] set alarm volume to 80 percent  ->  ['Set alarm volume to 80 percent']  ->  [('set_volume', 'ask')]
+  [requests] ringer to full  ->  ['Set ringer to full volume']  ->  [('set_volume', 'ask')]
+  [requests] read my notes  ->  ['Read my notes']  ->  []
+  [requests] where are my notes  ->  ['Show my notes']  ->  []
+  [requests] I left a note on the table  ->  ['Write a note on the table']  ->  []
+  [requests] show me the note I took yesterday  ->  ['Show my notes from yesterday']  ->  []
+  [requests] delete my last note  ->  ['Delete my last note']  ->  []
+  [requests] I want to go to sleep  ->  ['Go to sleep']  ->  []
+  [requests] directions for this recipe  ->  ['Give me directions for this recipe']  ->  [('get_directions', 'ask')]
+  [requests] read my messages  ->  ['Read my messages']  ->  []
+  [requests] any new messages  ->  ['Show new messages']  ->  []
+  [requests] copy this text  ->  ['Copy this text']  ->  []
+  [requests] the schedule for the IPL final  ->  ['Show my agenda for the IPL final']  ->  [('show_agenda', 'ask')]
+  [requests] cancel my meeting tomorrow  ->  ['Cancel my meeting tomorrow']  ->  []
+  [requests] move my dentist appointment to Friday  ->  ['Move my dentist appointment to Friday']  ->  []
+  [requests] the shopping list is long  ->  ['Show my shopping list']  ->  [('show_list', 'run')]
+  [requests] I lost my to-do list  ->  ['Show my to-do list']  ->  [('show_list', 'run')]
+  [requests] list the planets  ->  ['List the planets']  ->  [('show_list', 'run')]
+  [requests] tick tock goes the clock  ->  ['Set a timer']  ->  [('set_timer', 'ask')]
+  [requests] I forgot to set a reminder  ->  ['Set a reminder']  ->  []
+  [hi] utha ke rakh do  ->  ['Put it down']  ->  []
+  [hi] phone utha  ->  ['Pick up the phone']  ->  [('make_call', 'ask')]
+  [hi] main jaag gaya  ->  ['Wake me up']  ->  []
+  [near] my alarm clock is broken  ->  ['Fix my alarm clock']  ->  [('show_alarms', 'ask')]
+  [near] my notes app crashed  ->  ['Check my notes app']  ->  []
+  [near] the road to the airport is closed  ->  ['Inform me that the road to the airport is closed']  ->  [('get_directions', 'ask')]
+  [near] text me later is what she said  ->  ['Text me later']  ->  [('send_text', 'ask')]
+  [near] set the table for dinner  ->  ['Set the table for dinner']  ->  [('add_event', 'ask')]
+  [near] turn up the heat  ->  ['Turn up the heat']  ->  []
+  [near] open the door  ->  ['Open the door']  ->  [('open_app', 'run')]
+  [near] open a bank account  ->  ['Open a bank account']  ->  [('open_app', 'run')]
+  [near] settings for my camera lens  ->  ['Show camera lens settings']  ->  [('open_settings', 'ask')]
+  [near] take a break  ->  ['Take a break']  ->  [('set_timer', 'ask')]
+  [out] translate good morning to Hindi  ->  ['Translate good morning to Hindi']  ->  [('create_note', 'ask')]
+  [out] order a pizza  ->  ['Order a pizza']  ->  []
+  [out] book a flight to Goa  ->  ['Book a flight to Goa']  ->  []
+  [out] send money to Rahul  ->  ['Send money to Rahul']  ->  []
+  [out] read me the news  ->  ['Read me the news']  ->  []
+  [out] turn on the AC  ->  ['Turn on the AC']  ->  [('open_app', 'ask')]
+  [out] lock the front door  ->  ['Lock the front door']  ->  [('set_flashlight', 'ask')]
+  [out] find my keys  ->  ['Find my keys']  ->  []
+  [out] delete all my photos  ->  ['Delete all my photos']  ->  []
+
+@hi rewrites:
+  subah 6 baje utha dena  ->  ['Set an alarm for 6:00 am']  ->  [('set_alarm', {'time': '6:00 am'}, 'run')]  OK
+  7 baje jaga dena  ->  ['Set an alarm for 7:00']  ->  [('set_alarm', {'time': '7:00'}, 'run')]  OK
+  dopahar 2 baje utha dena  ->  ['Set an alarm for 2:00 pm']  ->  [('set_alarm', {'time': '14:00'}, 'run')]  OK
+  utha ke rakh do  ->  ['Put it down']  ->  []  OK
+  phone utha  ->  ['Pick up the phone']  ->  [('make_call', {'name': 'Priya'}, 'ask')]  MISS
+  main jaag gaya  ->  ['Wake me up']  ->  []  OK
+  subah 5 baje ka alarm laga do  ->  ['Set an alarm for 5:00 am']  ->  [('set_alarm', {'time': '5:00 am'}, 'run')]  OK
+  6 baje utha dena  ->  ['Set an alarm for 6:00 am']  ->  [('set_alarm', {'time': '6:00 am'}, 'run')]  OK
+  10 minute ka timer lagao  ->  ['Set a timer for 10 minutes']  ->  [('set_timer', {'duration': '10 minutes'}, 'run')]  OK
+  paytm kholo  ->  ['Open Paytm']  ->  [('open_app', {'app_name': 'Paytm'}, 'run')]  OK
+  zomato open karo  ->  ['Open Zomato']  ->  [('open_app', {'app_name': 'Zomato'}, 'run')]  OK
+  torch on karo  ->  ['Turn on the torch']  ->  [('set_flashlight', {'on': True}, 'run')]  OK
+  torch band karo  ->  ['Turn off the torch']  ->  [('set_flashlight', {'on': False}, 'run')]  OK
+  awaaz band karo  ->  ['Turn off the voice']  ->  [('set_flashlight', {'on': False}, 'ask')]  MISS
+  agla gaana  ->  ['Play the next song']  ->  [('control_media', {'action': 'next'}, 'run')]  OK
+  gaana roko  ->  ['Stop the song']  ->  [('control_media', {'action': 'pause'}, 'run')]  OK
+  india gate ka rasta batao  ->  ['Tell me the way to India Gate']  ->  [('get_directions', {'destination': 'India Gate'}, 'run')]  OK
+  chandni chowk kaise jaun  ->  ['Find directions to Chandni Chowk']  ->  [('get_directions', {'destination': 'Chandni Chowk'}, 'run')]  OK
+  mummy ko call karo  ->  ['Call mummy']  ->  [('make_call', {'name': 'mummy'}, 'ask')]  OK
+  didi ko phone lagao  ->  ['Call didi']  ->  [('make_call', {'name': 'didi'}, 'ask')]  OK
+  papa ko message karo ki main pahunch gaya  ->  ['Message papa that I have arrived']  ->  [('send_text', {'name': 'papa', 'message': 'I have arrived'}, 'ask')]  OK
+  note karo ki doodh khatam ho gaya  ->  ['Take a note that the milk is finished']  ->  [('create_note', {'text': 'the milk is finished'}, 'run')]  OK
+  kal ka schedule kya hai  ->  ['Show my agenda for tomorrow']  ->  [('show_agenda', {'day': 'tomorrow'}, 'run')]  OK
+  kal 4 baje meeting calendar mein daal do  ->  ['Add a meeting for 4:00 on kal to the calendar']  ->  [('add_event', {'title': 'Meeting for 4:00 on kal', 'when': 'tomorrow at 4:00'}, 'ask')]  OK
+
+Rewrite: median 262 ms, 90th 353 ms; failed 0
+Needle 3 per command, on the laptop: median 77 ms
+Jev per command: median 284 ms; cost $0.00606
+
+Invented (Ferb Link's field): 3 requests
+  sms dad I'll be home by 9  ->  ["Send an sms to dad saying I'll be home by 9"]   [I'll]
+  opne whatsap  ->  ['Open WhatsApp']   [WhatsApp]
+  I have to leave at 6:30 tomorrow, wake me half an hour before  ->  ['Set an alarm for 6:00 am tomorrow']   [00]
+Words the request lacks (a wider check, to read): 20 commands
+  don't turn on the flashlight  ->  Do not turn on the flashlight   [not]
+  my flashlight is broken  ->  Fix my flashlight   [fix]
+  How do I get to Lodhi Garden  ->  Find directions to Lodhi Garden   [find]
+  route to the nearest hospital  ->  Find the route to the nearest hospital   [find]
+  cycling route to Cubbon Park  ->  Find a cycling route to Cubbon Park   [find]
+  route to the office on my scooter  ->  Find a route to the office on my scooter   [find]
+  how do I get to MG Road by bus  ->  Find directions to MG Road by bus   [find]
+  how to reach Andheri station  ->  Find directions to Andheri station   [find]
+  sms dad I'll be home by 9  ->  Send an sms to dad saying I'll be home by 9   [saying]
+  put a meeting with Rahul on Monday at 11 in my calendar  ->  Put a meeting with Rahul on Monday at 11 in your calendar   [your]
+  add mum's birthday on 12 October to my calendar  ->  Add mum's birthday on 12 October to your calendar   [your]
+  note: dentist on tuesday  ->  Add a note about the dentist on Tuesday   [about]
+  add a meeting with Sam tomorrow at 3 pm to my calendar  ->  Add a meeting with Sam tomorrow at 3 pm to your calendar   [your]
+  where's the nearest atm, take me there  ->  Find the nearest ATM   [find]
+  put dinner with neha on friday 8pm in my calendar  ->  Put dinner with Neha on Friday at 8pm in your calendar   [your]
+  opne whatsap  ->  Open WhatsApp   [whatsapp]
+  I have to leave at 6:30 tomorrow, wake me half an hour before  ->  Set an alarm for 6:00 am tomorrow   [00]
+  don't let me forget the parking spot is B12  ->  Remind me about the parking spot B12   [about]
+  my alarm clock is broken  ->  Fix my alarm clock   [fix]
+  the road to the airport is closed  ->  Inform me that the road to the airport is closed   [inform]
+Commands per request: none 97, one 374, more 13
