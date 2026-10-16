@@ -5,7 +5,12 @@ through Ferb Link), per bench category. The @hi section (Hindi and Hinglish) is 
 only: Jev and Needle 3 don't understand Hindi, so no Jev call goes out for it and Phone and Jev
 aren't scored on it; Computer's score on it is shown apart.
 
-    jev.py [--dry-run] [--limit N] [--replies kept.jsonl ...]
+    jev.py [--dry-run] [--limit N] [--replies kept.jsonl ...] [--switch]
+
+With --switch: "Use Jev to select the tool" over every mode. Jev's kept picks (no new Jev call)
+decide the tool; Gemma then makes the call with only that tool (sent through the harness, free,
+kept as "complete_jev"), and the report compares Phone, Computer and "When Needle 3 is unsure",
+each with and without Jev, plus Computer on @hi.
 
 Bench: requests.txt + suite.txt. Jev's and Gemma's replies are kept by request text in
 tool-check/results/jev-mode-*.jsonl; every kept file passed with --replies is reused, and only
@@ -35,12 +40,13 @@ def bench_lines():
     return out
 
 def main(argv):
-    extra, kept_paths = [], []
+    extra, kept_paths, switch = [], [], False
     i = 0
     while i < len(argv):
         if argv[i] == "--limit": extra += ["--limit", argv[i + 1]]; i += 2
         elif argv[i] == "--dry-run": extra.append("--dry-run"); i += 1
         elif argv[i] == "--replies": kept_paths.append(argv[i + 1]); i += 2
+        elif argv[i] == "--switch": switch = True; i += 1
         else: sys.exit(f"Unknown option {argv[i]}")
     lines = bench_lines()
     texts = [r for r, _, _, _ in lines]
@@ -57,9 +63,23 @@ def main(argv):
             if "request" in r: kept.setdefault(r["request"], {})[r["kind"]] = r
     def routed(text):
         return [t for t in tools if cued(t["name"], text, cues) and t["name"] in cues] or tools
+    def pick(text):
+        """Jev's pick at 0.5 (the switch's bar): ("tool", name), ("none",), or None to go on without Jev."""
+        d = kept.get(text, {}).get("decide", {})
+        p = (d.get("probabilities") or {}).get(d.get("choice"), 0.0) if d.get("success") else 0.0
+        if p < 0.5: return None
+        if d.get("choice") in by_name: return ("tool", d["choice"])
+        return ("none",)
+
     send = []
     for n, text in enumerate(texts):
         have = kept.get(text, {})
+        if switch:
+            # Only Gemma with Jev's tool: Jev's picks are all kept, and no new Jev call goes out.
+            got = pick(text)
+            if got and got[0] == "tool" and "complete_jev" not in have:
+                send.append({"id": f"g{n}", "request": text, "tools": [by_name[got[1]]], "timeout_ms": 10000})
+            continue
         if "complete" not in have: send.append({"id": f"c{n}", "request": text, "tools": routed(text), "timeout_ms": 10000})
         if "decide" not in have and lines[n][3] != "hi": send.append({"id": f"d{n}", "method": "decide", "request": text, "tools": routed(text), "timeout_ms": 10000})
     print(f"{len(texts)} requests; {sum(1 for s in send if s.get('method'))} decide and {sum(1 for s in send if not s.get('method'))} complete lines to send")
@@ -70,7 +90,7 @@ def main(argv):
         with open(path, "w") as f:
             for rid, r in replies.items():
                 n = int(rid[1:])
-                r = {**r, "request": texts[n], "kind": "decide" if rid[0] == "d" else "complete"}
+                r = {**r, "request": texts[n], "kind": {"d": "decide", "c": "complete", "g": "complete_jev"}[rid[0]]}
                 kept.setdefault(texts[n], {})[r["kind"]] = r
                 f.write(json.dumps(r, ensure_ascii=False) + "\n")
         print(f"Replies kept in {os.path.relpath(path)}")
@@ -132,6 +152,67 @@ def main(argv):
             elif how == "ask": t["right_asks" if ok else "wrong_asks"] += 1
             elif not ok: t["missed"] += 1
         return t
+
+    if switch:
+        def computer_jev(text):
+            """Computer with the switch: Jev's tool to Gemma alone (runs under the usual checks), "none"
+            is no tool, and otherwise Computer as today."""
+            got = pick(text)
+            if got is None: return computer_outcome(text)
+            if got[0] == "none": return None, None
+            call = first(kept.get(text, {}).get("complete_jev", {}))
+            if call is None: return None, None
+            return call, "run" if checks(call, text) else "ask"
+
+        def needle_runs(reply, text):
+            call = first(reply)
+            return call is not None and checks(call, text) and (reply.get("confidence") or 0) >= max(bars.get(c["name"], 0.7) for c in reply["function_calls"])
+
+        def fallback_today(text):
+            """"When Needle 3 is unsure" today: Needle 3 routed; unsure, the computer's answer."""
+            if needle_runs(phone[text], text): return first(phone[text]), "run"
+            return computer_outcome(text)
+
+        def fallback_jev(text):
+            """With the switch: Needle 3 with Jev's tool; unsure, Gemma with Jev's tool."""
+            got = pick(text)
+            if got is None: return fallback_today(text)
+            if got[0] == "none": return None, None
+            if needle_runs(alone.get(text, {}), text): return first(alone[text]), "run"
+            return computer_jev(text)
+
+        def phone_jev(text):
+            got = pick(text)
+            if got is None: return phone_outcome(text)
+            return jev_outcome(text, 0.5, True)
+
+        hindi = [l for l in lines if l[3] == "hi"]
+        english = [l for l in lines if l[3] != "hi"]
+        rows = [("Phone", phone_outcome), ("Phone + Jev", phone_jev), ("Computer", computer_outcome), ("Computer + Jev", computer_jev),
+                ("Unsure mode", fallback_today), ("Unsure mode + Jev", fallback_jev)]
+        for name, subset, shown in [("without @hi", english, rows), ("@hi (Computer only)", hindi, rows[2:4])]:
+            print(f"\n== {name} ({len(subset)} requests)")
+            print(f"{'':<22}{'right':>7}{'runs ok':>9}{'runs ✗':>8}{'asks ok':>9}{'asks ✗':>8}{'missed':>8}")
+            for label, outcome in shown:
+                t = tally(outcome, subset)
+                print(f"{label:<22}{t['right']:>7}{t['right_runs']:>9}{t['wrong_runs']:>8}{t['right_asks']:>9}{t['wrong_asks']:>8}{t['missed']:>8}")
+        print(f"\n{'category':<12}{'n':>4}   {'Computer':>9}   {'+ Jev':>9}   (right runs / wrong runs)")
+        for category in dict.fromkeys(l[3] for l in lines):
+            subset = [l for l in lines if l[3] == category]
+            a, b = tally(computer_outcome, subset), tally(computer_jev, subset)
+            print(f"{category:<12}{len(subset):>4}   {a['right_runs']:>4} / {a['wrong_runs']:<2}   {b['right_runs']:>4} / {b['wrong_runs']:<2}")
+        # Where the two differ: what Jev's tool changed for Computer.
+        print()
+        for request, want_tools, want, category in lines:
+            (c1, h1), (c2, h2) = computer_outcome(request), computer_jev(request)
+            ok1, ok2 = scored(c1, want_tools, want, request), scored(c2, want_tools, want, request)
+            if (ok1, h1) != (ok2, h2):
+                name = lambda c, h, ok: f"{c['name'] if c else 'no tool'} {h or ''}{'' if ok else ' ✗'}"
+                print(f"{category:<9} {request[:50]:<50}  today {name(c1, h1, ok1):<26} with Jev {name(c2, h2, ok2)}")
+        hi_picks = [pick(l[0]) for l in hindi]
+        print(f"\n@hi: Jev picked a tool on {sum(1 for p in hi_picks if p and p[0] == 'tool')}, none on {sum(1 for p in hi_picks if p == ('none',))}, "
+              f"unsure on {sum(1 for p in hi_picks if p is None)} of {len(hindi)}")
+        return
 
     modes = [("Phone", phone_outcome), ("Computer", computer_outcome)]
     for bar in (0.5, 0.7, 0.9):
