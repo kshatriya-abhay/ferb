@@ -1,0 +1,77 @@
+283 requests; 0 rewrites to send (variant v2.1)
+209 commands; 0 decide calls to send
+
+== requests.txt (tuning): 277 requests
+                          right  runs ok  runs ✗  asks ok  asks ✗  missed
+A Needle 3                  223      132       6       47      39       9
+B Gemma calls               251      158      12       29       7       7
+C rewrite v2.1              242      134      10       42      17      10
+E C gated by B              248      132       7       41      10      14
+D rewrite v2.1 + Jev        252      140       8       39       5      14
+
+== @hi (requests.txt): 6 requests
+                          right  runs ok  runs ✗  asks ok  asks ✗  missed
+B Gemma calls                 6        3       0        0       0       0
+C rewrite v2.1                5        3       0        0       1       0
+E C gated by B                6        3       0        0       0       0
+D rewrite v2.1 + Jev          6        3       0        0       0       0
+
+Requests for no tool that C's rewrite turned into commands:
+  [requests] pick it up  ->  ['Pick up']  ->  []
+  [requests] Mute the ringer  ->  ['Mute the ringer']  ->  [('set_volume', 'ask')]
+  [requests] send a message to mom  ->  ['Send a message to mom']  ->  [('send_text', 'ask')]
+  [requests] translate hello to french  ->  ['Translate hello to french']  ->  [('create_note', 'ask')]
+  [requests] my alarm didn't go off this morning  ->  ['Check my alarms']  ->  [('show_alarms', 'run')]
+  [requests] uninstall instagram  ->  ['Uninstall Instagram']  ->  [('open_app', 'ask')]
+  [requests] how bright is the flashlight  ->  ['Tell me how bright the flashlight is']  ->  [('set_flashlight', 'ask')]
+  [requests] my flashlight is broken  ->  ['Show my flashlight']  ->  [('set_flashlight', 'ask')]
+  [requests] buy a torch  ->  ['buy a torch']  ->  [('set_flashlight', 'ask')]
+  [requests] set alarm volume to 80 percent  ->  ['Set alarm volume to 80 percent']  ->  [('set_volume', 'ask')]
+  [requests] ringer to full  ->  ['Set the ringer to full volume']  ->  [('set_volume', 'ask')]
+  [requests] what's the volume  ->  ['Show my volume']  ->  []
+  [requests] read my notes  ->  ['Read my notes']  ->  []
+  [requests] where are my notes  ->  ['Show my notes']  ->  []
+  [requests] I left a note on the table  ->  ['Write a note on the table']  ->  []
+  [requests] show me the note I took yesterday  ->  ['Show my notes']  ->  []
+  [requests] delete my last note  ->  ['Delete my last note']  ->  []
+  [requests] I want to go to sleep  ->  ['Go to sleep']  ->  []
+  [requests] directions for this recipe  ->  ['Give me directions for this recipe']  ->  [('get_directions', 'ask')]
+  [requests] read my messages  ->  ['Read my messages']  ->  []
+  [requests] any new messages  ->  ['Show new messages']  ->  []
+  [requests] the schedule for the IPL final  ->  ['Show my agenda for the IPL final']  ->  [('show_agenda', 'ask')]
+  [requests] cancel my meeting tomorrow  ->  ['Cancel my meeting tomorrow']  ->  []
+  [requests] move my dentist appointment to Friday  ->  ['Move my dentist appointment to Friday']  ->  []
+  [requests] the shopping list is long  ->  ['Show my shopping list']  ->  [('show_list', 'run')]
+  [requests] I lost my to-do list  ->  ['Show my to-do list']  ->  [('show_list', 'run')]
+  [requests] list the planets  ->  ['List the planets']  ->  [('show_list', 'run')]
+  [requests] tick tock goes the clock  ->  ['Set a timer']  ->  [('set_timer', 'ask')]
+  [requests] I forgot to set a reminder  ->  ['Set a reminder']  ->  []
+  [hi] utha ke rakh do  ->  ['Put it down']  ->  []
+  [hi] phone utha  ->  ['Pick up the phone']  ->  [('make_call', 'ask')]
+  [hi] main jaag gaya  ->  ['Wake me up']  ->  []
+
+@hi rewrites:
+  subah 6 baje utha dena  ->  ['Set an alarm for 6:00 am']  ->  [('set_alarm', {'time': '6:00 am'}, 'run')]  OK
+  7 baje jaga dena  ->  ['Set an alarm for 7:00']  ->  [('set_alarm', {'time': '7:00'}, 'run')]  OK
+  dopahar 2 baje utha dena  ->  ['Set an alarm for 2:00 pm']  ->  [('set_alarm', {'time': '14:00'}, 'run')]  OK
+  utha ke rakh do  ->  ['Put it down']  ->  []  OK
+  phone utha  ->  ['Pick up the phone']  ->  [('make_call', {'name': 'Priya'}, 'ask')]  MISS
+  main jaag gaya  ->  ['Wake me up']  ->  []  OK
+
+Rewrite: median 247 ms, 90th 333 ms; failed 0
+Needle 3 per command, on the laptop: median 75 ms
+Jev per command: median 283 ms; cost $0.00349
+
+Invented (Ferb Link's field): 0 requests
+Words the request lacks (a wider check, to read): 10 commands
+  don't turn on the flashlight  ->  Do not turn on the flashlight   [not]
+  max volume  ->  Set the volume to 100 percent   [100]
+  cycling route to Cubbon Park  ->  Find a cycling route to Cubbon Park   [find]
+  route to the office on my scooter  ->  Find the route to the office on my scooter   [find]
+  how do I get to MG Road by bus  ->  Find directions to MG Road by bus   [find]
+  how to reach Andheri station  ->  Find directions to Andheri station   [find]
+  sms dad I'll be home by 9  ->  Send an sms to dad saying I'll be home by 9   [saying]
+  put a meeting with Rahul on Monday at 11 in my calendar  ->  Put a meeting with Rahul on Monday at 11 in your calendar   [your]
+  add mum's birthday on 12 October to my calendar  ->  Add mum's birthday on 12 October to your calendar   [your]
+  cross off call the plumber  ->  Cancel the call to the plumber   [cancel]
+Commands per request: none 59, one 220, more 4

@@ -1,0 +1,89 @@
+61 requests; 0 rewrites to send (variant v2.1)
+51 commands; 0 decide calls to send
+
+== audio.txt: 67 lines; October's voice path (transcribe's text, then Computer) 54/67 right
+                          right  runs ok  runs ✗  asks ok  asks ✗  missed
+A Needle 3                   29       14       4       12      10      24
+B Gemma calls                56       23       3       26       1       7
+B+Jev                        57       23       4       27       2       4
+C rewrite v2.1               57       39       5       12       4       1
+E C gated by B               53       33       3       12       3       8
+D rewrite v2.1 + Jev         60       40       3       12       3       1
+
+By category, right (right runs / wrong runs): October, A, B, B+Jev, C, E, D
+  hinglish  11  oct  9/11   2 (1/0)   6 (4/0)   7 (4/1)   9 (8/2)   5 (4/1)   9 (8/2)
+  amounts   22  oct 16/22   8 (4/2)  20 (10/2)  20 (10/2)  19 (17/1)  19 (17/1)  19 (17/1)
+  apps       7  oct   6/7   5 (5/0)   5 (5/0)   5 (5/0)   7 (7/0)   5 (5/0)   7 (7/0)
+  places     6  oct   5/6   1 (1/0)   5 (1/1)   5 (1/1)   5 (5/1)   5 (5/1)   6 (6/0)
+  names     11  oct  9/11   8 (1/0)  11 (1/0)  11 (1/0)   9 (0/0)   9 (0/0)   9 (0/0)
+  nothing    8  oct   7/8   3 (0/2)   7 (0/0)   7 (0/0)   6 (0/1)   8 (0/0)   8 (0/0)
+  media      2  oct   2/2   2 (2/0)   2 (2/0)   2 (2/0)   2 (2/0)   2 (2/0)   2 (2/0)
+
+Per line (✓ right): A B B+Jev C E D
+  hinglish  oct MISS ✗  ✗  ✗r ✗r ✗  ✗r  subah 6 baje ka alarm laga do                -> ['Set an alarm for 6:00 am']
+  hinglish  oct OK   ✗  ✓r ✓r ✓r ✓r ✓r  6 baje utha dena                             -> ['Set an alarm for 6:00 am']
+  hinglish  oct OK   ✗  ✗  ✗  ✓r ✗  ✓r  das minute ka timer laga do                  -> ['Set a timer for 10 minutes']
+  hinglish  oct OK   ✓  ✓r ✓r ✓r ✓r ✓r  torch on karo                                -> ['Turn on the torch']
+  hinglish  oct OK   ✗  ✓r ✓r ✗r ✗r ✗r  torch band karo                              -> ['Mute the volume']
+  hinglish  oct OK   ✗  ✗  ✓  ✓r ✗  ✓r  aawaz band karo                              -> ['Mute the volume']
+  hinglish  oct OK   ✗  ✗  ✗  ✓r ✗  ✓r  agla gaana                                   -> ['Play the next song']
+  hinglish  oct OK   ✗  ✗  ✗  ✓r ✗  ✓r  gana roko                                    -> ['Stop music']
+  hinglish  oct OK   ✓r ✓r ✓r ✓r ✓r ✓r  note karo ki doodh khatam ho gaya            -> ['Take a note that the milk is finished']
+  hinglish  oct OK   ✗  ✓  ✓  ✓r ✓r ✓r  kal ka schedule kya hai                      -> ['Show my agenda for tomorrow']
+  hinglish  oct MISS ✗  ✓  ✓  ✓  ✓  ✓   kal 4 baje meeting calendar mein dal do      -> ['Add a meeting to the calendar for 4:00 on Thursday']
+  amounts   oct OK   ✗  ✗r ✗r ✗  ✗  ✗   pedh ghante ka timer laga do                 -> ['Set a timer for one hour']
+  amounts   oct OK   ✗  ✓  ✓  ✓r ✓r ✓r  saade paanch baje ka alarm lagao             -> ['Set an alarm for 5:30']
+  amounts   oct MISS ✗  ✗r ✗r ✗r ✗r ✗r  thai minute ka timer lagao                   -> ['Set a timer for one minute']
+  amounts   oct MISS ✗  ✓  ✓  ✓r ✓r ✓r  sava 7 baje utha dena                        -> ['Set an alarm for 7:15']
+  amounts   oct OK   ✓r ✓r ✓r ✓r ✓r ✓r  alarm at half past six                       -> ['Set an alarm at 6:30']
+  amounts   oct OK   ✓  ✓  ✓  ✓r ✓r ✓r  alarm at quarter to eight                    -> ['Set an alarm at 7:45']
+  amounts   oct OK   ✓r ✓r ✓r ✓r ✓r ✓r  alarm for seven in the evening               -> ['Set an alarm for 7 pm']
+  amounts   oct MISS ✓  ✓r ✓r ✓  ✓  ✓   an hour and a half timer                     -> ['Set a timer for an hour and a half']
+  amounts   oct MISS ✓  ✓r ✓r ✓  ✓  ✓   timer one and a half minutes                 -> ['Set a timer for one and a half minutes']
+  amounts   oct OK   ✗r ✓r ✓r ✓r ✓r ✓r  half volume                                  -> ['Set the volume to 50 percent']
+  apps      oct OK   ✗  ✗  ✗  ✓r ✗  ✓r  ptm kholo                                    -> ['Open PTM']
+  apps      oct MISS ✓r ✓r ✓r ✓r ✓r ✓r  open phone pay                               -> ['Open PhonePe']
+  apps      oct OK   ✓r ✓r ✓r ✓r ✓r ✓r  zomato open karo                             -> ['Open Zomato']
+  apps      oct OK   ✗  ✗  ✗  ✓r ✗  ✓r  swiggi kholo                                 -> ['Open Swiggy']
+  apps      oct OK   ✓r ✓r ✓r ✓r ✓r ✓r  open Hotstar                                 -> ['Open Hotstar']
+  apps      oct OK   ✓r ✓r ✓r ✓r ✓r ✓r  open up whatsapp for me                      -> ['Open WhatsApp']
+  places    oct OK   ✗  ✓  ✓  ✓r ✓r ✓r  india gate ka rasta batao                    -> ['Tell me the way to India Gate']
+  places    oct MISS ✗  ✓  ✓  ✓r ✓r ✓r  chandni chowk kaise jaaun                    -> ['Find directions to Chandni Chowk']
+  places    oct OK   ✓r ✓r ✓r ✓r ✓r ✓r  Navigate to Koramangala                      -> ['Navigate to Koramangala']
+  places    oct OK   ✗  ✗r ✗r ✓r ✓r ✓r  directions to charminar by metro             -> ['Give me directions to Charminar by metro']
+  places    oct OK   ✗  ✓  ✓  ✗r ✗r ✓r  gateway of india le chalo                    -> ['Go to Gateway of India']
+  names     oct OK   ✗  ✓  ✓  ✓  ✓  ✓   mummy ko call karo                           -> ['Call mummy']
+  names     oct OK   ✗  ✓  ✓  ✗  ✗  ✗   call Sharma ji                               -> ['Call Sharma ji']
+  names     oct OK   ✗  ✓  ✓  ✓  ✓  ✓   didi ko phone lagao                          -> ['Call didi']
+  names     oct OK   ✓  ✓  ✓  ✓  ✓  ✓   call bhaiya                                  -> ['Call bhaiya']
+  names     oct OK   ✓  ✓  ✓  ✓  ✓  ✓   papa ko message karo ki main pahunch gaya    -> ['Message papa that I have arrived']
+  names     oct OK   ✓  ✓  ✓  ✓  ✓  ✓   text ananya happy diwali                     -> ['Text Ananya happy diwali']
+  names     oct MISS ✓  ✓  ✓  ✓  ✓  ✓   tell rohit i am running 10 minutes late      -> ['Tell Rohit I am running 10 minutes late']
+  names     oct MISS ✓  ✓  ✓  ✓  ✓  ✓   message shriansh that i will be late         -> ['Message Shriansh that I will be late']
+  names     oct OK   ✓  ✓  ✓  ✓  ✓  ✓   potluck dinner with neha on friday 8 pm in m -> ['Add potluck dinner with Neha to my calendar for Friday at 8 pm']
+  names     oct OK   ✓r ✓r ✓r ✗  ✗  ✗   am i free tomorrow                           -> []
+  nothing   oct OK   ✗r ✓  ✓  ✓  ✓  ✓   my alarm clock is broken                     -> []
+  nothing   oct OK   ✓  ✓  ✓  ✓  ✓  ✓   whats the best music app                     -> []
+  nothing   oct OK   ✗  ✓  ✓  ✓  ✓  ✓   did anyone call                              -> []
+  nothing   oct MISS ✗  ✗  ✗  ✓  ✓  ✓   Diwali is on 1 November                      -> []
+  nothing   oct OK   ✓  ✓  ✓  ✓  ✓  ✓   send money to rahul                          -> ['Send money to Rahul']
+  nothing   oct OK   ✗r ✓  ✓  ✗r ✓  ✓   open a bank account                          -> ['Open a bank account']
+  nothing   oct OK   ✓  ✓  ✓  ✓  ✓  ✓   kal mausam kaisa rahega                      -> ['What will the weather be like tomorrow']
+  nothing   oct OK   ✗  ✓  ✓  ✗  ✓  ✓   mujhe chai banana sikhao                     -> ['Teach me how to make tea']
+  amounts   oct OK   ✗  ✓r ✓r ✓r ✓r ✓r  subah 5 baje ka alarm laga do                -> ['Set an alarm for 5:00 am']
+  amounts   oct OK   ✗  ✓  ✓  ✓r ✓r ✓r  dedh ghante ka timer laga do                 -> ['Set a timer for 1 hour 30 minutes']
+  amounts   oct OK   ✗  ✓  ✓  ✓r ✓r ✓r  saade paanch baje ka alarm laga do           -> ['Set an alarm for 5:30']
+  amounts   oct OK   ✗  ✓  ✓  ✓r ✓r ✓r  dhai minute ka timer laga do                 -> ['Set a timer for 2 minutes 30 seconds']
+  amounts   oct OK   ✗  ✓  ✓  ✓r ✓r ✓r  sava 7 baje utha dena                        -> ['Set an alarm for 7:15']
+  amounts   oct OK   ✗  ✓  ✓  ✓r ✓r ✓r  paune 8 baje ka alarm lagao                  -> ['Set an alarm for 7:45']
+  amounts   oct MISS ✗  ✓  ✓  ✓r ✓r ✓r  shaam saat baje ka alarm lagao               -> ['Set an alarm for 7:00 pm']
+  amounts   oct OK   ✓r ✓r ✓r ✓r ✓r ✓r  alarm at half past 6                         -> ['Set an alarm at 6:30']
+  amounts   oct MISS ✗  ✓  ✓  ✓r ✓r ✓r  alarm add quarter to 8                       -> ['Set an alarm for 7:45']
+  amounts   oct OK   ✓r ✓r ✓r ✓r ✓r ✓r  alarm for seven in the evening               -> ['Set an alarm for 7 pm']
+  amounts   oct OK   ✓  ✓r ✓r ✗  ✗  ✗   one hour and a half timer                    -> ['Set a timer for one hour and thirty minutes']
+  amounts   oct OK   ✗r ✓r ✓r ✓r ✓r ✓r  half volume                                  -> ['Set the volume to 50 percent']
+  media     oct OK   ✓r ✓r ✓r ✓r ✓r ✓r  stop                                         -> ['stop']
+  media     oct OK   ✓r ✓r ✓r ✓r ✓r ✓r  next                                         -> ['next']
+  apps      oct OK   ✓r ✓r ✓r ✓r ✓r ✓r  open phone pay                               -> ['Open PhonePe']
+  places    oct OK   ✗  ✓  ✓  ✓r ✓r ✓r  chandni chowk kaise jaaun                    -> ['Find directions to Chandni Chowk']
+  names     oct OK   ✓  ✓  ✓  ✓  ✓  ✓   tell rohit i am running 10 minutes late      -> ['Tell Rohit I am running 10 minutes late']
