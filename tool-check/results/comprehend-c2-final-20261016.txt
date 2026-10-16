@@ -1,0 +1,197 @@
+484 requests; 0 rewrites to send (variant c2)
+224 commands; 0 decide calls to send
+
+== requests.txt (tuning): 277 requests
+                          right  runs ok  runs ✗  asks ok  asks ✗  missed
+A Needle 3                  223      132       6       47      39       9
+B Gemma calls               251      158      12       29       7       7
+B+Jev                       263      156       3       30       4       7
+U1 c2                       248      147       5       33      11      13
+U2 c2                       251      141       5       41      10      11
+
+== suite.txt (held out): 183 requests
+                          right  runs ok  runs ✗  asks ok  asks ✗  missed
+A Needle 3                  137       67      13       41      27       6
+B Gemma calls               167       86       9       33       4       3
+B+Jev                       171       86       7       32       1       4
+U1 c2                       164       87      12       29       3       4
+U2 c2                       157       76      13       33       8       5
+
+== @hi (both files): 24 requests
+                          right  runs ok  runs ✗  asks ok  asks ✗  missed
+B Gemma calls                20       10       0        7       0       4
+B+Jev                        22       10       0        9       0       2
+U1 c2                        22       14       0        5       0       2
+U2 c2                        20       12       0        5       1       3
+
+suite.txt by category, right runs / wrong runs: A, B, B+Jev, U1, U2
+  plain       44   33/1     36/1     36/1     36/1     35/1 
+  casual      32   16/0     21/0     22/0     22/0     19/0 
+  indian       6    3/0      3/1      3/1      3/0      3/0 
+  typos       14    2/0      3/1      3/1      5/1      5/0 
+  numbers     13    5/3     10/1     10/1      9/1      5/3 
+  multi        7    3/0      6/0      5/1      5/1      2/1 
+  context     12    5/1      7/1      7/1      7/2      7/2 
+  near        36    0/8      0/4      0/1      0/6      0/6 
+  out         19    0/0      0/0      0/0      0/0      0/0 
+
+Requests for no tool that C's rewrite turned into commands:
+  [requests] pick it up  ->  ['Pick up']  ->  []
+  [requests] What's the weather like?  ->  ['What is the weather like?']  ->  []
+  [requests] Tell me a joke  ->  ['Tell me a joke']  ->  []
+  [requests] Who won the match yesterday?  ->  ['Tell me who won the match yesterday']  ->  []
+  [requests] translate hello to french  ->  ['Translate hello to french']  ->  [('create_note', 'ask')]
+  [requests] how do I set an alarm on android  ->  ['Set an alarm on Android']  ->  [('set_alarm', 'ask')]
+  [requests] my alarm didn't go off this morning  ->  ['Show my alarms']  ->  [('show_alarms', 'run')]
+  [requests] how long should I boil an egg  ->  ['Tell me how long to boil an egg']  ->  []
+  [requests] how much time is left  ->  ['What is the time left?']  ->  []
+  [requests] what apps do I have  ->  ['Show my apps']  ->  []
+  [requests] is whatsapp down  ->  ['Check the status of WhatsApp']  ->  [('open_app', 'ask')]
+  [requests] what's my wifi password  ->  ['Show my wifi password']  ->  []
+  [requests] how bright is the flashlight  ->  ['Show flashlight brightness']  ->  [('set_flashlight', 'ask')]
+  [requests] buy a torch  ->  ['Buy a torch']  ->  [('set_flashlight', 'ask')]
+  [requests] set alarm volume to 80 percent  ->  ['Set the volume to 80 percent']  ->  [('set_volume', 'run')]
+  [requests] why is my phone so loud  ->  ['Show my volume settings']  ->  [('open_settings', 'run')]
+  [requests] what's the volume  ->  ['What is the volume?']  ->  []
+  [requests] what song is this  ->  ['What song is this']  ->  []
+  [requests] how many photos do I have  ->  ['Show my photos']  ->  [('open_camera', 'ask')]
+  [requests] which camera is better  ->  ['Tell me about cameras']  ->  [('open_camera', 'ask')]
+  [requests] show me the note I took yesterday  ->  ['Show my notes from yesterday']  ->  []
+  [requests] I want to go to sleep  ->  ['Go to sleep']  ->  []
+  [requests] I couldn't reach him on the phone  ->  ['Call him']  ->  [('make_call', 'ask')]
+  [requests] when will we reach  ->  ['What are you referring to?']  ->  []
+  [requests] directions for this recipe  ->  ['Tell me the recipe.']  ->  []
+  [requests] how far is the moon  ->  ['Get directions to the moon']  ->  [('get_directions', 'ask')]
+  [requests] what's the route of the tour de france  ->  ['Tell me the route of the tour de france']  ->  []
+  [requests] how do I get to level 5 in this game  ->  ['Tell me how to get to level 5 in this game']  ->  []
+  [requests] who gave you directions  ->  ['Show directions']  ->  [('get_directions', 'ask')]
+  [requests] who called me  ->  ['Show my call history']  ->  []
+  [requests] my phone is slow  ->  ['Show my phone settings']  ->  [('open_settings', 'ask')]
+  [requests] the dial on my watch is broken  ->  ['Fix the dial on my watch']  ->  []
+  [requests] read my messages  ->  ['Read my messages']  ->  []
+  [requests] any new messages  ->  ['Show new messages']  ->  []
+  [requests] I got a weird message from the bank  ->  ['Read the message from the bank']  ->  []
+  [requests] copy this text  ->  ['Copy this text']  ->  []
+  [requests] what's on TV tonight  ->  ['Tell me what is on TV tonight']  ->  []
+  [requests] what's on netflix  ->  ['Tell me what is on Netflix']  ->  []
+  [requests] what's the agenda of the G20 summit  ->  ['Tell me the agenda of the G20 summit']  ->  [('show_agenda', 'ask')]
+  [requests] the schedule for the IPL final  ->  ['Show me the schedule for the IPL final']  ->  [('show_agenda', 'run')]
+  [requests] my plans fell through  ->  ['Update my plans']  ->  []
+  [requests] cancel my meeting tomorrow  ->  ['Cancel my meeting on Saturday 17 October']  ->  []
+  [requests] my schedule is too tight this week  ->  ['Show my schedule for this week']  ->  [('show_agenda', 'ask')]
+  [requests] move my dentist appointment to Friday  ->  ['Move my dentist appointment to on Friday 23 October']  ->  []
+  [requests] the shopping list is long  ->  ['Show the shopping list']  ->  [('show_list', 'run')]
+  [requests] I lost my to-do list  ->  ['Show my to-do list']  ->  [('show_list', 'run')]
+  [requests] list the planets  ->  ['List the planets']  ->  [('show_list', 'run')]
+  [requests] tick tock goes the clock  ->  ['Set a timer']  ->  [('set_timer', 'ask')]
+  [requests] I forgot to set a reminder  ->  ['Set a reminder']  ->  []
+  [requests] can you remind me what the capital of Peru is  ->  ['Tell me the capital of Peru']  ->  []
+  [requests] reminders are annoying  ->  ['Remove reminders']  ->  []
+  [hi] utha ke rakh do  ->  ['Put it down']  ->  []
+  [hi] phone utha  ->  ['Pick up the phone']  ->  [('make_call', 'ask')]
+  [hi] main jaag gaya  ->  ['I woke up']  ->  [('show_alarms', 'ask')]
+  [near] my alarm clock is broken  ->  ['Fix my alarm clock']  ->  [('show_alarms', 'ask')]
+  [near] timers are useful for cooking  ->  ['Set a timer for cooking']  ->  [('set_timer', 'run')]
+  [near] what's the best music app  ->  ['Tell me about the best music app']  ->  []
+  [near] why is my bluetooth so slow  ->  ['Tell me about my bluetooth speed']  ->  [('open_settings', 'run')]
+  [near] how do I change my wallpaper  ->  ['Change your wallpaper']  ->  []
+  [near] flashlights use a lot of battery  ->  ['Turn off the flashlight']  ->  [('set_flashlight', 'run')]
+  [near] play is a verb  ->  ['Play']  ->  [('control_media', 'run')]
+  [near] how many megapixels is my camera  ->  ['What is the megapixels of my camera?']  ->  []
+  [near] my notes app crashed  ->  ['Make a note: my notes app crashed']  ->  [('create_note', 'run')]
+  [near] what's a good note taking app  ->  ['Find a good note taking app']  ->  []
+  [near] which way is north  ->  ['What is the direction of north?']  ->  [('get_directions', 'ask')]
+  [near] the road to the airport is closed  ->  ['The road to the airport is closed']  ->  []
+  [near] how far is mars  ->  ['Get directions to mars']  ->  [('get_directions', 'run')]
+  [near] text me later is what she said  ->  ['Send a text to her: later']  ->  [('send_text', 'ask')]
+  [near] set the table for dinner  ->  ['Set the table for dinner']  ->  [('add_event', 'ask')]
+  [near] turn up the heat  ->  ['Turn up the heat']  ->  []
+  [near] open the door  ->  ['Open the door']  ->  [('open_app', 'run')]
+  [near] open a bank account  ->  ['Open a bank account']  ->  [('open_app', 'run')]
+  [near] settings for my camera lens  ->  ['Set settings for my camera lens']  ->  [('open_settings', 'ask')]
+  [near] next year I want to travel  ->  ['Search for travel destinations next year']  ->  []
+  [near] take a break  ->  ['Take a break']  ->  [('set_timer', 'ask')]
+  [out] tell me a story  ->  ['Tell me a story']  ->  []
+  [out] translate good morning to Hindi  ->  ['Translate good morning to Hindi']  ->  [('create_note', 'ask')]
+  [out] what's 15 times 23  ->  ['Calculate 15 times 23']  ->  []
+  [out] order a pizza  ->  ['Order a pizza']  ->  []
+  [out] book a flight to Goa  ->  ['Book a flight to Goa']  ->  []
+  [out] send money to Rahul  ->  ['Send money to Rahul']  ->  []
+  [out] read me the news  ->  ['Read the news']  ->  []
+  [out] how do I make chai  ->  ['Tell me how to make chai']  ->  []
+  [out] find my keys  ->  ['Find my keys']  ->  []
+  [out] delete all my photos  ->  ['Delete all my photos']  ->  []
+
+@hi rewrites:
+  subah 6 baje utha dena  ->  ['Set an alarm for 6:00 am']  ->  [('set_alarm', {'time': '6:00 am'}, 'run')]  OK
+  7 baje jaga dena  ->  ['Set an alarm for 7:00']  ->  [('set_alarm', {'time': '7:00'}, 'run')]  OK
+  dopahar 2 baje utha dena  ->  ['Set an alarm for 2:00 pm']  ->  [('set_alarm', {'time': '14:00'}, 'run')]  OK
+  utha ke rakh do  ->  ['Put it down']  ->  []  OK
+  phone utha  ->  ['Pick up the phone']  ->  [('make_call', {'name': 'Priya'}, 'ask')]  MISS
+  main jaag gaya  ->  ['I woke up']  ->  [('show_alarms', {}, 'ask')]  MISS
+  subah 5 baje ka alarm laga do  ->  ['Set an alarm for 5:00 am']  ->  [('set_alarm', {'time': '5:00 am'}, 'run')]  OK
+  6 baje utha dena  ->  ['Set an alarm for 6:00 am']  ->  [('set_alarm', {'time': '6:00 am'}, 'run')]  OK
+  10 minute ka timer lagao  ->  ['Set a timer for 10 minutes']  ->  [('set_timer', {'duration': '10 minutes'}, 'run')]  OK
+  paytm kholo  ->  ['Open Paytm']  ->  [('open_app', {'app_name': 'Paytm'}, 'run')]  OK
+  zomato open karo  ->  ['Open Zomato']  ->  [('open_app', {'app_name': 'Zomato'}, 'run')]  OK
+  torch on karo  ->  None  ->  [('set_flashlight', {'on': True}, 'ask')]  OK
+  torch band karo  ->  None  ->  []  MISS
+  awaaz band karo  ->  None  ->  []  MISS
+  agla gaana  ->  None  ->  []  MISS
+  gaana roko  ->  None  ->  [('make_call', {'name': 'gaana roko'}, 'ask')]  MISS
+  india gate ka rasta batao  ->  ['Tell me the way to India Gate']  ->  [('get_directions', {'destination': 'India Gate'}, 'run')]  OK
+  chandni chowk kaise jaun  ->  ['How do I go to Chandni Chowk']  ->  [('get_directions', {'destination': 'Chandni Chowk'}, 'run')]  OK
+  mummy ko call karo  ->  ['Call mummy']  ->  [('make_call', {'name': 'mummy'}, 'ask')]  OK
+  didi ko phone lagao  ->  ['Call didi']  ->  [('make_call', {'name': 'didi'}, 'ask')]  OK
+  papa ko message karo ki main pahunch gaya  ->  ['Send a message to papa: main pahunch gaya']  ->  [('send_text', {'name': 'papa', 'message': 'Main pahunch gaya'}, 'ask')]  OK
+  note karo ki doodh khatam ho gaya  ->  ['Make a note: doodh khatam ho gaya']  ->  [('create_note', {'text': 'doodh khatam ho gaya'}, 'run')]  OK
+  kal ka schedule kya hai  ->  ['Show my schedule for Saturday 17 October']  ->  [('show_agenda', {'day': 'Saturday 17 October'}, 'run')]  OK
+  kal 4 baje meeting calendar mein daal do  ->  ['Add a meeting to the calendar on Saturday 17 October at 4:00']  ->  [('add_event', {'title': 'Meeting', 'when': '2026-10-17'}, 'ask')]  OK
+
+Rewrite: median 325 ms, 90th 475 ms; failed 0
+Needle 3 per command, on the laptop: median 83 ms
+Jev per command: median 284 ms; cost $0.00405
+
+Invented (Ferb Link's field): 2 requests
+  wifi settings  ->  ['Turn off Wi-Fi']   [Wi, Fi]
+  I have to leave at 6:30 tomorrow, wake me half an hour before  ->  ['Set an alarm for 6:00 am']   [00]
+Words the request lacks (a wider check, to read): 25 commands
+  is whatsapp down  ->  Check the status of WhatsApp   [status]
+  how much storage is left  ->  Show my storage information   [information]
+  which camera is better  ->  Tell me about cameras   [about, cameras]
+  I can't see a thing  ->  Show my screen   [screen]
+  cycling route to Cubbon Park  ->  Find a cycling route to Cubbon Park   [find]
+  how do I get to MG Road by bus  ->  Find directions to MG Road by bus   [find]
+  when will we reach  ->  What are you referring to?   [you, referring]
+  who called me  ->  Show my call history   [history]
+  the dial on my watch is broken  ->  Fix the dial on my watch   [fix]
+  I got a weird message from the bank  ->  Read the message from the bank   [read]
+  my plans fell through  ->  Update my plans   [update]
+  add mum's birthday on 12 October to my calendar  ->  Add mum's birthday on 12 October to your calendar   [your]
+  reminders are annoying  ->  Remove reminders   [remove]
+  where's the nearest atm, take me there  ->  Find the nearest ATM   [find]
+  opne whatsap  ->  Open WhatsApp   [whatsapp]
+  I have to leave at 6:30 tomorrow, wake me half an hour before  ->  Set an alarm for 6:00 am   [00]
+  my phone is dying, what's eating the battery  ->  Show my battery usage   [usage]
+  my alarm clock is broken  ->  Fix my alarm clock   [fix]
+  what's the best music app  ->  Tell me about the best music app   [about]
+  why is my bluetooth so slow  ->  Tell me about my bluetooth speed   [about, speed]
+  how do I change my wallpaper  ->  Change your wallpaper   [your]
+  what's a good note taking app  ->  Find a good note taking app   [find]
+  text me later is what she said  ->  Send a text to her: later   [her]
+  next year I want to travel  ->  Search for travel destinations next year   [search, destinations]
+  what's 15 times 23  ->  Calculate 15 times 23   [calculate]
+
+Comprehend said direct, by category:
+  requests   117/277  commands 137, none 23
+  hi           5/24   commands 19, none 0
+  plain       31/44   commands 13, none 0
+  casual      14/32   commands 18, none 0
+  indian       4/6    commands 2, none 0
+  typos        6/14   commands 8, none 0
+  numbers     11/13   commands 2, none 0
+  multi        4/7    commands 3, none 0
+  context      4/12   commands 7, none 1
+  near         0/36   commands 21, none 15
+  out          2/19   commands 10, none 7
+Commands per request: none 244, one 235, more 5

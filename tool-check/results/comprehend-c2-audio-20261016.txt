@@ -1,0 +1,97 @@
+61 requests; 0 rewrites to send (variant c2)
+36 commands; 0 decide calls to send
+
+== audio.txt: 67 lines; October's voice path (transcribe's text, then Computer) 54/67 right
+                          right  runs ok  runs ✗  asks ok  asks ✗  missed
+A Needle 3                   29       14       4       12      10      24
+B Gemma calls                56       23       3       26       1       7
+B+Jev                        57       23       4       27       2       4
+U1 c2                        61       39       2       14       2       2
+U2 c2                        55       32       4       15       4       4
+
+By category, right (right runs / wrong runs): October, A, B, B+Jev, U1, U2
+  hinglish  11  oct  9/11   2 (1/0)   6 (4/0)   7 (4/1)   8 (6/1)   6 (4/1)
+  amounts   22  oct 16/22   8 (4/2)  20 (10/2)  20 (10/2)  20 (18/1)  17 (13/3)
+  apps       7  oct   6/7   5 (5/0)   5 (5/0)   5 (5/0)   7 (7/0)   7 (7/0)
+  places     6  oct   5/6   1 (1/0)   5 (1/1)   5 (1/1)   5 (5/0)   5 (5/0)
+  names     11  oct  9/11   8 (1/0)  11 (1/0)  11 (1/0)  11 (1/0)  10 (1/0)
+  nothing    8  oct   7/8   3 (0/2)   7 (0/0)   7 (0/0)   8 (0/0)   8 (0/0)
+  media      2  oct   2/2   2 (2/0)   2 (2/0)   2 (2/0)   2 (2/0)   2 (2/0)
+
+Per line (✓ right): A B B+Jev U1 U2
+  hinglish  oct MISS ✗  ✗  ✗r ✗r ✗r  subah 6 baje ka alarm laga do                -> ['Set an alarm for 6:00 am']
+  hinglish  oct OK   ✗  ✓r ✓r ✓r ✓r  6 baje utha dena                             -> ['Set an alarm for 6:00 am']
+  hinglish  oct OK   ✗  ✗  ✗  ✓r ✓r  das minute ka timer laga do                  -> ['Set a timer for 10 minutes']
+  hinglish  oct OK   ✓  ✓r ✓r ✓r ✓   torch on karo                                -> None
+  hinglish  oct OK   ✗  ✓r ✓r ✓r ✗   torch band karo                              -> None
+  hinglish  oct OK   ✗  ✗  ✓  ✓  ✗   aawaz band karo                              -> None
+  hinglish  oct OK   ✗  ✗  ✗  ✗  ✗   agla gaana                                   -> None
+  hinglish  oct OK   ✗  ✗  ✗  ✗  ✗   gana roko                                    -> None
+  hinglish  oct OK   ✓r ✓r ✓r ✓r ✓r  note karo ki doodh khatam ho gaya            -> ['Make a note: doodh khatam ho gaya']
+  hinglish  oct OK   ✗  ✓  ✓  ✓r ✓r  kal ka schedule kya hai                      -> ['Show my schedule for Saturday 17 October']
+  hinglish  oct MISS ✗  ✓  ✓  ✓  ✓   kal 4 baje meeting calendar mein dal do      -> ['Add a meeting to the calendar on Saturday 17 October at 4:00']
+  amounts   oct OK   ✗  ✗r ✗r ✗  ✗   pedh ghante ka timer laga do                 -> ['Set a timer for one hour']
+  amounts   oct OK   ✗  ✓  ✓  ✓r ✓r  saade paanch baje ka alarm lagao             -> ['Set an alarm for 5:30']
+  amounts   oct MISS ✗  ✗r ✗r ✗r ✗r  thai minute ka timer lagao                   -> ['Set a timer for one minute']
+  amounts   oct MISS ✗  ✓  ✓  ✓r ✓r  sava 7 baje utha dena                        -> ['Set an alarm for 7:15']
+  amounts   oct OK   ✓r ✓r ✓r ✓r ✓r  alarm at half past six                       -> None
+  amounts   oct OK   ✓  ✓  ✓  ✓  ✓   alarm at quarter to eight                    -> None
+  amounts   oct OK   ✓r ✓r ✓r ✓r ✓r  alarm for seven in the evening               -> None
+  amounts   oct MISS ✓  ✓r ✓r ✓r ✓   an hour and a half timer                     -> None
+  amounts   oct MISS ✓  ✓r ✓r ✓r ✓   timer one and a half minutes                 -> None
+  amounts   oct OK   ✗r ✓r ✓r ✓r ✗r  half volume                                  -> None
+  apps      oct OK   ✗  ✗  ✗  ✓r ✓r  ptm kholo                                    -> ['Open PTM']
+  apps      oct MISS ✓r ✓r ✓r ✓r ✓r  open phone pay                               -> ['Open PhonePe']
+  apps      oct OK   ✓r ✓r ✓r ✓r ✓r  zomato open karo                             -> ['Open Zomato']
+  apps      oct OK   ✗  ✗  ✗  ✓r ✓r  swiggi kholo                                 -> ['Open Swiggy']
+  apps      oct OK   ✓r ✓r ✓r ✓r ✓r  open Hotstar                                 -> None
+  apps      oct OK   ✓r ✓r ✓r ✓r ✓r  open up whatsapp for me                      -> ['Open WhatsApp']
+  places    oct OK   ✗  ✓  ✓  ✓r ✓r  india gate ka rasta batao                    -> ['Tell me the way to India Gate']
+  places    oct MISS ✗  ✓  ✓  ✓r ✓r  chandni chowk kaise jaaun                    -> ['How do I get to Chandni Chowk']
+  places    oct OK   ✓r ✓r ✓r ✓r ✓r  Navigate to Koramangala                      -> ['Navigate to Koramangala']
+  places    oct OK   ✗  ✗r ✗r ✗  ✗   directions to charminar by metro             -> ['Get directions to charminar by metro']
+  places    oct OK   ✗  ✓  ✓  ✓r ✓r  gateway of india le chalo                    -> ['Go to Gateway of India']
+  names     oct OK   ✗  ✓  ✓  ✓  ✓   mummy ko call karo                           -> ['Call mummy']
+  names     oct OK   ✗  ✓  ✓  ✓  ✗   call Sharma ji                               -> None
+  names     oct OK   ✗  ✓  ✓  ✓  ✓   didi ko phone lagao                          -> ['Call didi']
+  names     oct OK   ✓  ✓  ✓  ✓  ✓   call bhaiya                                  -> None
+  names     oct OK   ✓  ✓  ✓  ✓  ✓   papa ko message karo ki main pahunch gaya    -> ['Send a message to papa: main pahunch gaya']
+  names     oct OK   ✓  ✓  ✓  ✓  ✓   text ananya happy diwali                     -> None
+  names     oct MISS ✓  ✓  ✓  ✓  ✓   tell rohit i am running 10 minutes late      -> ['Send a text to Rohit: i am running 10 minutes late']
+  names     oct MISS ✓  ✓  ✓  ✓  ✓   message shriansh that i will be late         -> ['Send a text to Shriansh: i will be late']
+  names     oct OK   ✓  ✓  ✓  ✓  ✓   potluck dinner with neha on friday 8 pm in m -> None
+  names     oct OK   ✓r ✓r ✓r ✓r ✓r  am i free tomorrow                           -> ['Show my agenda for Saturday 17 October']
+  nothing   oct OK   ✗r ✓  ✓  ✓  ✓   my alarm clock is broken                     -> ['Fix my alarm clock']
+  nothing   oct OK   ✓  ✓  ✓  ✓  ✓   whats the best music app                     -> ['What is the best music app?']
+  nothing   oct OK   ✗  ✓  ✓  ✓  ✓   did anyone call                              -> []
+  nothing   oct MISS ✗  ✗  ✗  ✓  ✓   Diwali is on 1 November                      -> []
+  nothing   oct OK   ✓  ✓  ✓  ✓  ✓   send money to rahul                          -> ['Send money to Rahul']
+  nothing   oct OK   ✗r ✓  ✓  ✓  ✓   open a bank account                          -> ['Open a bank account']
+  nothing   oct OK   ✓  ✓  ✓  ✓  ✓   kal mausam kaisa rahega                      -> ['What will the weather be like on Saturday 17 October?']
+  nothing   oct OK   ✗  ✓  ✓  ✓  ✓   mujhe chai banana sikhao                     -> ['Teach me how to make tea']
+  amounts   oct OK   ✗  ✓r ✓r ✓r ✓r  subah 5 baje ka alarm laga do                -> ['Set an alarm for 5:00 am']
+  amounts   oct OK   ✗  ✓  ✓  ✓r ✓r  dedh ghante ka timer laga do                 -> ['Set a timer for 1 hour 30 minutes']
+  amounts   oct OK   ✗  ✓  ✓  ✓r ✓r  saade paanch baje ka alarm laga do           -> ['Set an alarm for 5:30']
+  amounts   oct OK   ✗  ✓  ✓  ✓r ✓r  dhai minute ka timer laga do                 -> ['Set a timer for 2 minutes 30 seconds']
+  amounts   oct OK   ✗  ✓  ✓  ✓r ✓r  sava 7 baje utha dena                        -> ['Set an alarm for 7:15']
+  amounts   oct OK   ✗  ✓  ✓  ✓r ✓r  paune 8 baje ka alarm lagao                  -> ['Set an alarm for 7:45']
+  amounts   oct MISS ✗  ✓  ✓  ✓r ✓r  shaam saat baje ka alarm lagao               -> ['Set an alarm for 7:00 pm']
+  amounts   oct OK   ✓r ✓r ✓r ✓r ✓r  alarm at half past 6                         -> None
+  amounts   oct MISS ✗  ✓  ✓  ✓  ✗   alarm add quarter to 8                       -> None
+  amounts   oct OK   ✓r ✓r ✓r ✓r ✓r  alarm for seven in the evening               -> None
+  amounts   oct OK   ✓  ✓r ✓r ✓r ✓   one hour and a half timer                    -> None
+  amounts   oct OK   ✗r ✓r ✓r ✓r ✗r  half volume                                  -> None
+  media     oct OK   ✓r ✓r ✓r ✓r ✓r  stop                                         -> None
+  media     oct OK   ✓r ✓r ✓r ✓r ✓r  next                                         -> None
+  apps      oct OK   ✓r ✓r ✓r ✓r ✓r  open phone pay                               -> ['Open PhonePe']
+  places    oct OK   ✗  ✓  ✓  ✓r ✓r  chandni chowk kaise jaaun                    -> ['How do I get to Chandni Chowk']
+  names     oct OK   ✓  ✓  ✓  ✓  ✓   tell rohit i am running 10 minutes late      -> ['Send a text to Rohit: i am running 10 minutes late']
+
+Comprehend said direct, by category:
+  hinglish     5/11
+  amounts     11/22
+  apps         1/7
+  places       0/6
+  names        4/11
+  nothing      0/8
+  media        2/2

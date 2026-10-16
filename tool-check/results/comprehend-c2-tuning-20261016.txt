@@ -1,0 +1,135 @@
+283 requests; 0 rewrites to send (variant c2)
+139 commands; 0 decide calls to send
+
+== requests.txt (tuning): 277 requests
+                          right  runs ok  runs ✗  asks ok  asks ✗  missed
+A Needle 3                  223      132       6       47      39       9
+B Gemma calls               251      158      12       29       7       7
+B+Jev                       263      156       3       30       4       7
+U1 c2                       248      147       5       33      11      13
+U2 c2                       251      141       5       41      10      11
+
+== @hi (requests.txt): 6 requests
+                          right  runs ok  runs ✗  asks ok  asks ✗  missed
+B Gemma calls                 6        3       0        0       0       0
+B+Jev                         6        3       0        0       0       0
+U1 c2                         6        3       0        0       0       0
+U2 c2                         6        3       0        0       0       0
+
+U2 misses on requests.txt (tuning):
+  set_alarm      i need to get up at 5:15 tomorrow              ['Set an alarm for 5:15 on Saturday 17 October']   -> [('set_alarm', 'run')]
+  set_timer/add_reminder remind me in 15 minutes                        ['Set a reminder in 15 minutes']                   -> []
+  none           how do I set an alarm on android               ['Set an alarm on Android']                        -> [('set_alarm', 'ask')]
+  none           my alarm didn't go off this morning            ['Show my alarms']                                 -> [('show_alarms', 'run')]
+  open_settings  turn on wifi                                   direct                                             -> []
+  open_settings  I want to change the brightness                ['Change the brightness']                          -> []
+  none           set alarm volume to 80 percent                 ['Set the volume to 80 percent']                   -> [('set_volume', 'run')]
+  none           ringer to full                                 direct                                             -> [('set_volume', 'ask')]
+  none           why is my phone so loud                        ['Show my volume settings']                        -> [('open_settings', 'ask')]
+  control_media  resume                                         direct                                             -> []
+  set_flashlight I can't see a thing                            ['Show my screen']                                 -> []
+  open_app       check my email                                 ['Check my email']                                 -> []
+  none           I couldn't reach him on the phone              ['Call him']                                       -> [('make_call', 'ask')]
+  none           how far is the moon                            ['Get directions to the moon']                     -> [('get_directions', 'ask')]
+  none           who gave you directions                        ['Show directions']                                -> [('get_directions', 'ask')]
+  make_call      phone dad                                      ['phone dad']                                      -> [('make_call', 'ask')]
+  none           my phone is slow                               ['Show my phone settings']                         -> [('open_settings', 'ask')]
+  add_event      book a meeting with the design team next Tuesd ['Book a meeting with the design team on Tuesday 2 -> []
+  add_reminder   remind me on Friday to pay the rent            ['Make a reminder for Friday 23 October to pay the -> []
+  none           my schedule is too tight this week             ['Show my schedule for this week']                 -> [('show_agenda', 'ask')]
+  check_off      I got the eggs                                 []                                                 -> []
+  none           the shopping list is long                      ['Show the shopping list']                         -> [('show_list', 'run')]
+  none           I lost my to-do list                           ['Show my to-do list']                             -> [('show_list', 'run')]
+  none           tick tock goes the clock                       ['Set a timer']                                    -> [('set_timer', 'ask')]
+  add_reminder   remind me tomorrow at 9 to call the bank       ['Set a reminder for Saturday 17 October at 9 to c -> []
+  add_reminder   remind me every Monday at 8 to take out the bi ['Make a reminder for Monday 19 October at 8 to ta -> []
+
+Requests for no tool that C's rewrite turned into commands:
+  [requests] pick it up  ->  ['Pick up']  ->  []
+  [requests] What's the weather like?  ->  ['What is the weather like?']  ->  []
+  [requests] Tell me a joke  ->  ['Tell me a joke']  ->  []
+  [requests] Who won the match yesterday?  ->  ['Tell me who won the match yesterday']  ->  []
+  [requests] translate hello to french  ->  ['Translate hello to french']  ->  [('create_note', 'ask')]
+  [requests] how do I set an alarm on android  ->  ['Set an alarm on Android']  ->  [('set_alarm', 'ask')]
+  [requests] my alarm didn't go off this morning  ->  ['Show my alarms']  ->  [('show_alarms', 'run')]
+  [requests] how long should I boil an egg  ->  ['Tell me how long to boil an egg']  ->  []
+  [requests] how much time is left  ->  ['What is the time left?']  ->  []
+  [requests] what apps do I have  ->  ['Show my apps']  ->  []
+  [requests] is whatsapp down  ->  ['Check the status of WhatsApp']  ->  [('open_app', 'ask')]
+  [requests] what's my wifi password  ->  ['Show my wifi password']  ->  []
+  [requests] how bright is the flashlight  ->  ['Show flashlight brightness']  ->  [('set_flashlight', 'ask')]
+  [requests] buy a torch  ->  ['Buy a torch']  ->  [('set_flashlight', 'ask')]
+  [requests] set alarm volume to 80 percent  ->  ['Set the volume to 80 percent']  ->  [('set_volume', 'run')]
+  [requests] why is my phone so loud  ->  ['Show my volume settings']  ->  [('open_settings', 'run')]
+  [requests] what's the volume  ->  ['What is the volume?']  ->  []
+  [requests] what song is this  ->  ['What song is this']  ->  []
+  [requests] how many photos do I have  ->  ['Show my photos']  ->  [('open_camera', 'ask')]
+  [requests] which camera is better  ->  ['Tell me about cameras']  ->  [('open_camera', 'ask')]
+  [requests] show me the note I took yesterday  ->  ['Show my notes from yesterday']  ->  []
+  [requests] I want to go to sleep  ->  ['Go to sleep']  ->  []
+  [requests] I couldn't reach him on the phone  ->  ['Call him']  ->  [('make_call', 'ask')]
+  [requests] when will we reach  ->  ['What are you referring to?']  ->  []
+  [requests] directions for this recipe  ->  ['Tell me the recipe.']  ->  []
+  [requests] how far is the moon  ->  ['Get directions to the moon']  ->  [('get_directions', 'ask')]
+  [requests] what's the route of the tour de france  ->  ['Tell me the route of the tour de france']  ->  []
+  [requests] how do I get to level 5 in this game  ->  ['Tell me how to get to level 5 in this game']  ->  []
+  [requests] who gave you directions  ->  ['Show directions']  ->  [('get_directions', 'ask')]
+  [requests] who called me  ->  ['Show my call history']  ->  []
+  [requests] my phone is slow  ->  ['Show my phone settings']  ->  [('open_settings', 'ask')]
+  [requests] the dial on my watch is broken  ->  ['Fix the dial on my watch']  ->  []
+  [requests] read my messages  ->  ['Read my messages']  ->  []
+  [requests] any new messages  ->  ['Show new messages']  ->  []
+  [requests] I got a weird message from the bank  ->  ['Read the message from the bank']  ->  []
+  [requests] copy this text  ->  ['Copy this text']  ->  []
+  [requests] what's on TV tonight  ->  ['Tell me what is on TV tonight']  ->  []
+  [requests] what's on netflix  ->  ['Tell me what is on Netflix']  ->  []
+  [requests] what's the agenda of the G20 summit  ->  ['Tell me the agenda of the G20 summit']  ->  [('show_agenda', 'ask')]
+  [requests] the schedule for the IPL final  ->  ['Show me the schedule for the IPL final']  ->  [('show_agenda', 'run')]
+  [requests] my plans fell through  ->  ['Update my plans']  ->  []
+  [requests] cancel my meeting tomorrow  ->  ['Cancel my meeting on Saturday 17 October']  ->  []
+  [requests] my schedule is too tight this week  ->  ['Show my schedule for this week']  ->  [('show_agenda', 'ask')]
+  [requests] move my dentist appointment to Friday  ->  ['Move my dentist appointment to on Friday 23 October']  ->  []
+  [requests] the shopping list is long  ->  ['Show the shopping list']  ->  [('show_list', 'run')]
+  [requests] I lost my to-do list  ->  ['Show my to-do list']  ->  [('show_list', 'run')]
+  [requests] list the planets  ->  ['List the planets']  ->  [('show_list', 'run')]
+  [requests] tick tock goes the clock  ->  ['Set a timer']  ->  [('set_timer', 'ask')]
+  [requests] I forgot to set a reminder  ->  ['Set a reminder']  ->  []
+  [requests] can you remind me what the capital of Peru is  ->  ['Tell me the capital of Peru']  ->  []
+  [requests] reminders are annoying  ->  ['Remove reminders']  ->  []
+  [hi] utha ke rakh do  ->  ['Put it down']  ->  []
+  [hi] phone utha  ->  ['Pick up the phone']  ->  [('make_call', 'ask')]
+  [hi] main jaag gaya  ->  ['I woke up']  ->  [('show_alarms', 'ask')]
+
+@hi rewrites:
+  subah 6 baje utha dena  ->  ['Set an alarm for 6:00 am']  ->  [('set_alarm', {'time': '6:00 am'}, 'run')]  OK
+  7 baje jaga dena  ->  ['Set an alarm for 7:00']  ->  [('set_alarm', {'time': '7:00'}, 'run')]  OK
+  dopahar 2 baje utha dena  ->  ['Set an alarm for 2:00 pm']  ->  [('set_alarm', {'time': '14:00'}, 'run')]  OK
+  utha ke rakh do  ->  ['Put it down']  ->  []  OK
+  phone utha  ->  ['Pick up the phone']  ->  [('make_call', {'name': 'Priya'}, 'ask')]  MISS
+  main jaag gaya  ->  ['I woke up']  ->  [('show_alarms', {}, 'ask')]  MISS
+
+Rewrite: median 322 ms, 90th 452 ms; failed 0
+Needle 3 per command, on the laptop: median 82 ms
+Jev per command: median 284 ms; cost $0.00242
+
+Invented (Ferb Link's field): 1 requests
+  wifi settings  ->  ['Turn off Wi-Fi']   [Wi, Fi]
+Words the request lacks (a wider check, to read): 13 commands
+  is whatsapp down  ->  Check the status of WhatsApp   [status]
+  how much storage is left  ->  Show my storage information   [information]
+  which camera is better  ->  Tell me about cameras   [about, cameras]
+  I can't see a thing  ->  Show my screen   [screen]
+  cycling route to Cubbon Park  ->  Find a cycling route to Cubbon Park   [find]
+  how do I get to MG Road by bus  ->  Find directions to MG Road by bus   [find]
+  when will we reach  ->  What are you referring to?   [you, referring]
+  who called me  ->  Show my call history   [history]
+  the dial on my watch is broken  ->  Fix the dial on my watch   [fix]
+  I got a weird message from the bank  ->  Read the message from the bank   [read]
+  my plans fell through  ->  Update my plans   [update]
+  add mum's birthday on 12 October to my calendar  ->  Add mum's birthday on 12 October to your calendar   [your]
+  reminders are annoying  ->  Remove reminders   [remove]
+
+Comprehend said direct, by category:
+  requests   117/277  commands 137, none 23
+  hi           0/6    commands 6, none 0
+Commands per request: none 140, one 142, more 1
