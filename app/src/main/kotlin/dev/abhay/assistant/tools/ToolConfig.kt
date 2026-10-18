@@ -141,7 +141,8 @@ data class Verdict(
             val runAt = bar ?: called.maxOfOrNull { it?.runFrom ?: Decision.RUN_AT } ?: Decision.RUN_AT
             val alwaysConfirm = called.any { it?.alwaysConfirm == true }
             val unmentioned = reply.calls.any { call -> configs[call.name]?.mentionedIn(request) == false }
-            val ungrounded = reply.calls.any { call -> Tools.byName(call.name)?.grounded(call.arguments, request) == false }
+            // A time the resolver asks about ([TimeArgs.ASK]) asks too.
+            val ungrounded = reply.calls.any { call -> call.arguments[TimeArgs.ASK] != null || Tools.byName(call.name)?.grounded(call.arguments, request) == false }
             val decision = when {
                 reply.error != null -> Decision.Refuse
                 (alwaysConfirm || unmentioned || ungrounded) && reply.calls.isNotEmpty() -> Decision.Confirm

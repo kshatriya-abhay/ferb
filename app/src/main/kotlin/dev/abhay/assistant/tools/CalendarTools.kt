@@ -165,7 +165,8 @@ object AddEvent : Tool(
         val title = arguments.text("title")
         val whenSaid = arguments.text("when")
         val requestSays = !When.read(request, LocalDateTime.now()).isEmpty
-        return Tools.mostlySaid(title, request) && (requestSays || whenSaid == null || SaidNumbers.grounded(whenSaid, request))
+        return Tools.mostlySaid(title, request) &&
+            (arguments[TimeArgs.RESOLVED] == true || requestSays || whenSaid == null || SaidNumbers.grounded(whenSaid, request))
     }
 
     /** An event worked out from a request: [begin] and [end] in epoch milliseconds (UTC midnights when [allDay]). */
@@ -179,8 +180,12 @@ object AddEvent : Tool(
      * time is all day; an hour long unless an end or a length is said. Null if nothing says when.
      */
     fun plan(title: String, arguments: Map<String, Any?>, now: LocalDateTime, zone: ZoneId): Planned? {
-        val fromRequest = arguments.text(REQUEST)?.let { When.read(it, now) }
-        val said = fromRequest?.takeUnless { it.isEmpty } ?: arguments.text("when")?.let { When.read(it, now) }?.takeUnless { it.isEmpty } ?: return null
+        // Resolved from the computer's time structure ([TimeArgs]): that, before the words.
+        val resolved = arguments.text(TimeArgs.AT)?.let { LocalDateTime.parse(it) }?.let { When.Said(it.toLocalDate(), it.toLocalTime()) }
+            ?: arguments.text(TimeArgs.DAY)?.let { When.Said(LocalDate.parse(it), null) }
+        val fromRequest = arguments.text(REQUEST)?.takeIf { arguments[TimeArgs.RESOLVED] != true }?.let { When.read(it, now) }
+        val said = resolved ?: fromRequest?.takeUnless { it.isEmpty } ?: arguments.text("when")?.takeIf { arguments[TimeArgs.RESOLVED] != true }
+            ?.let { When.read(it, now) }?.takeUnless { it.isEmpty } ?: return null
         val time = if (said.allDay) null else said.time
         val day = said.day ?: if (time != null && time.isBefore(now.toLocalTime())) now.toLocalDate().plusDays(1) else now.toLocalDate()
         if (time == null) {

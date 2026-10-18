@@ -41,7 +41,8 @@ object AddReminder : Tool(
 
     /** What to be reminded of must be the request's words, and the time's numbers too. */
     override fun grounded(arguments: Map<String, Any?>, request: String) =
-        Tools.mostlySaid(arguments.text("text"), request) && (arguments.text("time")?.let { SaidNumbers.grounded(it, request) } ?: true)
+        Tools.mostlySaid(arguments.text("text"), request) &&
+            (arguments[TimeArgs.RESOLVED] == true || arguments.text("time")?.let { SaidNumbers.grounded(it, request) } ?: true)
 
     /** "Pay the rent": the words of the reminder, without "remind me to" or the time. */
     fun title(text: String): String = When.strip(text)
@@ -58,12 +59,17 @@ object AddReminder : Tool(
         if (text.isBlank()) return Prepared.Invalid("Remind you of what?")
         val now = env.now.toLocalDateTime()
         // The request's own words first, then Needle 3's "time".
-        val at = arguments.text(SAID)?.let { ReminderTime.read(it, now) } ?: arguments.text("time")?.let { ReminderTime.read(it, now) }
-            ?: return Prepared.Invalid("When? Say a time, such as in 20 minutes or tomorrow at 9")
+        val resolved = arguments[TimeArgs.RESOLVED] == true
+        // Resolved from the computer's time structure ([TimeArgs]): that, before the words.
+        val at = arguments.text(TimeArgs.AT)?.let { java.time.LocalDateTime.parse(it) }
+            ?: arguments.text(SAID)?.takeIf { !resolved }?.let { ReminderTime.read(it, now) }
+            ?: arguments.text("time")?.takeIf { !resolved }?.let { ReminderTime.read(it, now) }
+            ?: return Prepared.Invalid(arguments.text(TimeArgs.ASK)?.replaceFirstChar { it.uppercase() } ?: "When? Say a time, such as in 20 minutes or tomorrow at 9")
         if (!at.isAfter(now)) return Prepared.Invalid("That's in the past")
         // The request's words decide the repeat; Needle 3's only counts when the request says one too.
         val said = arguments.text(SAID)
-        val repeat = said?.let(Repeat::said) ?: Repeat.of(arguments.text("repeat")).takeIf { said == null }
+        val repeat = if (resolved) Repeat.of(arguments.text(TimeArgs.REPEAT))
+            else said?.let(Repeat::said) ?: Repeat.of(arguments.text("repeat")).takeIf { said == null }
         // A reminder on a note needs the notes folder; without a note, none.
         val noteName = arguments.text("note")
         if (noteName != null && !env.notes.ready) return Prepared.Invalid("Reminders on notes need your notes folder", needs = listOf(NoteStore.NEEDS_FOLDER))

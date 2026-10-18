@@ -14,9 +14,11 @@ import dev.abhay.assistant.link.brief
 import dev.abhay.assistant.link.describe
 import dev.abhay.assistant.tools.Tool
 import dev.abhay.assistant.tools.ToolConfig
+import dev.abhay.assistant.tools.TimeArgs
 import dev.abhay.assistant.tools.ToolRouter
 import dev.abhay.assistant.tools.Tools
 import dev.abhay.assistant.tools.Verdict
+import java.time.ZonedDateTime
 import java.util.Locale
 
 /**
@@ -71,7 +73,17 @@ class AnswerFlow(
     private val link: LinkCalls,
     private val needle: suspend (request: String, tools: List<Tool>) -> NeedleReply,
     private val asking: (String?) -> Unit = {},
+    private val now: () -> ZonedDateTime = ZonedDateTime::now,
 ) {
+    /**
+     * [reply] with each call's time structure, if any, resolved by Ferb into its arguments
+     * ([TimeArgs]), checked against [texts] (the call's text, and the heard words of a spoken one).
+     */
+    private fun timed(reply: NeedleReply, texts: (Int) -> List<String>): NeedleReply {
+        val at = now()
+        return reply.copy(calls = reply.calls.mapIndexed { i, call -> call.copy(arguments = TimeArgs.apply(call.name, call.arguments, texts(i), at)) })
+    }
+
     suspend fun answer(
         request: String,
         heard: String?,
@@ -96,7 +108,7 @@ class AnswerFlow(
 
         // Computer mode with Jev on: speech takes the commands path.
         if (chosen && jevOn && heard != null) {
-            when (val got = commands(listOf(request), enabled, configs, path)) {
+            when (val got = commands(listOf(request), heard, enabled, configs, path)) {
                 is Commands.Answered -> return got.answer
                 is Commands.Failed -> {
                     jevNote = got.reason
@@ -171,7 +183,7 @@ class AnswerFlow(
             }
         }
         // The computer's answer whenever it gave one, including "no tool fits".
-        val shown = laptop?.takeIf { it.error == null } ?: needleReply!!
+        val shown = timed(laptop?.takeIf { it.error == null } ?: needleReply!!) { listOfNotNull(request, heard) }
         val verdict = if (shown.fromLaptop) LinkPolicy.verdict(shown, configs, request) else Verdict.of(shown, configs, request)
         return Answer(
             shown = shown,
@@ -199,7 +211,7 @@ class AnswerFlow(
      * the request didn't (never runs without asking). Failed when Jev fails: the request then goes
      * on as without it (to the computer), and [path] says where it stopped.
      */
-    private suspend fun commands(texts: List<String>, enabled: List<Tool>, configs: Map<String, ToolConfig>, path: MutableList<Step>, invented: Boolean = false): Commands {
+    private suspend fun commands(texts: List<String>, heard: String?, enabled: List<Tool>, configs: Map<String, ToolConfig>, path: MutableList<Step>, invented: Boolean = false): Commands {
         val names = enabled.map { it.name }
         val done = mutableListOf<Triple<String, NeedleReply?, List<Step>>>()
         for (text in texts) {
@@ -214,7 +226,7 @@ class AnswerFlow(
                 JevPick.NoTool -> done += Triple(text, null, listOf(Step("Jev", pick(jev))))
                 is JevPick.Tool -> {
                     asking(null)
-                    val reply = needle(text, listOfNotNull(Tools.byName(pick.name)))
+                    val reply = timed(needle(text, listOfNotNull(Tools.byName(pick.name)))) { listOfNotNull(text, heard) }
                     done += Triple(text, reply, listOf(Step("Jev", pick(jev)), needleStep(reply)))
                 }
             }

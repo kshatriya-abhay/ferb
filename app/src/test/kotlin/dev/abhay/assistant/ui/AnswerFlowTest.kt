@@ -141,4 +141,16 @@ class AnswerFlowTest {
         assertThat(got.chain()).isEqualTo("Typed → Gemma")
         assertThat(got.jevNote).isEqualTo("Jev's limit reached")
     }
+
+    @Test
+    fun theComputersTimeStructureIsResolvedAndAnAlarmOnAnotherDayAsks() {
+        val monday = org.json.JSONObject("""{"v":1,"kind":"at","day":{"weekday":"monday","which":null},"time":{"hour":7,"minute":0,"meridiem":"am","part":null},"source":"Monday 7 am"}""")
+        val link = FakeLink(computer = reply(0.99, ToolCall(SetAlarm.name, mapOf("time" to "7 am", "when" to monday)), source = FerbLink.SOURCE))
+        val friday9 = java.time.LocalDateTime.parse("2026-10-16T09:00").atZone(java.time.ZoneId.of("Asia/Kolkata"))
+        val got = runBlocking {
+            AnswerFlow(link, needle(), now = { friday9 }).answer("set an alarm for Monday 7 am", null, enabled, configs, LinkMode.Option, Answerer.Link, jevSwitch = false)
+        }
+        assertThat(got.verdict.decision).isEqualTo(Decision.Confirm)
+        assertThat(got.shown.calls.single().arguments[dev.abhay.assistant.tools.TimeArgs.WANTED]).isEqualTo("2026-10-19T07:00")
+    }
 }

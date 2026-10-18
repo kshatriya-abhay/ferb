@@ -198,7 +198,8 @@ object Resolve {
         return when {
             day == null && time == null -> Resolved.Ask("when?")
             time == null -> if (weekendOnly(expr)) Resolved.Ask("which day this weekend?") else Resolved.OnDay(day!!)
-            else -> Resolved.At((day ?: now.toLocalDate()).atTime(time))
+            // A time without a day: the next time it comes, as AddEvent.plan does.
+            else -> Resolved.At((day ?: if (time.isBefore(now.toLocalTime())) now.toLocalDate().plusDays(1) else now.toLocalDate()).atTime(time))
         }
     }
 
