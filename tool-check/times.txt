@@ -26,6 +26,7 @@ alarm 2026-10-16T12:00 | alarm at noon | at time=12pm
 alarm 2026-10-17T00:00 | alarm at midnight | at time=12am
 alarm 2026-10-16T19:00 | alarm for 7 tonight | at time=7 part=night
 alarm 2026-10-16T18:00 | alarm for 6 in the evening | at time=6 part=evening
+alarm 2026-10-16T09:30 | alarm at 9:30 | at time=9:30
 # split=held
 alarm 2026-10-17T05:30 | wake me at 5:30 am | at time=5:30am
 alarm 2026-10-16T11:00 | alarm at 11 | at time=11
@@ -108,7 +109,7 @@ reminder 2026-10-16T20:00 | remind me tonight to lock the door | at day=+0 part=
 # split=held
 event 2026-10-19T09:30 | standup Monday 9:30 | at day=mon time=9:30
 event 2026-10-21T15:00 | coffee with Sam on Wednesday at 3 | at day=wed time=3
-event 2026-10-26T10:00 | review next Monday at 10 am | at day=next:mon time=10am
+event 2026-10-19T10:00 | review next Monday at 10 am | at day=next:mon time=10am
 event 2026-11-01T18:00 | movie on 1 November at 6 | at day=1/11 time=6
 event 2026-10-25T12:00 | brunch on the 25th at noon | at day=25 time=12pm
 event 2026-10-18T14:00 | Sunday afternoon at 2 picnic | at day=sun time=2 part=afternoon

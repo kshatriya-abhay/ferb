@@ -91,34 +91,47 @@ object When {
             found += today.plusDays(if (m.groupValues[2] == "week") 7L * n else n.toLong()) to m.range
         }
         NAMED_WEEKDAY.find(t)?.let { m ->
-            val weekday = WEEKDAYS.getValue(m.groupValues[2].take(3))
-            val next = today.with(TemporalAdjusters.nextOrSame(weekday))
-            found += (if (m.groupValues[1] == "next" && next == today) next.plusWeeks(1) else next) to m.range
+            found += weekday(today, WEEKDAYS.getValue(m.groupValues[2].take(3)), next = m.groupValues[1] == "next") to m.range
         }
         DAY_MONTH.find(t)?.let { m -> dated(m.groupValues[1], m.groupValues[2], m.groupValues[3], today, ahead)?.let { found += it to m.range } }
         MONTH_DAY.find(t)?.let { m -> dated(m.groupValues[2], m.groupValues[1], m.groupValues[3], today, ahead)?.let { found += it to m.range } }
         NUMERIC.find(t)?.let { m ->
             val g = m.groupValues
             val day = if (g[1].isNotEmpty()) runCatching { LocalDate.of(g[1].toInt(), g[2].toInt(), g[3].toInt()) }.getOrNull()
-            else monthDay(g[4].toInt(), g[5].toInt(), g[6], today, ahead)
+            else monthDay(g[4].toInt(), g[5].toInt(), g[6].ifEmpty { null }?.toInt(), today, ahead)
             day?.let { found += it to m.range }
         }
         if (found.isEmpty()) THE_NTH.find(t)?.let { m ->
-            val n = m.groupValues[1].toInt()
-            val month = if (ahead && n < today.dayOfMonth) today.plusMonths(1) else today
-            runCatching { month.withDayOfMonth(n) }.getOrNull()?.let { found += it to m.range }
+            nth(m.groupValues[1].toInt(), today, ahead)?.let { found += it to m.range }
         }
         return found.minByOrNull { it.second.first }
     }
 
     private fun dated(day: String, month: String, year: String, today: LocalDate, ahead: Boolean): LocalDate? =
-        monthDay(day.toInt(), MONTHS.indexOf(month.take(3)) + 1, year, today, ahead)
+        monthDay(day.toInt(), MONTHS.indexOf(month.take(3)) + 1, year.ifEmpty { null }?.toInt(), today, ahead)
 
-    /** A day of a month; without a year, the next one from [today] if [ahead], else the nearest. */
-    private fun monthDay(day: Int, month: Int, year: String, today: LocalDate, ahead: Boolean): LocalDate? {
+    // --- the rules, shared with [Resolve] (the computer's time structure) ---
+
+    /** [weekday] from [today]: today itself if it's that day ("Friday" on a Friday), a week on for "next" said on that day, else the coming one. */
+    fun weekday(today: LocalDate, weekday: DayOfWeek, next: Boolean): LocalDate {
+        val coming = today.with(TemporalAdjusters.nextOrSame(weekday))
+        return if (next && coming == today) coming.plusWeeks(1) else coming
+    }
+
+    /** "the 12th": this month's, or next month's if it has passed and [ahead]. */
+    fun nth(n: Int, today: LocalDate, ahead: Boolean): LocalDate? {
+        val month = if (ahead && n < today.dayOfMonth) today.plusMonths(1) else today
+        return runCatching { month.withDayOfMonth(n) }.getOrNull()
+    }
+
+    /** The time a part of the day means when no time is said ("tomorrow morning" is 9:00); null for an unknown part. */
+    fun partTime(part: String): LocalTime? = PARTS[part]
+
+    /** A day of a month; without a [year], the next one from [today] if [ahead], else the nearest. */
+    fun monthDay(day: Int, month: Int, year: Int?, today: LocalDate, ahead: Boolean): LocalDate? {
         val md = runCatching { MonthDay.of(month, day) }.getOrNull() ?: return null
-        if (year.isNotEmpty()) {
-            val y = year.toInt().let { if (it < 100) 2000 + it else it }
+        if (year != null) {
+            val y = if (year < 100) 2000 + year else year
             return runCatching { md.atYear(y) }.getOrNull()
         }
         val candidates = listOf(today.year - 1, today.year, today.year + 1).filter { md.isValidYear(it) }.map { md.atYear(it) }
@@ -182,10 +195,15 @@ object When {
      * An hour, minutes and am/pm as a time. Without am or pm, [part] decides ("6 in the morning"),
      * else 1–6 is the afternoon or evening (few events start at 3 am) and 7–11 the morning.
      */
-    private fun clock(hour: String, minute: String, period: String, part: String?): LocalTime? {
-        var h = hour.toIntOrNull() ?: return null
-        val min = minute.ifEmpty { "0" }.toInt()
-        if (min > 59) return null
+    private fun clock(hour: String, minute: String, period: String, part: String?): LocalTime? =
+        clock(hour.toIntOrNull() ?: return null, minute.ifEmpty { "0" }.toInt(), period.ifEmpty { null }, part)
+
+    /** [clock]'s rule for an event's hour: am or pm as said, else [part] decides, else 1–6 are pm and 7–11 am. */
+    fun clock(hour: Int, minute: Int, meridiem: String?, part: String?): LocalTime? {
+        var h = hour
+        val min = minute
+        val period = meridiem.orEmpty()
+        if (min !in 0..59) return null
         when {
             period == "am" -> { if (h !in 1..12) return null; if (h == 12) h = 0 }
             period == "pm" -> { if (h !in 1..12) return null; if (h != 12) h += 12 }

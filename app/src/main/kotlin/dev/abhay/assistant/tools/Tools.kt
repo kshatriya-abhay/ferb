@@ -201,6 +201,28 @@ object TimeOfDay {
      * pm or a word for the time of day, an hour up to 12 is taken as written (so "8" is 8 am, "12"
      * noon). "5 o'clock" came back from the computer for "paanch baje" (2026-10-12) and was refused.
      */
+    /**
+     * [parse]'s rule for an alarm's hour from the computer's time structure ([Resolve]): am or pm as
+     * said; else the part of the day (morning am; afternoon and evening pm; at night 12 and 1–5 the
+     * small hours, else pm); else the hour as written.
+     */
+    fun of(hour: Int, minute: Int, meridiem: String?, part: String?): Pair<Int, Int>? {
+        if (minute !in 0..59 || hour !in 0..23) return null
+        val period = meridiem ?: when (part) {
+            "morning" -> "am"
+            "afternoon", "evening" -> "pm"
+            "night" -> if (hour == 12 || hour in 1..5) "am" else "pm"
+            else -> null
+        }
+        var h = hour
+        when {
+            h > 12 || period == null -> {}
+            period == "am" -> if (h == 12) h = 0
+            period == "pm" -> if (h != 12) h += 12
+        }
+        return h to minute
+    }
+
     fun parse(text: String): Pair<Int, Int>? {
         val lower = text.trim().lowercase()
         val hint = when {
