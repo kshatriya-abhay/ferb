@@ -136,7 +136,16 @@ def main(argv):
             elif not ok: t["missed"] += 1
         return t
 
-    rows = [("B+Jev", b_jev)] + [(f"S {arm}", lambda t, a=arm: outcome(a, t)) for arm in arms]
+    # H (ferb-manager's hybrid): B+Jev, except that a request whose Jev pick is a timed tool goes to
+    # timed schema-call, for the time structure. From kept replies (the timed ones were made with
+    # Jev's tools, its pick first, rather than that tool alone).
+    timed_arm = next((a for a in reversed(arms) if a.startswith("timed")), None)
+    def timed_pick(text):
+        names = jev_tools(text)
+        return bool(names) and names[0]["name"] in TIMED
+    def hybrid(text):
+        return outcome(timed_arm, text) if timed_pick(text) else b_jev(text)
+    rows = [("B+Jev", b_jev)] + [(f"S {arm}", lambda t, a=arm: outcome(a, t)) for arm in arms] + ([("H hybrid", hybrid)] if timed_arm else [])
     for name, subset in [(f"{which}.txt without @hi", [l for l in lines if l[3] != "hi"]), ("@hi", [l for l in lines if l[3] == "hi"])]:
         print(f"\n== {name}: {len(subset)} requests")
         print(f"{'':<12}{'right':>7}{'runs ok':>9}{'runs ✗':>8}{'asks ok':>9}{'asks ✗':>8}{'missed':>8}")
@@ -185,6 +194,15 @@ def main(argv):
     for arm in arms:
         cut = [t for t, *_ in lines for c in kept.get(t, {}).get(arm, {}).get("calls") or [] if c.get("trimmed")]
         print(f"  {arm}: {len(cut)} calls trimmed" + (f": {'; '.join(cut)}" if cut else ""))
+    if timed_arm:
+        def computer_ms(t):
+            names = jev_tools(t)
+            kind = "complete_jev3" if names and len(names) > 1 else "complete_jev" if names else "complete"
+            return kept.get(t, {}).get(kind, {}).get("ms")
+        timed_ms = sorted(m for t, *_ in lines if timed_pick(t) for m in [kept.get(t, {}).get(timed_arm, {}).get("ms")] if m)
+        other_ms = sorted(m for t, *_ in lines if not timed_pick(t) and jev_tools(t) != [] for m in [computer_ms(t)] if m)
+        print(f"\nH hybrid: {len(timed_ms)} timed requests (median / 90th {statistics.median(timed_ms):.0f} / {timed_ms[int(len(timed_ms) * 0.9)]} ms, timed schema-call),"
+              f" {len(other_ms)} untimed (median / 90th {statistics.median(other_ms):.0f} / {other_ms[int(len(other_ms) * 0.9)]} ms, B+Jev's Gemma call)")
     if "rewrite" in arms:
         print(f"\nrewrite: commands instead of calls on {sum(1 for t, *_ in lines if kept.get(t, {}).get('rewrite', {}).get('commands'))} requests (not scored)")
 
