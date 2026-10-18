@@ -1,0 +1,28 @@
+283 requests (requests.txt); 606 schema-calls to send
+Replies kept in results/schema-20261018-190556.jsonl
+
+== requests.txt without @hi: 277 requests
+              right  runs ok  runs ✗  asks ok  asks ✗  missed
+B+Jev           263      156       3       30       4       7
+S plain         264      158       4       30       4       5
+S rewrite       262      155       3       30       4       8
+S timed         257      152       7       28       4       9
+
+== @hi: 6 requests
+              right  runs ok  runs ✗  asks ok  asks ✗  missed
+B+Jev             6        3       0        0       0       0
+S plain           6        3       0        0       0       0
+S rewrite         6        3       0        0       0       0
+S timed           6        3       0        0       0       0
+
+"when" on lines whose expected tool takes a time (alarm hours and timer lengths checked):
+  plain    filled 15/53; right 15/15 of the alarm times and timer lengths checked
+  rewrite  filled 34/53; right 24/24 of the alarm times and timer lengths checked
+  timed    filled 53/53; right 38/38 of the alarm times and timer lengths checked
+
+Latency, ms (median / 90th):
+  plain    575 / 1360  (n=202; failed 0)
+  rewrite  1014 / 2115  (n=202; failed 0)
+  timed    680 / 1568  (n=196; failed 6)
+
+rewrite: commands instead of calls on 6 requests (not scored)
