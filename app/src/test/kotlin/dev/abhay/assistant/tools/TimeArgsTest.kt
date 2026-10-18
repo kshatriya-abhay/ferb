@@ -122,4 +122,23 @@ class TimeArgsTest {
         val somvar = json("""{"v":1,"kind":"at","day":{"weekday":"monday","which":null},"time":{"hour":10,"minute":0,"meridiem":null,"part":null}}""")
         assertThat(TimeArgs.apply(AddEvent.name, mapOf("title" to "meeting", "when" to somvar), listOf("somvar 10 baje meeting"), now)[TimeArgs.AT]).isEqualTo("2026-10-19T10:00")
     }
+
+    @Test
+    fun whatTheTimeSetShowedTheModelGetsWrongAsks() {
+        fun ask(tool: String, whenJson: String, request: String) = TimeArgs.apply(tool, mapOf("when" to json(whenJson)), listOf(request), now)[TimeArgs.ASK]
+        // A length from now, given as a clock time it worked out (tool-check/times.txt, 2026-10-18).
+        assertThat(ask(AddReminder.name, """{"v":1,"kind":"at","day":null,"time":{"hour":1,"minute":0}}""", "remind me in an hour to check the oven")).isEqualTo("that's a time from now")
+        assertThat(ask(AddReminder.name, """{"v":1,"kind":"at","day":null,"time":{"hour":10,"minute":0}}""", "10 minute mein yaad dilana")).isEqualTo("that's a time from now")
+        // A named day the structure turned into "tomorrow": dropped, so the day asks.
+        assertThat(ask(AddEvent.name, """{"v":1,"kind":"at","day":{"relative":1},"time":{"hour":5,"minute":0}}""", "meeting next Sunday at 5")).isEqualTo("the day isn't what you said")
+        // pm nobody said: dropped ("saade paanch baje" is 5:30, as written).
+        val args = TimeArgs.apply(SetAlarm.name, mapOf("when" to json("""{"v":1,"kind":"at","day":null,"time":{"hour":5,"minute":30,"meridiem":"pm"}}""")), listOf("saade paanch baje alarm laga do"), now)
+        assertThat(args["time"]).isEqualTo("05:30")
+        // "8pm", "20th" and "noon" are numbers the request says.
+        assertThat(ask(AddEvent.name, """{"v":1,"kind":"at","day":{"weekday":"friday","which":null},"time":{"hour":8,"minute":0,"meridiem":"pm"}}""", "dinner with neha on friday 8pm")).isNull()
+        assertThat(ask(SetAlarm.name, """{"v":1,"kind":"at","day":null,"time":{"hour":12,"minute":0,"meridiem":"pm"}}""", "alarm at noon")).isNull()
+        // A month and year nobody said are dropped: "the 12th" is the next 12th (November).
+        val nth = TimeArgs.apply(AddEvent.name, mapOf("title" to "meeting", "when" to json("""{"v":1,"kind":"at","day":{"day":12,"month":10,"year":2026},"time":{"hour":3,"minute":0}}""")), listOf("meeting on the 12th at 3"), now)
+        assertThat(nth[TimeArgs.AT]).isEqualTo("2026-11-12T15:00")
+    }
 }

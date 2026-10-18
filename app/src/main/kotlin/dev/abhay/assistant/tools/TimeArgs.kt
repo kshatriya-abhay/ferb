@@ -116,7 +116,16 @@ object TimeArgs {
         "paune" to listOf(45), "dedh" to listOf(1, 30), "derh" to listOf(1, 30), "dhai" to listOf(2, 30), "dhaai" to listOf(2, 30),
     )
 
-    private fun norm(t: String) = t.lowercase().replace(Regex("""[^a-z0-9:]+"""), " ").trim()
+    private fun norm(t: String) = t.lowercase().replace(Regex("""(\d)([a-z])"""), "$1 $2").replace(Regex("""[^a-z0-9:]+"""), " ").trim()
+
+    private val MONTH_WORDS = listOf("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
+    /** Words that name a day, whatever the structure says: a weekday, a relative day, a date. */
+    private fun saysADay(words: Set<String>) = words.any { w ->
+        WEEKDAY_WORDS.values.any { w in it } || RELATIVE_WORDS.values.any { w in it && w != "this" } || MONTH_WORDS.any { w.startsWith(it) } ||
+            w in setOf("st", "nd", "rd", "th", "next", "agle", "agla")
+    }
+    /** "in 20 minutes", "an hour from now", "10 minute mein", "do ghante baad": a length from now. */
+    private val FROM_NOW = Regex("""\bin (an?|\d+|half|one|two|three|four|five|ten|twenty|thirty|forty|fifty)\b|\bfrom now\b|\b(minutes?|mins?|ghante|ghanta|ghanton|seconds?|din) (mein|baad)\b""")
 
     /** Words that say a day, by what they say; English and Hindi in Latin letters. */
     private val RELATIVE_WORDS = mapOf(
@@ -146,14 +155,20 @@ object TimeArgs {
     private fun said(expr: TimeExpr, texts: List<String>): TimeExpr? {
         val words = texts.flatMap { norm(it).split(" ") }.toSet()
         fun part(c: TimeExpr.Clock?) = c?.let { clock ->
-            clock.copy(part = clock.part?.takeIf { p -> PART_WORDS[p].orEmpty().any { it in words } })
+            clock.copy(part = clock.part?.takeIf { p -> PART_WORDS[p].orEmpty().any { it in words } },
+                // am or pm only when said ("saade paanch baje" came back as 5:30 pm).
+                meridiem = clock.meridiem?.takeIf { it in words || (it == "am" && "midnight" in words) || (it == "pm" && "noon" in words) })
         }?.takeIf { it.hour != null || it.part != null }
         return when (expr) {
             is TimeExpr.At -> {
                 val day = when (val d = expr.day) {
                     is TimeExpr.Day.Relative -> d.takeIf { RELATIVE_WORDS[d.days].orEmpty().any { it in words } }
                     is TimeExpr.Day.Weekday -> d.takeIf { WEEKDAY_WORDS.getValue(d.weekday).any { it in words } }
-                    else -> d
+                    // A month or year nobody said is dropped ("the 12th" came back as 12 October 2026).
+                    is TimeExpr.Day.Date -> d.copy(
+                        month = d.month?.takeIf { m -> words.any { it.startsWith(MONTH_WORDS[(m - 1).coerceIn(0, 11)]) } || words.any { it.toIntOrNull() == m } },
+                        year = d.year?.takeIf { y -> y.toString() in words })
+                    null -> null
                 }
                 expr.copy(day = day, time = part(expr.time)).takeIf { it.day != null || it.time != null }
             }
@@ -172,6 +187,10 @@ object TimeArgs {
         val day = (expr as? TimeExpr.At)?.day
         if (words.any { it in PARSO } && !(day is TimeExpr.Day.Relative && day.days == 2)) return "parso is the day after tomorrow"
         if (kind == Resolve.For.Reminder && words.any { it in REPEATS } && expr !is TimeExpr.Every) return "you asked for it to repeat"
+        // A length from now ("in an hour") must be one, not a clock time the model worked out.
+        if (texts.any { FROM_NOW.containsMatchIn(norm(it)) } && expr is TimeExpr.At) return "that's a time from now"
+        // The user named a day, and the structure has none left that matches.
+        if (expr is TimeExpr.At && expr.day == null && saysADay(words)) return "the day isn't what you said"
         return null
     }
 
@@ -190,6 +209,7 @@ object TimeArgs {
         val words = (if (source.isNotEmpty()) source else texts.joinToString(" ") { norm(it) }).split(" ", ":")
         val said = words.mapNotNull { it.toIntOrNull() ?: SaidNumbers.WORDS[it] ?: HINDI[it] }.toMutableSet()
         words.forEach { w -> FRACTIONS[w]?.let { said += it } }
+        if ("noon" in words || "midnight" in words) said += 12
         // "three quarters" is 45 minutes, never 15 ("timer for three quarters of an hour" came back
         // as 15 minutes on the held-out bench, 2026-10-18).
         if (Regex("""\bthree quarters?\b""").containsMatchIn(words.joinToString(" "))) { said -= 15; said -= 3; said += 45 }
