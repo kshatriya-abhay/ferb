@@ -5,7 +5,8 @@ ones it rates at 0.25 or more, as B+Jev), "none" is no tool, unsure goes to the 
     schema.py --set requests|suite [--arm plain|rewrite|timed ...] [--dry-run] [--replies kept.jsonl ...]
 
 Arms: plain (rewrite false), rewrite (rewrite true: its commands are counted, not scored), timed
-(timed true: "when" required in the timed tools). Scored like B+Jev (right, runs, asks, missed;
+(timed true: "when" required in the timed tools); "timed2" etc. is timed again, as a fresh run
+after a harness change (kept replies are per arm name). Scored like B+Jev (right, runs, asks, missed;
 the checks against the request), @hi apart; a time argument comes from "when" where it's filled
 (alarm hours by TimeOfDay's rules, timer lengths), so a filled "when" is what's scored. Also: how
 often "when" is filled on lines with a time, and the latency. Replies kept by request and arm in
@@ -82,7 +83,7 @@ def main(argv):
             rid = f"{arm[0]}{n}"
             ids[rid] = (arm, text)
             send.append({"id": rid, "method": "schema-call", "request": text, "now": NOW, "tools": picked or routed(text),
-                         "rewrite": arm == "rewrite", "timed": arm == "timed", "timeout_ms": 20000})
+                         "rewrite": arm == "rewrite", "timed": arm.startswith("timed"), "timeout_ms": 20000})
     print(f"{len(lines)} requests ({which}.txt); {len(send)} schema-calls to send")
     if send:
         replies = harness(send, extra)
@@ -110,7 +111,8 @@ def main(argv):
         c = {"name": call.get("tool"), "arguments": args}
         resolved_time = bool(w) and param is not None
         # The harness's ask-only checks ("parso" not +2, a repeat asked for but not given) ask.
-        runs = not call.get("asks") and c["name"] not in confirm and cued(c["name"], text, cues) and (resolved_time or grounded(c, text))
+        # A call the harness cut at leaked JSON ("trimmed") always asks (ferb-manager's rule).
+        runs = not call.get("asks") and not call.get("trimmed") and c["name"] not in confirm and cued(c["name"], text, cues) and (resolved_time or grounded(c, text))
         return c, "run" if runs else "ask"
 
     def b_jev(text):
@@ -179,6 +181,10 @@ def main(argv):
     for arm in arms:
         ms = sorted(kept[t][arm]["ms"] for t, *_ in lines if kept.get(t, {}).get(arm, {}).get("ms"))
         if ms: print(f"  {arm:<8} {statistics.median(ms):.0f} / {ms[int(len(ms) * 0.9)]}  (n={len(ms)}; failed {sum(1 for t, *_ in lines if arm in kept.get(t, {}) and not kept[t][arm].get('success'))})")
+    # Calls the harness cut at leaked JSON ("trimmed"): should be rare.
+    for arm in arms:
+        cut = [t for t, *_ in lines for c in kept.get(t, {}).get(arm, {}).get("calls") or [] if c.get("trimmed")]
+        print(f"  {arm}: {len(cut)} calls trimmed" + (f": {'; '.join(cut)}" if cut else ""))
     if "rewrite" in arms:
         print(f"\nrewrite: commands instead of calls on {sum(1 for t, *_ in lines if kept.get(t, {}).get('rewrite', {}).get('commands'))} requests (not scored)")
 

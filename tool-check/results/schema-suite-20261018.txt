@@ -1,0 +1,51 @@
+201 requests (suite.txt); 290 schema-calls to send
+Replies kept in results/schema-20261018-192038.jsonl
+
+== suite.txt without @hi: 183 requests
+              right  runs ok  runs ✗  asks ok  asks ✗  missed
+B+Jev           171       86       7       32       1       4
+S plain         170       84       8       33       1       4
+S timed2        169       82       9       34       1       4
+
+== @hi: 18 requests
+              right  runs ok  runs ✗  asks ok  asks ✗  missed
+B+Jev            16        7       0        9       0       2
+S plain          17        7       0       10       0       1
+S timed2         17        7       0       10       0       1
+
+timed2: wrong runs and misses
+  run    open_app       {'app_name': 'chrome'} open google chrome                         -> open_app {"app_name": "Google Chrome"} when=null
+  run    control_media  {'action': 'play'} resume the song                            -> control_media {"action": "next"} when=null
+  missed create_note    {} remember that the wifi password is tiger12 -> None null when=null
+  missed show_agenda    {} am i free tmrw                             -> None null when=null
+  run    get_directions {'destination': 'charminar'} directions to charminar by metro           -> get_directions {"destination": "charminar by metro"} when=null
+  run    set_timer      {'seconds': 2700} timer for three quarters of an hour        -> set_timer {"duration": "900 seconds"} when={"kind": "duration", "v": 1, "length": {"hours": 0, "seconds": 0, "minutes": 15,
+  run    set_volume     {'percent': '25'} volume a quarter                           -> set_volume {"percent": 75} when=null
+  run    open_app       {'app_name': 'spotify'} open spotify and play the next song        -> control_media {"action": "next"} when=null
+  run    set_volume     {'percent': '0'} I'm in a meeting, silence the music        -> control_media {"action": "pause"} when=null
+  missed open_settings  {'page': 'battery'} my phone is dying, what's eating the batte -> None null when=null
+  run    get_directions {'destination': 'hospital'} I need to get to a hospital fast           -> get_directions {"destination": "a hospital"} when=null
+  missed show_agenda    {} do I have time for lunch tomorrow          -> None null when=null
+  run    none           {} settings for my camera lens                -> open_settings {"page": "display"} when=null
+  missed control_media  {'action': 'next'} agla gaana                                 -> None null when=null
+
+By category, right runs / wrong runs: B+Jev, S plain, S timed2
+  plain       44   36/1    36/1    33/1 
+  casual      32   22/0    20/1    20/1 
+  indian       6    3/1     3/1     3/1 
+  typos       14    3/1     4/0     4/0 
+  numbers     13   10/1    10/1    11/2 
+  multi        7    5/1     5/1     5/1 
+  context     12    7/1     6/2     6/2 
+  near        36    0/1     0/1     0/1 
+  out         19    0/0     0/0     0/0 
+
+"when" on lines whose expected tool takes a time (alarm hours and timer lengths checked):
+  plain    filled 1/40; right 1/1 of the alarm times and timer lengths checked
+  timed2   filled 40/40; right 32/33 of the alarm times and timer lengths checked
+
+Latency, ms (median / 90th):
+  plain    691 / 889  (n=145; failed 0)
+  timed2   802 / 1520  (n=145; failed 0)
+  plain: 1 calls trimmed: opne whatsap
+  timed2: 4 calls trimmed: open spotify; open the youtube app; open the calculator app; opne whatsap
