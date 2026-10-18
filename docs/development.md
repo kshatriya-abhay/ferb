@@ -58,6 +58,9 @@ Four tiers, cheapest first:
    - App and contact matching; NeedleReply parsing; the tool schemas.
    - What a transcription leads to (`VoiceOutcome`).
    - `SpokenRequestsTest` keeps what the audio bench found, at the component that handles it.
+   - The dates resolver (`ResolveTest`): every line of `tool-check/times.txt` (150 requests, fixed "now"s) resolves to its expected value from its gold structure; `TimeArgsTest` checks the override, the grounding and the asks.
+   - Who answers and the path it records (`AnswerFlowTest`), with fakes for Ferb Link and Needle 3.
+   - Device tests (`scripts/device-check.sh`, `QUIET=1` for a phone in use; take the lock, set `ANDROID_SERIAL`): the test phone is a Pixel 11 (Android 17, USB) from 2026-10-18, all four quiet checks passing. On it Needle 3 loads in 68 ms, sets up 5 tools in 0.44 s, and re-initialises with one tool and answers in 215–276 ms. A phone restored from a backup may get Ferb's permissions back on install (the Pixel did), so the first-run permission cards won't show there.
 2. **Contract tests** (in `mise run test` too): Ferb's side of the link to Ferb Link, replayed from Ferb Link's example requests and results.
    - Status, check, complete, transcribe, wake, each error kind, and an older Ferb Link.
    - Ferb Link owns the fixtures ([contract/v1](https://github.com/kshatriya-abhay/ferb-link/tree/main/contract/v1)); Ferb keeps a copy in `app/src/test/resources/ferb-link-contract/v1` (with `SOURCE`, the commit it came from).
