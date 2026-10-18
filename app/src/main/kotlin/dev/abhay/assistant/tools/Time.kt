@@ -85,7 +85,7 @@ sealed interface TimeExpr {
             else -> null
         }
 
-        private fun clock(o: JSONObject?): Clock? = o?.let { Clock(it.int("hour"), it.int("minute"), it.text("meridiem"), it.text("part")) }
+        internal fun clock(o: JSONObject?): Clock? = o?.let { Clock(it.int("hour"), it.int("minute"), it.text("meridiem"), it.text("part")) }
             ?.takeIf { it.hour != null || it.part != null }
 
         private fun length(o: JSONObject) = Length(o.optInt("days"), o.optInt("hours"), o.optInt("minutes"), o.optInt("seconds"))

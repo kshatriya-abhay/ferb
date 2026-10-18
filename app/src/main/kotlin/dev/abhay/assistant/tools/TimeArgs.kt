@@ -41,8 +41,11 @@ object TimeArgs {
      */
     fun apply(tool: String, arguments: Map<String, Any?>, texts: List<String>, now: ZonedDateTime): Map<String, Any?> {
         val (param, kind) = TIMED[tool] ?: return arguments
-        val expr = TimeExpr.parse(arguments["when"]?.takeIf { tool != AddEvent.name || it !is String })
+        val parsed = TimeExpr.parse(arguments["when"]?.takeIf { tool != AddEvent.name || it !is String })
             ?: TimeExpr.parse(arguments[param]) ?: return arguments
+        // Only what was said: a day or part of the day the user didn't say is dropped, and a
+        // structure that then says nothing is no structure (the model's own value stands).
+        val expr = said(parsed, texts) ?: return arguments
         val own = (arguments[param] as? String)?.takeIf { TimeExpr.parse(it) == null }
         val out = arguments.toMutableMap()
         out[RESOLVED] = true
@@ -114,6 +117,50 @@ object TimeArgs {
     )
 
     private fun norm(t: String) = t.lowercase().replace(Regex("""[^a-z0-9:]+"""), " ").trim()
+
+    /** Words that say a day, by what they say; English and Hindi in Latin letters. */
+    private val RELATIVE_WORDS = mapOf(
+        0 to setOf("today", "tonight", "aaj", "this"), 1 to setOf("tomorrow", "kal"), 2 to setOf("parso", "parson", "parsoon", "after"),
+    )
+    private val WEEKDAY_WORDS = mapOf(
+        java.time.DayOfWeek.MONDAY to setOf("monday", "mon", "somvar", "somwar"),
+        java.time.DayOfWeek.TUESDAY to setOf("tuesday", "tue", "tues", "mangalvar", "mangalwar"),
+        java.time.DayOfWeek.WEDNESDAY to setOf("wednesday", "wed", "budhvar", "budhwar"),
+        java.time.DayOfWeek.THURSDAY to setOf("thursday", "thu", "thurs", "guruvar", "guruwar", "brihaspativar"),
+        java.time.DayOfWeek.FRIDAY to setOf("friday", "fri", "shukravar", "shukrawar"),
+        java.time.DayOfWeek.SATURDAY to setOf("saturday", "sat", "shanivar", "shaniwar", "weekend"),
+        java.time.DayOfWeek.SUNDAY to setOf("sunday", "sun", "ravivar", "raviwar", "itvaar", "itwar", "weekend"),
+    )
+    private val PART_WORDS = mapOf(
+        "morning" to setOf("morning", "subah", "subha", "breakfast", "am"),
+        "afternoon" to setOf("afternoon", "dopahar", "noon", "lunch", "pm"),
+        "evening" to setOf("evening", "shaam", "sham", "pm"),
+        "night" to setOf("night", "tonight", "raat", "pm"),
+    )
+
+    /**
+     * [expr] with only what [texts] say: a day ([TimeExpr.At.day]) without a word for it and a
+     * part of the day without one are dropped, as the model fills them in unasked ("wake me up
+     * at 6:45" came back as this Friday, 2026-10-18). Null when nothing is left to say when.
+     */
+    private fun said(expr: TimeExpr, texts: List<String>): TimeExpr? {
+        val words = texts.flatMap { norm(it).split(" ") }.toSet()
+        fun part(c: TimeExpr.Clock?) = c?.let { clock ->
+            clock.copy(part = clock.part?.takeIf { p -> PART_WORDS[p].orEmpty().any { it in words } })
+        }?.takeIf { it.hour != null || it.part != null }
+        return when (expr) {
+            is TimeExpr.At -> {
+                val day = when (val d = expr.day) {
+                    is TimeExpr.Day.Relative -> d.takeIf { RELATIVE_WORDS[d.days].orEmpty().any { it in words } }
+                    is TimeExpr.Day.Weekday -> d.takeIf { WEEKDAY_WORDS.getValue(d.weekday).any { it in words } }
+                    else -> d
+                }
+                expr.copy(day = day, time = part(expr.time)).takeIf { it.day != null || it.time != null }
+            }
+            is TimeExpr.Every -> expr.copy(time = part(expr.time))
+            else -> expr
+        }
+    }
 
     /**
      * Words that say what the structure must hold, checked after the model (they never correct

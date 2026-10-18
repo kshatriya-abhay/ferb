@@ -103,4 +103,20 @@ class TimeArgsTest {
         val reminder = TimeArgs.apply(AddReminder.name, mapOf("text" to "bins", "time" to once), listOf("remind me every Monday at 8 to take out the bins"), now)
         assertThat(reminder[TimeArgs.ASK]).isEqualTo("you asked for it to repeat")
     }
+
+    @Test
+    fun aDayOrPartTheUserDidntSayIsDropped() {
+        // "Wake me up at 6:45" came back as this Friday: an alarm for the next 6:45, not an ask.
+        val friday = json("""{"v":1,"kind":"at","day":{"weekday":"friday","which":"this"},"time":{"hour":6,"minute":45,"meridiem":null,"part":"evening"}}""")
+        val args = TimeArgs.apply(SetAlarm.name, mapOf("time" to "6:45", "when" to friday), listOf("Wake me up at 6:45"), now)
+        assertThat(args["time"]).isEqualTo("06:45")
+        assertThat(args[TimeArgs.ASK]).isNull()
+        // A structure that says nothing ("in 15 minutes" as an empty "at"): the model's own value stands.
+        val empty = json("""{"v":1,"kind":"at","day":null,"time":{"hour":null,"minute":null,"meridiem":null,"part":null}}""")
+        val reminder = mapOf<String, Any?>("text" to "remind me", "time" to "in 15 minutes", "when" to empty)
+        assertThat(TimeArgs.apply(AddReminder.name, reminder, listOf("remind me in 15 minutes"), now)).isEqualTo(reminder)
+        // Said days stay, in English or Hindi.
+        val somvar = json("""{"v":1,"kind":"at","day":{"weekday":"monday","which":null},"time":{"hour":10,"minute":0,"meridiem":null,"part":null}}""")
+        assertThat(TimeArgs.apply(AddEvent.name, mapOf("title" to "meeting", "when" to somvar), listOf("somvar 10 baje meeting"), now)[TimeArgs.AT]).isEqualTo("2026-10-19T10:00")
+    }
 }
