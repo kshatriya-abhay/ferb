@@ -62,6 +62,9 @@ class TimeArgsTest {
         assertThat(TimeArgs.grounded(at(19, 45, "quarter to eight"), listOf("alarm at quarter to eight in the evening"))).isTrue()
         assertThat(TimeArgs.grounded(TimeExpr.Lasting(TimeExpr.Length(hours = 1, minutes = 30), "dedh ghante"), listOf("dedh ghante ka timer"))).isTrue()
         assertThat(TimeArgs.grounded(at(9, 0, "9 baje"), listOf("10 baje utha dena"))).isFalse()
+        val quarters = "timer for three quarters of an hour"
+        assertThat(TimeArgs.grounded(TimeExpr.Lasting(TimeExpr.Length(minutes = 45)), listOf(quarters))).isTrue()
+        assertThat(TimeArgs.grounded(TimeExpr.Lasting(TimeExpr.Length(minutes = 15)), listOf(quarters))).isFalse()
         // Spoken: the heard words count too.
         assertThat(TimeArgs.grounded(at(7, 15, "sava saat"), listOf("Set an alarm for 7:15 am", "sava saat baje utha dena"))).isTrue()
     }

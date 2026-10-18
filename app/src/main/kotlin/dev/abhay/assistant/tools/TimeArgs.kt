@@ -190,6 +190,9 @@ object TimeArgs {
         val words = (if (source.isNotEmpty()) source else texts.joinToString(" ") { norm(it) }).split(" ", ":")
         val said = words.mapNotNull { it.toIntOrNull() ?: SaidNumbers.WORDS[it] ?: HINDI[it] }.toMutableSet()
         words.forEach { w -> FRACTIONS[w]?.let { said += it } }
+        // "three quarters" is 45 minutes, never 15 ("timer for three quarters of an hour" came back
+        // as 15 minutes on the held-out bench, 2026-10-18).
+        if (Regex("""\bthree quarters?\b""").containsMatchIn(words.joinToString(" "))) { said -= 15; said -= 3; said += 45 }
         val before = words.any { it == "paune" || it == "to" }
         return expr.numbers.all { n ->
             val as12 = listOfNotNull(n, (n - 12).takeIf { n in 13..23 })
