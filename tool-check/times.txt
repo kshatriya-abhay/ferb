@@ -1,0 +1,211 @@
+# Times and dates (Plan - Dates and times through Gemma, 2026-10-16): what each request's time
+# resolves to, against a fixed "now", by Ferb's rules (When, TimeOfDay, ReminderTime).
+#
+#   expected | request | gold structure
+#
+# expected: alarm YYYY-MM-DDTHH:MM (the alarm's next ring), timer Ns, event YYYY-MM-DDTHH:MM or
+# event YYYY-MM-DD (a day, no time), reminder YYYY-MM-DDTHH:MM [repeat=daily|weekly], ask, none.
+# gold structure, the "time" v1 shape in short:
+#   at [day=+N | day=mon | day=next:mon | day=this:mon | day=D/M | day=D/M/Y | day=D] [time=H[:MM][am|pm]] [part=…] [src=weekend]
+#   in 1h30m | duration 2m30s | every day|week|weekdays|month|year [on=mon,wed] [time=…] | none
+# The resolver's unit tests (tier 1) resolve the gold structure and check the expected value;
+# Gemma's extraction (tier 3, Ferb Link's harness) is scored on the structure and the value.
+# "# now=" lines set the clock for the lines after them; "# split=" marks tuning and held-out
+# halves; "# @" lines start a category.
+
+# now=2026-10-16T09:00 Asia/Kolkata
+# @clock
+# split=tune
+alarm 2026-10-17T06:45 | wake me up at 6:45 | at time=6:45
+alarm 2026-10-16T10:00 | alarm for 10 | at time=10
+alarm 2026-10-16T19:00 | alarm at 7 pm | at time=7pm
+alarm 2026-10-16T19:30 | set an alarm for 19:30 | at time=19:30
+alarm 2026-10-17T06:30 | set an alarm for half past six | at time=6:30
+alarm 2026-10-17T07:45 | alarm at quarter to eight | at time=7:45
+alarm 2026-10-16T12:00 | alarm at noon | at time=12pm
+alarm 2026-10-17T00:00 | alarm at midnight | at time=12am
+alarm 2026-10-16T19:00 | alarm for 7 tonight | at time=7 part=night
+alarm 2026-10-16T18:00 | alarm for 6 in the evening | at time=6 part=evening
+# split=held
+alarm 2026-10-17T05:30 | wake me at 5:30 am | at time=5:30am
+alarm 2026-10-16T11:00 | alarm at 11 | at time=11
+alarm 2026-10-16T21:15 | alarm for 9:15 pm | at time=9:15pm
+alarm 2026-10-17T08:00 | wake me up at 8 | at time=8
+alarm 2026-10-16T16:30 | alarm for 16:30 | at time=16:30
+alarm 2026-10-17T06:15 | set an alarm for quarter past six | at time=6:15
+alarm 2026-10-16T13:00 | alarm at 1 in the afternoon | at time=1 part=afternoon
+alarm 2026-10-17T07:00 | alarm for 7 in the morning | at time=7 part=morning
+alarm 2026-10-16T22:00 | alarm at 10 at night | at time=10 part=night
+alarm 2026-10-17T07:20 | alarm 7:20 | at time=7:20
+
+# @hindi
+# split=tune
+alarm 2026-10-17T07:15 | kal subah sava saat baje utha dena | at day=+1 time=7:15am part=morning
+alarm 2026-10-17T07:45 | paune aath baje ka alarm lagao | at time=7:45
+alarm 2026-10-17T05:30 | saade paanch baje alarm laga do | at time=5:30
+alarm 2026-10-16T14:00 | dopahar 2 baje utha dena | at time=2 part=afternoon
+alarm 2026-10-16T18:00 | shaam 6 baje ka alarm | at time=6 part=evening
+alarm 2026-10-17T02:00 | raat 2 baje ka alarm | at time=2 part=night
+timer 150s | dhai minute ka timer lagao | duration 2m30s
+timer 5400s | dedh ghante ka timer | duration 1h30m
+event 2026-10-17T16:00 | kal 4 baje meeting calendar mein daal do | at day=+1 time=4
+event 2026-10-18T18:00 | parso shaam 6 baje meeting | at day=+2 time=6 part=evening
+alarm 2026-10-16T19:30 | shaam saade saat baje utha dena | at time=7:30 part=evening
+reminder 2026-10-16T20:00 | aaj raat yaad dilana | at day=+0 part=night
+event 2026-10-17T11:00 | kal 11 baje doctor | at day=+1 time=11
+# split=held
+alarm 2026-10-17T06:00 | subah 6 baje utha dena | at time=6 part=morning
+alarm 2026-10-17T07:00 | kal subah 7 baje jaga dena | at day=+1 time=7 part=morning
+alarm 2026-10-16T21:00 | raat 9 baje alarm | at time=9 part=night
+alarm 2026-10-17T08:15 | sava aath baje utha dena | at time=8:15
+timer 600s | das minute ka timer laga do | duration 10m
+timer 900s | pandrah minute ka timer | duration 15m
+timer 2700s | paune ghante ka timer | duration 45m
+event 2026-10-19T10:00 | somvar 10 baje meeting | at day=mon time=10
+event 2026-10-23T14:00 | agle shukravar dopahar 2 baje meeting | at day=next:fri time=2 part=afternoon
+reminder 2026-10-17T09:00 | kal subah yaad dilana | at day=+1 part=morning
+alarm 2026-10-17T06:30 | subah saade chhe baje utha dena | at time=6:30 part=morning
+timer 1200s | bees minute ka timer | duration 20m
+reminder 2026-10-18T09:00 | parso yaad dilana | at day=+2
+event 2026-10-20T15:00 | mangalvar 3 baje meeting | at day=tue time=3
+
+# @relative
+# split=tune
+alarm 2026-10-16T09:20 | alarm in 20 minutes | in 20m
+reminder 2026-10-16T09:20 | remind me in 20 minutes to call mom | in 20m
+reminder 2026-10-16T11:30 | remind me in 2 and a half hours | in 2h30m
+reminder 2026-10-16T10:00 | remind me in an hour to check the oven | in 1h
+reminder 2026-10-16T09:45 | remind me in 45 minutes | in 45m
+reminder 2026-10-19T09:00 | remind me in 3 days to renew the pass | in 3d
+reminder 2026-10-16T09:10 | 10 minute mein yaad dilana | in 10m
+alarm 2026-10-16T11:00 | alarm in 2 hours | in 2h
+# split=held
+alarm 2026-10-16T10:30 | wake me in an hour and a half | in 1h30m
+reminder 2026-10-16T09:05 | remind me in 5 minutes | in 5m
+reminder 2026-10-16T13:00 | remind me in 4 hours to call back | in 4h
+reminder 2026-10-16T09:30 | remind me in half an hour | in 30m
+reminder 2026-10-17T09:00 | remind me in a day to pay | in 1d
+reminder 2026-10-16T10:15 | remind me in 75 minutes | in 1h15m
+reminder 2026-10-16T10:00 | ek ghante mein yaad dilana | in 1h
+alarm 2026-10-16T09:40 | wake me in 40 minutes | in 40m
+
+# @days
+# split=tune
+event 2026-10-17T16:00 | meeting tomorrow at 4 | at day=+1 time=4
+event 2026-10-16T20:00 | dinner with neha on friday 8pm | at day=fri time=8pm
+event 2026-10-23T13:00 | lunch next Friday at 1 | at day=next:fri time=1
+event 2026-10-20T11:00 | dentist on the 20th of October at 11 | at day=20/10 time=11
+event 2026-11-03T19:00 | party on 3 November at 7 pm | at day=3/11 time=7pm
+event 2026-10-19T10:00 | call with John on Monday at 10 | at day=mon time=10
+event 2026-11-12T15:00 | meeting on the 12th at 3 | at day=12 time=3
+event 2027-10-12 | anniversary dinner on 12 October | at day=12/10
+event 2026-10-17T09:00 | doctor this Saturday morning | at day=this:sat part=morning
+event 2026-10-22T16:00 | meeting at 4 on Thursday | at day=thu time=4
+reminder 2026-10-17T09:00 | remind me tomorrow at 9 to call the bank | at day=+1 time=9
+reminder 2026-10-17T09:00 | remind me on Saturday to pay rent | at day=sat
+reminder 2026-10-16T18:00 | remind me at 6 pm to take medicine | at time=6pm
+reminder 2026-10-16T20:00 | remind me tonight to lock the door | at day=+0 part=night
+# split=held
+event 2026-10-19T09:30 | standup Monday 9:30 | at day=mon time=9:30
+event 2026-10-21T15:00 | coffee with Sam on Wednesday at 3 | at day=wed time=3
+event 2026-10-26T10:00 | review next Monday at 10 am | at day=next:mon time=10am
+event 2026-11-01T18:00 | movie on 1 November at 6 | at day=1/11 time=6
+event 2026-10-25T12:00 | brunch on the 25th at noon | at day=25 time=12pm
+event 2026-10-18T14:00 | Sunday afternoon at 2 picnic | at day=sun time=2 part=afternoon
+event 2026-10-17T18:00 | tomorrow evening at 6 drinks | at day=+1 time=6 part=evening
+event 2026-10-30 | holiday on 30 October | at day=30/10
+event 2027-01-05T10:00 | visa appointment on 5 January 2027 at 10 | at day=5/1/2027 time=10
+reminder 2026-10-16T17:00 | remind me at 5 to call dad | at time=5
+reminder 2026-11-01T09:00 | remind me on 1 November to renew insurance | at day=1/11
+reminder 2026-10-18T09:00 | remind me the day after tomorrow | at day=+2
+reminder 2026-10-20T07:00 | remind me on Tuesday at 7 am to water the plants | at day=tue time=7am
+reminder 2026-10-16T14:00 | remind me this afternoon to email Priya | at day=+0 part=afternoon
+
+# @durations
+# split=tune
+timer 600s | set a timer for 10 minutes | duration 10m
+timer 90s | 90 second timer | duration 90s
+timer 5400s | timer for an hour and a half | duration 1h30m
+timer 4500s | timer 1 hour 15 minutes | duration 1h15m
+timer 7200s | timer for 2 hours | duration 2h
+# split=held
+timer 45s | countdown 45 seconds | duration 45s
+timer 300s | five minute timer | duration 5m
+timer 1800s | half an hour timer | duration 30m
+timer 3600s | timer for an hour | duration 1h
+timer 150s | timer two and a half minutes | duration 2m30s
+
+# @repeats
+# split=tune
+reminder 2026-10-19T08:00 repeat=weekly | remind me every Monday at 8 to take out the bins | every week on=mon time=8
+reminder 2026-10-16T21:00 repeat=daily | remind me every day at 9 pm to drink water | every day time=9pm
+reminder 2026-10-17T07:00 repeat=daily | remind me daily at 7 to stretch | every day time=7
+reminder 2026-10-17T10:00 repeat=weekly | every Saturday at 10 remind me to call home | every week on=sat time=10
+reminder 2026-10-16T22:00 repeat=daily | roz raat 10 baje yaad dilana | every day time=10 part=night
+# split=held
+reminder 2026-10-21T18:00 repeat=weekly | every Wednesday at 6 pm remind me about yoga | every week on=wed time=6pm
+reminder 2026-10-17T09:00 repeat=daily | remind me every morning to take vitamins | every day part=morning
+reminder 2026-10-18T10:00 repeat=weekly | har ravivar 10 baje yaad dilana | every week on=sun time=10
+reminder 2026-10-20T19:00 repeat=weekly | remind me every Tuesday at 7 pm | every week on=tue time=7pm
+reminder 2026-10-17T06:00 repeat=daily | every day at 6 am remind me to run | every day time=6am
+
+# @ask
+# split=tune
+ask | set an alarm for Monday 7 am | at day=mon time=7am
+ask | alarm tomorrow at 10 | at day=+1 time=10
+ask | team call this weekend | at day=this:sat src=weekend
+ask | remind me every weekday at 7 | every weekdays time=7
+ask | alarm today at 8 | at day=+0 time=8
+# split=held
+ask | wake me up on Sunday at 6 | at day=sun time=6
+ask | set an alarm for the 20th at 7 | at day=20 time=7
+ask | movie night this weekend | at day=this:sat src=weekend
+ask | remind me every Monday and Wednesday at 8 | every week on=mon,wed time=8
+ask | alarm for 25:00 | at time=25
+
+# @near
+# split=tune
+none | I set an alarm yesterday | none
+none | my alarm went off at 6 | none
+none | the meeting was at 4 yesterday | none
+none | is it 5 o'clock somewhere | none
+# split=held
+none | I woke up at 7 | none
+none | kal ka match kaisa tha | none
+none | the timer is broken | none
+none | my train leaves at 6 every day | none
+
+# now=2026-10-31T22:00 Asia/Kolkata
+# @month end
+# split=tune
+alarm 2026-11-01T06:00 | kal subah 6 baje utha dena | at day=+1 time=6 part=morning
+event 2026-11-02T10:00 | meeting on Monday at 10 | at day=mon time=10
+reminder 2026-11-01T01:00 | remind me in 3 hours | in 3h
+event 2026-11-02T15:00 | meeting on the 2nd at 3 | at day=2 time=3
+alarm 2026-10-31T23:00 | alarm at 11 pm | at time=11pm
+# split=held
+event 2026-11-02T14:00 | parso dopahar 2 baje meeting | at day=+2 time=2 part=afternoon
+alarm 2026-11-01T07:30 | alarm 7:30 | at time=7:30
+reminder 2026-11-01T09:00 | remind me tomorrow | at day=+1
+event 2026-11-30T11:00 | meeting on the 30th at 11 | at day=30 time=11
+reminder 2026-11-01T00:15 | remind me in 2 hours 15 minutes | in 2h15m
+
+# now=2026-10-18T09:00 Asia/Kolkata
+# @sunday
+# split=tune
+event 2026-10-18T17:00 | meeting on Sunday at 5 | at day=sun time=5
+event 2026-10-25T17:00 | meeting next Sunday at 5 | at day=next:sun time=5
+alarm 2026-10-19T06:00 | alarm Monday 6 am | at day=mon time=6am
+# split=held
+event 2026-10-24T11:00 | brunch on Saturday at 11 | at day=sat time=11
+alarm 2026-10-19T07:00 | wake me tomorrow at 7 | at day=+1 time=7
+reminder 2026-10-25T09:00 | remind me next Sunday | at day=next:sun
+
+# now=2026-10-25T00:30 Europe/London
+# @dst
+# split=tune
+reminder 2026-10-25T01:30 | remind me in 2 hours | in 2h
+timer 7200s | timer for 2 hours | duration 2h
+# split=held
+alarm 2026-10-25T01:00 | alarm in 90 minutes | in 1h30m
+reminder 2026-10-25T09:00 | remind me this morning at 9 | at day=+0 time=9 part=morning
