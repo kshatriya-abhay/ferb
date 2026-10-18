@@ -82,4 +82,25 @@ class TimeArgsTest {
         assertThat(TimeArgs.apply(OpenApp.name, mapOf("app_name" to "spotify", "when" to kalSavaSaat), listOf("open spotify"), now))
             .isEqualTo(mapOf("app_name" to "spotify", "when" to kalSavaSaat))
     }
+
+    @Test
+    fun withoutASourceTheNumbersAreCheckedAgainstTheUsersWords() {
+        val noSource = TimeExpr.At(TimeExpr.Day.Relative(1), TimeExpr.Clock(7, 15, "am", "morning"))
+        assertThat(TimeArgs.grounded(noSource, listOf("kal subah sava saat baje utha dena"))).isTrue()
+        assertThat(TimeArgs.grounded(noSource, listOf("kal subah aath baje utha dena"))).isFalse()
+    }
+
+    @Test
+    fun parsoAndARepeatSaidButNotGivenAsk() {
+        // "parso" read as tomorrow, the computer's miss on 3 of 3 lines (2026-10-18).
+        val tomorrow = json("""{"v":1,"kind":"at","day":{"relative":1},"time":{"hour":6,"minute":0,"meridiem":null,"part":"evening"}}""")
+        val event = TimeArgs.apply(AddEvent.name, mapOf("title" to "meeting", "when" to tomorrow), listOf("parso shaam 6 baje meeting"), now)
+        assertThat(event[TimeArgs.ASK]).isEqualTo("parso is the day after tomorrow")
+        val dayAfter = json("""{"v":1,"kind":"at","day":{"relative":2},"time":{"hour":6,"minute":0,"meridiem":null,"part":"evening"}}""")
+        assertThat(TimeArgs.apply(AddEvent.name, mapOf("title" to "meeting", "when" to dayAfter), listOf("parso shaam 6 baje meeting"), now)[TimeArgs.ASK]).isNull()
+        // "every Monday at 8" as a one-off next Monday.
+        val once = json("""{"v":1,"kind":"at","day":{"weekday":"monday","which":null},"time":{"hour":8,"minute":0,"meridiem":null,"part":null}}""")
+        val reminder = TimeArgs.apply(AddReminder.name, mapOf("text" to "bins", "time" to once), listOf("remind me every Monday at 8 to take out the bins"), now)
+        assertThat(reminder[TimeArgs.ASK]).isEqualTo("you asked for it to repeat")
+    }
 }

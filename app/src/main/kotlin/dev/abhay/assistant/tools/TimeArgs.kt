@@ -46,8 +46,9 @@ object TimeArgs {
         val own = (arguments[param] as? String)?.takeIf { TimeExpr.parse(it) == null }
         val out = arguments.toMutableMap()
         out[RESOLVED] = true
-        if (!grounded(expr, texts)) {
-            out[ASK] = "the time isn't what you said"
+        val doubt = if (!grounded(expr, texts)) "the time isn't what you said" else doubt(expr, kind, texts)
+        if (doubt != null) {
+            out[ASK] = doubt
             own?.let { out[param] = it } ?: out.remove(param)
             return out
         }
@@ -112,16 +113,34 @@ object TimeArgs {
         "paune" to listOf(45), "dedh" to listOf(1, 30), "derh" to listOf(1, 30), "dhai" to listOf(2, 30), "dhaai" to listOf(2, 30),
     )
 
+    private fun norm(t: String) = t.lowercase().replace(Regex("""[^a-z0-9:]+"""), " ").trim()
+
     /**
-     * Whether [expr] is what the user said: its source in one of [texts], word for word, and each
-     * of its numbers one the source says (as a digit, an English or Hindi number word, or a
-     * fraction word's part), an hour also as its pm hour, or one less after "paune" / "to".
+     * Words that say what the structure must hold, checked after the model (they never correct
+     * it, only ask): "parso" is the day after tomorrow, and "every", "har", "roz" or "daily" is a
+     * repeat a reminder must have. Both were the computer's misses in ferb-link's check (2026-10-18).
+     */
+    private fun doubt(expr: TimeExpr, kind: Resolve.For, texts: List<String>): String? {
+        val words = texts.flatMap { norm(it).split(" ") }.toSet()
+        val day = (expr as? TimeExpr.At)?.day
+        if (words.any { it in PARSO } && !(day is TimeExpr.Day.Relative && day.days == 2)) return "parso is the day after tomorrow"
+        if (kind == Resolve.For.Reminder && words.any { it in REPEATS } && expr !is TimeExpr.Every) return "you asked for it to repeat"
+        return null
+    }
+
+    private val PARSO = setOf("parso", "parson", "parsoon")
+    private val REPEATS = setOf("every", "har", "roz", "daily", "weekly", "monthly", "yearly")
+
+    /**
+     * Whether [expr] is what the user said: its source, when it has one, in one of [texts] word for
+     * word; and each of its numbers one the source (or, without one, the user's words) says, as a
+     * digit, an English or Hindi number word, or a fraction word's part, an hour also as its pm
+     * hour, or one less after "paune" / "to".
      */
     fun grounded(expr: TimeExpr, texts: List<String>): Boolean {
-        fun norm(t: String) = t.lowercase().replace(Regex("""[^a-z0-9:]+"""), " ").trim()
         val source = norm(expr.source)
-        if (source.isEmpty() || texts.none { " ${norm(it)} ".contains(" $source ") }) return false
-        val words = source.split(" ", ":")
+        if (source.isNotEmpty() && texts.none { " ${norm(it)} ".contains(" $source ") }) return false
+        val words = (if (source.isNotEmpty()) source else texts.joinToString(" ") { norm(it) }).split(" ", ":")
         val said = words.mapNotNull { it.toIntOrNull() ?: SaidNumbers.WORDS[it] ?: HINDI[it] }.toMutableSet()
         words.forEach { w -> FRACTIONS[w]?.let { said += it } }
         val before = words.any { it == "paune" || it == "to" }
