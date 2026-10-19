@@ -448,6 +448,20 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         })
     }
 
+    /**
+     * A result's slider followed a change made outside Ferb ([dev.abhay.assistant.tools.LevelWatch]):
+     * shows [value] and its message, changing nothing.
+     */
+    fun follow(exchangeId: Long, callIndex: Int, value: Float) = updateExchange(exchangeId) { e ->
+        e.copy(calls = e.calls.mapIndexed { i, c ->
+            val done = (c.status as? Status.Finished)?.outcome as? Outcome.Done
+            val level = done?.level
+            val watch = level?.watch
+            if (i != callIndex || watch == null) c
+            else c.copy(status = Status.Finished(done.copy(message = watch.describe(value), level = level.copy(value = value))))
+        })
+    }
+
     /** The assistant's screen if it's in front (so a quiet request runs in its task), else the app. */
     private fun launchContext(): Context = assistant.foreground.activity ?: getApplication()
 

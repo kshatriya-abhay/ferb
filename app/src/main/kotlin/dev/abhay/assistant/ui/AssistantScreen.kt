@@ -134,6 +134,8 @@ import dev.abhay.assistant.tools.Tools
 import dev.abhay.assistant.ui.AssistantViewModel.Status
 import java.util.Locale
 import kotlinx.coroutines.delay
+import dev.abhay.assistant.tools.LevelWatch
+import androidx.compose.runtime.rememberUpdatedState
 
 /**
  * The assistant, as a chat: requests on the right, what was done on the left, newest at the bottom
@@ -397,6 +399,7 @@ private fun History(
                     onChoose = { index, choice -> onTipSeen(Tip.AskFirst); viewModel.choose(exchange.id, index, choice) },
                     onFollowUp = { index, action -> onTipSeen(Tip.Undo); viewModel.followUp(exchange.id, index, action) },
                     onAdjust = { index, value -> viewModel.adjust(exchange.id, index, value) },
+                    onFollow = { index, value -> viewModel.follow(exchange.id, index, value) },
                     onDetails = { onDetails(exchange) },
                     onTurnOn = { tool -> onTurnOn(exchange.id, tool) },
                     onAllow = { needs -> onAllow(exchange.id, needs) },
@@ -467,6 +470,8 @@ private fun ReplyBubble(
     onChoose: (Int, Choice) -> Unit,
     onFollowUp: (Int, FollowUp) -> Unit,
     onAdjust: (Int, Float) -> Unit,
+    /** A slider's value changed outside Ferb: show it, changing nothing. */
+    onFollow: (Int, Float) -> Unit = { _, _ -> },
     onDetails: () -> Unit,
     onTurnOn: (String) -> Unit = {},
     onAllow: (List<String>) -> Unit = {},
@@ -488,7 +493,7 @@ private fun ReplyBubble(
                 asking && !choosing -> Text("Shall I do this?", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             exchange.calls.forEachIndexed { i, call ->
-                CallLine(call, onChoose = { choice -> onChoose(i, choice) }, onFollowUp = { action -> onFollowUp(i, action) }, onAdjust = { value -> onAdjust(i, value) }, onAllow = onAllow)
+                CallLine(call, onChoose = { choice -> onChoose(i, choice) }, onFollowUp = { action -> onFollowUp(i, action) }, onAdjust = { value -> onAdjust(i, value) }, onFollow = { value -> onFollow(i, value) }, onAllow = onAllow)
             }
             source(exchange)?.let { (icon, text) ->
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -535,7 +540,7 @@ internal fun AssistantViewModel.CallState.needs(): List<String> =
 /** One call: the tool's icon and what it does or did, then the result's buttons as chips. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun CallLine(state: AssistantViewModel.CallState, onChoose: (Choice) -> Unit, onFollowUp: (FollowUp) -> Unit, onAdjust: (Float) -> Unit, onAllow: (List<String>) -> Unit = {}) {
+private fun CallLine(state: AssistantViewModel.CallState, onChoose: (Choice) -> Unit, onFollowUp: (FollowUp) -> Unit, onAdjust: (Float) -> Unit, onFollow: (Float) -> Unit = {}, onAllow: (List<String>) -> Unit = {}) {
     val tool = Tools.byName(state.call.name)
     val status = state.status
     val (text, failed) = when (status) {
@@ -602,7 +607,22 @@ private fun CallLine(state: AssistantViewModel.CallState, onChoose: (Choice) -> 
         }
         val done = (status as? Status.Finished)?.outcome as? Outcome.Done
         done?.level?.let { level ->
-            Slider(value = level.value, onValueChange = onAdjust, modifier = Modifier.padding(start = 48.dp))
+            val context = LocalContext.current
+            var dragging by remember { mutableStateOf(false) }
+            val shown by rememberUpdatedState(level.value)
+            val follow by rememberUpdatedState(onFollow)
+            // While on screen, a value changed outside Ferb (the volume keys) moves the slider,
+            // except while the user drags it; listening stops when the reply leaves the screen.
+            level.watch?.let { watch ->
+                DisposableEffect(watch) {
+                    val stop = watch.start(context) { now ->
+                        LevelWatch.follow(shown, now, dragging)?.let(follow)
+                    }
+                    onDispose { stop() }
+                }
+            }
+            Slider(value = level.value, onValueChange = { dragging = true; onAdjust(it) },
+                onValueChangeFinished = { dragging = false }, modifier = Modifier.padding(start = 48.dp))
         }
         val lines = done?.lines.orEmpty()
         if (lines.isNotEmpty()) ResultLines(lines, onTick = onFollowUp)

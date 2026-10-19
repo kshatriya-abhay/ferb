@@ -25,8 +25,28 @@ sealed interface Outcome {
 /** One line of a result's list: [lead] in a column of its own (a time), [open] when tapped; with [tick], a checkbox that does it (a list's item). */
 class Line(val lead: String, val text: String, val detail: String? = null, val open: (() -> Intent)? = null, val tick: FollowUp? = null)
 
-/** A slider on a result, at [value] (0..1): [set] applies a value and gives the result's new message. */
-data class Level(val value: Float, val set: (Context, Float) -> String)
+/**
+ * A slider on a result, at [value] (0..1): [set] applies a value and gives the result's new message.
+ * [watch], when the value can change outside Ferb (the volume keys, another app), follows it while
+ * the slider is on screen.
+ */
+data class Level(val value: Float, val set: (Context, Float) -> String, val watch: LevelWatch? = null)
+
+/**
+ * Following a [Level] changed outside Ferb: [start] begins listening, calling back with the value
+ * now (0..1) on each change, and returns how to stop; [describe] is the result's message for a value.
+ */
+class LevelWatch(val start: (Context, (Float) -> Unit) -> () -> Unit, val describe: (Float) -> String) {
+    companion object {
+        /**
+         * The value a slider should show for [now], read outside Ferb, or null to leave it: not
+         * while the user drags it (their finger wins), and not for a change too small to see
+         * (the echo of Ferb's own setting, rounded to the stream's step).
+         */
+        fun follow(shown: Float, now: Float, dragging: Boolean): Float? =
+            if (dragging || kotlin.math.abs(shown - now) < 0.005f) null else now.coerceIn(0f, 1f)
+    }
+}
 
 /** A button on a result: [run] does it and gives the new result (with its own buttons, e.g. "Turn on" again). */
 class FollowUp(val label: String, val run: suspend (FollowUpEnv) -> Outcome) {

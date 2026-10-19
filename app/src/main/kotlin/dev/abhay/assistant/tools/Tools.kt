@@ -21,6 +21,9 @@ import dev.abhay.assistant.tools.Tools.again
 import dev.abhay.assistant.tools.Tools.withActions
 import java.util.Locale
 import kotlin.math.roundToInt
+import androidx.core.content.ContextCompat
+import android.content.IntentFilter
+import android.content.BroadcastReceiver
 
 /**
  * The assistant's tools. Each is one narrow action, with bounds and enums in its schema and formats
@@ -528,9 +531,31 @@ object SetVolume : Tool(
         if (percent !in 0..100) return Prepared.Invalid("$percent % isn't 0–100")
         return Prepared.Ready("Set the media volume to $percent %", opensApp = false) { context ->
             val message = set(context, percent / 100f)
-            Outcome.Done(message, level = Level(level(context), ::set))
+            Outcome.Done(message, level = Level(level(context), ::set, watch))
         }
     }
+
+    /**
+     * The media volume as it changes outside Ferb (volume keys, another app, the system panel):
+     * Android's VOLUME_CHANGED broadcast, a protected system broadcast that needs no permission,
+     * for the media stream only. The volume is read again on each, so the slider shows the step.
+     */
+    internal val watch = LevelWatch(
+        start = { context, onChange ->
+            val receiver = object : BroadcastReceiver() {
+                override fun onReceive(c: Context, intent: Intent) {
+                    if (intent.getIntExtra(EXTRA_STREAM, STREAM) == STREAM) onChange(level(context))
+                }
+            }
+            ContextCompat.registerReceiver(context, receiver, IntentFilter(VOLUME_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED)
+            val stop: () -> Unit = { context.unregisterReceiver(receiver) }
+            stop
+        },
+        describe = { "Media volume ${(it * 100).roundToInt()} %" },
+    )
+    /** AudioManager's hidden VOLUME_CHANGED_ACTION and its stream extra. */
+    private const val VOLUME_CHANGED = "android.media.VOLUME_CHANGED_ACTION"
+    private const val EXTRA_STREAM = "android.media.EXTRA_VOLUME_STREAM_TYPE"
 
     /** The media volume now, 0..1. */
     private fun level(context: Context): Float {

@@ -35,7 +35,7 @@ The details behind the [README](../README.md): how a request becomes tool calls,
 | Settings pages (`open_settings`) | ✓ | `Settings.ACTION_*` (Wi-Fi, Bluetooth, battery, display…, or Settings itself) |
 | Flashlight (`set_flashlight`) | ✓ | `CameraManager.setTorchMode` |
 | Show alarms (`show_alarms`) | | `AlarmClock.ACTION_SHOW_ALARMS` |
-| Media volume (`set_volume`) | | `AudioManager.setStreamVolume` on the media stream; requests about the ringer, alarm or notification volume ask first |
+| Media volume (`set_volume`) | | `AudioManager.setStreamVolume` on the media stream; requests about the ringer, alarm or notification volume ask first. The reply's slider follows the volume changed outside Ferb (volume keys, another app, the system panel) while it's on screen, through the VOLUME_CHANGED broadcast (no permission), but not while it's being dragged |
 | Media controls (`control_media`) | | Media key events |
 | Camera (`open_camera`) | | `MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA` |
 | Notes (`create_note`) | | Google's "create note" action (`com.google.android.gms.actions.CREATE_NOTE`, the one its "Take a note" voice command sends) with the note as `EXTRA_TEXT`; Google Keep and other notes apps take it (Keep opens it in a small dialog to save, it doesn't save it by itself), and with several Android asks which. A note whose words aren't mostly the request's asks first |
