@@ -18,11 +18,9 @@ object Obsidian {
     fun open(context: Context, note: NoteRef): Boolean {
         val link = ObsidianLink.of(note.id, note.name) ?: return false
         return try {
-            // CLEAR_TASK: Obsidian's activity is singleTask, and a link delivered to it while it's
-            // open (onNewIntent) didn't open the note on the Pixel 11; a fresh start did. So its
-            // task is cleared and the activity starts anew with the link (its back stack is lost).
-            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link))
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
+            // A plain VIEW: it opens the note whether Obsidian is open or not (the Pixel 11,
+            // 2026-10-19). NEW_TASK only because the caller may not be an activity.
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             true
         } catch (e: ActivityNotFoundException) {
             false
