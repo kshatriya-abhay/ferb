@@ -57,4 +57,15 @@ class CreateNoteTest {
         assertThat(folder.create("Shopping", "y")!!.name).isEqualTo("Shopping 2")
         assertThat(NoteStore.isNote("Shopping.sync-conflict-20261014-120000-ABC.md")).isFalse()
     }
+
+    @Test
+    fun theChoicesAsTheUserSeesThem() {
+        val items = CreateNote.saveTo.items.associateBy { it.id }
+        assertThat(items.getValue(CreateNote.KEEP).description).contains("Google Keep")
+        val markdown = items.getValue(CreateNote.FOLDER)
+        assertThat(markdown.label).isEqualTo("Markdown notes (powered by Obsidian)")
+        // Offered only with Obsidian installed; Google Keep's option always.
+        assertThat(markdown.needsObsidian).isTrue()
+        assertThat(items.getValue(CreateNote.KEEP).needsObsidian).isFalse()
+    }
 }

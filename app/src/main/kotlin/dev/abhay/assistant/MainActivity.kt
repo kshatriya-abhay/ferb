@@ -1,9 +1,8 @@
 package dev.abhay.assistant
 
 import android.os.Bundle
+import android.widget.Toast
 import dev.abhay.assistant.ui.NotesScreen
-import dev.abhay.assistant.ui.NoteEditorScreen
-import dev.abhay.assistant.ui.NoteScreen
 import dev.abhay.assistant.notes.NoteRef
 import dev.abhay.assistant.notes.Obsidian
 import androidx.compose.runtime.LaunchedEffect
@@ -80,17 +79,16 @@ class MainActivity : ComponentActivity() {
                 }
                 var stack by rememberSaveable { mutableStateOf(listOf("assistant")) }
                 val open = { screen: String -> stack = stack + screen }
-                // A note: in Obsidian when that's the setting and it can open it, else Ferb's viewer.
-                val showNote = { note: NoteRef, then: List<String> ->
-                    val notes = viewModel.notes
-                    if (!(notes.opensInObsidian(Obsidian.installed(this@MainActivity)) && Obsidian.open(this@MainActivity, note))) {
-                        stack = then + "note:${note.id}\n${note.name}"
+                // A note opens in Obsidian (Ferb has no viewer of its own); without it, a short message.
+                val showNote = { note: NoteRef ->
+                    if (!Obsidian.open(this@MainActivity, note)) {
+                        Toast.makeText(this@MainActivity, Obsidian.NOT_INSTALLED, Toast.LENGTH_SHORT).show()
                     }
                 }
                 // "Open" on a list or note in the chat (or a reminder's notification): that note.
                 val opening by noteToOpen
                 LaunchedEffect(opening) {
-                    opening?.let { (id, name) -> showNote(NoteRef(id, name, 0), listOf("assistant", "notes")) }
+                    opening?.let { (id, name) -> showNote(NoteRef(id, name, 0)) }
                     noteToOpen.value = null
                 }
                 // The assistant trigger: back to the chat, from wherever Ferb was.
@@ -101,15 +99,7 @@ class MainActivity : ComponentActivity() {
                 when {
                     screen == "assistant" -> AssistantScreen(viewModel, assists = assisted, onOpenSettings = { open("settings") },
                         onOpenLink = { stack = stack + "settings" + "link" }, onOpenNotes = { open("notes") })
-                    screen == "notes" -> NotesScreen(viewModel.notes, onOpen = { showNote(it, stack) }, onBack = back)
-                    screen.startsWith("edit:") -> {
-                        val (id, name) = screen.removePrefix("edit:").split("\n", limit = 2)
-                        NoteEditorScreen(viewModel.notes, NoteRef(id, name, 0), onDone = back)
-                    }
-                    screen.startsWith("note:") -> {
-                        val (id, name) = screen.removePrefix("note:").split("\n", limit = 2)
-                        NoteScreen(viewModel.notes, NoteRef(id, name, 0), onEdit = { open("edit:$id\n$name") }, onBack = back)
-                    }
+                    screen == "notes" -> NotesScreen(viewModel.notes, onOpen = { showNote(it) }, onBack = back)
                     screen == "settings" -> SettingsScreen(settings, onOpenTools = { open("tools") }, onOpenLink = { open("link") }, onBack = back)
                     screen == "link" -> LinkScreen(settings, onBack = back)
                     screen == "tools" -> ToolsScreen(settings, onOpenTool = { open("tool:$it") }, onBack = back)
@@ -128,7 +118,7 @@ class MainActivity : ComponentActivity() {
         private const val EXTRA_NOTE_ID = "note_id"
         private const val EXTRA_NOTE_NAME = "note_name"
 
-        /** Opens [note]: in Obsidian when that's the setting, else in Ferb's notes screen. */
+        /** Opens [note] in Obsidian, through Ferb (a reply's Open, a reminder's notification). */
         fun openNote(context: Context, note: NoteRef): Intent = Intent(context, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             .putExtra(EXTRA_NOTE_ID, note.id).putExtra(EXTRA_NOTE_NAME, note.name)

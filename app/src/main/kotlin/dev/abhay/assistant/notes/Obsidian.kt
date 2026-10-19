@@ -6,15 +6,19 @@ import android.content.Intent
 import android.net.Uri
 
 /**
- * Opening Ferb's notes in Obsidian, the user's notes app, instead of Ferb's own viewer and editor
- * (which stay as the fallback). Seeing Obsidian needs only the manifest's `<queries>` entry for
- * the `obsidian` scheme, no permission.
+ * Ferb's Markdown notes are opened in Obsidian ("Markdown notes (powered by Obsidian)"); Ferb has
+ * no viewer or editor of its own. Seeing Obsidian needs only the manifest's `<queries>` entry for
+ * the `obsidian` scheme, no permission. Saving, lists and reminders work through the Storage Access
+ * Framework without it.
  */
 object Obsidian {
+    const val NOT_INSTALLED = "Install Obsidian to open this note"
+
+
     fun installed(context: Context): Boolean =
         context.packageManager.queryIntentActivities(Intent(Intent.ACTION_VIEW, Uri.parse("obsidian://open")), 0).isNotEmpty()
 
-    /** Opens [note] in Obsidian ([ObsidianLink]); false when it can't, for Ferb's viewer to show it. */
+    /** Opens [note] in Obsidian ([ObsidianLink]); false when it can't (not installed, or no link). */
     fun open(context: Context, note: NoteRef): Boolean {
         val link = ObsidianLink.of(note.id, note.name) ?: return false
         return try {

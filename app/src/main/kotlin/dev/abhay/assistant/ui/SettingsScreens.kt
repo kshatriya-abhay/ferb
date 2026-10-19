@@ -315,9 +315,11 @@ fun ToolConfigScreen(settings: SettingsViewModel, name: String, onOpenKeywords: 
                 TipCard(Tip.Keywords, onDismiss = { settings.onboarding.seen(Tip.Keywords) }, Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp))
             }
 
+            val context = LocalContext.current
+            val obsidian = remember { Obsidian.installed(context) }
             tool.options.forEach { option ->
                 when (option) {
-                    is ToolOption.Choice -> ChoiceSetting(option, config.choice(option), enabled = config.enabled) { id ->
+                    is ToolOption.Choice -> ChoiceSetting(option, config.choice(option), enabled = config.enabled, obsidian = obsidian) { id ->
                         change { it.copy(options = it.options + (option.key to id)) }
                     }
                     is ToolOption.Calendar -> CalendarSetting(option, config.options[option.key].orEmpty(), enabled = config.enabled) { id ->
@@ -603,9 +605,10 @@ private fun ConfidenceSetting(config: ToolConfig, default: ToolConfig, shapes: L
 }
 
 @Composable
-private fun ChoiceSetting(option: ToolOption.Choice, chosen: String, enabled: Boolean, onChoose: (String) -> Unit) {
+private fun ChoiceSetting(option: ToolOption.Choice, chosen: String, enabled: Boolean, obsidian: Boolean, onChoose: (String) -> Unit) {
     SectionTitle(option.title)
-    Group(option.items.map { item ->
+    // A choice that needs Obsidian is offered only with it installed, or while it's the one chosen.
+    Group(option.items.filter { !it.needsObsidian || obsidian || it.id == chosen }.map { item ->
         { shapes ->
             SegmentedListItem(
                 selected = item.id == chosen,
@@ -703,21 +706,6 @@ private fun NotesFolderSetting(notes: SafNotes, enabled: Boolean) {
             trailingContent = { Text(if (name == null) "Pick" else "Change", color = MaterialTheme.colorScheme.primary) },
         ) { Text("Notes folder") }
     })
-    // Only with Obsidian installed: then notes open there unless turned off.
-    val context = LocalContext.current
-    val obsidian = remember { Obsidian.installed(context) }
-    if (obsidian) {
-        var inObsidian by remember { mutableStateOf(notes.opensInObsidian(true)) }
-        Spacer(Modifier.height(8.dp))
-        Group(listOf { shapes ->
-            SegmentedListItem(
-                onClick = { inObsidian = !inObsidian; notes.setOpenInObsidian(inObsidian) },
-                shapes = shapes,
-                supportingContent = { Text(if (inObsidian) "Tapping a note opens it in Obsidian" else "Notes open in Ferb's own viewer") },
-                trailingContent = { Switch(checked = inObsidian, onCheckedChange = null) },
-            ) { Text("Open notes in Obsidian") }
-        })
-    }
 }
 
 /** The JSON schema Needle 3 gets, behind a toggle: useful when tuning, noise otherwise. */

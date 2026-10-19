@@ -652,15 +652,17 @@ object CreateNote : Tool(
     /** At least half the note's words must be the request's: a note Needle 3 made up asks first. */
     override fun grounded(arguments: Map<String, Any?>, request: String) = Tools.mostlySaid(arguments.text("text"), request)
 
-    /** Where notes go: the notes app (Keep), as before, or `.md` files in the user's vault folder. */
+    /** Where notes go: the notes app (Google Keep), as before, or `.md` files in a folder of the user's Obsidian vault, opened in Obsidian. */
     const val KEEP = "keep"
     const val FOLDER = "folder"
+    /** The folder option's name, wherever the user sees it. */
+    const val MARKDOWN_NOTES = "Markdown notes (powered by Obsidian)"
     val saveTo = ToolOption.Choice(
         key = "save_to",
         title = "Save notes to",
         items = listOf(
-            ToolOption.Choice.Item(KEEP, "Your notes app", "Such as Keep, to save there"),
-            ToolOption.Choice.Item(FOLDER, "A folder", "Markdown files, e.g. in your Obsidian vault"),
+            ToolOption.Choice.Item(KEEP, "Your notes app", "Such as Google Keep, to save there"),
+            ToolOption.Choice.Item(FOLDER, MARKDOWN_NOTES, "Markdown files in a folder of your Obsidian vault, opened in Obsidian", needsObsidian = true),
         ),
         default = KEEP,
     )

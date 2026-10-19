@@ -89,7 +89,8 @@ sealed interface ToolOption {
         /** Shown under the choices, e.g. that more are coming. */
         val note: String? = null,
     ) : ToolOption {
-        data class Item(val id: String, val label: String, val description: String)
+        /** [needsObsidian]: offered only with Obsidian installed (Markdown notes open there). */
+        data class Item(val id: String, val label: String, val description: String, val needsObsidian: Boolean = false)
     }
 
     /** The notes folder in the user's vault ([dev.abhay.assistant.notes.SafNotes]), picked once and kept outside the tools' draft. */
