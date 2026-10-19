@@ -5,35 +5,21 @@ package dev.abhay.assistant.notes
  * URI). Obsidian on Android (1.14.4, checked 2026-10-19) opens notes only through these links: no
  * VIEW for .md files or content:// URIs. Pure, so it's unit-tested.
  *
- * Tried in order (https://obsidian.md/help/Extending+Obsidian/Obsidian+URI):
- * 1. `path=<absolute path>`: Obsidian finds the vault that holds it, so the folder can be the vault
- *    or a folder inside it. Only for the phone's own storage and SD cards, whose documents have paths.
- * 2. `vault=<folder name>&file=<note name>`: other providers; Obsidian names a vault after its folder,
- *    so this fits when the picked folder is the vault.
- * 3. null: Ferb's own viewer.
+ * `vault=<the picked folder's name>&file=<the note's path from that folder, without .md>`, the form
+ * Obsidian's "Copy Obsidian URL" makes (https://obsidian.md/help/Extending+Obsidian/Obsidian+URI).
+ * Obsidian names a vault after its folder, so this fits when the picked folder is the vault. Checked
+ * on the Pixel 11 (2026-10-19): it opens the note. `path=<absolute path>` opens Obsidian but not the
+ * note on Android (as https://forum.obsidian.md/t/80640 reports), so it isn't used. Null: Ferb's viewer.
  */
 object ObsidianLink {
-    private const val EXTERNAL_STORAGE = "com.android.externalstorage.documents"
-
     fun of(documentUri: String, noteName: String): String? {
-        val (authority, documentId) = parse(documentUri) ?: return null
-        path(authority, documentId)?.let { return "obsidian://open?path=${encode(it)}" }
-        val folder = folder(documentUri) ?: return null
-        return "obsidian://open?vault=${encode(folder)}&file=${encode(noteName)}"
-    }
-
-    /** The absolute file path of an external-storage document ("primary:Documents/V/a.md"), or null. */
-    fun path(authority: String, documentId: String): String? {
-        if (authority != EXTERNAL_STORAGE) return null
-        val volume = documentId.substringBefore(':', "").ifEmpty { return null }
-        val rest = documentId.substringAfter(':')
-        return when {
-            volume == "primary" -> "/storage/emulated/0/$rest"
-            volume == "home" -> "/storage/emulated/0/Documents/$rest"
-            // An SD card or USB drive: its volume id, e.g. "1234-ABCD".
-            Regex("[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}").matches(volume) -> "/storage/$volume/$rest"
-            else -> null
-        }
+        val (_, documentId) = parse(documentUri) ?: return null
+        val tree = treeId(documentUri) ?: return null
+        val vault = tree.substringAfter(':').substringAfterLast('/').ifEmpty { return null }
+        // The note's path inside the folder; just its name when the provider's ids aren't paths.
+        val inside = documentId.removePrefix("$tree/").takeIf { it != documentId && it.isNotEmpty() } ?: "$noteName.md"
+        val file = inside.removeSuffix(".md").removeSuffix(".MD")
+        return "obsidian://open?vault=${encode(vault)}&file=${encode(file)}"
     }
 
     /** The authority and document id of `content://<authority>/tree/<tree id>/document/<document id>`. */
@@ -45,11 +31,9 @@ object ObsidianLink {
         return authority to decode(id)
     }
 
-    /** The picked folder's name, from the tree id ("primary:Documents/My Vault" → "My Vault"). */
-    private fun folder(documentUri: String): String? {
-        val tree = documentUri.substringAfter("/tree/", "").substringBefore('/').ifEmpty { return null }
-        return decode(tree).substringAfter(':').substringAfterLast('/').ifEmpty { null }
-    }
+    /** The picked folder's tree id ("primary:Documents/My Vault"), decoded. */
+    private fun treeId(documentUri: String): String? =
+        documentUri.substringAfter("/tree/", "").substringBefore('/').ifEmpty { null }?.let(::decode)
 
     /** Percent-encodes all but unreserved characters, as UTF-8: "/" as %2F and " " as %20, as Obsidian asks. */
     fun encode(text: String): String = buildString {
