@@ -120,7 +120,8 @@ class AnswerFlowTest {
     fun voiceTakesTheTranscriptionsTextStraightToJev() {
         val link = FakeLink(picks = mapOf("Set an alarm for 7:15 am" to jev(SetAlarm.name, 0.93)))
         val got = answer(link, "Set an alarm for 7:15 am", LinkMode.Option, Answerer.Link, jev = true, heard = "sava saat baje utha dena")
-        assertThat(got.chain()).isEqualTo("Voice → Gemma transcription → Jev (Alarms, 0.93) → Needle 3 (0.81)")
+        // A spoken alarm is a timed pick: the timed call on the transcription's text (2026-10-19).
+        assertThat(got.chain()).isEqualTo("Voice → Gemma transcription → Jev (Alarms, 0.93) → Gemma (time)")
         assertThat(link.asked).doesNotContain("complete: Set an alarm for 7:15 am")
         // Jev failing: as without Jev, the computer answers, and the chain says so.
         val late = answer(FakeLink(), "Set an alarm for 7:15 am", LinkMode.Option, Answerer.Link, jev = true, heard = "sava saat baje utha dena")
@@ -180,5 +181,30 @@ class AnswerFlowTest {
         val torch = FakeLink(picks = mapOf("torch off" to jev(Flashlight.name, 0.9)), computer = reply(0.9, ToolCall(Flashlight.name, mapOf("on" to false)), source = FerbLink.SOURCE))
         answer(torch, "torch off", LinkMode.Option, Answerer.Link, jev = true)
         assertThat(torch.asked.none { it.startsWith("complete (time)") }).isTrue()
+    }
+
+    @Test
+    fun aSpokenTimedPickTakesTheTimedCallAndFallsBackToNeedle3() {
+        val kal = org.json.JSONObject("""{"v":1,"kind":"at","day":{"relative":1},"time":{"hour":7,"minute":15,"meridiem":"am","part":"morning"}}""")
+        val link = FakeLink(picks = mapOf("Set an alarm for 7:15 am tomorrow" to jev(SetAlarm.name, 0.93)))
+        link.timedReply = reply(null, ToolCall(SetAlarm.name, mapOf("time" to "7:15", "when" to kal)), source = FerbLink.SOURCE)
+        val friday9 = java.time.LocalDateTime.parse("2026-10-16T09:00").atZone(java.time.ZoneId.of("Asia/Kolkata"))
+        val got = runBlocking {
+            AnswerFlow(link, needle(), now = { friday9 }).answer("Set an alarm for 7:15 am tomorrow", "kal subah sava saat baje utha dena",
+                enabled, configs, LinkMode.Option, Answerer.Link, jevSwitch = true)
+        }
+        assertThat(got.chain()).isEqualTo("Voice \u2192 Gemma transcription \u2192 Jev (Alarms, 0.93) \u2192 Gemma (time)")
+        assertThat(got.shown.calls.single().arguments["time"]).isEqualTo("07:15")
+        assertThat(got.verdict.decision).isEqualTo(Decision.Run)
+        assertThat(needleAsked).isEmpty()
+        // The timed call failing: Needle 3 with Jev's tool, as before.
+        val failing = FakeLink(picks = mapOf("Set an alarm for 7:15 am" to jev(SetAlarm.name, 0.93)))
+        failing.timedReply = reply(null, source = FerbLink.SOURCE, error = "timed out")
+        val fell = answer(failing, "Set an alarm for 7:15 am", LinkMode.Option, Answerer.Link, jev = true, heard = "sava saat baje utha dena")
+        assertThat(fell.chain()).isEqualTo("Voice \u2192 Gemma transcription \u2192 Jev (Alarms, 0.93) \u2192 Gemma (time): timed out \u2192 Needle 3 (0.81)")
+        // An untimed spoken pick: Needle 3, no timed call.
+        val spoken = FakeLink(picks = mapOf("Turn off the torch" to jev(Flashlight.name, 0.97)))
+        answer(spoken, "Turn off the torch", LinkMode.Option, Answerer.Link, jev = true, heard = "torch band karo", needle = needle(reply(0.9, torch)))
+        assertThat(spoken.asked.none { it.startsWith("complete") }).isTrue()
     }
 }

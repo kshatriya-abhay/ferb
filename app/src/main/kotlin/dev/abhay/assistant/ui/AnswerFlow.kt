@@ -245,16 +245,31 @@ class AnswerFlow(
                 }
                 JevPick.NoTool -> done += Triple(text, null, listOf(Step("Jev", pick(jev))))
                 is JevPick.Tool -> {
-                    asking(null)
-                    val reply = timed(needle(text, listOfNotNull(Tools.byName(pick.name)))) { listOfNotNull(text, heard) }
-                    done += Triple(text, reply, listOf(Step("Jev", pick(jev)), needleStep(reply)))
+                    val tool = listOfNotNull(Tools.byName(pick.name))
+                    // A timed pick: the computer's timed call on the transcription's text, for the
+                    // time as structure, as typed requests in Computer mode (2026-10-19); Needle 3
+                    // if it fails.
+                    val viaComputer = if (heard != null && pick.name in TIMED) {
+                        asking("Asking your computer\u2026")
+                        link.complete(text, Tools.json(tool), timeFormat = true)
+                    } else null
+                    if (viaComputer != null && viaComputer.error == null) {
+                        val reply = timed(viaComputer) { listOfNotNull(text, heard) }
+                        done += Triple(text, reply, listOf(Step("Jev", pick(jev)), Step("Gemma (time)")))
+                    } else {
+                        asking(null)
+                        val reply = timed(needle(text, tool)) { listOfNotNull(text, heard) }
+                        done += Triple(text, reply, listOfNotNull(Step("Jev", pick(jev)), viaComputer?.let { Step("Gemma (time): ${it.error}") }, needleStep(reply)))
+                    }
                 }
             }
         }
         // One command: its steps continue the chain; several: each has its own, under "Understood as".
         if (done.size == 1) path += done.single().third
         val calls = done.flatMap { (text, reply, _) -> reply?.calls.orEmpty().map { it to text } }
-        val verdicts = done.mapNotNull { (text, reply, _) -> reply?.let { Verdict.of(it, configs, text) } }
+        val verdicts = done.mapNotNull { (text, reply, _) ->
+            reply?.let { if (it.fromLaptop) LinkPolicy.verdict(it, configs, text) else Verdict.of(it, configs, text) }
+        }
         val decision = when {
             calls.isEmpty() -> Decision.Refuse
             // A fact the request didn't hold (Ferb Link's `invented`): never without asking.
