@@ -155,17 +155,18 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(state.notice) { state.notice?.let { snackbar.showSnackbar(it) } }
     val onboarding by viewModel.onboarding.state.collectAsStateWithLifecycle()
-    // Voice: only with Ferb Link picked in the chat box, and a computer that takes audio.
     val offered = answerer.takeIf { linkMode == LinkMode.Option }
     // "Use Jev to select the tool" is on, and Ferb Link has Jev on: shown under the box.
     val jevOn by viewModel.jev.collectAsStateWithLifecycle()
     val linkStatus = rememberLinkStatus(viewModel.link)
     val usingJev = jevOn && linkMode != LinkMode.Off && (linkStatus as? LinkStatus.Ready)?.jev == true
-    val voice = rememberVoiceAvailable(viewModel.link, active = offered == Answerer.Link)
+    // Voice: the computer hears it when it's picked in the chat box and takes audio (any language);
+    // otherwise Whistle, on the phone (English).
+    val computerHears = rememberVoiceAvailable(viewModel.link, active = offered == Answerer.Link)
     // The one tip to show, if any, among those whose thing is on screen.
     val startScreen = engine is AssistantEngine.State.Ready && state.history.isEmpty() && state.pending == null
     val places = chatTips(state.history, startScreen, answererShown = offered != null,
-        micShown = voice && state.voice == null && state.input.isBlank(), linkOff = linkMode == LinkMode.Off)
+        micShown = state.voice == null, linkOff = linkMode == LinkMode.Off)
     val tip = Tip.next(places.map { it.tip }, onboarding.seen)?.let { t -> places.first { it.tip == t } }
     val seen = viewModel.onboarding::seen
     val context = LocalContext.current
@@ -264,7 +265,7 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
                 onDispose { if (holding) viewModel.link.release() }
             }
             val askMic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-                if (granted) viewModel.startRecording()
+                if (granted) viewModel.startRecording(onPhone = !computerHears)
                 else {
                     // Refused: typing still works. Once Android won't ask again, the mic opens Ferb's settings page.
                     if ((context as? Activity)?.shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO) == false) refused = refused + Manifest.permission.RECORD_AUDIO
@@ -275,11 +276,10 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
                 // With the computer picked, a tap on the box wakes its model while the request is typed.
                 onFocus = { if (offered == Answerer.Link) viewModel.wakeComputer() },
                 answerer = offered, usingJev = usingJev, onAnswerer = { seen(Tip.Answerer); viewModel.setAnswerer(it) },
-                voice = voice,
                 onMic = {
                     seen(Tip.Mic)
                     when {
-                        context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED -> viewModel.startRecording()
+                        context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED -> viewModel.startRecording(onPhone = !computerHears)
                         Manifest.permission.RECORD_AUDIO in refused ->
                             context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
                         else -> askMic.launch(Manifest.permission.RECORD_AUDIO)
@@ -384,7 +384,7 @@ private fun History(
         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.Bottom),
     ) {
         state.pending?.let { request ->
-            item(key = "thinking") { Thinking(state.asking) }
+            item(key = "thinking") { Thinking(state.asking, still = state.transcribing) }
             item(key = "pending") { RequestBubble(request) }
         }
         items(state.history.asReversed(), key = { it.id }) { exchange ->
@@ -444,10 +444,11 @@ private fun AssistantBubble(onClick: (() -> Unit)? = null, content: @Composable 
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun Thinking(asking: String?) {
+private fun Thinking(asking: String?, still: Boolean = false) {
     AssistantBubble {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            LoadingIndicator(Modifier.size(32.dp))
+            // Still while Whistle transcribes: an animation competes with the engine for its cores.
+            if (!still) LoadingIndicator(Modifier.size(32.dp))
             asking?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
     }
@@ -762,9 +763,9 @@ private fun AnswererToggle(chosen: Answerer, onChoose: (Answerer) -> Unit) {
 }
 
 /**
- * A rounded input with the send button inside it (a loading indicator while Needle 3 thinks) and,
- * when Ferb Link is offered as an option, the choice of who answers under it. With the computer
- * picked and taking audio, an empty box's send button is the mic; a recording takes the box's place.
+ * A rounded input with the mic and the send button inside it (a loading indicator while Needle 3
+ * thinks) and, when Ferb Link is offered as an option, the choice of who answers under it. A
+ * recording takes the box's place.
  */
 @Composable
 private fun InputBar(
@@ -780,15 +781,13 @@ private fun InputBar(
     /** Whether Jev selects the tool (Settings → Ferb Link), shown next to the choice. */
     usingJev: Boolean = false,
     onAnswerer: (Answerer) -> Unit = {},
-    /** Whether to offer the mic (the computer picked, and it takes audio). */
-    voice: Boolean = false,
     onMic: () -> Unit = {},
     onStop: () -> Unit = {},
     onDiscard: () -> Unit = {},
 ) {
     Column(Modifier.padding(bottom = 12.dp)) {
         when (val clip = state.voice) {
-            null -> InputField(state, ready, voice, onChange, onSend, onMic, onFocus, focus)
+            null -> InputField(state, ready, onChange, onSend, onMic, onFocus, focus)
             else -> VoiceField(clip, onStop, onDiscard, onSend)
         }
         // Who answers, in a row of its own under the box, so the box keeps its width for the request.
@@ -818,8 +817,8 @@ private fun UsingJev() {
 private val BoxShape = RoundedCornerShape(28.dp)
 
 /**
- * A spoken request in the box's place: while recording, the time so far (Ferb Link takes 30 s at
- * most) and Stop; once stopped, its length, ✕ to drop it, and Send.
+ * A spoken request in the box's place: while recording, the time so far (30 s at most, for Ferb
+ * Link and Whistle alike) and Stop; once stopped, its length, ✕ to drop it, and Send.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -865,7 +864,7 @@ private fun elapsed(ms: Long) = String.format(Locale.US, "%d:%02d", ms / 60_000,
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun InputField(
-    state: AssistantViewModel.UiState, ready: Boolean, voice: Boolean,
+    state: AssistantViewModel.UiState, ready: Boolean,
     onChange: (String) -> Unit, onSend: () -> Unit, onMic: () -> Unit, onFocus: () -> Unit,
     focus: Int = 0,
 ) {
@@ -898,15 +897,16 @@ private fun InputField(
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
         keyboardActions = KeyboardActions(onSend = { onSend() }),
         maxLines = 4,
+        // Both, always: the mic as the field's trailing icon (Material 3's voice input icon), and
+        // Send, enabled once there's text (ferb-manager, for the user, 2026-10-19).
         trailingIcon = {
-            Box(Modifier.padding(end = 4.dp).width(48.dp), contentAlignment = Alignment.Center) {
-                when {
-                    state.busy -> LoadingIndicator(Modifier.size(36.dp))
-                    // Nothing typed and the computer takes audio: the button speaks instead.
-                    voice && state.input.isBlank() -> FilledTonalIconButton(onClick = onMic, enabled = ready) {
-                        Icon(painterResource(R.drawable.ic_mic), contentDescription = "Speak")
-                    }
-                    else -> FilledIconButton(onClick = onSend, enabled = ready && state.input.isNotBlank()) {
+            Row(Modifier.padding(end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onMic, enabled = ready && !state.busy) {
+                    Icon(painterResource(R.drawable.ic_mic), contentDescription = "Speak")
+                }
+                Box(Modifier.width(48.dp), contentAlignment = Alignment.Center) {
+                    if (state.busy && !state.transcribing) LoadingIndicator(Modifier.size(36.dp))
+                    else FilledIconButton(onClick = onSend, enabled = ready && !state.busy && state.input.isNotBlank()) {
                         Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
                     }
                 }

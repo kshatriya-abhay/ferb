@@ -1,7 +1,7 @@
 // JNI bridge between dev.abhay.assistant.engine.Needle and the prebuilt Needle engine (needle.h),
-// which runs Cactus's Needle 3: requests in, tool calls out.
+// which runs Cactus's Needle 3 (requests in, tool calls out) and Whistle (speech in, text out).
 //
-// The engine holds one process-global model, is not thread-safe and has no way to unload it. The
+// The engine holds one process-global model of each kind (text, speech), is not thread-safe and has no way to unload it. The
 // Kotlin side calls these functions from one dedicated thread. The model stays loaded while the app
 // runs; changing the tools re-runs needle_init, which replaces the previous tool set.
 
@@ -109,6 +109,31 @@ Java_dev_abhay_assistant_engine_Needle_nativeComplete(JNIEnv* env, jobject, jstr
                                        out.data(), kOutputCapacity);
     if (result < 0) {
         throwIllegalState(env, "needle_complete failed: " + lastError());
+        return nullptr;
+    }
+    const jsize length = static_cast<jsize>(strnlen(out.data(), out.size()));
+    jbyteArray json = env->NewByteArray(length);
+    if (json != nullptr) env->SetByteArrayRegion(json, 0, length, reinterpret_cast<const jbyte*>(out.data()));
+    return json;
+}
+
+// Transcribes 16 kHz mono float PCM in [-1, 1] (at most 30 s) with the speech model (Whistle) and
+// returns the engine's JSON ({"text", "language", "ttft_ms", "decode_tps"}) as UTF-8 bytes; silence
+// gives empty text. language may be null (detect). Throws IllegalStateException on failure.
+// Adapted from Local Models Demo's needle_jni.cpp.
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_dev_abhay_assistant_engine_Needle_nativeTranscribe(JNIEnv* env, jobject, jfloatArray pcm, jstring language) {
+    const jsize count = env->GetArrayLength(pcm);
+    // A copy rather than a pinned array: transcription takes a while, and pinning would hold up the
+    // garbage collector that long. 30 s of audio is under 2 MB.
+    std::vector<float> samples(static_cast<size_t>(count));
+    env->GetFloatArrayRegion(pcm, 0, count, samples.data());
+    Utf8 lang(env, language);
+    std::vector<char> out(kOutputCapacity, '\0');
+    const int result = needle_transcribe(samples.data(), count, lang.get(), /* keywords= */ nullptr,
+                                         /* word_timestamps= */ 0, out.data(), kOutputCapacity);
+    if (result < 0) {
+        throwIllegalState(env, "needle_transcribe failed: " + lastError());
         return nullptr;
     }
     const jsize length = static_cast<jsize>(strnlen(out.data(), out.size()));

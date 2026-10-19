@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import dev.abhay.assistant.voice.Heard
+import dev.abhay.assistant.voice.PcmRecorder
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
@@ -17,6 +19,9 @@ import java.util.Locale
  * at any time with [configure], which re-runs `needle_init` on the loaded model (checked on the
  * desktop: a second init replaces the tool set, and answers match a fresh start); [complete] does
  * so when a request is routed to other tools.
+ *
+ * Whistle (Phone-mode voice) loads beside it on the first spoken request and stays loaded too: the
+ * engine holds one text and one speech model, and has no unload.
  */
 class AssistantEngine(private val context: Context) {
     sealed interface State {
@@ -68,8 +73,29 @@ class AssistantEngine(private val context: Context) {
         return lock.withLock { Needle.complete(request) }
     }
 
+    private var whistleLoadMs: Long? = null
+
+    /** How long Whistle took to load, once it has. */
+    val whistleLoaded get() = whistleLoadMs
+
+    /**
+     * What Whistle hears in [pcm] (16 kHz mono float, at most 30 s), in English: Needle 3's tools
+     * are English, and Hindi or Hinglish speech goes to the computer. Loads Whistle the first time.
+     */
+    suspend fun transcribe(pcm: FloatArray): Heard = lock.withLock {
+        if (whistleLoadMs == null) {
+            val started = SystemClock.elapsedRealtime()
+            Needle.loadAsset(context.assets, WHISTLE_ASSET)
+            whistleLoadMs = SystemClock.elapsedRealtime() - started
+        }
+        val started = SystemClock.elapsedRealtime()
+        val json = Needle.transcribe(pcm, "en")
+        Heard.parse(json, SystemClock.elapsedRealtime() - started, pcm.size * 1000L / PcmRecorder.SAMPLE_RATE)
+    }
+
     companion object {
         const val MODEL_ASSET = "needle3.cact"
+        const val WHISTLE_ASSET = "whistle.cact"
 
         /** Facts, not instructions: what the model may use to resolve requests. */
         fun systemFacts(date: LocalDate, locale: Locale = Locale.getDefault()): String =

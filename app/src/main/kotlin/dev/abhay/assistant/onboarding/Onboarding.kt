@@ -21,7 +21,7 @@ enum class Tip(val text: String) {
     Keywords("Requests with these words go to this tool. Tap a word to change it."),
     Answerer("Pick who answers: this phone, or your computer through Ferb Link."),
     OnPhone("Your computer couldn't answer, so your phone did. Tap the reply for why."),
-    Mic("Speak English or Hindi: tap the mic, tap again to stop, then send."),
+    Mic("Tap the mic, tap again to stop, then send. On this phone, speak English; with Computer picked, Hindi too."),
     Heard("What your computer heard. The line above is what Ferb did with it."),
     SuggestLink("Want Ferb to understand more? Ferb Link uses a bigger model on a computer of your own.");
 

@@ -6,9 +6,10 @@ import kotlinx.coroutines.withContext
 import java.util.concurrent.Executors
 
 /**
- * Kotlin side of the JNI bridge (`assistant_jni.cpp`) to Cactus's Needle engine, running Needle 3.
+ * Kotlin side of the JNI bridge (`assistant_jni.cpp`) to Cactus's Needle engine, running Needle 3
+ * and, for Phone-mode voice, Whistle.
  *
- * The engine holds one process-global model and isn't thread-safe, so every call runs on one
+ * The engine holds one process-global model of each kind (text, speech) and isn't thread-safe, so every call runs on one
  * dedicated thread (which also keeps the engine's `thread_local` state on the same thread).
  */
 object Needle {
@@ -18,7 +19,7 @@ object Needle {
         System.loadLibrary("assistantjni")
     }
 
-    /** Loads the model bundled in the APK at [path] (an asset). Call once per process. */
+    /** Loads the model bundled in the APK at [path] (an asset), beside a loaded model of the other kind. Call once per model and process. */
     suspend fun loadAsset(assets: AssetManager, path: String) = withContext(engine) { nativeLoadAsset(assets, path) }
 
     /**
@@ -33,8 +34,14 @@ object Needle {
         nativeComplete(request, maxNewTokens).toString(Charsets.UTF_8)
     }
 
+    /** Whistle's JSON for 16 kHz mono float [pcm] (at most 30 s), in [language] (null: detect). */
+    suspend fun transcribe(pcm: FloatArray, language: String?): String = withContext(engine) {
+        nativeTranscribe(pcm, language).toString(Charsets.UTF_8)
+    }
+
     private external fun nativeLoadAsset(assets: AssetManager, path: String): Int
     private external fun nativeInit(systemPrompt: String, toolsJson: String): Int
     private external fun nativeReset()
     private external fun nativeComplete(input: String, maxNewTokens: Int): ByteArray
+    private external fun nativeTranscribe(pcm: FloatArray, language: String?): ByteArray
 }

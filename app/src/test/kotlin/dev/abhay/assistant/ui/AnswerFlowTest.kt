@@ -58,8 +58,8 @@ class AnswerFlowTest {
     }
 
     private fun answer(link: FakeLink, request: String, mode: LinkMode, answerer: Answerer = Answerer.Needle, jev: Boolean = false,
-                       heard: String? = null, needle: suspend (String, List<Tool>) -> NeedleReply = needle()) = runBlocking {
-        AnswerFlow(link, needle).answer(request, heard, enabled, configs, mode, answerer, jev)
+                       heard: String? = null, needle: suspend (String, List<Tool>) -> NeedleReply = needle(), whistle: Boolean = false) = runBlocking {
+        AnswerFlow(link, needle).answer(request, heard, enabled, configs, mode, answerer, jev, whistle)
     }
 
     private fun Answer.chain() = Step.chain(path)
@@ -69,6 +69,20 @@ class AnswerFlowTest {
         val got = answer(FakeLink(), "wake me up at 7:15", LinkMode.Off)
         assertThat(got.chain()).isEqualTo("Typed → Needle 3 (0.81)")
         assertThat(got.verdict.decision).isEqualTo(Decision.Run)
+    }
+
+    @Test
+    fun phoneVoiceIsWhistleThenTheUsualPath() {
+        val got = answer(FakeLink(), "wake me up at 7:15", LinkMode.Off, whistle = true)
+        assertThat(got.chain()).isEqualTo("Voice \u2192 Whistle \u2192 Needle 3 (0.81)")
+        assertThat(got.verdict.decision).isEqualTo(Decision.Run)
+        // With Jev on, Jev sits between them; the transcript is the request it's given.
+        val link = FakeLink(picks = mapOf("wake me up at 7:15" to jev(SetAlarm.name, 0.93)))
+        val jevd = answer(link, "wake me up at 7:15", LinkMode.Option, jev = true, whistle = true)
+        assertThat(jevd.chain()).isEqualTo("Voice \u2192 Whistle \u2192 Jev (Alarms, 0.93) \u2192 Needle 3 (0.81)")
+        // When unsure, the computer may still answer after Needle 3.
+        val unsure = answer(FakeLink(), "wake me up at 7:15", LinkMode.Fallback, whistle = true, needle = needle(reply(0.20, alarm)))
+        assertThat(unsure.chain()).isEqualTo("Voice \u2192 Whistle \u2192 Needle 3 (0.20) \u2192 Gemma")
     }
 
     @Test

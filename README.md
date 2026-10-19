@@ -2,7 +2,7 @@
 
 *A private assistant for Android that does things, on the phone.*
 
-Type a request, such as "set a timer for 10 minutes" or "turn on the flashlight", and Ferb does it: it sets the timer, switches on the torch, opens the app or settings page. A small tool-calling model, [Needle 3](https://huggingface.co/Cactus-Compute/needle3) (35 MB), runs on the phone inside the app.
+Type a request, such as "set a timer for 10 minutes" or "turn on the flashlight", and Ferb does it: it sets the timer, switches on the torch, opens the app or settings page. A small tool-calling model, [Needle 3](https://huggingface.co/Cactus-Compute/needle3) (35 MB), runs on the phone inside the app. Or tap the mic and say it, in English: [Whistle](https://huggingface.co/Cactus-Compute/whistle) (17 MB) transcribes it on the phone too.
 
 **Private by design:** Ferb has no internet permission, so nothing you type leaves your phone. The one exception is opt-in: Ferb Link, below, which sends requests to a computer of your own.
 
@@ -64,7 +64,7 @@ How each one works, and when Ferb asks first: [docs/how-it-works.md](docs/how-it
 
 ## Ferb Link (optional)
 
-**[Ferb Link](https://github.com/kshatriya-abhay/ferb-link)** is a companion app for a bigger model on a computer of your own (one with a GPU, such as a gaming laptop, reached over Tailscale). It holds the internet access Ferb doesn't have. With it, you can pick **Computer** under Ferb's chat box, and Ferb understands more phrasings and Hinglish, and gains voice input: tap the mic, speak, and the computer transcribes. Ferb Link answers only a Ferb signed with the same key, so get both the same way: both from Releases, or both built on the same computer. Set it up with [Ferb Link's quick start](https://github.com/kshatriya-abhay/ferb-link#quick-start).
+**[Ferb Link](https://github.com/kshatriya-abhay/ferb-link)** is a companion app for a bigger model on a computer of your own (one with a GPU, such as a gaming laptop, reached over Tailscale). It holds the internet access Ferb doesn't have. With it, you can pick **Computer** under Ferb's chat box, and Ferb understands more phrasings and Hinglish, typed or spoken: with Computer picked, the computer transcribes what you say. Ferb Link answers only a Ferb signed with the same key, so get both the same way: both from Releases, or both built on the same computer. Set it up with [Ferb Link's quick start](https://github.com/kshatriya-abhay/ferb-link#quick-start).
 
 ## Build from source
 
@@ -97,7 +97,9 @@ Working on Ferb itself (tests, tuning the tools, comparing models): [docs/develo
 | Project | Licence | Used for |
 |---|---|---|
 | [Needle 3](https://huggingface.co/Cactus-Compute/needle3) by Cactus Compute | Apache-2.0 | The tool-calling model, bundled |
-| [Needle engine](https://github.com/cactus-compute/needle) by Cactus Compute | Apache-2.0 | Runs Needle 3 (`libneedle.a`, linked prebuilt; Linux build for `tool-check`) |
+| [Whistle](https://huggingface.co/Cactus-Compute/whistle) by Cactus Compute | Apache-2.0 | Speech to text on the phone (Phone-mode voice, English), bundled |
+| [Needle engine](https://github.com/cactus-compute/needle) by Cactus Compute | Apache-2.0 | Runs Needle 3 and Whistle (`libneedle.a`, linked prebuilt; Linux build for `tool-check`) |
+| Local Models Demo (the author's own app) | — | Whistle's transcribe bridge and PCM recorder, adapted |
 | [AndroidX](https://developer.android.com/jetpack/androidx) (Compose, Material 3, Lifecycle) | Apache-2.0 | UI |
 | [Material Components for Android](https://github.com/material-components/material-components-android) | Apache-2.0 | The Material 3 window theme behind Compose |
 | [Kotlin coroutines](https://github.com/Kotlin/kotlinx.coroutines) | Apache-2.0 | Background work |

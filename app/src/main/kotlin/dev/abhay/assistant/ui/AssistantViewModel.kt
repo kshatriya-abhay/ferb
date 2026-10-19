@@ -1,8 +1,10 @@
 package dev.abhay.assistant.ui
 
+import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Context
 import android.os.SystemClock
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.abhay.assistant.AssistantApp
@@ -28,7 +30,11 @@ import dev.abhay.assistant.tools.Tool
 import dev.abhay.assistant.tools.ToolRouter
 import dev.abhay.assistant.tools.Tools
 import dev.abhay.assistant.tools.Verdict
+import dev.abhay.assistant.voice.PcmRecorder
+import dev.abhay.assistant.voice.PhoneVoice
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -109,12 +115,19 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         val notice: String? = null,
         /** A spoken request being recorded, or recorded and waiting for Send. */
         val voice: Voice? = null,
+        /**
+         * Whistle is transcribing on the phone: the screen keeps still meanwhile (no animated
+         * indicator), as the engine's pinned workers slow several times over when the UI competes
+         * for their cores (Local Models Demo, 2026-10-06).
+         */
+        val transcribing: Boolean = false,
     )
 
     sealed interface Voice {
-        data class Recording(val startedAt: Long) : Voice
-        /** [audio] is [Recorder.MIME], [ms] long. */
-        class Recorded(val audio: ByteArray, val ms: Long) : Voice
+        /** [onPhone]: for Whistle on the phone, else for the computer through Ferb Link. */
+        data class Recording(val startedAt: Long, val onPhone: Boolean = false) : Voice
+        /** [audio] is [Recorder.MIME] for the computer, [pcm] 16 kHz float for Whistle; [ms] long. */
+        class Recorded(val audio: ByteArray?, val ms: Long, val pcm: FloatArray? = null) : Voice
     }
 
     private val assistant = app as AssistantApp
@@ -126,8 +139,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     /** "Use Jev to select the tool" (Settings → Ferb Link). */
     val jev: StateFlow<Boolean> = assistant.linkSettings.jev
     fun setAnswerer(answerer: Answerer) {
-        // Voice goes only through Ferb Link.
-        if (answerer != Answerer.Link) discardRecording()
+        // A recording is for the one who was picked when it started.
+        if (answerer != this.answerer.value) discardRecording()
         assistant.linkSettings.setAnswerer(answerer)
         if (answerer == Answerer.Link) wakeComputer()
     }
@@ -196,13 +209,13 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     /** Answers [request] (typed, or the English command of a spoken one, [heard] as said) and runs what it can. */
-    private suspend fun answer(request: String, heard: String?) {
+    private suspend fun answer(request: String, heard: String?, whistle: Boolean = false) {
         try {
             val started = SystemClock.elapsedRealtime()
             val enabled = enabledTools.value.mapNotNull(Tools::byName)
             val configs = assistant.toolSettings.configs.value
             val answer = flow.answer(request, heard, enabled, configs, assistant.linkSettings.mode.value,
-                assistant.linkSettings.answerer.value, assistant.linkSettings.jev.value)
+                assistant.linkSettings.answerer.value, assistant.linkSettings.jev.value, whistle)
             val shown = answer.shown
             val verdict = answer.verdict
             val calls = shown.calls.mapIndexed { i, call -> CallState(call, prepare(call, answer.callTexts[i]), Status.Waiting) }
@@ -229,13 +242,17 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     private val flow = AnswerFlow(assistant.link, needle = ::ask, asking = { text -> _state.update { it.copy(asking = text) } })
 
     private val recorder by lazy { Recorder(app) }
+    private val pcmRecorder = PcmRecorder()
+    /** The phone recording under way, which ends with its clip. */
+    private var pcmRecording: Deferred<FloatArray?>? = null
 
     /**
-     * Starts recording a spoken request (the microphone permission is granted), and has Ferb Link
-     * wake the computer's model meanwhile.
+     * Starts recording a spoken request (the microphone permission is granted): [onPhone] for
+     * Whistle; otherwise for the computer, and Ferb Link wakes its model meanwhile.
      */
-    fun startRecording() {
-        if (_state.value.busy || recorder.recording) return
+    fun startRecording(onPhone: Boolean = false) {
+        if (_state.value.busy || recorder.recording || pcmRecorder.recording || pcmRecording != null) return
+        if (onPhone) return startPhoneRecording()
         try {
             recorder.start(onLimit = ::stopRecording)
         } catch (e: Exception) {
@@ -246,9 +263,39 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { assistant.link.wake() }
     }
 
+    @SuppressLint("MissingPermission") // the screen asks for the microphone before starting
+    private fun startPhoneRecording() {
+        val startedAt = SystemClock.elapsedRealtime()
+        _state.update { it.copy(voice = Voice.Recording(startedAt, onPhone = true), notice = null) }
+        val job = viewModelScope.async {
+            try {
+                // At 30 s (Whistle's most) it stops by itself and waits for Send, as when stopped.
+                pcmRecorder.record()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.update { it.copy(voice = null, notice = "The microphone can't be used: ${e.message ?: e}") }
+                null
+            }
+        }
+        pcmRecording = job
+        viewModelScope.launch {
+            val pcm = job.await() ?: return@launch
+            if (pcmRecording !== job) return@launch
+            pcmRecording = null
+            val ms = SystemClock.elapsedRealtime() - startedAt
+            _state.update {
+                if (it.voice !is Voice.Recording) it
+                else it.copy(voice = Voice.Recorded(null, ms, pcm).takeIf { pcm.isNotEmpty() },
+                    notice = if (pcm.isEmpty()) "Nothing recorded: tap the mic, speak, then tap it again" else null)
+            }
+        }
+    }
+
     /** Stops recording; the recording waits for Send (or [discardRecording]). */
     fun stopRecording() {
         val recording = _state.value.voice as? Voice.Recording ?: return
+        if (recording.onPhone) return pcmRecorder.stop()
         val ms = SystemClock.elapsedRealtime() - recording.startedAt
         val audio = recorder.stop()
         _state.update {
@@ -259,6 +306,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
 
     fun discardRecording() {
         recorder.cancel()
+        pcmRecording?.cancel()
+        pcmRecording = null
         _state.update { it.copy(voice = null) }
     }
 
@@ -269,11 +318,13 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     private fun sendVoice() {
         val clip = _state.value.voice as? Voice.Recorded ?: return
         if (_state.value.busy || engine.value !is AssistantEngine.State.Ready) return
+        clip.pcm?.let { return sendPhoneVoice(clip, it) }
+        val audio = clip.audio ?: return
         _state.update { it.copy(busy = true, voice = null, notice = null, pending = voiceLabel(clip.ms), asking = "Your computer is listening…") }
         viewModelScope.launch {
             val waking = (assistant.link.status() as? LinkStatus.Ready)?.asleep == true
             if (waking) _state.update { it.copy(asking = "Waking your computer\u2026") }
-            when (val next = VoiceOutcome.of(assistant.link.transcribe(clip.audio, Recorder.MIME, waking))) {
+            when (val next = VoiceOutcome.of(assistant.link.transcribe(audio, Recorder.MIME, waking))) {
                 is VoiceOutcome.Failed ->
                     _state.update { it.copy(busy = false, pending = null, asking = null, voice = clip.takeIf { next.keepClip }, notice = next.notice) }
                 is VoiceOutcome.Answer -> {
@@ -284,7 +335,38 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         }
     }
 
-    override fun onCleared() = recorder.cancel()
+    /**
+     * Whistle transcribes the recording on the phone, in English, then its text is answered like a
+     * typed request ("Voice → Whistle → …"). A clip without speech never reaches the model.
+     */
+    private fun sendPhoneVoice(clip: Voice.Recorded, pcm: FloatArray) {
+        PhoneVoice.silent(pcm)?.let { failed -> return _state.update { it.copy(voice = null, notice = failed.notice) } }
+        _state.update { it.copy(busy = true, voice = null, notice = null, pending = voiceLabel(clip.ms), asking = "Transcribing\u2026", transcribing = true) }
+        viewModelScope.launch {
+            val heard = try {
+                Result.success(assistant.engine.transcribe(pcm))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+            heard.getOrNull()?.let { Log.i(TAG, "Whistle: ${it.audioMs} ms of audio in ${it.ms} ms (load ${assistant.engine.whistleLoaded} ms)") }
+            _state.update { it.copy(transcribing = false) }
+            when (val next = PhoneVoice.of(heard)) {
+                is PhoneVoice.Failed ->
+                    _state.update { it.copy(busy = false, pending = null, asking = null, voice = clip.takeIf { next.keepClip }, notice = next.notice) }
+                is PhoneVoice.Request -> {
+                    _state.update { it.copy(pending = next.text, asking = null) }
+                    answer(next.text, heard = null, whistle = true)
+                }
+            }
+        }
+    }
+
+    override fun onCleared() {
+        recorder.cancel()
+        pcmRecorder.stop()
+    }
 
     private suspend fun ask(request: String, tools: List<Tool>): NeedleReply =
         NeedleReply.parse(assistant.engine.complete(request, tools.map { it.name }, Tools.json(tools)))
@@ -399,6 +481,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         _state.update { s -> s.copy(history = s.history.map { if (it.id == id) change(it) else it }) }
 
     private companion object {
+        const val TAG = "Assistant"
         const val WAKE_EVERY_MS = 60_000L
     }
 }
