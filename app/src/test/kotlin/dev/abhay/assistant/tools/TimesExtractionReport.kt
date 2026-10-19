@@ -1,6 +1,7 @@
 package dev.abhay.assistant.tools
 
 import dev.abhay.assistant.reminders.ReminderTime
+import dev.abhay.assistant.reminders.Repeat
 import java.io.File
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -25,9 +26,14 @@ class TimesExtractionReport {
         if (call.optBoolean("trimmed") || (call.optJSONArray("asks")?.length() ?: 0) > 0) return "ask"
         val raw = call.optJSONObject("arguments")?.let { a -> a.keys().asSequence().associateWith { a.get(it) } }.orEmpty()
         val withWhen = raw + ("when" to call.opt("when")?.takeUnless { it == JSONObject.NULL })
-        val args = TimeArgs.apply(call.getString("tool"), withWhen, listOf(request), now.atZone(zone))
-        if (args[TimeArgs.ASK] != null) return "ask"
         val name = call.getString("tool")
+        // As the app does: the call's time resolved ([TimeArgs]), the request added (tools read
+        // days and times from it, `fromRequest`), and the tool's own checks, which ask.
+        val resolved = TimeArgs.apply(name, withWhen, listOf(request), now.atZone(zone))
+        if (resolved[TimeArgs.ASK] != null) return "ask"
+        val tool = Tools.byName(name) ?: return "${name.removePrefix("set_").removePrefix("add_")} (another tool)"
+        val args = tool.fromRequest(resolved, request)
+        if (!tool.grounded(args, request)) return "ask"
         val local = now.withSecond(0).withNano(0)
         return when (name) {
             SetAlarm.name -> (args["time"] as? String)?.let(TimeOfDay::parse)?.let { (h, m) ->
@@ -38,10 +44,13 @@ class TimesExtractionReport {
             SetTimer.name -> (args["duration"] as? String)?.let(Durations::parse)?.let { "timer ${it}s" } ?: "ask"
             AddEvent.name -> AddEvent.plan("x", args, local, zone)?.let { p -> if (p.start == null) "event ${p.day}" else "event ${p.day.atTime(p.start)}" } ?: "ask"
             AddReminder.name -> {
+                // AddReminder.prepare's order: the resolved time; else the request's words, then the model's "time".
+                val resolvedHere = args[TimeArgs.RESOLVED] == true
                 val at = (args[TimeArgs.AT] as? String)?.let(LocalDateTime::parse)
-                    ?: (args["time"] as? String)?.let { ReminderTime.read(it, local) }
+                    ?: (if (resolvedHere) null else ReminderTime.read(request, local) ?: (args["time"] as? String)?.let { ReminderTime.read(it, local) })
                     ?: return "ask"
-                "reminder $at" + ((args[TimeArgs.REPEAT] as? String)?.let { " repeat=$it" } ?: "")
+                val repeat = if (resolvedHere) args[TimeArgs.REPEAT] as? String else Repeat.said(request)?.key
+                "reminder $at" + (repeat?.let { " repeat=$it" } ?: "")
             }
             else -> "${name.removePrefix("set_").removePrefix("add_")} (another tool)"
         }
@@ -61,13 +70,13 @@ class TimesExtractionReport {
             val ok = got == expected
             // A request that should do nothing but asks is a lesser miss than one that runs.
             for (key in listOf("all", r.getString("split"), "${r.getString("split")} ${r.getString("category")}")) {
-                val t = tally.getOrPut(key) { IntArray(3) }
-                t[0]++; if (ok) t[1]++; if (!ok && got == "ask") t[2]++
+                val t = tally.getOrPut(key) { IntArray(4) }
+                t[0]++; if (ok) t[1]++; if (!ok && got == "ask") t[2]++; if (!ok && got != "ask") t[3]++
             }
             if (!ok) out.append("MISS ${r.getString("split")} [${r.getString("category")}] ${r.getString("request")}: expected $expected, got $got; when=${call?.opt("when")}\n")
         }
-        val head = StringBuilder("Times: right / lines (asked instead, of the misses)\n")
-        tally.forEach { (k, t) -> head.append("  ${k.padEnd(22)} ${t[1]}/${t[0]}  (asked ${t[2]})\n") }
+        val head = StringBuilder("Times: right / lines; of the misses, asked and wrong runs (a wrong value, or a tool where none was wanted)\n")
+        tally.forEach { (k, t) -> head.append("  ${k.padEnd(22)} ${t[1]}/${t[0]}  asked ${t[2]}  wrong ${t[3]}\n") }
         File("build/tool-check/times-report.txt").writeText(head.toString() + "\n" + out)
     }
 }
