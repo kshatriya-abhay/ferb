@@ -11,6 +11,8 @@ import android.os.SystemClock
 import android.util.Log
 import androidx.core.os.bundleOf
 import dev.abhay.assistant.engine.NeedleReply
+import dev.abhay.assistant.engine.ToolCall
+import dev.abhay.assistant.tools.TimeArgs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -57,6 +59,12 @@ object LinkContract {
     const val EXTRA_TOOLS = "tools"
     /** How long Ferb Link may wait for the computer (1–60 s); an older Ferb Link ignores it and waits 30 s. */
     const val EXTRA_TIMEOUT_MS = "timeout_ms"
+    /**
+     * For `complete`: 1 asks for each call's time as structure ("time" v1) in its `when`, through a
+     * schema-constrained call instead of native tool calls, with `trimmed` and `asks` per call
+     * (Plan - Dates and times through Gemma). An older Ferb Link ignores it and answers natively.
+     */
+    const val EXTRA_TIME_FORMAT = "time_format"
     /** For `transcribe`: the recording (byte[], at most 30 s and about 512 KB) and its type. */
     const val EXTRA_AUDIO = "audio"
     const val EXTRA_AUDIO_MIME = "audio_mime"
@@ -208,14 +216,14 @@ class FerbLink(private val context: Context) : LinkCalls {
      * until the computer answers or Ferb Link gives up, so it runs off the main thread. Never throws:
      * a failure is a reply with [NeedleReply.error] set, and Needle 3 answers instead.
      */
-    override suspend fun complete(request: String, toolsJson: String, waking: Boolean): NeedleReply = withContext(Dispatchers.IO) {
+    override suspend fun complete(request: String, toolsJson: String, waking: Boolean, timeFormat: Boolean): NeedleReply = withContext(Dispatchers.IO) {
         val result = try {
             lowLatency { timed(LinkContract.METHOD_COMPLETE) {
                 provider(LinkContract.METHOD_COMPLETE, null, bundleOf(
                     LinkContract.EXTRA_REQUEST to request,
                     LinkContract.EXTRA_TOOLS to toolsJson,
-                    LinkContract.EXTRA_TIMEOUT_MS to timeout(TIMEOUT_MS, waking),
-                ))
+                    LinkContract.EXTRA_TIMEOUT_MS to timeout(if (timeFormat) TIMED_TIMEOUT_MS else TIMEOUT_MS, waking),
+                ).apply { if (timeFormat) putInt(LinkContract.EXTRA_TIME_FORMAT, 1) })
             } }
         } catch (e: SecurityException) {
             return@withContext failed("not allowed", "Ferb Link only answers apps signed with the same key")
@@ -407,9 +415,28 @@ class FerbLink(private val context: Context) : LinkCalls {
          */
         fun parse(json: String): NeedleReply = try {
             val reply = NeedleReply.parse(json)
-            reply.copy(confidence = reply.first ?: reply.confidence, source = reply.source ?: SOURCE)
+            reply.copy(confidence = reply.first ?: reply.confidence, source = reply.source ?: SOURCE, calls = timedCalls(json, reply.calls))
         } catch (e: Exception) {
             failed("unexpected answer", "Ferb Link's reply couldn't be read: ${e.message}")
+        }
+
+        /**
+         * A timed reply's per-call extras ([LinkContract.EXTRA_TIME_FORMAT]) in the calls' arguments:
+         * `when` for [TimeArgs], and Ferb Link's `asks` or a `trimmed` argument as a reason to ask.
+         */
+        private fun timedCalls(json: String, calls: List<ToolCall>): List<ToolCall> {
+            val raw = JSONObject(json).optJSONArray("function_calls") ?: return calls
+            return calls.mapIndexed { i, call ->
+                val o = raw.optJSONObject(i) ?: return@mapIndexed call
+                val extra = mutableMapOf<String, Any?>()
+                o.optJSONObject("when")?.let { extra["when"] = it }
+                val asks = o.optJSONArray("asks")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty()
+                when {
+                    asks.isNotEmpty() -> extra[TimeArgs.ASK] = asks.first()
+                    o.optBoolean("trimmed") -> extra[TimeArgs.ASK] = "a value from your computer was cut short"
+                }
+                if (extra.isEmpty()) call else call.copy(arguments = call.arguments + extra)
+            }
         }
 
         const val SOURCE = "laptop"
@@ -423,6 +450,9 @@ class FerbLink(private val context: Context) : LinkCalls {
          * load from a cold disk (10–30 s) times out; Needle 3 answers that one, and the next is fast.
          */
         const val TIMEOUT_MS = 10_000
+
+        /** For the timed call ([LinkContract.EXTRA_TIME_FORMAT]): 1.3 s median and 1.5 s at the 90th on the bench (2026-10-19). */
+        const val TIMED_TIMEOUT_MS = 6_000
 
         /**
          * How long Ferb waits for a transcription: Gemma 4 E2B took 0.5–1 s for up to 11 s of
@@ -605,6 +635,6 @@ data class RewriteReply(
 /** What answering needs from Ferb Link ([FerbLink]), so [dev.abhay.assistant.ui.AnswerFlow] runs in tests with a fake. */
 interface LinkCalls {
     fun status(): LinkStatus
-    suspend fun complete(request: String, toolsJson: String, waking: Boolean = false): NeedleReply
+    suspend fun complete(request: String, toolsJson: String, waking: Boolean = false, timeFormat: Boolean = false): NeedleReply
     suspend fun decide(request: String, toolsJson: String, timeoutMs: Int = FerbLink.JEV_TIMEOUT_MS): JevReply
 }

@@ -40,7 +40,11 @@ class AnswerFlowTest {
     ) : LinkCalls {
         val asked = mutableListOf<String>()
         override fun status() = status
-        override suspend fun complete(request: String, toolsJson: String, waking: Boolean): NeedleReply { asked += "complete: $request"; return computer }
+        var timedReply: NeedleReply? = null
+        override suspend fun complete(request: String, toolsJson: String, waking: Boolean, timeFormat: Boolean): NeedleReply {
+            asked += (if (timeFormat) "complete (time): " else "complete: ") + request
+            return if (timeFormat) timedReply ?: computer else computer
+        }
         override suspend fun decide(request: String, toolsJson: String, timeoutMs: Int): JevReply {
             asked += "decide: $request"
             return picks[request] ?: JevReply.failed("timed out", "Jev took longer than 6 s")
@@ -80,7 +84,7 @@ class AnswerFlowTest {
         assertThat(answer(FakeLink(), "wake me up at 7:15", LinkMode.Option, Answerer.Link).chain()).isEqualTo("Typed → Gemma")
         val link = FakeLink(picks = mapOf("wake me up at 7:15" to jev(SetAlarm.name, 0.93)))
         val got = answer(link, "wake me up at 7:15", LinkMode.Option, Answerer.Link, jev = true)
-        assertThat(got.chain()).isEqualTo("Typed → Jev (Alarms, 0.93) → Gemma")
+        assertThat(got.chain()).isEqualTo("Typed → Jev (Alarms, 0.93) → Gemma (time)")
         assertThat(got.shown.fromLaptop).isTrue()
     }
 
@@ -131,7 +135,7 @@ class AnswerFlowTest {
         // No word list: typed requests in Computer mode go to Jev and Gemma, whatever the language.
         val link = FakeLink(picks = mapOf("sava saat baje utha dena" to jev(SetAlarm.name, 0.9)))
         val got = answer(link, "sava saat baje utha dena", LinkMode.Option, Answerer.Link, jev = true)
-        assertThat(got.chain()).isEqualTo("Typed \u2192 Jev (Alarms, 0.90) \u2192 Gemma")
+        assertThat(got.chain()).isEqualTo("Typed \u2192 Jev (Alarms, 0.90) \u2192 Gemma (time)")
     }
 
     @Test
@@ -152,5 +156,29 @@ class AnswerFlowTest {
         }
         assertThat(got.verdict.decision).isEqualTo(Decision.Confirm)
         assertThat(got.shown.calls.single().arguments[dev.abhay.assistant.tools.TimeArgs.WANTED]).isEqualTo("2026-10-19T07:00")
+    }
+
+    @Test
+    fun aTimedPickInComputerModeTakesTheTimedCallAndFallsBackWhenItFails() {
+        val kal = org.json.JSONObject("""{"v":1,"kind":"at","day":{"relative":1},"time":{"hour":7,"minute":15,"meridiem":"am","part":"morning"}}""")
+        val link = FakeLink(picks = mapOf("kal subah sava saat baje utha dena" to jev(SetAlarm.name, 0.93)))
+        link.timedReply = reply(null, ToolCall(SetAlarm.name, mapOf("time" to "7:15", "when" to kal)), source = FerbLink.SOURCE)
+        val friday9 = java.time.LocalDateTime.parse("2026-10-16T09:00").atZone(java.time.ZoneId.of("Asia/Kolkata"))
+        val got = runBlocking {
+            AnswerFlow(link, needle(), now = { friday9 }).answer("kal subah sava saat baje utha dena", null, enabled, configs, LinkMode.Option, Answerer.Link, jevSwitch = true)
+        }
+        assertThat(got.chain()).isEqualTo("Typed \u2192 Jev (Alarms, 0.93) \u2192 Gemma (time)")
+        assertThat(got.shown.calls.single().arguments["time"]).isEqualTo("07:15")
+        assertThat(link.asked).containsExactly("decide: kal subah sava saat baje utha dena", "complete (time): kal subah sava saat baje utha dena")
+        // The timed call failing: the usual call, saying why.
+        val failing = FakeLink(picks = mapOf("wake me up at 7:15" to jev(SetAlarm.name, 0.93)))
+        failing.timedReply = reply(null, source = FerbLink.SOURCE, error = "timed out")
+        val fell = answer(failing, "wake me up at 7:15", LinkMode.Option, Answerer.Link, jev = true)
+        assertThat(fell.chain()).isEqualTo("Typed \u2192 Jev (Alarms, 0.93) \u2192 Gemma (time): timed out \u2192 Gemma")
+        assertThat(fell.jevNote).isEqualTo("Time: timed out")
+        // An untimed pick, or the phone: as before, no timed call.
+        val torch = FakeLink(picks = mapOf("torch off" to jev(Flashlight.name, 0.9)), computer = reply(0.9, ToolCall(Flashlight.name, mapOf("on" to false)), source = FerbLink.SOURCE))
+        answer(torch, "torch off", LinkMode.Option, Answerer.Link, jev = true)
+        assertThat(torch.asked.none { it.startsWith("complete (time)") }).isTrue()
     }
 }

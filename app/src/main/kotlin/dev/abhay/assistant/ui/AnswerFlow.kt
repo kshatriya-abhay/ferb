@@ -14,6 +14,10 @@ import dev.abhay.assistant.link.brief
 import dev.abhay.assistant.link.describe
 import dev.abhay.assistant.tools.Tool
 import dev.abhay.assistant.tools.ToolConfig
+import dev.abhay.assistant.tools.AddEvent
+import dev.abhay.assistant.tools.AddReminder
+import dev.abhay.assistant.tools.SetAlarm
+import dev.abhay.assistant.tools.SetTimer
 import dev.abhay.assistant.tools.TimeArgs
 import dev.abhay.assistant.tools.ToolRouter
 import dev.abhay.assistant.tools.Tools
@@ -154,6 +158,22 @@ class AnswerFlow(
             if (now is LinkStatus.Ready) {
                 // The model not loaded: it loads first, so a longer wait, said so.
                 asking(if (now.asleep) "Waking your computer…" else "Asking your computer…")
+                // Jev picked a timed tool (Computer mode): the timed call, with that tool alone, for
+                // the time as structure; if it fails, the usual call, saying why (the user's
+                // decision, 2026-10-19: wrong times 11 → 5 of 75 held out, about 1 s more).
+                val timedTool = laptopTools.firstOrNull()?.takeIf { chosen && jevPicked && it.name in TIMED }
+                if (timedTool != null) {
+                    val reply = link.complete(request, Tools.json(listOf(timedTool)), waking = now.asleep, timeFormat = true)
+                    if (reply.error == null) {
+                        laptop = reply
+                        laptopError = null
+                        path += Step("Gemma (time)")
+                        return
+                    }
+                    path += Step("Gemma (time): ${reply.error}")
+                    jevNote = "Time: ${reply.error}"
+                    jevNoteDetail = reply.errorDetail ?: reply.error
+                }
                 val reply = link.complete(request, Tools.json(laptopTools), waking = now.asleep)
                 laptop = reply
                 laptopError = reply.error
@@ -267,6 +287,9 @@ class AnswerFlow(
     }
 
     companion object {
+        /** The tools whose time the timed call gives as structure ([TimeArgs]). */
+        val TIMED = setOf(SetAlarm.name, SetTimer.name, AddReminder.name, AddEvent.name)
+
         /** The answer when no tool is on, or Jev says none fits. */
         val NO_TOOL = NeedleReply(
             calls = emptyList(), suppressed = emptyList(), reasoning = "", confidence = null, ungrounded = emptyList(),
