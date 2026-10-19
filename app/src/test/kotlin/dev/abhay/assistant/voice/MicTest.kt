@@ -29,4 +29,11 @@ class MicTest {
         assertThat(VoiceSettings.TITLE).isEqualTo("Voice on this phone (Whistle)")
         assertThat(VoiceSettings.DESCRIPTION).contains("Computer mode can still listen.")
     }
+
+    @Test fun theMicTipIsWordedPerSetting() {
+        assertThat(Mic.tip(whistleOn = true)).isEqualTo(Tip.Mic.text)
+        assertThat(Mic.tip(whistleOn = true)).contains("speak English")
+        assertThat(Mic.tip(whistleOn = false)).contains("Heard by your computer; English or Hindi.")
+        assertThat(Mic.tip(whistleOn = false)).doesNotContain("On this phone")
+    }
 }

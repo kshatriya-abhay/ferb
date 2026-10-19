@@ -262,6 +262,7 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
             // A tip about the box, the toggle or the mic, above them.
             tip?.takeIf { it.exchange == null && it.tip != Tip.TryOne }?.let {
                 TipCard(it.tip, onDismiss = { seen(it.tip) }, Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    text = if (it.tip == Tip.Mic) Mic.tip(whistleOn) else it.tip.text,
                     action = ("Set up" to onOpenLink).takeIf { _ -> it.tip == Tip.SuggestLink })
             }
             // With the computer picked, keep Ferb Link's process up, so a request doesn't wait for it to start.

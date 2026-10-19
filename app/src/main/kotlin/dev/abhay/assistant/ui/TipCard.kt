@@ -22,7 +22,7 @@ import dev.abhay.assistant.onboarding.Tip
 
 /** A one-time tip, under the thing it explains; a tap anywhere on it, or ✕, puts it away for good. */
 @Composable
-internal fun TipCard(tip: Tip, onDismiss: () -> Unit, modifier: Modifier = Modifier, action: Pair<String, () -> Unit>? = null) {
+internal fun TipCard(tip: Tip, onDismiss: () -> Unit, modifier: Modifier = Modifier, action: Pair<String, () -> Unit>? = null, text: String = tip.text) {
     Surface(
         onClick = onDismiss,
         shape = RoundedCornerShape(16.dp),
@@ -32,7 +32,7 @@ internal fun TipCard(tip: Tip, onDismiss: () -> Unit, modifier: Modifier = Modif
     ) {
         Row(Modifier.padding(start = 12.dp, end = 4.dp, top = 2.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(painterResource(R.drawable.ic_lightbulb), contentDescription = "Tip", Modifier.padding(end = 8.dp).size(18.dp))
-            Text(tip.text, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.bodyMedium)
+            Text(text, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.bodyMedium)
             action?.let { (label, run) -> TextButton(onClick = { onDismiss(); run() }) { Text(label) } }
             IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
                 Icon(Icons.Default.Close, contentDescription = "Dismiss tip", Modifier.size(18.dp))

@@ -1,6 +1,7 @@
 package dev.abhay.assistant.voice
 
 import android.content.Context
+import dev.abhay.assistant.onboarding.Tip
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,4 +35,9 @@ object Mic {
      * else (Phone picked, Ferb Link off, "When Needle 3 is unsure") Whistle would, so only with it on.
      */
     fun shows(computerHears: Boolean, whistleOn: Boolean): Boolean = computerHears || whistleOn
+
+    /** The mic's tip: with Whistle off, the mic shows only for Computer, so only the computer hears. */
+    fun tip(whistleOn: Boolean): String = if (whistleOn) Tip.Mic.text else COMPUTER_TIP
+
+    const val COMPUTER_TIP = "Tap the mic, tap again to stop, then send. Heard by your computer; English or Hindi."
 }
