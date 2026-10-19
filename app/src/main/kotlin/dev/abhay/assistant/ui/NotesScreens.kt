@@ -52,6 +52,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.mikepenz.markdown.compose.components.markdownComponents
 import com.mikepenz.markdown.m3.Markdown
 import dev.abhay.assistant.notes.NoteRef
+import dev.abhay.assistant.notes.NoteStore
 import dev.abhay.assistant.notes.NoteText
 import dev.abhay.assistant.notes.SafNotes
 import java.text.DateFormat
@@ -61,7 +62,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * The notes folder's notes, newest first; tap one to read it. Without a folder, a way to pick one
+ * The notes Ferb made in the notes folder ([NoteStore.ferbs]), newest first; tap one to read it. Without a folder, a way to pick one
  * (in the Obsidian vault, say). Read again whenever the screen comes back, as Obsidian and
  * Syncthing change the folder too.
  */
@@ -73,7 +74,7 @@ fun NotesScreen(notes: SafNotes, onOpen: (NoteRef) -> Unit, onBack: () -> Unit) 
         onPauseOrDispose { }
     }
     val list by produceState<List<NoteRef>?>(null, resumed) {
-        value = withContext(Dispatchers.IO) { if (notes.ready) notes.list().sortedByDescending { it.modified } else null }
+        value = withContext(Dispatchers.IO) { if (notes.ready) NoteStore.ferbs(notes.list(), notes::read).sortedByDescending { it.modified } else null }
     }
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
         if (tree != null) {
@@ -93,7 +94,7 @@ fun NotesScreen(notes: SafNotes, onOpen: (NoteRef) -> Unit, onBack: () -> Unit) 
                 Button(onClick = { pick.launch(null) }) { Text("Pick a notes folder") }
             }
             shown == null -> Column(Modifier.padding(padding).fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) { LoadingIndicator() }
-            shown.isEmpty() -> Text("No notes yet. Ask Ferb to take one, or to add to a list.", Modifier.padding(padding).padding(24.dp),
+            shown.isEmpty() -> Text("No notes from Ferb yet. Ask Ferb to take one, or to make a list.", Modifier.padding(padding).padding(24.dp),
                 style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             else -> LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {

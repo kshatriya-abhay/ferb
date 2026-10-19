@@ -46,6 +46,14 @@ interface NoteStore {
                 .filter { it.second >= 0.8 }.maxByOrNull { it.second }?.first
         }
 
+        /**
+         * The notes Ferb made, for the Notes screen: those with Ferb's id in their frontmatter
+         * (notes and lists it created, and notes it set a reminder on). The folder's other notes
+         * aren't listed, though the tools still find them by name (a list kept by hand).
+         */
+        fun ferbs(notes: List<NoteRef>, read: (NoteRef) -> String?): List<NoteRef> =
+            notes.filter { note -> read(note)?.let { NoteText.get(it, NoteText.ID) }.isNullOrBlank().not() }
+
         /** A new note's id for its frontmatter. */
         fun newId(): String = UUID.randomUUID().toString()
 

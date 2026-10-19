@@ -84,7 +84,7 @@ A setting to check every tool, five at a time, when the mentioned ones gave no c
 
 ## Notes in Ferb
 
-With a notes folder picked, the chat's top bar has **Notes**: the folder's `.md` files, newest first.
+With a notes folder picked, the chat's top bar has **Notes**: the notes Ferb made there, newest first: those with its `ferb-id` in their frontmatter (notes and lists it created, and notes it set a reminder on). The folder's other notes aren't listed, though the tools still find them by name, so a list kept by hand still takes "add milk to the shopping list".
 
 **In Obsidian:** with Obsidian installed, tapping a note (in the list, **Open** in the chat, or a reminder's notification) opens it there, unless Settings → Tools → Notes → **Open notes in Obsidian** is off. Obsidian on Android opens notes only through `obsidian://open` links (no VIEW for `.md` files or `content://` URIs), so Ferb builds one from the note's document (`ObsidianLink`): `path=` with the absolute path for the phone's storage and SD cards (Obsidian finds the vault that holds it, so the folder can be inside a vault), else `vault=` the folder's name and `file=` the note's, else Ferb's own viewer. A `<queries>` entry for the `obsidian` scheme lets Ferb see Obsidian; it's not a permission.
 
