@@ -4,7 +4,9 @@ import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.SeekableTransitionState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.rememberTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -28,6 +30,9 @@ import kotlinx.coroutines.launch
 
 /** Which way a move between screen stacks goes: back when the new stack is shorter (popped or reset to the chat). */
 object Nav {
+    /** Back's length: the system's standard short duration. */
+    const val BACK_MS = 300
+
     fun isBack(from: List<String>, to: List<String>): Boolean = to.size < from.size
 
     /**
@@ -36,8 +41,9 @@ object Nav {
      * Back, also as the predictive back gesture runs: the screen leaving shrinks to 90% and fades
      * over the one beneath, which slides back in
      * (https://developer.android.com/design/ui/mobile/guides/patterns/predictive-back).
-     * Timings are the theme's Expressive motion scheme: spatial springs for movement, effects
-     * springs for fades (https://m3.material.io/styles/motion/overview/specs).
+     * Forward timings are the theme's Expressive motion scheme: spatial springs for movement,
+     * effects springs for fades (https://m3.material.io/styles/motion/overview/specs). Back uses
+     * linear tweens, as the gesture drives it.
      */
     fun transform(back: Boolean, shift: Int, motion: MotionScheme): ContentTransform {
         val move = motion.defaultSpatialSpec<IntOffset>()
@@ -45,9 +51,14 @@ object Nav {
         return if (!back) {
             (slideInHorizontally(move) { shift } + fadeIn(fade)) togetherWith (slideOutHorizontally(move) { -shift } + fadeOut(fade))
         } else {
+            // Tweens, not springs: the back gesture seeks this along its timeline as the finger
+            // moves, so the leaving screen must shrink in step with it and only fade in the second
+            // half (a quick effects spring had it gone at a third of the swipe, seen on the Pixel 11).
             ContentTransform(
-                targetContentEnter = slideInHorizontally(move) { -shift } + fadeIn(fade),
-                initialContentExit = scaleOut(motion.defaultSpatialSpec(), targetScale = 0.9f) + fadeOut(fade),
+                // The screen beneath shows from the start, peeking around the shrinking one.
+                targetContentEnter = slideInHorizontally(tween(BACK_MS, easing = LinearEasing)) { -shift },
+                initialContentExit = scaleOut(tween(BACK_MS, easing = LinearEasing), targetScale = 0.9f) +
+                    fadeOut(tween(BACK_MS / 2, delayMillis = BACK_MS / 2, easing = LinearEasing)),
                 // The leaving screen stays on top, as it does under the finger.
                 targetContentZIndex = -1f,
                 sizeTransform = SizeTransform(clip = false),
