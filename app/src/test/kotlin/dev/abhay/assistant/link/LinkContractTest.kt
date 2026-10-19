@@ -56,7 +56,7 @@ class LinkContractTest {
         // Every key Ferb puts in a call's extras is one Ferb Link's examples take (some take more,
         // optional ones Ferb doesn't send, such as facts).
         val sent = mapOf(
-            "complete" to setOf(LinkContract.EXTRA_REQUEST, LinkContract.EXTRA_TOOLS, LinkContract.EXTRA_TIMEOUT_MS),
+            "complete" to setOf(LinkContract.EXTRA_REQUEST, LinkContract.EXTRA_TOOLS, LinkContract.EXTRA_TIMEOUT_MS, LinkContract.EXTRA_TIME_FORMAT),
             "transcribe" to setOf(LinkContract.EXTRA_AUDIO, LinkContract.EXTRA_AUDIO_MIME, LinkContract.EXTRA_TIMEOUT_MS),
             "decide" to setOf(LinkContract.EXTRA_REQUEST, LinkContract.EXTRA_TOOLS, LinkContract.EXTRA_TIMEOUT_MS),
         )
@@ -146,6 +146,36 @@ class LinkContractTest {
         // One command, two, none, and one with a fact the request didn't hold.
         assertThat(all.map { it.commands.size }).containsAtLeast(0, 1, 2)
         assertThat(all.any { it.invented.isNotEmpty() }).isTrue()
+    }
+
+    @Test
+    fun aTimedCompleteCarriesEachCallsTimeAndAsks() {
+        val timed = of("complete").filter { it.extras.optInt("time_format") == 1 }
+        assertThat(timed).isNotEmpty()
+        val now = java.time.LocalDateTime.parse("2026-10-19T08:25").atZone(java.time.ZoneId.of("Asia/Kolkata"))
+        timed.forEach { case ->
+            val reply = FerbLink.replyOf(values(case.result))
+            val wire = case.result.getJSONObject("reply")
+            if (!wire.optBoolean("success", true)) { assertShort(reply.error); return@forEach }
+            val calls = wire.optJSONArray("function_calls") ?: org.json.JSONArray()
+            assertThat(reply.calls).hasSize(calls.length())
+            reply.calls.forEachIndexed { i, call ->
+                val o = calls.getJSONObject(i)
+                // Ferb Link's asks, or a trimmed value, make the call ask; a "when" reaches TimeArgs.
+                val asks = o.optJSONArray("asks")?.length() ?: 0
+                if (asks > 0 || o.optBoolean("trimmed")) assertThat(call.arguments[dev.abhay.assistant.tools.TimeArgs.ASK]).isNotNull()
+                else assertThat(call.arguments[dev.abhay.assistant.tools.TimeArgs.ASK]).isNull()
+                if (!o.isNull("when")) {
+                    assertThat(dev.abhay.assistant.tools.TimeExpr.parse(call.arguments["when"])).isNotNull()
+                    // And Ferb resolves it, against the request as typed.
+                    dev.abhay.assistant.tools.TimeArgs.apply(call.name, call.arguments, listOf(case.extras.getString("request")), now)
+                }
+            }
+        }
+        // The fixtures cover an alarm, "in", a repeat, an ask, a trimmed value and no call.
+        val kinds = timed.flatMap { c -> c.result.getJSONObject("reply").optJSONArray("function_calls")?.let { a -> (0 until a.length()).map { a.getJSONObject(it) } }.orEmpty() }
+        assertThat(kinds.mapNotNull { it.optJSONObject("when")?.optString("kind") }.toSet()).containsAtLeast("at", "in", "every")
+        assertThat(kinds.any { it.optBoolean("trimmed") }).isTrue()
     }
 
     @Test

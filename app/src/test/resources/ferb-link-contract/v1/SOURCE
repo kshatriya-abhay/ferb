@@ -1,1 +1,1 @@
-edf84e0 2026-10-16 rewrite in the provider: a typed request as English commands for Needle 3 (contract v1 addition)
+0f969f6 2026-10-19 complete with time_format 1: the timed call in the provider (enforced JSON, prompt t4), with when, asks and trimmed on each call
