@@ -44,12 +44,18 @@ class MainActivity : ComponentActivity() {
     /** A note to show, from an intent ([openNote]): its id and name. */
     private val noteToOpen = mutableStateOf<Pair<String, String>?>(null)
 
+    /** Opened as the phone's assistant ([Intent.ACTION_ASSIST]): counted, so each one brings up the chat ready to type. */
+    private val assists = mutableStateOf(0)
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         read(intent)
     }
 
     private fun read(intent: Intent?) {
+        // The assist trigger (holding the power button, the corner swipe): its extras, the screen's
+        // context, aren't read.
+        if (intent?.action == Intent.ACTION_ASSIST) assists.value++
         val id = intent?.getStringExtra(EXTRA_NOTE_ID) ?: return
         noteToOpen.value = id to intent.getStringExtra(EXTRA_NOTE_NAME).orEmpty()
     }
@@ -79,10 +85,13 @@ class MainActivity : ComponentActivity() {
                     opening?.let { (id, name) -> stack = listOf("assistant", "notes", "note:$id\n$name") }
                     noteToOpen.value = null
                 }
+                // The assistant trigger: back to the chat, from wherever Ferb was.
+                val assisted by assists
+                LaunchedEffect(assisted) { if (assisted > 0) stack = listOf("assistant") }
                 val back = { stack = stack.dropLast(1) }
                 val screen = stack.last()
                 when {
-                    screen == "assistant" -> AssistantScreen(viewModel, onOpenSettings = { open("settings") },
+                    screen == "assistant" -> AssistantScreen(viewModel, assists = assisted, onOpenSettings = { open("settings") },
                         onOpenLink = { stack = stack + "settings" + "link" }, onOpenNotes = { open("notes") })
                     screen == "notes" -> NotesScreen(viewModel.notes, onOpen = { open("note:${it.id}\n${it.name}") }, onBack = back)
                     screen.startsWith("edit:") -> {

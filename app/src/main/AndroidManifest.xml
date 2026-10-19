@@ -63,6 +63,15 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- The phone's assistant: an exported activity for ACTION_ASSIST is enough for
+                 Android's assistant role (RoleManager's AssistantRoleBehavior also accepts a
+                 VoiceInteractionService, not needed yet). Picked by the user in Settings → Apps →
+                 Default apps → Digital assistant app; holding the power button or the corner
+                 swipe then opens Ferb's chat. No permission, and no screen context asked for. -->
+            <intent-filter>
+                <action android:name="android.intent.action.ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
         <!-- A reminder's notification, its Done and Snooze, a reboot, the daily rescan of the notes folder. -->
         <receiver

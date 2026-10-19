@@ -101,7 +101,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -140,7 +143,9 @@ import kotlinx.coroutines.delay
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, onOpenLink: () -> Unit = onOpenSettings, onOpenNotes: () -> Unit = {}) {
+fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, onOpenLink: () -> Unit = onOpenSettings, onOpenNotes: () -> Unit = {},
+                    /** Times Ferb was opened as the phone's assistant: each one focuses the box, keyboard up. */
+                    assists: Int = 0) {
     val engine by viewModel.engine.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val enabled by viewModel.enabledTools.collectAsStateWithLifecycle()
@@ -266,7 +271,7 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
                     viewModel.notify("Ferb needs the microphone to hear you. You can still type.")
                 }
             }
-            InputBar(state, ready = engine is AssistantEngine.State.Ready, onChange = viewModel::onInputChange, onSend = { viewModel.send() },
+            InputBar(state, ready = engine is AssistantEngine.State.Ready, focus = assists, onChange = viewModel::onInputChange, onSend = { viewModel.send() },
                 // With the computer picked, a tap on the box wakes its model while the request is typed.
                 onFocus = { if (offered == Answerer.Link) viewModel.wakeComputer() },
                 answerer = offered, usingJev = usingJev, onAnswerer = { seen(Tip.Answerer); viewModel.setAnswerer(it) },
@@ -765,6 +770,8 @@ private fun AnswererToggle(chosen: Answerer, onChoose: (Answerer) -> Unit) {
 private fun InputBar(
     state: AssistantViewModel.UiState,
     ready: Boolean,
+    /** Bumped to focus the box and bring the keyboard up (Ferb opened as the assistant). */
+    focus: Int = 0,
     onChange: (String) -> Unit,
     onSend: () -> Unit,
     onFocus: () -> Unit = {},
@@ -781,7 +788,7 @@ private fun InputBar(
 ) {
     Column(Modifier.padding(bottom = 12.dp)) {
         when (val clip = state.voice) {
-            null -> InputField(state, ready, voice, onChange, onSend, onMic, onFocus)
+            null -> InputField(state, ready, voice, onChange, onSend, onMic, onFocus, focus)
             else -> VoiceField(clip, onStop, onDiscard, onSend)
         }
         // Who answers, in a row of its own under the box, so the box keeps its width for the request.
@@ -860,11 +867,22 @@ private fun elapsed(ms: Long) = String.format(Locale.US, "%d:%02d", ms / 60_000,
 private fun InputField(
     state: AssistantViewModel.UiState, ready: Boolean, voice: Boolean,
     onChange: (String) -> Unit, onSend: () -> Unit, onMic: () -> Unit, onFocus: () -> Unit,
+    focus: Int = 0,
 ) {
+    val requester = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    // Opened as the assistant: the box takes focus once the model is ready, with the keyboard up.
+    LaunchedEffect(focus, ready) {
+        if (focus > 0 && ready) {
+            requester.requestFocus()
+            keyboard?.show()
+        }
+    }
     TextField(
         value = state.input,
         onValueChange = onChange,
         modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 4.dp)
+            .focusRequester(requester)
             .onFocusChanged { if (it.isFocused) onFocus() },
         placeholder = { Text("Ask me to do something") },
         enabled = ready,

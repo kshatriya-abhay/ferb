@@ -32,6 +32,10 @@ Each reply shows what Ferb did, with buttons such as **Turn off**, **Undo** or *
 
 Five tools are on at first: **Alarms, Timers, Open apps, Settings pages** and **Flashlight**. The others are off until you turn them on in **Settings → Tools**; Ferb asks for an Android permission when a tool needs one (contacts for Calls and Messages, the calendar for Agenda and Calendar), and uses it on the phone only. Each tool's page also has its keywords, whether it always asks first, and how sure Needle 3 must be before it runs without asking.
 
+### Make Ferb your phone's assistant
+
+In Android's **Settings → Apps → Default apps → Digital assistant app**, pick **Ferb**. Then holding the power button, or swiping up from a bottom corner, opens Ferb's chat, ready to type. Ferb doesn't read the screen and asks for no extra permission for this.
+
 ## What it can do
 
 | Tool | On at first | Try |

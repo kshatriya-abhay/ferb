@@ -24,6 +24,7 @@ The details behind the [README](../README.md): how a request becomes tool calls,
   - examples, and the schema Needle 3 gets.
   
   Changes across the Tools list and the tools' pages are one draft with one **Save**; leaving with unsaved changes asks. Nothing needs reloading after a save: each request picks its tools from the saved set.
+- **The phone's assistant:** Ferb can be picked as the digital assistant app, because its main activity takes `ACTION_ASSIST`. That's one of the two things Android's assistant role accepts; the other, a `VoiceInteractionService`, isn't needed yet. The assist gesture then opens the chat with the box focused. Its screen-context extras aren't read, and no permission is added.
 - **Tools** (all offline, none needs the assistant role):
 
 | Tool | On by default | How |
