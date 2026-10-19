@@ -135,6 +135,7 @@ import dev.abhay.assistant.ui.AssistantViewModel.Status
 import java.util.Locale
 import kotlinx.coroutines.delay
 import dev.abhay.assistant.tools.LevelWatch
+import dev.abhay.assistant.voice.Mic
 import androidx.compose.runtime.rememberUpdatedState
 
 /**
@@ -165,10 +166,13 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
     // Voice: the computer hears it when it's picked in the chat box and takes audio (any language);
     // otherwise Whistle, on the phone (English).
     val computerHears = rememberVoiceAvailable(viewModel.link, active = offered == Answerer.Link)
+    val whistleOn by viewModel.whistle.collectAsStateWithLifecycle()
+    // With Whistle off (Settings), the mic shows only when the computer hears it.
+    val micAvailable = Mic.shows(computerHears, whistleOn)
     // The one tip to show, if any, among those whose thing is on screen.
     val startScreen = engine is AssistantEngine.State.Ready && state.history.isEmpty() && state.pending == null
     val places = chatTips(state.history, startScreen, answererShown = offered != null,
-        micShown = state.voice == null, linkOff = linkMode == LinkMode.Off)
+        micShown = state.voice == null && micAvailable, linkOff = linkMode == LinkMode.Off)
     val tip = Tip.next(places.map { it.tip }, onboarding.seen)?.let { t -> places.first { it.tip == t } }
     val seen = viewModel.onboarding::seen
     val context = LocalContext.current
@@ -278,6 +282,7 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
                 // With the computer picked, a tap on the box wakes its model while the request is typed.
                 onFocus = { if (offered == Answerer.Link) viewModel.wakeComputer() },
                 answerer = offered, usingJev = usingJev, onAnswerer = { seen(Tip.Answerer); viewModel.setAnswerer(it) },
+                mic = micAvailable,
                 onMic = {
                     seen(Tip.Mic)
                     when {
@@ -801,13 +806,15 @@ private fun InputBar(
     /** Whether Jev selects the tool (Settings → Ferb Link), shown next to the choice. */
     usingJev: Boolean = false,
     onAnswerer: (Answerer) -> Unit = {},
+    /** Whether to show the mic ([Mic.shows]). */
+    mic: Boolean = true,
     onMic: () -> Unit = {},
     onStop: () -> Unit = {},
     onDiscard: () -> Unit = {},
 ) {
     Column(Modifier.padding(bottom = 12.dp)) {
         when (val clip = state.voice) {
-            null -> InputField(state, ready, onChange, onSend, onMic, onFocus, focus)
+            null -> InputField(state, ready, onChange, onSend, onMic.takeIf { mic }, onFocus, focus)
             else -> VoiceField(clip, onStop, onDiscard, onSend)
         }
         // Who answers, in a row of its own under the box, so the box keeps its width for the request.
@@ -886,7 +893,7 @@ private fun elapsed(ms: Long) = String.format(Locale.US, "%d:%02d", ms / 60_000,
 @Composable
 private fun InputField(
     state: AssistantViewModel.UiState, ready: Boolean,
-    onChange: (String) -> Unit, onSend: () -> Unit, onMic: () -> Unit, onFocus: () -> Unit,
+    onChange: (String) -> Unit, onSend: () -> Unit, onMic: (() -> Unit)?, onFocus: () -> Unit,
     focus: Int = 0,
 ) {
     val requester = remember { FocusRequester() }
@@ -918,11 +925,12 @@ private fun InputField(
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
         keyboardActions = KeyboardActions(onSend = { onSend() }),
         maxLines = 4,
-        // Both, always: the mic as the field's trailing icon (Material 3's voice input icon), and
+        // Both: the mic as the field's trailing icon (Material 3's voice input icon), and
         // Send, enabled once there's text (ferb-manager, for the user, 2026-10-19).
         trailingIcon = {
             Row(Modifier.padding(end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onMic, enabled = ready && !state.busy) {
+                // Null: hidden (Whistle off where it would hear), only the box and Send.
+                if (onMic != null) IconButton(onClick = onMic, enabled = ready && !state.busy) {
                     Icon(painterResource(R.drawable.ic_mic), contentDescription = "Speak")
                 }
                 Box(Modifier.width(48.dp), contentAlignment = Alignment.Center) {

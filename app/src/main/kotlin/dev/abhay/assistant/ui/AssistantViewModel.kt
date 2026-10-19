@@ -138,6 +138,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     val answerer: StateFlow<Answerer> = assistant.linkSettings.answerer
     /** "Use Jev to select the tool" (Settings → Ferb Link). */
     val jev: StateFlow<Boolean> = assistant.linkSettings.jev
+    /** "Voice on this phone (Whistle)" (Settings). */
+    val whistle: StateFlow<Boolean> = assistant.voice.whistle
     fun setAnswerer(answerer: Answerer) {
         // A recording is for the one who was picked when it started.
         if (answerer != this.answerer.value) discardRecording()
@@ -252,7 +254,11 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
      */
     fun startRecording(onPhone: Boolean = false) {
         if (_state.value.busy || recorder.recording || pcmRecorder.recording || pcmRecording != null) return
-        if (onPhone) return startPhoneRecording()
+        if (onPhone) {
+            // Off: Whistle never loads (the mic is hidden then, so this is only a guard).
+            if (!assistant.voice.whistle.value) return
+            return startPhoneRecording()
+        }
         try {
             recorder.start(onLimit = ::stopRecording)
         } catch (e: Exception) {
@@ -340,6 +346,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
      * typed request ("Voice → Whistle → …"). A clip without speech never reaches the model.
      */
     private fun sendPhoneVoice(clip: Voice.Recorded, pcm: FloatArray) {
+        // Turned off after recording: dropped, so Whistle isn't loaded.
+        if (!assistant.voice.whistle.value) return _state.update { it.copy(voice = null, notice = "Voice on this phone is off (Settings)") }
         PhoneVoice.silent(pcm)?.let { failed -> return _state.update { it.copy(voice = null, notice = failed.notice) } }
         _state.update { it.copy(busy = true, voice = null, notice = null, pending = voiceLabel(clip.ms), asking = "Transcribing\u2026", transcribing = true) }
         viewModelScope.launch {

@@ -26,6 +26,10 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     /** "Use Jev to select the tool" (Settings → Ferb Link), saved at once. */
     val jev: StateFlow<Boolean> = linkSettings.jev
     fun setJev(on: Boolean) = linkSettings.setJev(on)
+    /** "Voice on this phone (Whistle)", saved at once. */
+    private val voice = (app as AssistantApp).voice
+    val whistle: StateFlow<Boolean> = voice.whistle
+    fun setWhistle(on: Boolean) = voice.setWhistle(on)
     val saved: StateFlow<Map<String, ToolConfig>> = settings.configs
 
     /** The one-time tips (a tool's page has one), and "Show tips again". */

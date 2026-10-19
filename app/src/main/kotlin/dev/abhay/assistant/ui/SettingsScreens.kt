@@ -116,11 +116,12 @@ import dev.abhay.assistant.tools.ToolConfig
 import dev.abhay.assistant.tools.ToolOption
 import dev.abhay.assistant.tools.ToolSettings
 import dev.abhay.assistant.tools.Tools
+import dev.abhay.assistant.voice.VoiceSettings
 import java.util.Locale
 import org.json.JSONObject
 import kotlin.math.roundToInt
 
-/** The settings home: the tools (a page of their own), Ferb Link (likewise), and the model, which runs on the phone. */
+/** The settings home: the tools (a page of their own), Ferb Link (likewise), voice on the phone, and the model, which runs on the phone. */
 @Composable
 fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenLink: () -> Unit, onBack: () -> Unit) {
     val saved by settings.saved.collectAsStateWithLifecycle()
@@ -141,6 +142,17 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
                 },
                 { shapes -> LinkRow(settings, onOpen = onOpenLink, shapes = shapes) },
             ))
+            // Voice: Whistle hears spoken requests on the phone; off, it's never loaded.
+            val whistle by settings.whistle.collectAsStateWithLifecycle()
+            Group(listOf { shapes ->
+                SegmentedListItem(
+                    onClick = { settings.setWhistle(!whistle) },
+                    shapes = shapes,
+                    leadingContent = { IconBadge(R.drawable.ic_mic, active = whistle) },
+                    supportingContent = { Text(VoiceSettings.DESCRIPTION) },
+                    trailingContent = { Switch(checked = whistle, onCheckedChange = null) },
+                ) { Text(VoiceSettings.TITLE) }
+            })
             Group(listOf { shapes ->
                 SegmentedListItem(
                     onClick = { settings.onboarding.reset() },

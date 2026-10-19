@@ -25,6 +25,7 @@ class AssistantApp : Application() {
     val linkSettings by lazy { LinkSettings(this) }
     val onboarding by lazy { Onboarding.from(this) }
     val notes by lazy { SafNotes(this) }
+    val voice by lazy { dev.abhay.assistant.voice.VoiceSettings(this) }
     val reminders by lazy { ReminderBook(FileReminderStore(java.io.File(filesDir, "reminders.json")), notes) { java.time.LocalDateTime.now() } }
     val alarms by lazy { ReminderAlarms(this) }
 
