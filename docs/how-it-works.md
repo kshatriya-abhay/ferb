@@ -100,3 +100,7 @@ text box ─► AssistantViewModel ─► AssistantEngine ─► Needle.kt ─JN
 - The engine is process-global, not thread-safe and has no unload call; every call runs on one thread, and the model stays loaded while the app runs.
 - System facts (date, locale, device) are given with the tools; the app re-initialises when the date changes.
 
+## Navigation
+
+Moving between Ferb's screens follows Material 3's motion: forward is the shared X axis (the new screen slides in 30 dp from the end as the old one slides away, both fading), welcome to chat is a fade through ([transition patterns](https://m3.material.io/styles/motion/transitions/transition-patterns)), with the theme's Expressive springs ([motion specs](https://m3.material.io/styles/motion/overview/specs)). Back, by button or gesture, pops the screen; the predictive back gesture shrinks the screen to 90% over the one beneath as it's dragged, and a cancelled swipe settles back ([predictive back](https://developer.android.com/design/ui/mobile/guides/patterns/predictive-back)). On the chat, back is the system's back-to-home animation (`enableOnBackInvokedCallback`). Ferb keeps its own screen stack (`NavStack`: a seekable transition driven by `PredictiveBackHandler`), so no navigation library. With unsaved tool changes, back on Tools asks first instead.
+

@@ -2,7 +2,6 @@
 
 package dev.abhay.assistant.ui
 
-import androidx.activity.compose.BackHandler
 import dev.abhay.assistant.link.setupSteps
 import dev.abhay.assistant.link.SetupStep
 import dev.abhay.assistant.link.SetupAction
@@ -210,7 +209,6 @@ fun LinkScreen(settings: SettingsViewModel, onBack: () -> Unit) {
     // Ready only means set up: ask the computer once the page shows, so the card says whether it answers.
     LaunchedEffect(status is LinkStatus.Ready) { if (status is LinkStatus.Ready) check() }
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    BackHandler(onBack = onBack)
     Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer, topBar = { TopBar("Ferb Link", onBack = onBack, scroll = bar) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(top = 8.dp, bottom = 24.dp)) {
             // Until it works: what it is and the steps, ticking themselves off (once a check has run, when Ferb Link is ready).

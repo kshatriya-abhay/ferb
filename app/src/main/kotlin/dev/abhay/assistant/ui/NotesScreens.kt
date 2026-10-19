@@ -2,7 +2,6 @@
 
 package dev.abhay.assistant.ui
 
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -71,7 +70,6 @@ fun NotesScreen(notes: SafNotes, onOpen: (NoteRef) -> Unit, onBack: () -> Unit) 
         value = withContext(Dispatchers.IO) { if (notes.ready) VaultCheck.warning(notes.vaultCheck()) else null }
     }
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    BackHandler(onBack = onBack)
     Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = { TopBar("Notes", subtitle = notes.folderName(), onBack = onBack, scroll = bar) }) { padding ->
         val shown = list

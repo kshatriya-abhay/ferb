@@ -126,7 +126,6 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
     val saved by settings.saved.collectAsStateWithLifecycle()
     val linkMode by settings.linkMode.collectAsStateWithLifecycle()
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    BackHandler(onBack = onBack)
     Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer, topBar = { TopBar("Settings", onBack = onBack, scroll = bar) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -186,7 +185,8 @@ fun ToolsScreen(settings: SettingsViewModel, onOpenTool: (String) -> Unit, onBac
     val saved by settings.saved.collectAsStateWithLifecycle()
     var confirmLeave by remember { mutableStateOf(false) }
     val back = { if (draft != saved) confirmLeave = true else onBack() }
-    BackHandler(onBack = back)
+    // Unsaved changes: back asks first (no predictive peek then); otherwise the navigation's own back.
+    BackHandler(enabled = draft != saved, onBack = back)
     val on = ToolSettings.enabledNames(draft).size
     val askPermissions = rememberPermissionAsk()
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -262,7 +262,6 @@ fun ToolConfigScreen(settings: SettingsViewModel, name: String, onOpenKeywords: 
     fun change(change: (ToolConfig) -> ToolConfig) = settings.update(name, change)
     val askPermissions = rememberPermissionAsk()
     var confirmStopAsking by rememberSaveable { mutableStateOf(false) }
-    BackHandler(onBack = onBack)
 
     if (confirmStopAsking) {
         AlertDialog(
@@ -368,7 +367,6 @@ fun KeywordsScreen(settings: SettingsViewModel, name: String, onBack: () -> Unit
     fun change(words: List<String>) = settings.update(name) { it.copy(keywords = words) }
     // The word being edited (its index), -1 for a new one, null when no dialog is open.
     var editing by rememberSaveable { mutableStateOf<Int?>(null) }
-    BackHandler(onBack = onBack)
 
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(

@@ -3,6 +3,12 @@ package dev.abhay.assistant
 import android.os.Bundle
 import android.widget.Toast
 import dev.abhay.assistant.ui.NotesScreen
+import dev.abhay.assistant.ui.NavStack
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.material3.MaterialTheme
 import dev.abhay.assistant.notes.NoteRef
 import dev.abhay.assistant.notes.Obsidian
 import androidx.compose.runtime.LaunchedEffect
@@ -73,9 +79,15 @@ class MainActivity : ComponentActivity() {
                 val settings: SettingsViewModel = viewModel()
                 // The first launch (or after Settings → Show tips again): the welcome screen first.
                 val onboarding by viewModel.onboarding.state.collectAsStateWithLifecycle()
-                if (!onboarding.welcomed) {
+                // Welcome to the chat: Material's fade through, for screens with no spatial relation
+                // (https://m3.material.io/styles/motion/transitions/transition-patterns).
+                val motion = MaterialTheme.motionScheme
+                AnimatedContent(onboarding.welcomed, transitionSpec = {
+                    fadeIn(motion.defaultEffectsSpec()) togetherWith fadeOut(motion.defaultEffectsSpec())
+                }) { welcomed ->
+                if (!welcomed) {
                     WelcomeScreen(onStart = { viewModel.onboarding.welcomed() })
-                    return@MaterialExpressiveTheme
+                    return@AnimatedContent
                 }
                 var stack by rememberSaveable { mutableStateOf(listOf("assistant")) }
                 val open = { screen: String -> stack = stack + screen }
@@ -95,20 +107,22 @@ class MainActivity : ComponentActivity() {
                 val assisted by assists
                 LaunchedEffect(assisted) { if (assisted > 0) stack = listOf("assistant") }
                 val back = { stack = stack.dropLast(1) }
-                val screen = stack.last()
-                when {
-                    screen == "assistant" -> AssistantScreen(viewModel, assists = assisted, onOpenSettings = { open("settings") },
-                        onOpenLink = { stack = stack + "settings" + "link" }, onOpenNotes = { open("notes") })
-                    screen == "notes" -> NotesScreen(viewModel.notes, onOpen = { showNote(it) }, onBack = back)
-                    screen == "settings" -> SettingsScreen(settings, onOpenTools = { open("tools") }, onOpenLink = { open("link") }, onBack = back)
-                    screen == "link" -> LinkScreen(settings, onBack = back)
-                    screen == "tools" -> ToolsScreen(settings, onOpenTool = { open("tool:$it") }, onBack = back)
-                    screen.startsWith("keywords:") -> KeywordsScreen(settings, screen.removePrefix("keywords:"), onBack = back)
-                    // "Try it" on a tool's page: back to the chat, and send the example.
-                    else -> ToolConfigScreen(settings, screen.removePrefix("tool:"), onOpenKeywords = { open("keywords:" + screen.removePrefix("tool:")) }, onTry = { example ->
-                        stack = listOf("assistant")
-                        viewModel.send(example)
-                    }, onBack = back)
+                NavStack(stack, onBack = back) { screen ->
+                    when {
+                        screen == "assistant" -> AssistantScreen(viewModel, assists = assisted, onOpenSettings = { open("settings") },
+                            onOpenLink = { stack = stack + "settings" + "link" }, onOpenNotes = { open("notes") })
+                        screen == "notes" -> NotesScreen(viewModel.notes, onOpen = { showNote(it) }, onBack = back)
+                        screen == "settings" -> SettingsScreen(settings, onOpenTools = { open("tools") }, onOpenLink = { open("link") }, onBack = back)
+                        screen == "link" -> LinkScreen(settings, onBack = back)
+                        screen == "tools" -> ToolsScreen(settings, onOpenTool = { open("tool:$it") }, onBack = back)
+                        screen.startsWith("keywords:") -> KeywordsScreen(settings, screen.removePrefix("keywords:"), onBack = back)
+                        // "Try it" on a tool's page: back to the chat, and send the example.
+                        else -> ToolConfigScreen(settings, screen.removePrefix("tool:"), onOpenKeywords = { open("keywords:" + screen.removePrefix("tool:")) }, onTry = { example ->
+                            stack = listOf("assistant")
+                            viewModel.send(example)
+                        }, onBack = back)
+                    }
+                }
                 }
             }
         }
