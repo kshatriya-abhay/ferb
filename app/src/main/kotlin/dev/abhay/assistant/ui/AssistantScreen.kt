@@ -793,11 +793,12 @@ private fun InputBar(
         // Who answers, in a row of its own under the box, so the box keeps its width for the request.
         // Always enabled, so the choice stays readable: a request on its way has read it already,
         // and picking Phone drops a recording.
-        if (answerer != null || usingJev) {
+        val jevLine = Answerer.usingJevLine(usingJev, answerer)
+        if (answerer != null || jevLine) {
             Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 answerer?.let { AnswererToggle(it, usingJev, onChoose = onAnswerer) }
                 Spacer(Modifier.weight(1f))
-                if (usingJev) UsingJev()
+                if (jevLine) UsingJev()
             }
         }
     }

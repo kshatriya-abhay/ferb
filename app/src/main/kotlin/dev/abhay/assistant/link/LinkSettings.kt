@@ -33,6 +33,13 @@ enum class Answerer(val id: String, val label: String) {
 
     companion object {
         fun of(id: String?) = entries.firstOrNull { it.id == id } ?: Needle
+
+        /**
+         * Whether the chat box says "Using Jev" under it: while Jev is in use, unless Phone is
+         * picked, whose label says it already ("Phone + Jev"). [shown]: the choice in the chat
+         * box, null when there's none ("When Needle 3 is unsure").
+         */
+        fun usingJevLine(usingJev: Boolean, shown: Answerer?): Boolean = usingJev && shown != Needle
     }
 }
 
