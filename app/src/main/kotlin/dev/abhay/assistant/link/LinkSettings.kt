@@ -24,6 +24,13 @@ enum class Answerer(val id: String, val label: String) {
     Needle("needle", "Phone"),
     Link("link", "Computer");
 
+    /**
+     * The label in the chat box: "Phone + Jev" while Jev picks the tool for the phone ("Use Jev to
+     * select the tool" on, and Ferb Link reporting Jev available), so it's plain the request
+     * leaves the phone. Computer's stays as it is.
+     */
+    fun label(usingJev: Boolean): String = if (this == Needle && usingJev) "Phone + Jev" else label
+
     companion object {
         fun of(id: String?) = entries.firstOrNull { it.id == id } ?: Needle
     }

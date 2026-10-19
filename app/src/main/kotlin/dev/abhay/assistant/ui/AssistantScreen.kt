@@ -745,7 +745,7 @@ private val Answerer.icon get() = if (this == Answerer.Needle) R.drawable.ic_pho
 /** The chat box's choice of who answers, as connected toggle buttons: Phone (Needle 3) or Computer (Ferb Link). */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun AnswererToggle(chosen: Answerer, onChoose: (Answerer) -> Unit) {
+private fun AnswererToggle(chosen: Answerer, usingJev: Boolean, onChoose: (Answerer) -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {
         Answerer.entries.forEachIndexed { i, answerer ->
             ToggleButton(
@@ -756,7 +756,7 @@ private fun AnswererToggle(chosen: Answerer, onChoose: (Answerer) -> Unit) {
             ) {
                 Icon(painterResource(answerer.icon), contentDescription = null, Modifier.size(ButtonDefaults.IconSize))
                 Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                Text(answerer.label)
+                Text(answerer.label(usingJev))
             }
         }
     }
@@ -795,7 +795,7 @@ private fun InputBar(
         // and picking Phone drops a recording.
         if (answerer != null || usingJev) {
             Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                answerer?.let { AnswererToggle(it, onChoose = onAnswerer) }
+                answerer?.let { AnswererToggle(it, usingJev, onChoose = onAnswerer) }
                 Spacer(Modifier.weight(1f))
                 if (usingJev) UsingJev()
             }
