@@ -33,6 +33,11 @@
     <!-- open_app: see the launchable apps, to find one by name (package visibility).
          create_note: see the notes apps that take a note from another app. -->
     <queries>
+        <!-- Obsidian, to open notes there (obsidian://open links): visibility only, no permission. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="obsidian" />
+        </intent>
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />

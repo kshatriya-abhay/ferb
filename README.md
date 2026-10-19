@@ -49,7 +49,7 @@ In Android's **Settings → Apps → Default apps → Digital assistant app**, p
 | Media volume | | "Set volume to 40" |
 | Media controls | | "Pause the music" |
 | Camera | | "Take a picture" |
-| Notes | | "Note that the car is parked on level 3" (to your notes app, or Markdown files in a folder you pick, e.g. in an Obsidian vault) |
+| Notes | | "Note that the car is parked on level 3" (to your notes app, or Markdown files in a folder you pick, e.g. in an Obsidian vault; with Obsidian installed, notes open there) |
 | Lists | | "Add milk and eggs to the shopping list" (a note with checkboxes in your notes folder) |
 | Show lists | | "What's on my shopping list?" (tick items off in the chat) |
 | Tick off | | "Tick milk off the shopping list" |

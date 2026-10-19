@@ -33,6 +33,12 @@ class ManifestTest {
     }
 
     @Test
+    fun obsidianIsVisibleForNotes() {
+        val queries = elements("queries").single().getElementsByTagName("data").let { d -> (0 until d.length).map { (d.item(it) as Element).getAttributeNS(android, "scheme") } }
+        assertThat(queries).contains("obsidian")
+    }
+
+    @Test
     fun thePermissionsAreTheToolsOwnAndNeverInternet() {
         val permissions = elements("uses-permission").map { it.getAttributeNS(android, "name") }
         assertThat(permissions).containsExactly(

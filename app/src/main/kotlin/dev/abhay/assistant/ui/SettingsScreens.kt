@@ -3,6 +3,7 @@
 package dev.abhay.assistant.ui
 
 import android.Manifest
+import dev.abhay.assistant.notes.Obsidian
 import dev.abhay.assistant.notes.SafNotes
 import dev.abhay.assistant.onboarding.Tip
 import androidx.compose.foundation.layout.Box
@@ -702,6 +703,21 @@ private fun NotesFolderSetting(notes: SafNotes, enabled: Boolean) {
             trailingContent = { Text(if (name == null) "Pick" else "Change", color = MaterialTheme.colorScheme.primary) },
         ) { Text("Notes folder") }
     })
+    // Only with Obsidian installed: then notes open there unless turned off.
+    val context = LocalContext.current
+    val obsidian = remember { Obsidian.installed(context) }
+    if (obsidian) {
+        var inObsidian by remember { mutableStateOf(notes.opensInObsidian(true)) }
+        Spacer(Modifier.height(8.dp))
+        Group(listOf { shapes ->
+            SegmentedListItem(
+                onClick = { inObsidian = !inObsidian; notes.setOpenInObsidian(inObsidian) },
+                shapes = shapes,
+                supportingContent = { Text(if (inObsidian) "Tapping a note opens it in Obsidian" else "Notes open in Ferb's own viewer") },
+                trailingContent = { Switch(checked = inObsidian, onCheckedChange = null) },
+            ) { Text("Open notes in Obsidian") }
+        })
+    }
 }
 
 /** The JSON schema Needle 3 gets, behind a toggle: useful when tuning, noise otherwise. */

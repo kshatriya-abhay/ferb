@@ -74,6 +74,15 @@ class SafNotes(
             prefs.edit().putString(FOLDER, value?.toString()).apply()
         }
 
+    /**
+     * Whether notes open in Obsidian (Settings → Tools → Notes): the user's choice, or, until they
+     * make one, yes whenever Obsidian is installed. Ferb's viewer is the fallback, not the default.
+     */
+    fun opensInObsidian(obsidianInstalled: Boolean): Boolean =
+        obsidianInstalled && prefs.getString(OPEN_IN, null)?.let { it == OBSIDIAN } ?: true
+
+    fun setOpenInObsidian(on: Boolean) = prefs.edit().putString(OPEN_IN, if (on) OBSIDIAN else FERB).apply()
+
     /** Keeps access to [tree] across restarts and makes it the notes folder. */
     fun pick(tree: Uri) {
         context.contentResolver.takePersistableUriPermission(tree, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
@@ -150,5 +159,8 @@ class SafNotes(
 
     private companion object {
         const val FOLDER = "folder"
+        const val OPEN_IN = "open_in"
+        const val OBSIDIAN = "obsidian"
+        const val FERB = "ferb"
     }
 }
