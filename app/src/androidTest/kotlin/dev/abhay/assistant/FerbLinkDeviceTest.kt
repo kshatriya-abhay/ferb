@@ -5,12 +5,15 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.common.truth.Truth.assertThat
 import dev.abhay.assistant.link.LinkStatus
+import dev.abhay.assistant.tools.AddReminder
 import dev.abhay.assistant.tools.SetAlarm
+import dev.abhay.assistant.tools.TimeArgs
 import dev.abhay.assistant.tools.Tools
 import dev.abhay.assistant.ui.VoiceOutcome
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.time.ZonedDateTime
 import kotlinx.coroutines.runBlocking
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -49,6 +52,26 @@ class FerbLinkDeviceTest {
         Log.i(TAG, "transcribe (silence): heard='${silence.heard}' text='${silence.text}' error=${silence.error}")
         assertThat(silence.error).isNull()
         assertThat((VoiceOutcome.of(silence) as VoiceOutcome.Failed).keepClip).isFalse() // "No words heard"
+    }
+
+    /**
+     * The timed call (`time_format` 1, the path Computer mode takes when Jev picks a timed tool),
+     * without Jev: its time structure reaches Ferb and Ferb's resolver takes it.
+     */
+    @Test
+    fun theTimedCallCarriesATimeStructure() = runBlocking {
+        assumeTrue("Ferb Link ready", app.link.status() is LinkStatus.Ready)
+        assumeTrue("the computer answers", app.link.check()?.reachable == true)
+        val request = "remind me tomorrow at 9 am to water the plants"
+        val reply = app.link.complete(request, Tools.json(listOf(AddReminder)), timeFormat = true)
+        Log.i(TAG, "timed complete: ${reply.calls.map { it.signature() }} ${reply.error} ${reply.ms} ms")
+        assertThat(reply.error).isNull()
+        val call = reply.calls.single()
+        assertThat(call.name).isEqualTo(AddReminder.name)
+        assertThat(call.arguments).containsKey("when")
+        val applied = TimeArgs.apply(call.name, call.arguments, listOf(request), ZonedDateTime.now())
+        Log.i(TAG, "timed applied: $applied")
+        assertThat(applied[TimeArgs.RESOLVED]).isEqualTo(true)
     }
 
     /**
