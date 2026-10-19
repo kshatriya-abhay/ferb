@@ -665,6 +665,9 @@ object CreateNote : Tool(
             ToolOption.Choice.Item(FOLDER, MARKDOWN_NOTES, "Markdown files in a folder of your Obsidian vault, opened in Obsidian", needsObsidian = true),
         ),
         default = KEEP,
+        // The user's finding (2026-10-19): links reach a vault Obsidian has loaded; forum reports
+        // say links to a never-opened vault fail silently on mobile.
+        note = "Notes open in Obsidian when their vault has been opened in Obsidian at least once.",
     )
     val folderOption = ToolOption.NotesFolder(key = "folder", title = "Notes folder")
     override val options = listOf(saveTo, folderOption)

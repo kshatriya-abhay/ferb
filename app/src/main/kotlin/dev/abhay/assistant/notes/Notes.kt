@@ -88,6 +88,27 @@ class SafNotes(
         folder = tree
     }
 
+    /**
+     * Whether the folder is an Obsidian vault's top folder ([VaultCheck]): `.obsidian` looked up
+     * by that exact name, not by listing. Call off the main thread.
+     */
+    fun vaultCheck(): VaultCheck.Outcome {
+        val tree = folder ?: return VaultCheck.Outcome.Unknown
+        val id = VaultCheck.entryId(tree.authority.orEmpty(), DocumentsContract.getTreeDocumentId(tree)) ?: return VaultCheck.Outcome.Unknown
+        val exists = try {
+            context.contentResolver.query(DocumentsContract.buildDocumentUriUsingTree(tree, id),
+                arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID), null, null, null)?.use { it.moveToFirst() } ?: false
+        } catch (e: java.io.FileNotFoundException) {
+            false
+        } catch (e: SecurityException) {
+            null
+        } catch (e: IllegalArgumentException) {
+            // Some providers say "not a descendant" for an id that doesn't exist.
+            false
+        }
+        return VaultCheck.outcome(exists)
+    }
+
     /** The folder's name, for Settings. */
     fun folderName(): String? = folder?.let { DocumentsContract.getTreeDocumentId(it).substringAfterLast(':').substringAfterLast('/').ifEmpty { "Notes" } }
 

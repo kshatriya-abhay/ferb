@@ -38,6 +38,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import dev.abhay.assistant.notes.NoteRef
 import dev.abhay.assistant.notes.NoteStore
 import dev.abhay.assistant.notes.SafNotes
+import dev.abhay.assistant.notes.VaultCheck
 import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.Dispatchers
@@ -65,21 +66,29 @@ fun NotesScreen(notes: SafNotes, onOpen: (NoteRef) -> Unit, onBack: () -> Unit) 
             resumed++
         }
     }
+    // A folder that isn't a vault's top folder: said above the notes, nothing blocked.
+    val warning by produceState<String?>(null, resumed) {
+        value = withContext(Dispatchers.IO) { if (notes.ready) VaultCheck.warning(notes.vaultCheck()) else null }
+    }
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     BackHandler(onBack = onBack)
     Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = { TopBar("Notes", subtitle = notes.folderName(), onBack = onBack, scroll = bar) }) { padding ->
         val shown = list
+        Column(Modifier.padding(padding)) {
+        warning?.let {
+            Text(it, Modifier.padding(horizontal = 24.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+        }
         when {
-            !notes.ready -> Column(Modifier.padding(padding).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            !notes.ready -> Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text("Pick a folder for your notes and lists, such as one in your Obsidian vault. Ferb keeps them there as Markdown files.",
                     style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Button(onClick = { pick.launch(null) }) { Text("Pick a notes folder") }
             }
-            shown == null -> Column(Modifier.padding(padding).fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) { LoadingIndicator() }
-            shown.isEmpty() -> Text("No notes from Ferb yet. Ask Ferb to take one, or to make a list.", Modifier.padding(padding).padding(24.dp),
+            shown == null -> Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) { LoadingIndicator() }
+            shown.isEmpty() -> Text("No notes from Ferb yet. Ask Ferb to take one, or to make a list.", Modifier.padding(24.dp),
                 style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            else -> LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
+            else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
                 itemsIndexed(shown, key = { _, n -> n.id }) { i, note ->
                     SegmentedListItem(
@@ -89,6 +98,7 @@ fun NotesScreen(notes: SafNotes, onOpen: (NoteRef) -> Unit, onBack: () -> Unit) 
                     ) { Text(note.name) }
                 }
             }
+        }
         }
     }
 }

@@ -5,6 +5,9 @@ package dev.abhay.assistant.ui
 import android.Manifest
 import dev.abhay.assistant.notes.Obsidian
 import dev.abhay.assistant.notes.SafNotes
+import dev.abhay.assistant.notes.VaultCheck
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import dev.abhay.assistant.onboarding.Tip
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -86,6 +89,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -696,6 +700,10 @@ private fun NotesFolderSetting(notes: SafNotes, enabled: Boolean) {
             name = notes.folderName()
         }
     }
+    // Whether it's a vault's top folder: a warning when not, nothing blocked.
+    val vault by produceState<VaultCheck.Outcome?>(null, name) {
+        value = if (name == null) null else withContext(Dispatchers.IO) { notes.vaultCheck() }
+    }
     Spacer(Modifier.height(16.dp))
     Group(listOf { shapes ->
         SegmentedListItem(
@@ -706,6 +714,9 @@ private fun NotesFolderSetting(notes: SafNotes, enabled: Boolean) {
             trailingContent = { Text(if (name == null) "Pick" else "Change", color = MaterialTheme.colorScheme.primary) },
         ) { Text("Notes folder") }
     })
+    vault?.let(VaultCheck::warning)?.let {
+        Text(it, Modifier.padding(horizontal = 16.dp, vertical = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+    }
 }
 
 /** The JSON schema Needle 3 gets, behind a toggle: useful when tuning, noise otherwise. */
