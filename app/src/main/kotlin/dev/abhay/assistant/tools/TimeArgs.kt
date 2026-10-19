@@ -157,7 +157,18 @@ object TimeArgs {
         fun part(c: TimeExpr.Clock?) = c?.let { clock ->
             clock.copy(part = clock.part?.takeIf { p -> PART_WORDS[p].orEmpty().any { it in words } },
                 // am or pm only when said ("saade paanch baje" came back as 5:30 pm).
-                meridiem = clock.meridiem?.takeIf { it in words || (it == "am" && "midnight" in words) || (it == "pm" && "noon" in words) })
+                meridiem = clock.meridiem?.takeIf { m ->
+                    m in words || (m == "am" && "midnight" in words) || (m == "pm" && "noon" in words) ||
+                        // Implied by a part of the day the user said ("raat 9 baje" is 9 pm, "subah 6" 6 am).
+                        PART_WORDS.any { (part, said) ->
+                            said.any { it in words && it !in setOf("am", "pm") } && m == when {
+                                part == "morning" -> "am"
+                                // At night 12 and 1–5 are the small hours ("raat 2 baje" is 2 am), as TimeOfDay reads them.
+                                part == "night" && ((clock.hour ?: 0) == 12 || (clock.hour ?: 0) in 1..5) -> "am"
+                                else -> "pm"
+                            }
+                        }
+                })
         }?.takeIf { it.hour != null || it.part != null }
         return when (expr) {
             is TimeExpr.At -> {
@@ -165,8 +176,9 @@ object TimeArgs {
                     is TimeExpr.Day.Relative -> d.takeIf { RELATIVE_WORDS[d.days].orEmpty().any { it in words } }
                     is TimeExpr.Day.Weekday -> d.takeIf { WEEKDAY_WORDS.getValue(d.weekday).any { it in words } }
                     // A month or year nobody said is dropped ("the 12th" came back as 12 October 2026).
-                    is TimeExpr.Day.Date -> d.copy(
-                        month = d.month?.takeIf { m -> words.any { it.startsWith(MONTH_WORDS[(m - 1).coerceIn(0, 11)]) } || words.any { it.toIntOrNull() == m } },
+                    is TimeExpr.Day.Date -> d.takeIf { d.day.toString() in words }?.copy(
+                        month = d.month?.takeIf { m -> words.any { it.startsWith(MONTH_WORDS[(m - 1).coerceIn(0, 11)]) } ||
+                            texts.any { t -> Regex("""\b${d.day}/0?$m\b""").containsMatchIn(t) } },
                         year = d.year?.takeIf { y -> y.toString() in words })
                     null -> null
                 }
@@ -187,6 +199,13 @@ object TimeArgs {
         val day = (expr as? TimeExpr.At)?.day
         if (words.any { it in PARSO } && !(day is TimeExpr.Day.Relative && day.days == 2)) return "parso is the day after tomorrow"
         if (kind == Resolve.For.Reminder && words.any { it in REPEATS } && expr !is TimeExpr.Every) return "you asked for it to repeat"
+        if (expr is TimeExpr.Every) {
+            // A repeat nobody asked for ("remind me next Sunday" came back weekly), or on a weekday not said ("har ravivar" as Saturdays).
+            if (words.none { it in REPEATS }) return "you didn't ask for it to repeat"
+            if (expr.on.any { day -> WEEKDAY_WORDS.getValue(day).none { it in words } }) return "the day isn't what you said"
+        }
+        // A length from now must be said as one ("kal subah 7 baje" came back as in 1 day); timers are lengths anyway.
+        if (kind != Resolve.For.Timer && (expr is TimeExpr.In || expr is TimeExpr.Lasting) && texts.none { FROM_NOW.containsMatchIn(norm(it)) }) return "that isn't a time from now"
         // A length from now ("in an hour") must be one, not a clock time the model worked out.
         if (texts.any { FROM_NOW.containsMatchIn(norm(it)) } && expr is TimeExpr.At) return "that's a time from now"
         // The user named a day, and the structure has none left that matches.
@@ -195,7 +214,7 @@ object TimeArgs {
     }
 
     private val PARSO = setOf("parso", "parson", "parsoon")
-    private val REPEATS = setOf("every", "har", "roz", "daily", "weekly", "monthly", "yearly")
+    private val REPEATS = setOf("every", "har", "roz", "daily", "weekly", "monthly", "yearly", "each")
 
     /**
      * Whether [expr] is what the user said: its source, when it has one, in one of [texts] word for

@@ -1,0 +1,47 @@
+150 lines; 0 decide, 68 schema-calls and 0 completes to send
+Replies kept in results/times-20261019-081113.jsonl
+== arm t4, held half
+Times: right / lines; of the misses, asked and wrong runs (a wrong value, or a tool where none was wanted)
+  all                    50/75  asked 20  wrong 5
+  held                   50/75  asked 20  wrong 5
+  held ask               4/5  asked 0  wrong 1
+  held clock             8/10  asked 2  wrong 0
+  held days              8/14  asked 4  wrong 2
+  held dst               1/2  asked 1  wrong 0
+  held durations         5/5  asked 0  wrong 0
+  held hindi             7/14  asked 7  wrong 0
+  held month end         3/5  asked 2  wrong 0
+  held near              4/4  asked 0  wrong 0
+  held relative          6/8  asked 2  wrong 0
+  held repeats           4/5  asked 0  wrong 1
+  held sunday            0/3  asked 2  wrong 1
+
+MISS held [clock] alarm at 1 in the afternoon: expected alarm 2026-10-16T13:00, got ask; when={"kind":"at","v":1,"time":{"hour":1,"meridiem":"pm","minute":0},"day":{"month":10,"year":2026,"day":16}}
+MISS held [clock] alarm at 10 at night: expected alarm 2026-10-16T22:00, got ask; when={"kind":"at","v":1,"time":{"hour":10,"meridiem":"pm","minute":0},"day":{"which":null,"weekday":"friday"}}
+MISS held [hindi] kal subah 7 baje jaga dena: expected alarm 2026-10-17T07:00, got ask; when={"kind":"in","v":1,"length":{"hours":0,"seconds":0,"minutes":0,"days":1}}
+MISS held [hindi] raat 9 baje alarm: expected alarm 2026-10-16T21:00, got ask; when={"kind":"at","v":1,"time":{"hour":9,"meridiem":"pm","minute":0},"day":{"which":null,"weekday":"friday"}}
+MISS held [hindi] sava aath baje utha dena: expected alarm 2026-10-17T08:15, got ask; when={"kind":"at","v":1,"time":{"hour":9,"meridiem":"am","minute":45},"day":{"relative":1}}
+MISS held [hindi] paune ghante ka timer: expected timer 2700s, got ask; when={"kind":"duration","v":1,"length":{"hours":0,"seconds":0,"minutes":15,"days":0}}
+MISS held [hindi] agle shukravar dopahar 2 baje meeting: expected event 2026-10-23T14:00, got ask; when={"kind":"at","v":1,"time":{"hour":2,"part":"afternoon","meridiem":"pm","minute":0},"day":{"which":"this","weekday":"thursday"}}
+MISS held [hindi] parso yaad dilana: expected reminder 2026-10-18T09:00, got ask; when={"kind":"at","v":1,"time":null,"day":{"relative":1}}
+MISS held [hindi] mangalvar 3 baje meeting: expected event 2026-10-20T15:00, got ask; when={"kind":"at","v":1,"time":{"hour":3,"part":null,"meridiem":null,"minute":0},"day":{"which":null,"weekday":"monday"}}
+MISS held [relative] wake me in an hour and a half: expected alarm 2026-10-16T10:30, got ask; when=null
+MISS held [relative] remind me in 75 minutes: expected reminder 2026-10-16T10:15, got ask; when={"kind":"in","v":1,"length":{"hours":1,"seconds":0,"minutes":15,"days":0}}
+MISS held [days] review next Monday at 10 am: expected event 2026-10-19T10:00, got none; when=null
+MISS held [days] movie on 1 November at 6: expected event 2026-11-01T18:00, got event 2027-01-01T18:00; when={"kind":"at","v":1,"time":{"hour":6,"part":null,"meridiem":null,"minute":0},"day":{"month":1,"year":2026,"day":1}}
+MISS held [days] Sunday afternoon at 2 picnic: expected event 2026-10-18T14:00, got ask; when={"kind":"at","v":1,"time":{"hour":2,"part":null,"meridiem":null,"minute":0},"day":{"relative":1}}
+MISS held [days] remind me on 1 November to renew insurance: expected reminder 2026-11-01T09:00, got ask; when={"kind":"at","v":1,"time":null,"day":{"month":1,"year":2026,"day":1}}
+MISS held [days] remind me the day after tomorrow: expected reminder 2026-10-18T09:00, got ask; when={"kind":"in","v":1,"length":{"hours":0,"seconds":0,"minutes":0,"days":2}}
+MISS held [days] remind me this afternoon to email Priya: expected reminder 2026-10-16T14:00, got ask; when={"kind":"in","v":1,"length":{"hours":12,"seconds":0,"minutes":0,"days":0}}
+MISS held [repeats] har ravivar 10 baje yaad dilana: expected reminder 2026-10-18T10:00 repeat=weekly, got reminder 2026-10-17T10:00 repeat=weekly; when={"period":"week","kind":"every","v":1,"time":{"hour":10,"part":null,"meridiem":null,"minute":0},"on":["saturday"]}
+MISS held [ask] movie night this weekend: expected ask, got none; when=null
+MISS held [month end] parso dopahar 2 baje meeting: expected event 2026-11-02T14:00, got ask; when={"kind":"at","v":1,"time":{"hour":2,"part":"afternoon","meridiem":"pm","minute":0},"day":{"relative":1}}
+MISS held [month end] remind me tomorrow: expected reminder 2026-11-01T09:00, got ask; when={"kind":"in","v":1,"length":{"hours":0,"seconds":0,"minutes":0,"days":1}}
+MISS held [sunday] brunch on Saturday at 11: expected event 2026-10-24T11:00, got ask; when={"kind":"at","v":1,"time":{"hour":11,"part":null,"meridiem":null,"minute":0},"day":{"relative":1}}
+MISS held [sunday] wake me tomorrow at 7: expected alarm 2026-10-19T07:00, got ask; when={"kind":"in","v":1,"length":{"hours":0,"seconds":0,"minutes":0,"days":1}}
+MISS held [sunday] remind me next Sunday: expected reminder 2026-10-25T09:00, got reminder 2026-10-25T09:00 repeat=weekly; when={"period":"week","kind":"every","v":1,"time":null,"on":["sunday"]}
+MISS held [dst] alarm in 90 minutes: expected alarm 2026-10-25T01:00, got ask; when={"kind":"in","v":1,"length":{"hours":1,"seconds":0,"minutes":30,"days":0}}
+
+timed schema-call: median / 90th 1275 / 1529 ms (n=68)
+B+Jev's Gemma call: median / 90th 325 / 325 ms (n=1)
+trimmed calls: 0

@@ -1,0 +1,82 @@
+Times: right / lines; of the misses, asked and wrong runs (a wrong value, or a tool where none was wanted)
+  all                    95/150  asked 31  wrong 24
+  held                   47/75  asked 17  wrong 11
+  held ask               2/5  asked 0  wrong 3
+  held clock             10/10  asked 0  wrong 0
+  held days              12/14  asked 0  wrong 2
+  held dst               1/2  asked 1  wrong 0
+  held durations         4/5  asked 1  wrong 0
+  held hindi             3/14  asked 10  wrong 1
+  held month end         2/5  asked 1  wrong 2
+  held near              4/4  asked 0  wrong 0
+  held relative          3/8  asked 4  wrong 1
+  held repeats           4/5  asked 0  wrong 1
+  held sunday            2/3  asked 0  wrong 1
+  tune                   48/75  asked 14  wrong 13
+  tune ask               1/5  asked 0  wrong 4
+  tune clock             10/11  asked 1  wrong 0
+  tune days              11/14  asked 0  wrong 3
+  tune dst               1/2  asked 0  wrong 1
+  tune durations         5/5  asked 0  wrong 0
+  tune hindi             3/13  asked 10  wrong 0
+  tune month end         4/5  asked 0  wrong 1
+  tune near              4/4  asked 0  wrong 0
+  tune relative          3/8  asked 2  wrong 3
+  tune repeats           4/5  asked 0  wrong 1
+  tune sunday            2/3  asked 1  wrong 0
+
+MISS tune [clock] alarm at quarter to eight: expected alarm 2026-10-17T07:45, got ask; when=null
+MISS tune [hindi] kal subah sava saat baje utha dena: expected alarm 2026-10-17T07:15, got ask; when=null
+MISS tune [hindi] paune aath baje ka alarm lagao: expected alarm 2026-10-17T07:45, got ask; when=null
+MISS tune [hindi] saade paanch baje alarm laga do: expected alarm 2026-10-17T05:30, got ask; when=null
+MISS tune [hindi] dhai minute ka timer lagao: expected timer 150s, got ask; when=null
+MISS tune [hindi] dedh ghante ka timer: expected timer 5400s, got ask; when=null
+MISS tune [hindi] kal 4 baje meeting calendar mein daal do: expected event 2026-10-17T16:00, got ask; when=null
+MISS tune [hindi] parso shaam 6 baje meeting: expected event 2026-10-18T18:00, got ask; when=null
+MISS tune [hindi] shaam saade saat baje utha dena: expected alarm 2026-10-16T19:30, got ask; when=null
+MISS tune [hindi] aaj raat yaad dilana: expected reminder 2026-10-16T20:00, got ask; when=null
+MISS tune [hindi] kal 11 baje doctor: expected event 2026-10-17T11:00, got ask; when=null
+MISS held [hindi] sava aath baje utha dena: expected alarm 2026-10-17T08:15, got ask; when=null
+MISS held [hindi] das minute ka timer laga do: expected timer 600s, got ask; when=null
+MISS held [hindi] pandrah minute ka timer: expected timer 900s, got ask; when=null
+MISS held [hindi] paune ghante ka timer: expected timer 2700s, got ask; when=null
+MISS held [hindi] somvar 10 baje meeting: expected event 2026-10-19T10:00, got ask; when=null
+MISS held [hindi] agle shukravar dopahar 2 baje meeting: expected event 2026-10-23T14:00, got ask; when=null
+MISS held [hindi] kal subah yaad dilana: expected reminder 2026-10-17T09:00, got ask; when=null
+MISS held [hindi] subah saade chhe baje utha dena: expected alarm 2026-10-17T06:30, got ask; when=null
+MISS held [hindi] bees minute ka timer: expected timer 1200s, got ask; when=null
+MISS held [hindi] parso yaad dilana: expected reminder 2026-10-18T09:00, got reminder 2026-10-17T09:00; when=null
+MISS held [hindi] mangalvar 3 baje meeting: expected event 2026-10-20T15:00, got ask; when=null
+MISS tune [relative] alarm in 20 minutes: expected alarm 2026-10-16T09:20, got ask; when=null
+MISS tune [relative] remind me in 2 and a half hours: expected reminder 2026-10-16T11:30, got none; when=null
+MISS tune [relative] remind me in 45 minutes: expected reminder 2026-10-16T09:45, got none; when=null
+MISS tune [relative] 10 minute mein yaad dilana: expected reminder 2026-10-16T09:10, got timer 600s; when=null
+MISS tune [relative] alarm in 2 hours: expected alarm 2026-10-16T11:00, got ask; when=null
+MISS held [relative] wake me in an hour and a half: expected alarm 2026-10-16T10:30, got ask; when=null
+MISS held [relative] remind me in 5 minutes: expected reminder 2026-10-16T09:05, got ask; when=null
+MISS held [relative] remind me in 75 minutes: expected reminder 2026-10-16T10:15, got none; when=null
+MISS held [relative] ek ghante mein yaad dilana: expected reminder 2026-10-16T10:00, got ask; when=null
+MISS held [relative] wake me in 40 minutes: expected alarm 2026-10-16T09:40, got ask; when=null
+MISS tune [days] lunch next Friday at 1: expected event 2026-10-23T13:00, got none; when=null
+MISS tune [days] call with John on Monday at 10: expected event 2026-10-19T10:00, got make_call (another tool); when=null
+MISS tune [days] anniversary dinner on 12 October: expected event 2027-10-12, got event 2027-10-12T20:00; when=null
+MISS held [days] review next Monday at 10 am: expected event 2026-10-19T10:00, got none; when=null
+MISS held [days] remind me the day after tomorrow: expected reminder 2026-10-18T09:00, got none; when=null
+MISS held [durations] timer two and a half minutes: expected timer 150s, got ask; when=null
+MISS tune [repeats] roz raat 10 baje yaad dilana: expected reminder 2026-10-16T22:00 repeat=daily, got reminder 2026-10-16T22:00; when=null
+MISS held [repeats] har ravivar 10 baje yaad dilana: expected reminder 2026-10-18T10:00 repeat=weekly, got reminder 2026-10-16T10:00; when=null
+MISS tune [ask] alarm tomorrow at 10: expected ask, got alarm 2026-10-16T10:00; when=null
+MISS tune [ask] team call this weekend: expected ask, got none; when=null
+MISS tune [ask] remind me every weekday at 7: expected ask, got reminder 2026-10-17T07:00; when=null
+MISS tune [ask] alarm today at 8: expected ask, got alarm 2026-10-17T08:00; when=null
+MISS held [ask] set an alarm for the 20th at 7: expected ask, got none; when=null
+MISS held [ask] movie night this weekend: expected ask, got none; when=null
+MISS held [ask] remind me every Monday and Wednesday at 8: expected ask, got reminder 2026-10-19T08:00 repeat=weekly; when=null
+MISS tune [month end] remind me in 3 hours: expected reminder 2026-11-01T01:00, got none; when=null
+MISS held [month end] parso dopahar 2 baje meeting: expected event 2026-11-02T14:00, got ask; when=null
+MISS held [month end] remind me tomorrow: expected reminder 2026-11-01T09:00, got none; when=null
+MISS held [month end] remind me in 2 hours 15 minutes: expected reminder 2026-11-01T00:15, got none; when=null
+MISS tune [sunday] alarm Monday 6 am: expected alarm 2026-10-19T06:00, got ask; when=null
+MISS held [sunday] remind me next Sunday: expected reminder 2026-10-25T09:00, got none; when=null
+MISS tune [dst] remind me in 2 hours: expected reminder 2026-10-25T01:30, got none; when=null
+MISS held [dst] alarm in 90 minutes: expected alarm 2026-10-25T01:00, got ask; when=null

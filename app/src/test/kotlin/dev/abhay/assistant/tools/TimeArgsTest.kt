@@ -141,4 +141,25 @@ class TimeArgsTest {
         val nth = TimeArgs.apply(AddEvent.name, mapOf("title" to "meeting", "when" to json("""{"v":1,"kind":"at","day":{"day":12,"month":10,"year":2026},"time":{"hour":3,"minute":0}}""")), listOf("meeting on the 12th at 3"), now)
         assertThat(nth[TimeArgs.AT]).isEqualTo("2026-11-12T15:00")
     }
+
+    @Test
+    fun whatTheHeldOutHalfShowedAsksOrIsDropped() {
+        fun ask(tool: String, whenJson: String, request: String) = TimeArgs.apply(tool, mapOf("when" to json(whenJson)), listOf(request), now)[TimeArgs.ASK]
+        // "1 November" read as month 1: a month only by its name.
+        val nov = TimeArgs.apply(AddEvent.name, mapOf("title" to "movie", "when" to json("""{"v":1,"kind":"at","day":{"day":1,"month":1,"year":2026},"time":{"hour":6,"minute":0}}""")), listOf("movie on 1 November at 6"), now)
+        assertThat(nov[TimeArgs.AT]).isEqualTo("2026-11-01T18:00")
+        // A repeat on a weekday not said, or nobody asked to repeat.
+        assertThat(ask(AddReminder.name, """{"v":1,"kind":"every","period":"week","on":["saturday"],"time":{"hour":10,"minute":0}}""", "har ravivar 10 baje yaad dilana")).isEqualTo("the day isn't what you said")
+        assertThat(ask(AddReminder.name, """{"v":1,"kind":"every","period":"week","on":["sunday"],"time":null}""", "remind me next Sunday")).isEqualTo("you didn't ask for it to repeat")
+        // A length from now nobody said ("kal subah 7 baje" as in 1 day).
+        assertThat(ask(SetAlarm.name, """{"v":1,"kind":"in","length":{"days":1,"hours":0,"minutes":0,"seconds":0}}""", "kal subah 7 baje jaga dena")).isNotNull()
+        assertThat(ask(AddReminder.name, """{"v":1,"kind":"in","length":{"days":0,"hours":2,"minutes":0,"seconds":0}}""", "remind me at 2")).isEqualTo("that isn't a time from now")
+        // pm implied by "raat"; a date nobody said is dropped, not asked about.
+        val raat = TimeArgs.apply(SetAlarm.name, mapOf("when" to json("""{"v":1,"kind":"at","day":{"day":16,"month":10,"year":2026},"time":{"hour":9,"minute":0,"meridiem":"pm"}}""")), listOf("raat 9 baje alarm"), now)
+        assertThat(raat["time"]).isEqualTo("21:00")
+        // But "raat 2 baje" is 2 am: a pm with it is not what was said.
+        val small = TimeArgs.apply(SetAlarm.name, mapOf("when" to json("""{"v":1,"kind":"at","day":null,"time":{"hour":2,"minute":0,"meridiem":"pm"}}""")), listOf("raat 2 baje ka alarm"), now)
+        assertThat(small["time"]).isEqualTo("02:00")
+        assertThat(raat[TimeArgs.ASK]).isNull()
+    }
 }

@@ -1,0 +1,35 @@
+Times: right / lines; of the misses, asked and wrong runs (a wrong value, or a tool where none was wanted)
+  all                    55/75  asked 18  wrong 2
+  held                   55/75  asked 18  wrong 2
+  held ask               4/5  asked 0  wrong 1
+  held clock             10/10  asked 0  wrong 0
+  held days              10/14  asked 3  wrong 1
+  held dst               1/2  asked 1  wrong 0
+  held durations         5/5  asked 0  wrong 0
+  held hindi             8/14  asked 6  wrong 0
+  held month end         3/5  asked 2  wrong 0
+  held near              4/4  asked 0  wrong 0
+  held relative          6/8  asked 2  wrong 0
+  held repeats           4/5  asked 1  wrong 0
+  held sunday            0/3  asked 3  wrong 0
+
+MISS held [hindi] kal subah 7 baje jaga dena: expected alarm 2026-10-17T07:00, got ask; when={"kind":"in","v":1,"length":{"hours":0,"seconds":0,"minutes":0,"days":1}}
+MISS held [hindi] sava aath baje utha dena: expected alarm 2026-10-17T08:15, got ask; when={"kind":"at","v":1,"time":{"hour":9,"meridiem":"am","minute":45},"day":{"relative":1}}
+MISS held [hindi] paune ghante ka timer: expected timer 2700s, got ask; when={"kind":"duration","v":1,"length":{"hours":0,"seconds":0,"minutes":15,"days":0}}
+MISS held [hindi] agle shukravar dopahar 2 baje meeting: expected event 2026-10-23T14:00, got ask; when={"kind":"at","v":1,"time":{"hour":2,"part":"afternoon","meridiem":"pm","minute":0},"day":{"which":"this","weekday":"thursday"}}
+MISS held [hindi] parso yaad dilana: expected reminder 2026-10-18T09:00, got ask; when={"kind":"at","v":1,"time":null,"day":{"relative":1}}
+MISS held [hindi] mangalvar 3 baje meeting: expected event 2026-10-20T15:00, got ask; when={"kind":"at","v":1,"time":{"hour":3,"part":null,"meridiem":null,"minute":0},"day":{"which":null,"weekday":"monday"}}
+MISS held [relative] wake me in an hour and a half: expected alarm 2026-10-16T10:30, got ask; when=null
+MISS held [relative] remind me in 75 minutes: expected reminder 2026-10-16T10:15, got ask; when={"kind":"in","v":1,"length":{"hours":1,"seconds":0,"minutes":15,"days":0}}
+MISS held [days] review next Monday at 10 am: expected event 2026-10-19T10:00, got none; when=null
+MISS held [days] Sunday afternoon at 2 picnic: expected event 2026-10-18T14:00, got ask; when={"kind":"at","v":1,"time":{"hour":2,"part":null,"meridiem":null,"minute":0},"day":{"relative":1}}
+MISS held [days] remind me the day after tomorrow: expected reminder 2026-10-18T09:00, got ask; when={"kind":"in","v":1,"length":{"hours":0,"seconds":0,"minutes":0,"days":2}}
+MISS held [days] remind me this afternoon to email Priya: expected reminder 2026-10-16T14:00, got ask; when={"kind":"in","v":1,"length":{"hours":12,"seconds":0,"minutes":0,"days":0}}
+MISS held [repeats] har ravivar 10 baje yaad dilana: expected reminder 2026-10-18T10:00 repeat=weekly, got ask; when={"period":"week","kind":"every","v":1,"time":{"hour":10,"part":null,"meridiem":null,"minute":0},"on":["saturday"]}
+MISS held [ask] movie night this weekend: expected ask, got none; when=null
+MISS held [month end] parso dopahar 2 baje meeting: expected event 2026-11-02T14:00, got ask; when={"kind":"at","v":1,"time":{"hour":2,"part":"afternoon","meridiem":"pm","minute":0},"day":{"relative":1}}
+MISS held [month end] remind me tomorrow: expected reminder 2026-11-01T09:00, got ask; when={"kind":"in","v":1,"length":{"hours":0,"seconds":0,"minutes":0,"days":1}}
+MISS held [sunday] brunch on Saturday at 11: expected event 2026-10-24T11:00, got ask; when={"kind":"at","v":1,"time":{"hour":11,"part":null,"meridiem":null,"minute":0},"day":{"relative":1}}
+MISS held [sunday] wake me tomorrow at 7: expected alarm 2026-10-19T07:00, got ask; when={"kind":"in","v":1,"length":{"hours":0,"seconds":0,"minutes":0,"days":1}}
+MISS held [sunday] remind me next Sunday: expected reminder 2026-10-25T09:00, got ask; when={"period":"week","kind":"every","v":1,"time":null,"on":["sunday"]}
+MISS held [dst] alarm in 90 minutes: expected alarm 2026-10-25T01:00, got ask; when={"kind":"in","v":1,"length":{"hours":1,"seconds":0,"minutes":30,"days":0}}
