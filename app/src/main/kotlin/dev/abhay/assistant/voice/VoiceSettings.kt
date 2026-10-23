@@ -32,7 +32,7 @@ class VoiceSettings(context: Context) {
 object Mic {
     /**
      * The computer hears it when it's picked and takes audio (Gemma transcribes there); anywhere
-     * else (Phone picked, Ferb Link off, "When Needle 3 is unsure") Whistle would, so only with it on.
+     * else (Phone picked, Ferb Link off) Whistle would, so only with it on.
      */
     fun shows(computerHears: Boolean, whistleOn: Boolean): Boolean = computerHears || whistleOn
 

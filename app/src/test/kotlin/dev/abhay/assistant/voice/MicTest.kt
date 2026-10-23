@@ -13,7 +13,7 @@ class MicTest {
     }
 
     @Test fun withWhistleOffItShowsOnlyWhenTheComputerHears() {
-        // Phone picked, Ferb Link off, "When Needle 3 is unsure", or Computer picked without audio: Whistle would hear.
+        // Phone picked, Ferb Link off, or Computer picked without audio: Whistle would hear.
         assertThat(Mic.shows(computerHears = false, whistleOn = false)).isFalse()
         // Computer picked and taking audio: Gemma transcribes there.
         assertThat(Mic.shows(computerHears = true, whistleOn = false)).isTrue()

@@ -62,24 +62,7 @@ class FerbLinkTest {
     fun theComputerAnswersFirstOnlyWhenPickedInTheChatBox() {
         assertThat(LinkPolicy.laptopFirst(LinkMode.Option, Answerer.Link)).isTrue()
         assertThat(LinkPolicy.laptopFirst(LinkMode.Option, Answerer.Needle)).isFalse()
-        assertThat(LinkPolicy.laptopFirst(LinkMode.Fallback, Answerer.Link)).isFalse()
         assertThat(LinkPolicy.laptopFirst(LinkMode.Off, Answerer.Link)).isFalse()
-    }
-
-    @Test
-    fun inFallbackTheComputerIsAskedWhenNeedle3IsUnsureOrFindsNoTool() {
-        val request = "wake me up at 6:45"
-        val sure = needle(0.9, alarm("6:45"))
-        assertThat(LinkPolicy.askLaptopAfter(sure, Verdict.of(sure, configs, request))).isFalse()
-        // Alarms run from 0.4.
-        val unsure = needle(0.2, alarm("6:45"))
-        assertThat(LinkPolicy.askLaptopAfter(unsure, Verdict.of(unsure, configs, request))).isTrue()
-        val none = needle(0.6)
-        assertThat(LinkPolicy.askLaptopAfter(none, Verdict.of(none, configs, request))).isTrue()
-        // Sure, but asking only because the request doesn't say the time: not the computer's job.
-        val ungrounded = needle(0.9, alarm("7:30"))
-        assertThat(Verdict.of(ungrounded, configs, request).ungrounded).isTrue()
-        assertThat(LinkPolicy.askLaptopAfter(ungrounded, Verdict.of(ungrounded, configs, request))).isFalse()
     }
 
     @Test

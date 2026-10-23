@@ -55,7 +55,6 @@ data class Answer(
     val path: List<Step>,
     /** For a rewritten request: its commands, in order, each with its steps. */
     val commands: List<CommandPath> = emptyList(),
-    val needleReply: NeedleReply? = null,
     val laptopError: String? = null,
     val laptopErrorDetail: String? = null,
     val jev: JevReply? = null,
@@ -185,9 +184,8 @@ class AnswerFlow(
                 laptopError = reply.error
                 laptopErrorDetail = reply.errorDetail ?: reply.error
                 path += Step(if (reply.error == null) "Gemma" else "Gemma: ${reply.error}")
-            } else if (chosen) {
-                // Picked in the chat box, so say why it didn't answer; in Fallback, a Ferb Link
-                // that's off or not set up is simply not asked.
+            } else {
+                // Picked in the chat box, so say why it didn't answer.
                 laptopError = brief(now)
                 laptopErrorDetail = describe(now)
                 path += Step("Computer: ${brief(now)}")
@@ -204,8 +202,6 @@ class AnswerFlow(
                 val reply = askNeedle(request, enabled, needleTools)
                 needleReply = reply
                 if (enabled.isNotEmpty()) path += needleStep(reply)
-                if (!chosen && mode == LinkMode.Fallback && enabled.isNotEmpty() && reply.error == null &&
-                    LinkPolicy.askLaptopAfter(reply, Verdict.of(reply, configs, request))) askLaptop()
             }
         }
         // The computer's answer whenever it gave one, including "no tool fits".
@@ -217,7 +213,6 @@ class AnswerFlow(
             verdict = verdict,
             checked = (if (jevPicked && shown.fromLaptop) laptopTools else needleTools).map { it.name },
             path = path,
-            needleReply = needleReply.takeIf { it !== shown },
             laptopError = laptopError.takeIf { !shown.fromLaptop },
             laptopErrorDetail = laptopErrorDetail.takeIf { !shown.fromLaptop },
             jev = jev,

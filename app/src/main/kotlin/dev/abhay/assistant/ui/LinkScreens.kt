@@ -74,13 +74,11 @@ import kotlinx.coroutines.withContext
 /** Each way to use Ferb Link, in words: its name and what it does. */
 private fun LinkMode.title() = when (this) {
     LinkMode.Off -> "Off"
-    LinkMode.Fallback -> "When Needle 3 is unsure"
     LinkMode.Option -> "Choose in the chat"
 }
 
 private fun LinkMode.description() = when (this) {
     LinkMode.Off -> "Phone only"
-    LinkMode.Fallback -> "Phone first, your computer when unsure"
     LinkMode.Option -> "Pick Phone or Computer under the chat box"
 }
 

@@ -83,8 +83,6 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         val routed: List<String>,
         val calls: List<CallState>,
         val wallMs: Long,
-        /** Needle 3's answer, when the computer's replaced it (Ferb Link's "When Needle 3 is unsure"). */
-        val needleReply: NeedleReply? = null,
         /** Why the computer's answer isn't shown, when Ferb asked it and it failed (Needle 3 answered): in a few words, and at length. */
         val laptopError: String? = null,
         val laptopErrorDetail: String? = null,
@@ -223,7 +221,6 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             val calls = shown.calls.mapIndexed { i, call -> CallState(call, prepare(call, answer.callTexts[i]), Status.Waiting) }
             val exchange = Exchange(nextId++, request, shown, verdict.decision, verdict.runAt, verdict.alwaysConfirm, verdict.unmentioned, verdict.ungrounded,
                 answer.checked, calls, SystemClock.elapsedRealtime() - started,
-                needleReply = answer.needleReply,
                 laptopError = answer.laptopError,
                 laptopErrorDetail = answer.laptopErrorDetail,
                 heard = heard,

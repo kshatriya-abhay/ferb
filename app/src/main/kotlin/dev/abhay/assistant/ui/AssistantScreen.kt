@@ -304,7 +304,6 @@ private fun subtitle(engine: AssistantEngine.State, link: LinkMode, answerer: An
     AssistantEngine.State.Loading -> "Getting ready…"
     is AssistantEngine.State.Failed -> "Couldn't start"
     is AssistantEngine.State.Ready -> when {
-        link == LinkMode.Fallback -> "On this phone · your computer when unsure"
         link == LinkMode.Option && answerer == Answerer.Link -> "Your computer, through Ferb Link"
         else -> "On this phone · offline"
     }
@@ -742,13 +741,6 @@ private fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () ->
                 }
             }
             reply.error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
-            // With Ferb Link: Needle 3's own answer when the computer's replaced it, or why the computer didn't answer.
-            exchange.needleReply?.let { needle ->
-                HorizontalDivider()
-                Text(String.format(Locale.US, "Needle 3 said (confidence %.2f):", needle.confidence ?: 0.0), style = MaterialTheme.typography.labelLarge)
-                Text(needle.calls.joinToString("\n") { it.signature() }.ifEmpty { "no tool" },
-                    style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
-            }
             (LinkPolicy.jevLine(exchange.jev) ?: exchange.jevNoteDetail)?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }

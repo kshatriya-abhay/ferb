@@ -80,9 +80,6 @@ class AnswerFlowTest {
         val link = FakeLink(picks = mapOf("wake me up at 7:15" to jev(SetAlarm.name, 0.93)))
         val jevd = answer(link, "wake me up at 7:15", LinkMode.Option, jev = true, whistle = true)
         assertThat(jevd.chain()).isEqualTo("Voice \u2192 Whistle \u2192 Jev (Alarms, 0.93) \u2192 Needle 3 (0.81)")
-        // When unsure, the computer may still answer after Needle 3.
-        val unsure = answer(FakeLink(), "wake me up at 7:15", LinkMode.Fallback, whistle = true, needle = needle(reply(0.20, alarm)))
-        assertThat(unsure.chain()).isEqualTo("Voice \u2192 Whistle \u2192 Needle 3 (0.20) \u2192 Gemma")
     }
 
     @Test
@@ -116,9 +113,11 @@ class AnswerFlowTest {
     }
 
     @Test
-    fun whenNeedle3IsUnsureTheComputerAnswers() {
-        val got = answer(FakeLink(), "wake me up at 7:15", LinkMode.Fallback, needle = needle(reply(0.2, alarm)))
-        assertThat(got.chain()).isEqualTo("Typed → Needle 3 (0.20) → Gemma")
+    fun withPhonePickedAnUnsureNeedle3DoesntReachTheComputer() {
+        val link = FakeLink()
+        val got = answer(link, "wake me up at 7:15", LinkMode.Option, Answerer.Needle, needle = needle(reply(0.2, alarm)))
+        assertThat(got.chain()).isEqualTo("Typed → Needle 3 (0.20)")
+        assertThat(link.asked.none { it.startsWith("complete") }).isTrue()
     }
 
     @Test

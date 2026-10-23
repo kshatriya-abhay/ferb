@@ -12,15 +12,6 @@ object LinkPolicy {
     fun laptopFirst(mode: LinkMode, answerer: Answerer) = mode == LinkMode.Option && answerer == Answerer.Link
 
     /**
-     * In [LinkMode.Fallback], whether to ask the computer after Needle 3's [reply]: when Needle 3
-     * found no tool (or failed), or has calls below the bar they needed ([verdict]'s runAt). Not
-     * when it would only ask because a tool is set to always ask, or a value isn't the request's:
-     * the computer's answer would ask too.
-     */
-    fun askLaptopAfter(reply: NeedleReply, verdict: Verdict): Boolean =
-        reply.calls.isEmpty() || (reply.confidence ?: 0.0) < verdict.runAt
-
-    /**
      * The computer's answer runs without asking unless the usual checks say to ask: the tool is set
      * to always ask, the request doesn't mention the tool, or a value isn't the request's. Its
      * model has no calibrated confidence (no stand-in was safe in Ferb's bench), so there's no bar.
@@ -35,7 +26,7 @@ object LinkPolicy {
      * "Use Jev to select the tool": Jev's pick counts from here, a tool or "none". In Ferb's bench
      * (2026-10-16, 460 English requests, Jev's tool given alone to the answering model), right
      * answers / wrong runs: Phone 360 / 19 to 426 / 6 (at Needle 3's own bar for the tool, as
-     * always), Computer 418 / 21 to 434 / 10, "When Needle 3 is unsure" 409 / 33 to 434 / 12;
+     * always), Computer 418 / 21 to 434 / 10 (and the since removed "When Needle 3 is unsure" 409 / 33 to 434 / 12);
      * the computer on Hindi and Hinglish 20 to 22 of 24 right, no wrong runs either way. At 0.7,
      * more answers asked wrongly with no fewer wrong runs. Jev's p isn't proof: two of its wrong
      * picks were at 1.00, so the answering model's checks still decide what runs.

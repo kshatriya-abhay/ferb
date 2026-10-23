@@ -9,13 +9,17 @@ import kotlinx.coroutines.flow.asStateFlow
 enum class LinkMode(val id: String) {
     /** Needle 3 only (the default). */
     Off("off"),
-    /** Needle 3 first; the computer's model when Needle 3 is unsure or finds no tool ([LinkPolicy]). */
-    Fallback("fallback"),
     /** The chat box offers a choice of model, Needle 3 or Ferb Link ([Answerer]). */
     Option("option");
 
     companion object {
         fun of(id: String?) = entries.firstOrNull { it.id == id } ?: Off
+
+        /**
+         * "When Needle 3 is unsure", removed 2026-10-23 (the user's decision): saved as it, Ferb
+         * Link becomes the chat's choice with Phone picked, the closest (the phone answers first).
+         */
+        const val REMOVED_UNSURE = "fallback"
     }
 }
 
@@ -35,11 +39,11 @@ enum class Answerer(val id: String, val label: String) {
         fun of(id: String?) = entries.firstOrNull { it.id == id } ?: Needle
 
         /**
-         * Whether the chat box says "Using Jev" under it: while Jev is in use, unless Phone is
-         * picked, whose label says it already ("Phone + Jev"). [shown]: the choice in the chat
-         * box, null when there's none ("When Needle 3 is unsure").
+         * Whether the chat box says "Using Jev" under it: while Jev is in use with Computer picked.
+         * Phone's label says it already ("Phone + Jev"). [shown]: the choice in the chat box, null
+         * when there's none (Ferb Link off, so no Jev either).
          */
-        fun usingJevLine(usingJev: Boolean, shown: Answerer?): Boolean = usingJev && shown != Needle
+        fun usingJevLine(usingJev: Boolean, shown: Answerer?): Boolean = usingJev && shown == Link
     }
 }
 
@@ -48,7 +52,7 @@ enum class Answerer(val id: String, val label: String) {
  * tools' draft). Ferb Link's server address and key live in Ferb Link, not here.
  */
 class LinkSettings(context: Context) {
-    private val prefs = context.getSharedPreferences("link", Context.MODE_PRIVATE)
+    private val prefs = context.getSharedPreferences("link", Context.MODE_PRIVATE).also(::migrate)
 
     private val _mode = MutableStateFlow(LinkMode.of(prefs.getString(KEY_MODE, null)))
     val mode: StateFlow<LinkMode> = _mode.asStateFlow()
@@ -80,6 +84,16 @@ class LinkSettings(context: Context) {
     }
 
     companion object {
+        /** Once, silently: a saved "When Needle 3 is unsure" becomes the chat's choice with Phone picked. */
+        internal fun migrate(prefs: android.content.SharedPreferences) {
+            val changes = migration(prefs.getString(KEY_MODE, null)) ?: return
+            prefs.edit().apply { changes.forEach { (k, v) -> putString(k, v) } }.apply()
+        }
+
+        /** The keys to rewrite for a saved mode, or null when it needs none. */
+        internal fun migration(savedMode: String?): Map<String, String>? =
+            if (savedMode == LinkMode.REMOVED_UNSURE) mapOf(KEY_MODE to LinkMode.Option.id, KEY_ANSWERER to Answerer.Needle.id) else null
+
         private const val KEY_MODE = "mode"
         private const val KEY_ANSWERER = "answerer"
         private const val KEY_JEV = "jev_selects"
