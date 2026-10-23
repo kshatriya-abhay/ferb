@@ -39,7 +39,7 @@ class AddReminderTest {
         val done = prepared.run(unusedContext()) as Outcome.Done
         assertThat(store.saved.single().at).isEqualTo(LocalDateTime.of(2026, 10, 16, 9, 0))
         assertThat(scheduled).isEqualTo(1)
-        runBlocking { done.actions.single().run(FollowUpEnv(unusedContext()) { true }) }
+        runBlocking { done.actions.single { it.label == "Undo" }.run(FollowUpEnv(unusedContext()) { true }) }
         assertThat(store.saved).isEmpty()
         assertThat(scheduled).isEqualTo(2)
     }
@@ -72,5 +72,20 @@ class AddReminderTest {
         assertThat((noNotifications as Prepared.Invalid).needs).containsExactly(Manifest.permission.POST_NOTIFICATIONS)
         val noTime = AddReminder.prepare(call("remind me to call mum", "text" to "call mum", "time" to "later"), env())
         assertThat(noTime).isInstanceOf(Prepared.Invalid::class.java)
+    }
+
+    @Test
+    fun aReminderReplyOpensTheRemindersTab() {
+        var opened = 0
+        val e = PrepareEnv(now = now.atZone(ZoneId.of("Asia/Kolkata")), notes = MemoryNotes(ready = false),
+            reminders = ReminderBook(MemoryStore(), MemoryNotes(ready = false)) { now }, openReminders = { opened++ })
+        val done = (AddReminder.prepare(call("remind me tomorrow at 9 to call mum", "text" to "call mum", "time" to "tomorrow at 9"), e) as Prepared.Ready)
+            .run(unusedContext()) as Outcome.Done
+        assertThat(done.actions.map { it.label }).containsExactly("Reminders", "Undo").inOrder()
+        // It opens the tab and keeps the reply as it was, its buttons too.
+        val after = runBlocking { done.actions.first().run(FollowUpEnv(unusedContext()) { true }) } as Outcome.Done
+        assertThat(opened).isEqualTo(1)
+        assertThat(after.message).isEqualTo(done.message)
+        assertThat(after.actions.map { it.label }).containsExactly("Reminders", "Undo").inOrder()
     }
 }

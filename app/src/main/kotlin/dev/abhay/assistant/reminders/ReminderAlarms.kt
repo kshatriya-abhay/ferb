@@ -85,9 +85,10 @@ class ReminderReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun cancel(context: Context, id: String) = context.getSystemService(NotificationManager::class.java).cancel(id.hashCode())
-
     companion object {
+        /** Takes [id]'s notification down, if it's showing. */
+        fun cancel(context: Context, id: String) = context.getSystemService(NotificationManager::class.java).cancel(id.hashCode())
+
         const val FIRE = "dev.abhay.assistant.reminder.FIRE"
         const val DONE = "dev.abhay.assistant.reminder.DONE"
         const val SNOOZE = "dev.abhay.assistant.reminder.SNOOZE"

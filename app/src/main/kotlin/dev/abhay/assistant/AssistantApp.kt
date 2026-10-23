@@ -38,6 +38,18 @@ class AssistantApp : Application() {
             alarms.sync(reminders.upcoming())
         }
     }
+    /**
+     * Clears a reminder (the Reminders tab): out of the store and its note, its alarm cancelled and
+     * its notification taken down. Blocking (the notes folder may be read): off the main thread.
+     */
+    fun clearReminder(id: String): ReminderBook.Cleared? = reminders.clear(id)?.also {
+        dev.abhay.assistant.reminders.ReminderReceiver.cancel(this, id)
+        alarms.sync(reminders.upcoming())
+    }
+
+    /** Undo for [clearReminder]: the reminder, its note's keys and its alarm back. Blocking. */
+    fun restoreReminder(cleared: ReminderBook.Cleared): Boolean = reminders.restore(cleared).also { alarms.sync(reminders.upcoming()) }
+
     lateinit var foreground: ForegroundTracker
         private set
 

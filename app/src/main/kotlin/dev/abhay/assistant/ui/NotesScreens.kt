@@ -5,10 +5,17 @@ package dev.abhay.assistant.ui
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.material3.Tab
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.abhay.assistant.R
 import dev.abhay.assistant.reminders.Reminder
@@ -63,7 +70,8 @@ import kotlinx.coroutines.withContext
  * screen comes back, as Obsidian and Syncthing change the folder too.
  */
 @Composable
-fun NotesScreen(notes: SafNotes, reminders: ReminderBook, onOpen: (NoteRef) -> Unit, onBack: () -> Unit) {
+fun NotesScreen(viewModel: AssistantViewModel, onOpen: (NoteRef) -> Unit, onBack: () -> Unit, tab: NotesTab = NotesTab.Notes) {
+    val notes = viewModel.notes
     var resumed by remember { mutableIntStateOf(0) }
     LifecycleResumeEffect(Unit) {
         resumed++
@@ -83,10 +91,32 @@ fun NotesScreen(notes: SafNotes, reminders: ReminderBook, onOpen: (NoteRef) -> U
         value = withContext(Dispatchers.IO) { if (notes.ready) VaultCheck.warning(notes.vaultCheck()) else null }
     }
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    val pager = rememberPagerState { NotesTab.entries.size }
+    val pager = rememberPagerState(initialPage = tab.ordinal) { NotesTab.entries.size }
     val scope = rememberCoroutineScope()
     val motion = MaterialTheme.motionScheme
+    val snackbar = remember { SnackbarHostState() }
+    // Reminders cleared here, hidden at once while the store catches up (and shown again on Undo).
+    var hidden by remember { mutableStateOf(emptySet<String>()) }
+    val clear = { reminder: Reminder ->
+        hidden = hidden + reminder.id
+        scope.launch {
+            val cleared = withContext(Dispatchers.IO) { viewModel.clearReminder(reminder.id) }
+            if (cleared == null) {
+                hidden = hidden - reminder.id
+                snackbar.showSnackbar("Couldn't clear it")
+                return@launch
+            }
+            val undo = snackbar.showSnackbar("Reminder cleared", actionLabel = "Undo", withDismissAction = true, duration = SnackbarDuration.Long)
+            if (undo == SnackbarResult.ActionPerformed) {
+                val restored = withContext(Dispatchers.IO) { viewModel.restoreReminder(cleared) }
+                hidden = hidden - reminder.id
+                if (!restored) snackbar.showSnackbar("Couldn't bring it back: its note has gone")
+            }
+        }
+        Unit
+    }
     Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             Column {
                 TopBar("Notes", subtitle = notes.folderName(), onBack = onBack, scroll = bar)
@@ -103,7 +133,7 @@ fun NotesScreen(notes: SafNotes, reminders: ReminderBook, onOpen: (NoteRef) -> U
         HorizontalPager(pager, Modifier.padding(padding).fillMaxSize(), verticalAlignment = Alignment.Top) { page ->
             when (NotesTab.entries[page]) {
                 NotesTab.Notes -> NotesTab(notes, list, warning, onPick = { pick.launch(null) }, onOpen = onOpen)
-                NotesTab.Reminders -> RemindersTab(reminders, resumed, onOpen)
+                NotesTab.Reminders -> RemindersTab(viewModel.reminders, resumed, hidden, onOpen, onClear = clear)
             }
         }
     }
@@ -140,28 +170,35 @@ private fun NotesTab(notes: SafNotes, shown: List<NoteRef>?, warning: String?, o
 
 /**
  * Every reminder still to come, soonest first ([ReminderBook.upcoming], what the alarms are set
- * for), with its next time and repeat. Read-only: a row with a note opens it; one without isn't
- * clickable. Read again when the screen comes back and whenever the reminders change (one fires,
- * one is added).
+ * for), with its next time and repeat. A row with a note opens it; one without isn't clickable.
+ * Each has a clear button ([onClear]); those just cleared are [hidden]. Read again when the screen
+ * comes back and whenever the reminders change (one fires, is added or cleared).
  */
 @Composable
-private fun RemindersTab(reminders: ReminderBook, resumed: Int, onOpen: (NoteRef) -> Unit) {
+private fun RemindersTab(reminders: ReminderBook, resumed: Int, hidden: Set<String>, onOpen: (NoteRef) -> Unit, onClear: (Reminder) -> Unit) {
     val changed by reminders.changes.collectAsStateWithLifecycle()
     val shown by produceState<Pair<List<Pair<Reminder, NoteRef?>>, LocalDateTime>?>(null, resumed, changed) {
         value = withContext(Dispatchers.IO) { reminders.upcomingWithNotes() to LocalDateTime.now() }
     }
-    val (list, now) = shown ?: return Loading()
+    val (all, now) = shown ?: return Loading()
+    val list = all.filter { (r, _) -> r.id !in hidden }
     if (list.isEmpty()) return Empty(ReminderTime.NONE_UPCOMING)
     LazyColumn(Modifier.fillMaxSize(), contentPadding = LIST_PADDING, verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
         itemsIndexed(list, key = { _, (r, _) -> r.id }) { i, (reminder, note) ->
             val shapes = ListItemDefaults.segmentedShapes(i, list.size)
             val supporting = listOfNotNull(ReminderTime.next(reminder.due, now), ReminderTime.repeat(reminder)).joinToString(" · ")
-            val leading: @Composable () -> Unit = { IconBadge(R.drawable.ic_reminder) }
+            // A note's icon on those that open one.
+            val leading: @Composable () -> Unit = { IconBadge(if (note != null) R.drawable.ic_note else R.drawable.ic_reminder) }
+            val trailing: @Composable () -> Unit = {
+                IconButton(onClick = { onClear(reminder) }) { Icon(Icons.Default.Close, contentDescription = "Clear reminder") }
+            }
+            val row = Modifier.animateItem()
             if (note != null) {
-                SegmentedListItem(onClick = { onOpen(note) }, shapes = shapes, leadingContent = leading, supportingContent = { Text(supporting) },
-                    trailingContent = { Icon(painterResource(R.drawable.ic_note), contentDescription = "Opens its note") }) { Text(reminder.title) }
+                SegmentedListItem(onClick = { onOpen(note) }, shapes = shapes, modifier = row, leadingContent = leading,
+                    supportingContent = { Text(supporting) }, trailingContent = trailing) { Text(reminder.title) }
             } else {
-                SegmentedListItem(shapes = shapes, leadingContent = leading, supportingContent = { Text(supporting) }) { Text(reminder.title) }
+                SegmentedListItem(shapes = shapes, modifier = row, leadingContent = leading, supportingContent = { Text(supporting) },
+                    trailingContent = trailing) { Text(reminder.title) }
             }
         }
     }

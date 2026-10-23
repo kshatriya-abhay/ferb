@@ -181,9 +181,51 @@ class ReminderBook(store: ReminderStore, private val notes: NoteStore, private v
 
     /** Removes a reminder (Undo, or Done without a repeat), and the `remind`/`repeat` keys from its note. */
     fun remove(id: String) {
-        val reminder = store.load().firstOrNull { it.id == id } ?: return
+        clear(id)
+    }
+
+    /** What [clear] took away, for its Undo ([restore]): the reminder, and its note's text just before and just after. */
+    data class Cleared(val reminder: Reminder, val noteBefore: String? = null, val noteAfter: String? = null)
+
+    /**
+     * Clears a reminder entirely (a repeat too, not just its next time): out of Ferb's store, and
+     * its note's `remind` and `repeat` keys removed (its `ferb-id` and the note stay). Null if
+     * there's no such reminder, or its note couldn't be changed (then nothing is).
+     */
+    fun clear(id: String): Cleared? {
+        val reminder = store.load().firstOrNull { it.id == id } ?: return null
+        var before: String? = null
+        var after: String? = null
+        val note = reminder.noteId?.let(::noteFor)
+        if (note != null) {
+            val changed = notes.update(note) { text ->
+                before = text
+                NoteText.set(NoteText.set(text, NoteText.REMIND, null), NoteText.REPEAT, null).also { after = it }
+            }
+            if (!changed) return null
+        }
         store.save(store.load().filter { it.id != id })
-        reminder.noteId?.let { noteId -> noteFor(noteId)?.let { note -> notes.update(note) { NoteText.set(NoteText.set(it, NoteText.REMIND, null), NoteText.REPEAT, null) } } }
+        return Cleared(reminder, before, after)
+    }
+
+    /**
+     * Undoes [clear]: the reminder back as it was (time, repeat, snooze), and its note's keys. A note
+     * unchanged since gets its text back exactly; one changed meanwhile gets the keys added again.
+     * False if its note is gone or couldn't be changed.
+     */
+    fun restore(cleared: Cleared): Boolean {
+        val reminder = cleared.reminder
+        val before = cleared.noteBefore
+        if (reminder.noteId != null && before != null) {
+            val note = noteFor(reminder.noteId) ?: return false
+            val restored = notes.update(note) { now ->
+                if (now == cleared.noteAfter) before
+                else NoteText.set(NoteText.set(now, NoteText.REMIND, NoteText.get(before, NoteText.REMIND)), NoteText.REPEAT, NoteText.get(before, NoteText.REPEAT))
+            }
+            if (!restored) return false
+        }
+        store.save(store.load().filter { it.id != reminder.id } + reminder)
+        return true
     }
 
     /**

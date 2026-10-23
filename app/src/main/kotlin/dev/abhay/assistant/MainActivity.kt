@@ -3,6 +3,7 @@ package dev.abhay.assistant
 import android.os.Bundle
 import android.widget.Toast
 import dev.abhay.assistant.ui.NotesScreen
+import dev.abhay.assistant.ui.NotesTab
 import dev.abhay.assistant.ui.NavStack
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -106,12 +107,15 @@ class MainActivity : ComponentActivity() {
                 // The assistant trigger: back to the chat, from wherever Ferb was.
                 val assisted by assists
                 LaunchedEffect(assisted) { if (assisted > 0) stack = listOf("assistant") }
+                // A reply's "Reminders": the Notes screen on that tab, forward as any screen opens.
+                LaunchedEffect(Unit) { viewModel.opens.collect { screen -> if (stack.last() != screen) stack = stack + screen } }
                 val back = { stack = stack.dropLast(1) }
                 NavStack(stack, onBack = back) { screen ->
                     when {
                         screen == "assistant" -> AssistantScreen(viewModel, assists = assisted, onOpenSettings = { open("settings") },
                             onOpenLink = { stack = stack + "settings" + "link" }, onOpenNotes = { open("notes") })
-                        screen == "notes" -> NotesScreen(viewModel.notes, viewModel.reminders, onOpen = { showNote(it) }, onBack = back)
+                        screen == "notes" || screen == REMINDERS -> NotesScreen(viewModel, onOpen = { showNote(it) }, onBack = back,
+                            tab = if (screen == REMINDERS) NotesTab.Reminders else NotesTab.Notes)
                         screen == "settings" -> SettingsScreen(settings, onOpenTools = { open("tools") }, onOpenLink = { open("link") }, onBack = back)
                         screen == "link" -> LinkScreen(settings, onBack = back)
                         screen == "tools" -> ToolsScreen(settings, onOpenTool = { open("tool:$it") }, onBack = back)
@@ -129,6 +133,8 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
+        /** The Notes screen opened on its Reminders tab. */
+        const val REMINDERS = "reminders"
         private const val EXTRA_NOTE_ID = "note_id"
         private const val EXTRA_NOTE_NAME = "note_name"
 

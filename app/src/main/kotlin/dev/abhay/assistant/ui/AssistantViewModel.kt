@@ -38,6 +38,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -147,6 +148,13 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     val link get() = assistant.link
     val notes get() = assistant.notes
     val reminders get() = assistant.reminders
+
+    /** Screens a reply's button opens in Ferb (the Reminders tab), each once, onto the back stack. */
+    private val screens = kotlinx.coroutines.channels.Channel<String>(kotlinx.coroutines.channels.Channel.BUFFERED)
+    val opens: kotlinx.coroutines.flow.Flow<String> = screens.receiveAsFlow()
+
+    fun clearReminder(id: String) = assistant.clearReminder(id)
+    fun restoreReminder(cleared: dev.abhay.assistant.reminders.ReminderBook.Cleared) = assistant.restoreReminder(cleared)
     /**
      * Turns on [tool], offered under a reply no tool could do ([Exchange.turnOn]), and asks again.
      * Its Android permissions, if any, are asked for by the screen at the same time.
@@ -384,6 +392,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         val env = PrepareEnv(assistant.apps, assistant.contacts, assistant.calendar, notes = assistant.notes,
             reminders = assistant.reminders, remindersChanged = assistant::syncReminders,
             openNote = { context, note -> context.startActivity(dev.abhay.assistant.MainActivity.openNote(context, note)) },
+            openReminders = { screens.trySend(dev.abhay.assistant.MainActivity.REMINDERS) },
             granted = { assistant.checkSelfPermission(it) == android.content.pm.PackageManager.PERMISSION_GRANTED },
             options = assistant.toolSettings.configs.value[tool.name]?.options.orEmpty())
         return tool.prepare(tool.fromRequest(call.arguments, request), env)

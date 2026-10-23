@@ -82,12 +82,22 @@ object AddReminder : Tool(
         return Prepared.Ready(summary, opensApp = false, detail = note?.let { "On the note “${it.name}”" }) { _ ->
             val reminder = reminders.add(note?.name ?: text, at, repeat, note) ?: return@Ready Outcome.Failed("Couldn't save the reminder in “${note?.name}”")
             env.remindersChanged()
-            Outcome.Done("I'll remind you: “${reminder.title}” · ${describe(at, now)}" + (repeat?.let { ", ${it.key}" } ?: ""),
-                actions = listOf(FollowUp("Undo") { _ ->
-                    reminders.remove(reminder.id)
-                    env.remindersChanged()
-                    Outcome.Done("Reminder removed")
-                }))
+            added(env, reminder.id, "I'll remind you: “${reminder.title}” · ${describe(at, now)}" + (repeat?.let { ", ${it.key}" } ?: ""))
         }
     }
+
+    /** A reminder's reply: "Reminders" opens the Reminders tab (keeping the reply), "Undo" removes it. */
+    fun added(env: PrepareEnv, id: String, message: String): Outcome.Done = Outcome.Done(message, actions = listOf(
+        FollowUp(REMINDERS) { _ ->
+            env.openReminders()
+            added(env, id, message)
+        },
+        FollowUp("Undo") { _ ->
+            env.reminders?.remove(id)
+            env.remindersChanged()
+            Outcome.Done("Reminder removed")
+        },
+    ))
+
+    const val REMINDERS = "Reminders"
 }
