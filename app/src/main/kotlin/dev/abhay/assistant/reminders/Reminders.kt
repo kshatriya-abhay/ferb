@@ -45,8 +45,9 @@ enum class Repeat(val key: String) {
 /**
  * One reminder: [title], due [at] (local time), maybe repeating, maybe linked to a note by its
  * `ferb-id` ([noteId]). [snoozed] moves only the next notification, not the reminder itself.
+ * [fired]: its notification for [at] has shown (a one-off; a repeat moves on instead).
  */
-data class Reminder(val id: String, val title: String, val at: LocalDateTime, val repeat: Repeat? = null, val noteId: String? = null, val snoozed: LocalDateTime? = null) {
+data class Reminder(val id: String, val title: String, val at: LocalDateTime, val repeat: Repeat? = null, val noteId: String? = null, val snoozed: LocalDateTime? = null, val fired: Boolean = false) {
     /** When the notification is due. */
     val due: LocalDateTime get() = snoozed ?: at
 }
@@ -58,6 +59,12 @@ object ReminderTime {
     private val RELATIVE = Regex("""\bin (an?|\d+(?:\.\d+)?|half an?) ?(minutes?|mins?|hours?|hrs?|h)\b(?: and (\d+) ?(?:minutes?|mins?))?""")
 
     fun format(at: LocalDateTime): String = at.format(FORMAT)
+
+    /** A late notification's line: "Due 9:00 am", or "Due Thu 22 Oct, 9:00 am" when it was another day. */
+    fun due(at: LocalDateTime, now: LocalDateTime): String {
+        val time = at.format(DateTimeFormatter.ofPattern("h:mm a", Locale.US)).lowercase()
+        return if (at.toLocalDate() == now.toLocalDate()) "Due $time" else "Due ${at.format(DateTimeFormatter.ofPattern("EEE d MMM", Locale.US))}, $time"
+    }
 
     /** A `remind:` value: a date and time, or a date (09:00); null if it's neither. */
     fun parse(value: String): LocalDateTime? {
@@ -138,14 +145,19 @@ class ReminderBook(private val store: ReminderStore, private val notes: NoteStor
 
     /**
      * Its notification has just shown: a repeat moves on to its next time now, so it comes back
-     * whether or not Done is tapped, and a snooze that's over goes. A one-off stays until Done.
+     * whether or not Done is tapped, and a snooze that's over goes. A one-off stays until Done,
+     * marked [Reminder.fired], so it's never shown late as well ([missed]).
      */
     fun fired(id: String): Reminder? {
         val reminder = store.load().firstOrNull { it.id == id } ?: return null
         val unsnoozed = reminder.copy(snoozed = reminder.snoozed?.takeIf { it.isAfter(now()) })
-        if (unsnoozed.repeat == null || unsnoozed.at.isAfter(now())) return unsnoozed.also { if (it != reminder) save(it) }
+        if (unsnoozed.repeat == null) return unsnoozed.copy(fired = true).also { if (it != reminder) save(it) }
+        if (unsnoozed.at.isAfter(now())) return unsnoozed.also { if (it != reminder) save(it) }
         return advance(unsnoozed)
     }
+
+    /** One-offs whose time went by without their notification (the phone was off): to show late, then [fired]. */
+    fun missed(): List<Reminder> = all().filter { it.repeat == null && !it.fired && !it.due.isAfter(now()) }
 
     /**
      * Repeats whose time went by unseen (the phone off, or Ferb's alarms cleared) move to their
@@ -189,7 +201,8 @@ class ReminderBook(private val store: ReminderStore, private val notes: NoteStor
             val at = NoteText.get(text, NoteText.REMIND)?.let(ReminderTime::parse) ?: return@mapNotNull null
             val id = NoteText.get(text, NoteText.ID) ?: NoteStore.newId().also { id -> notes.update(note) { NoteText.set(it, NoteText.ID, id) } }
             val before = kept.firstOrNull { it.id == id }
-            Reminder(id, note.name, at, Repeat.of(NoteText.get(text, NoteText.REPEAT)), id, before?.snoozed?.takeIf { before.at == at })
+            val same = before?.takeIf { it.at == at }
+            Reminder(id, note.name, at, Repeat.of(NoteText.get(text, NoteText.REPEAT)), id, same?.snoozed, same?.fired ?: false)
         }
         val result = kept.filter { it.noteId == null } + fromNotes
         store.save(result)
@@ -210,8 +223,11 @@ class FileReminderStore(private val file: java.io.File) : ReminderStore {
         if (!file.exists()) emptyList() else JSONArray(file.readText()).let { a ->
             (0 until a.length()).map { i ->
                 val o = a.getJSONObject(i)
-                Reminder(o.getString("id"), o.getString("title"), LocalDateTime.parse(o.getString("at")), Repeat.of(o.optString("repeat").ifEmpty { null }),
-                    o.optString("note").ifEmpty { null }, o.optString("snoozed").ifEmpty { null }?.let(LocalDateTime::parse))
+                val at = LocalDateTime.parse(o.getString("at"))
+                // Saved before "fired" was kept (2026-10-23): one already past counts as shown, so nothing old shows late.
+                val fired = if (o.has("fired")) o.getBoolean("fired") else !at.isAfter(LocalDateTime.now())
+                Reminder(o.getString("id"), o.getString("title"), at, Repeat.of(o.optString("repeat").ifEmpty { null }),
+                    o.optString("note").ifEmpty { null }, o.optString("snoozed").ifEmpty { null }?.let(LocalDateTime::parse), fired)
             }
         }
     } catch (e: Exception) {
@@ -222,7 +238,7 @@ class FileReminderStore(private val file: java.io.File) : ReminderStore {
     override fun save(reminders: List<Reminder>) {
         val a = JSONArray(reminders.map { r ->
             JSONObject().put("id", r.id).put("title", r.title).put("at", r.at.toString()).put("repeat", r.repeat?.key ?: "")
-                .put("note", r.noteId ?: "").put("snoozed", r.snoozed?.toString() ?: "")
+                .put("note", r.noteId ?: "").put("snoozed", r.snoozed?.toString() ?: "").put("fired", r.fired)
         })
         val tmp = java.io.File(file.parentFile, file.name + ".tmp")
         tmp.writeText(a.toString())

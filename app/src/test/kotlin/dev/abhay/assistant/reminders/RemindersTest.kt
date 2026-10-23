@@ -121,10 +121,42 @@ class RemindersTest {
     }
 
     @Test
+    fun aOneOffMissedWhileThePhoneWasOffShowsLateOnce() {
+        val reminders = book()
+        val missed = reminders.add("Pay the rent", now.minusHours(4))!! // 9:00, phone off
+        val shown = reminders.add("Oven", now.minusMinutes(5))!!
+        reminders.fired(shown.id) // its notification showed on time
+        reminders.add("Later", now.plusHours(1))
+        reminders.add("Pills", now.minusHours(2), Repeat.Daily) // a repeat catches up instead
+        assertThat(reminders.missed().map { it.title }).containsExactly("Pay the rent")
+        assertThat(ReminderTime.due(missed.at, now)).isEqualTo("Due 9:00 am")
+        // Shown late, then marked: never twice.
+        reminders.fired(missed.id)
+        assertThat(reminders.missed()).isEmpty()
+    }
+
+    @Test
+    fun aLateLineSaysTheDayWhenItWasAnotherDay() {
+        assertThat(ReminderTime.due(LocalDateTime.of(2026, 10, 13, 18, 30), now)).isEqualTo("Due Tue 13 Oct, 6:30 pm")
+    }
+
+    @Test
+    fun theFiredMarkSurvivesTheStoreAndOldEntriesCountAsShown() {
+        val file = java.io.File.createTempFile("reminders", ".json").apply { deleteOnExit() }
+        val store = FileReminderStore(file)
+        store.save(listOf(Reminder("a", "Oven", LocalDateTime.of(2026, 10, 14, 9, 0), fired = true)))
+        assertThat(store.load().single().fired).isTrue()
+        // Saved before the mark existed: past means shown, future not.
+        file.writeText("""[{"id":"b","title":"Old","at":"2020-01-01T09:00","repeat":"","note":"","snoozed":""},
+            {"id":"c","title":"Soon","at":"2099-01-01T09:00","repeat":"","note":"","snoozed":""}]""")
+        assertThat(store.load().associate { it.id to it.fired }).containsExactly("b", true, "c", false)
+    }
+
+    @Test
     fun aOneOffThatFiredStaysUntilDone() {
         val reminders = book()
         val r = reminders.add("Oven", now.minusMinutes(1))!!
-        assertThat(reminders.fired(r.id)).isEqualTo(r)
+        assertThat(reminders.fired(r.id)).isEqualTo(r.copy(fired = true))
         assertThat(reminders.done(r.id)).isNull()
         assertThat(reminders.all()).isEmpty()
     }

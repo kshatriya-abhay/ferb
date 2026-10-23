@@ -65,16 +65,17 @@ class ReminderReceiver : BroadcastReceiver() {
             try {
                 when (intent.action) {
                     FIRE -> app.reminders.all().firstOrNull { it.id == id }?.let {
-                        notify(context, it)
+                        notify(context, it, late = false)
                         // A repeat comes back at its next time, Done tapped or not.
                         app.reminders.fired(it.id)
                     }
                     DONE -> id?.let { app.reminders.done(it); cancel(context, it) }
                     SNOOZE -> id?.let { app.reminders.snooze(it); cancel(context, it) }
                     else -> {
-                        // Boot, update, the daily rescan: the folder again, then repeats missed meanwhile.
+                        // Boot, update, the daily rescan: the folder again, then what was missed meanwhile.
                         app.reminders.scan()
                         app.reminders.catchUp()
+                        showMissed(context, app)
                     }
                 }
                 app.alarms.sync(app.reminders.all().filter { it.due.isAfter(LocalDateTime.now()) })
@@ -84,28 +85,6 @@ class ReminderReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun notify(context: Context, reminder: Reminder) {
-        if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
-        val manager = context.getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(NotificationChannel(ReminderAlarms.CHANNEL, "Reminders", NotificationManager.IMPORTANCE_HIGH))
-        // Tapped: Ferb, at the reminder's note when it has one.
-        val note = reminder.noteId?.let { (context.applicationContext as AssistantApp).reminders.noteFor(it) }
-        val target = note?.let { MainActivity.openNote(context, it) } ?: Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        val open = PendingIntent.getActivity(context, reminder.id.hashCode(), target, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        val notification = NotificationCompat.Builder(context, ReminderAlarms.CHANNEL)
-            .setSmallIcon(R.drawable.ic_reminder)
-            .setContentTitle(reminder.title)
-            .setContentText(if (reminder.noteId != null) "From your notes" else "Reminder")
-            .setCategory(NotificationCompat.CATEGORY_REMINDER)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(open)
-            .setAutoCancel(true)
-            .addAction(0, "Done", ReminderAlarms.pending(context, DONE, reminder.id))
-            .addAction(0, "Snooze ${ReminderBook.SNOOZE_MINUTES} min", ReminderAlarms.pending(context, SNOOZE, reminder.id))
-            .build()
-        manager.notify(reminder.id.hashCode(), notification)
-    }
-
     private fun cancel(context: Context, id: String) = context.getSystemService(NotificationManager::class.java).cancel(id.hashCode())
 
     companion object {
@@ -113,5 +92,42 @@ class ReminderReceiver : BroadcastReceiver() {
         const val DONE = "dev.abhay.assistant.reminder.DONE"
         const val SNOOZE = "dev.abhay.assistant.reminder.SNOOZE"
         const val RESCAN = "dev.abhay.assistant.reminder.RESCAN"
+
+        /**
+         * One-offs due while the phone was off (or Ferb's alarms were cleared): shown now, late,
+         * with the time they were due, and marked fired so they never show twice.
+         */
+        fun showMissed(context: Context, app: AssistantApp) {
+            app.reminders.missed().forEach { if (notify(context, it, late = true)) app.reminders.fired(it.id) }
+        }
+
+        /** Shows [reminder]'s notification; [late]: "Due 9:00 am". False without the permission. */
+        fun notify(context: Context, reminder: Reminder, late: Boolean): Boolean {
+            if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return false
+            val manager = context.getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(NotificationChannel(ReminderAlarms.CHANNEL, "Reminders", NotificationManager.IMPORTANCE_HIGH))
+            // Tapped: Ferb, at the reminder's note when it has one.
+            val note = reminder.noteId?.let { (context.applicationContext as AssistantApp).reminders.noteFor(it) }
+            val target = note?.let { MainActivity.openNote(context, it) } ?: Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            val open = PendingIntent.getActivity(context, reminder.id.hashCode(), target, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+            val notification = NotificationCompat.Builder(context, ReminderAlarms.CHANNEL)
+                .setSmallIcon(R.drawable.ic_reminder)
+                .setContentTitle(reminder.title)
+                .setContentText(when {
+                    late -> ReminderTime.due(reminder.at, LocalDateTime.now())
+                    reminder.noteId != null -> "From your notes"
+                    else -> "Reminder"
+                })
+                .apply { if (late) setWhen(reminder.at.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()).setShowWhen(true) }
+                .setCategory(NotificationCompat.CATEGORY_REMINDER)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setContentIntent(open)
+                .setAutoCancel(true)
+                .addAction(0, "Done", ReminderAlarms.pending(context, DONE, reminder.id))
+                .addAction(0, "Snooze ${ReminderBook.SNOOZE_MINUTES} min", ReminderAlarms.pending(context, SNOOZE, reminder.id))
+                .build()
+            manager.notify(reminder.id.hashCode(), notification)
+            return true
+        }
     }
 }
