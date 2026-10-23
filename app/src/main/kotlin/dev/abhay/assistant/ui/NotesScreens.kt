@@ -8,7 +8,18 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.IconButton
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.ui.res.painterResource
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -70,7 +81,7 @@ import kotlinx.coroutines.withContext
  * screen comes back, as Obsidian and Syncthing change the folder too.
  */
 @Composable
-fun NotesScreen(viewModel: AssistantViewModel, onOpen: (NoteRef) -> Unit, onBack: () -> Unit, tab: NotesTab = NotesTab.Notes) {
+fun NotesScreen(viewModel: AssistantViewModel, onOpen: (NoteRef) -> Unit, onBack: () -> Unit, tab: NotesTab = NotesTab.Notes, onNewReminder: () -> Unit = {}) {
     val notes = viewModel.notes
     var resumed by remember { mutableIntStateOf(0) }
     LifecycleResumeEffect(Unit) {
@@ -115,8 +126,22 @@ fun NotesScreen(viewModel: AssistantViewModel, onOpen: (NoteRef) -> Unit, onBack
         }
         Unit
     }
+    val reminderList = rememberLazyListState()
     Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer,
         snackbarHost = { SnackbarHost(snackbar) },
+        // New reminder: an extended FAB, as its label makes a screen's main action clear
+        // (https://m3.material.io/components/extended-fab/guidelines), only on the Reminders tab,
+        // scaling and fading with the theme's springs as the tab changes, and collapsing to its
+        // icon once the list scrolls, as the guidance suggests for long lists.
+        floatingActionButton = {
+            AnimatedVisibility(pager.targetPage == NotesTab.Reminders.ordinal,
+                enter = scaleIn(motion.defaultSpatialSpec()) + fadeIn(motion.defaultEffectsSpec()),
+                exit = scaleOut(motion.defaultSpatialSpec()) + fadeOut(motion.defaultEffectsSpec())) {
+                val atTop by remember { derivedStateOf { reminderList.firstVisibleItemIndex == 0 && reminderList.firstVisibleItemScrollOffset == 0 } }
+                ExtendedFloatingActionButton(onClick = onNewReminder, expanded = atTop,
+                    icon = { Icon(painterResource(R.drawable.ic_alarm_add), contentDescription = null) }, text = { Text("New reminder") })
+            }
+        },
         topBar = {
             Column {
                 TopBar("Notes", subtitle = notes.folderName(), onBack = onBack, scroll = bar)
@@ -133,7 +158,7 @@ fun NotesScreen(viewModel: AssistantViewModel, onOpen: (NoteRef) -> Unit, onBack
         HorizontalPager(pager, Modifier.padding(padding).fillMaxSize(), verticalAlignment = Alignment.Top) { page ->
             when (NotesTab.entries[page]) {
                 NotesTab.Notes -> NotesTab(notes, list, warning, onPick = { pick.launch(null) }, onOpen = onOpen)
-                NotesTab.Reminders -> RemindersTab(viewModel.reminders, resumed, hidden, onOpen, onClear = clear)
+                NotesTab.Reminders -> RemindersTab(viewModel, reminderList, resumed, hidden, onOpen, onClear = clear)
             }
         }
     }
@@ -175,7 +200,8 @@ private fun NotesTab(notes: SafNotes, shown: List<NoteRef>?, warning: String?, o
  * comes back and whenever the reminders change (one fires, is added or cleared).
  */
 @Composable
-private fun RemindersTab(reminders: ReminderBook, resumed: Int, hidden: Set<String>, onOpen: (NoteRef) -> Unit, onClear: (Reminder) -> Unit) {
+private fun RemindersTab(viewModel: AssistantViewModel, state: LazyListState, resumed: Int, hidden: Set<String>, onOpen: (NoteRef) -> Unit, onClear: (Reminder) -> Unit) {
+    val reminders = viewModel.reminders
     val changed by reminders.changes.collectAsStateWithLifecycle()
     val shown by produceState<Pair<List<Pair<Reminder, NoteRef?>>, LocalDateTime>?>(null, resumed, changed) {
         value = withContext(Dispatchers.IO) { reminders.upcomingWithNotes() to LocalDateTime.now() }
@@ -183,7 +209,17 @@ private fun RemindersTab(reminders: ReminderBook, resumed: Int, hidden: Set<Stri
     val (all, now) = shown ?: return Loading()
     val list = all.filter { (r, _) -> r.id !in hidden }
     if (list.isEmpty()) return Empty(ReminderTime.NONE_UPCOMING)
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = LIST_PADDING, verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
+    // One just made by hand: scrolled to, in its place.
+    val added by viewModel.justAdded.collectAsStateWithLifecycle()
+    LaunchedEffect(list, added) {
+        val at = list.indexOfFirst { (r, _) -> r.id == added }
+        if (at >= 0) {
+            state.animateScrollToItem(at)
+            viewModel.justAdded.value = null
+        }
+    }
+    // Room under the last row for the FAB.
+    LazyColumn(Modifier.fillMaxSize(), state = state, contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
         itemsIndexed(list, key = { _, (r, _) -> r.id }) { i, (reminder, note) ->
             val shapes = ListItemDefaults.segmentedShapes(i, list.size)
             val supporting = listOfNotNull(ReminderTime.next(reminder.due, now), ReminderTime.repeat(reminder)).joinToString(" · ")

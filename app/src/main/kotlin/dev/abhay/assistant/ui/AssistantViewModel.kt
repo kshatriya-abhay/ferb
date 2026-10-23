@@ -153,6 +153,17 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     private val screens = kotlinx.coroutines.channels.Channel<String>(kotlinx.coroutines.channels.Channel.BUFFERED)
     val opens: kotlinx.coroutines.flow.Flow<String> = screens.receiveAsFlow()
 
+    /** A reminder just made by hand, for the Reminders tab to scroll to once. */
+    val justAdded = MutableStateFlow<String?>(null)
+
+    /** Saves a reminder made by hand, as `add_reminder` does without a note, and schedules it. Blocking. False if it isn't valid. */
+    fun addReminder(draft: dev.abhay.assistant.reminders.ReminderDraft): Boolean {
+        val reminder = draft.save(assistant.reminders, java.time.LocalDateTime.now()) ?: return false
+        assistant.syncReminders()
+        justAdded.value = reminder.id
+        return true
+    }
+
     fun clearReminder(id: String) = assistant.clearReminder(id)
     fun restoreReminder(cleared: dev.abhay.assistant.reminders.ReminderBook.Cleared) = assistant.restoreReminder(cleared)
     /**

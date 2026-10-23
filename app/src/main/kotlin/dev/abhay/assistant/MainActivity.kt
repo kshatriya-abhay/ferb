@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.widget.Toast
 import dev.abhay.assistant.ui.NotesScreen
 import dev.abhay.assistant.ui.NotesTab
+import dev.abhay.assistant.ui.NewReminderScreen
 import dev.abhay.assistant.ui.NavStack
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -115,7 +116,10 @@ class MainActivity : ComponentActivity() {
                         screen == "assistant" -> AssistantScreen(viewModel, assists = assisted, onOpenSettings = { open("settings") },
                             onOpenLink = { stack = stack + "settings" + "link" }, onOpenNotes = { open("notes") })
                         screen == "notes" || screen == REMINDERS -> NotesScreen(viewModel, onOpen = { showNote(it) }, onBack = back,
-                            tab = if (screen == REMINDERS) NotesTab.Reminders else NotesTab.Notes)
+                            tab = if (screen == REMINDERS) NotesTab.Reminders else NotesTab.Notes,
+                            // The page beneath becomes the Reminders tab, so Save or Back lands there.
+                            onNewReminder = { stack = stack.dropLast(1) + REMINDERS + NEW_REMINDER })
+                        screen == NEW_REMINDER -> NewReminderScreen(viewModel, onDone = back)
                         screen == "settings" -> SettingsScreen(settings, onOpenTools = { open("tools") }, onOpenLink = { open("link") }, onBack = back)
                         screen == "link" -> LinkScreen(settings, onBack = back)
                         screen == "tools" -> ToolsScreen(settings, onOpenTool = { open("tool:$it") }, onBack = back)
@@ -135,6 +139,7 @@ class MainActivity : ComponentActivity() {
     companion object {
         /** The Notes screen opened on its Reminders tab. */
         const val REMINDERS = "reminders"
+        const val NEW_REMINDER = "new_reminder"
         private const val EXTRA_NOTE_ID = "note_id"
         private const val EXTRA_NOTE_NAME = "note_name"
 
