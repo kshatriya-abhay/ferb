@@ -165,6 +165,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     fun clearReminder(id: String) = assistant.clearReminder(id)
+    fun dismissReminder(id: String) = assistant.dismissReminder(id)
     fun restoreReminder(reminder: dev.abhay.assistant.reminders.Reminder) = assistant.restoreReminder(reminder)
     /**
      * Turns on [tool], offered under a reply no tool could do ([Exchange.turnOn]), and asks again.

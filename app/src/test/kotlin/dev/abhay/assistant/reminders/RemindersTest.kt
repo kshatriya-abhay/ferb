@@ -39,14 +39,20 @@ class RemindersTest {
     }
 
     @Test
-    fun aOneOffGoesOnDone() {
+    fun aOneOffIsMarkedDoneAndNoLongerUpcoming() {
         val store = MemoryStore()
         val reminders = book(store)
-        val r = reminders.add("Check the oven", now.plusMinutes(20))
+        val r = reminders.add("Check the oven", now.minusMinutes(1))
         assertThat(store.saved).containsExactly(r)
         assertThat(r.id).isNotEmpty()
-        // Done without a repeat: gone.
-        assertThat(reminders.done(r.id)).isNull()
+        reminders.fired(r.id)
+        // Done without a repeat: kept a day for Recent, done, never shown again.
+        val done = reminders.done(r.id)!!
+        assertThat(done.doneAt).isEqualTo(now)
+        assertThat(reminders.upcoming()).isEmpty()
+        assertThat(reminders.missed()).isEmpty()
+        // Undo of adding it still removes it outright.
+        reminders.remove(r.id)
         assertThat(store.saved).isEmpty()
     }
 
@@ -139,9 +145,9 @@ class RemindersTest {
     fun aOneOffThatFiredStaysUntilDone() {
         val reminders = book()
         val r = reminders.add("Oven", now.minusMinutes(1))!!
-        assertThat(reminders.fired(r.id)).isEqualTo(r.copy(fired = true))
-        assertThat(reminders.done(r.id)).isNull()
-        assertThat(reminders.all()).isEmpty()
+        assertThat(reminders.fired(r.id)).isEqualTo(r.copy(fired = true, firedAt = r.at))
+        assertThat(reminders.upcoming()).isEmpty()
+        assertThat(reminders.done(r.id)).isEqualTo(r.copy(fired = true, firedAt = r.at, doneAt = now))
     }
 
     @Test

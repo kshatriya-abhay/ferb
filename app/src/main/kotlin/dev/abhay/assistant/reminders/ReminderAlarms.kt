@@ -77,6 +77,8 @@ class ReminderReceiver : BroadcastReceiver() {
                         showMissed(context, app)
                     }
                 }
+                // One-offs over for a day leave the store.
+                app.reminders.prune()
                 app.alarms.sync(app.reminders.upcoming())
             } finally {
                 result.finish()

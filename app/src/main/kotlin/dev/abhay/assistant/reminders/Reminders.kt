@@ -50,11 +50,22 @@ enum class Repeat(val key: String) {
  * One reminder: [title], due [at] (local time), maybe repeating. [snoozed] moves only the next
  * notification, not the reminder itself.
  * [fired]: its notification for [at] has shown (a one-off; a repeat moves on instead).
+ * For the Reminders tab's Recent: [firedAt], the time of the last occurrence whose notification
+ * showed, and [doneAt], when Done was tapped on it.
  */
-data class Reminder(val id: String, val title: String, val at: LocalDateTime, val repeat: Repeat? = null, val snoozed: LocalDateTime? = null, val fired: Boolean = false) {
+data class Reminder(
+    val id: String, val title: String, val at: LocalDateTime, val repeat: Repeat? = null, val snoozed: LocalDateTime? = null,
+    val fired: Boolean = false, val firedAt: LocalDateTime? = null, val doneAt: LocalDateTime? = null,
+) {
     /** When the notification is due. */
     val due: LocalDateTime get() = snoozed ?: at
+
+    /** A one-off that's over: shown, or done. */
+    val over: Boolean get() = repeat == null && (fired || doneAt != null)
 }
+
+/** A reminder on the Recent list: its last occurrence, done ([done]) or not, at [time] (when done, or when it was due). */
+data class RecentReminder(val reminder: Reminder, val time: LocalDateTime, val done: Boolean)
 
 /** Reminders' times as the note's `remind:` key holds them: "2026-10-20 09:00", or a date alone, meaning 09:00. */
 object ReminderTime {
@@ -95,6 +106,17 @@ object ReminderTime {
     }
 
     const val NONE_UPCOMING = "No upcoming reminders. Ask Ferb to remind you."
+
+    /** A Recent row's time: "Done 9:00 am", "Was due 9:00 am", or "Done yesterday 9:00 pm". */
+    fun recent(entry: RecentReminder, now: LocalDateTime): String {
+        val time = entry.time.format(DateTimeFormatter.ofPattern("h:mm a", Locale.US)).lowercase()
+        val day = when (entry.time.toLocalDate()) {
+            now.toLocalDate() -> ""
+            now.toLocalDate().minusDays(1) -> "yesterday "
+            else -> entry.time.format(DateTimeFormatter.ofPattern("EEE d MMM", Locale.US)) + ", "
+        }
+        return (if (entry.done) "Done " else "Was due ") + day + time
+    }
 
     /** A `remind:` value: a date and time, or a date (09:00); null if it's neither. */
     fun parse(value: String): LocalDateTime? {
@@ -148,7 +170,44 @@ class ReminderBook(store: ReminderStore, private val now: () -> LocalDateTime) {
     fun all(): List<Reminder> = store.load().sortedBy { it.due }
 
     /** What's still to come, soonest first: what the alarms are set for, and what the Reminders tab lists. */
-    fun upcoming(): List<Reminder> = all().filter { it.due.isAfter(now()) }
+    fun upcoming(): List<Reminder> = all().filter { it.due.isAfter(now()) && it.doneAt.let { done -> done == null || it.repeat != null } }
+
+    /**
+     * The Reminders tab's Recent: reminders whose last occurrence showed or was done in the past
+     * [RECENT_HOURS], newest first. A repeat can be here and in [upcoming] at its next time.
+     */
+    fun recent(): List<RecentReminder> {
+        val since = now().minusHours(RECENT_HOURS)
+        return store.load().mapNotNull { r ->
+            val entry = when {
+                r.doneAt != null -> RecentReminder(r, r.doneAt, done = true)
+                r.firedAt != null -> RecentReminder(r, r.firedAt, done = false)
+                else -> null
+            }
+            entry?.takeIf { it.time.isAfter(since) && !it.time.isAfter(now()) }
+        }.sortedByDescending { it.time }
+    }
+
+    /**
+     * One-offs over for more than [RECENT_HOURS] (shown or done, by when that was) leave the store.
+     * On launch, after a reboot or update, and as reminders fire.
+     */
+    fun prune() {
+        val since = now().minusHours(RECENT_HOURS)
+        val kept = store.load().filterNot { it.over && !(it.doneAt ?: it.firedAt ?: it.at).isAfter(since) }
+        if (kept.size != store.load().size) store.save(kept)
+    }
+
+    /**
+     * Takes an entry off Recent (its clear button): a one-off goes; a repeat only forgets its last
+     * occurrence and stays scheduled. Returned for Undo ([restore]).
+     */
+    fun dismiss(id: String): Reminder? {
+        val reminder = store.load().firstOrNull { it.id == id } ?: return null
+        if (reminder.repeat == null) return clear(id)
+        save(reminder.copy(firedAt = null, doneAt = null))
+        return reminder
+    }
 
     fun add(title: String, at: LocalDateTime, repeat: Repeat? = null): Reminder {
         val reminder = Reminder(NoteStore.newId(), title, at, repeat)
@@ -180,13 +239,14 @@ class ReminderBook(store: ReminderStore, private val now: () -> LocalDateTime) {
 
     /**
      * Done: a repeat moves to its next time after now, unless it already has ([fired]), when only
-     * a snooze goes; otherwise the reminder goes.
+     * a snooze goes; a one-off is marked done, for Recent, until [prune]d. Both keep when.
      */
     fun done(id: String): Reminder? {
         val reminder = store.load().firstOrNull { it.id == id } ?: return null
-        if (reminder.repeat == null) return null.also { remove(id) }
-        if (reminder.at.isAfter(now())) return reminder.copy(snoozed = null).also { save(it) }
-        return advance(reminder)
+        val doneNow = reminder.copy(doneAt = now().withNano(0), snoozed = null)
+        if (reminder.repeat == null) return doneNow.copy(fired = true, firedAt = reminder.firedAt ?: reminder.at).also { save(it) }
+        if (reminder.at.isAfter(now())) return doneNow.also { save(it) }
+        return advance(doneNow.copy(firedAt = reminder.at))
     }
 
     /**
@@ -197,13 +257,14 @@ class ReminderBook(store: ReminderStore, private val now: () -> LocalDateTime) {
     fun fired(id: String): Reminder? {
         val reminder = store.load().firstOrNull { it.id == id } ?: return null
         val unsnoozed = reminder.copy(snoozed = reminder.snoozed?.takeIf { it.isAfter(now()) })
-        if (unsnoozed.repeat == null) return unsnoozed.copy(fired = true).also { if (it != reminder) save(it) }
+        if (unsnoozed.repeat == null) return unsnoozed.copy(fired = true, firedAt = reminder.firedAt ?: reminder.at).also { if (it != reminder) save(it) }
         if (unsnoozed.at.isAfter(now())) return unsnoozed.also { if (it != reminder) save(it) }
-        return advance(unsnoozed)
+        // This occurrence showed: it's the one Recent lists, not done yet.
+        return advance(unsnoozed.copy(firedAt = unsnoozed.at, doneAt = null))
     }
 
     /** One-offs whose time went by without their notification (the phone was off): to show late, then [fired]. */
-    fun missed(): List<Reminder> = all().filter { it.repeat == null && !it.fired && !it.due.isAfter(now()) }
+    fun missed(): List<Reminder> = all().filter { it.repeat == null && !it.fired && it.doneAt == null && !it.due.isAfter(now()) }
 
     /**
      * Repeats whose time went by unseen (the phone off, or Ferb's alarms cleared) move to their
@@ -235,6 +296,7 @@ class ReminderBook(store: ReminderStore, private val now: () -> LocalDateTime) {
 
     companion object {
         const val SNOOZE_MINUTES = 10L
+        const val RECENT_HOURS = 24L
     }
 }
 
@@ -268,8 +330,9 @@ class FileReminderStore(private val file: java.io.File) : ReminderStore {
                 // Saved before "fired" was kept (2026-10-23): one already past counts as shown, so nothing old shows late.
                 val fired = if (o.has("fired")) o.getBoolean("fired") else !at.isAfter(LocalDateTime.now())
                 // A "note" key (a reminder on a note, until 2026-10-23) is dropped: it's a plain reminder now.
+                fun time(key: String) = o.optString(key).ifEmpty { null }?.let(LocalDateTime::parse)
                 Reminder(o.getString("id"), o.getString("title"), at, Repeat.of(o.optString("repeat").ifEmpty { null }),
-                    o.optString("snoozed").ifEmpty { null }?.let(LocalDateTime::parse), fired)
+                    time("snoozed"), fired, time("firedAt"), time("doneAt"))
             }
         }
     } catch (e: Exception) {
@@ -281,6 +344,7 @@ class FileReminderStore(private val file: java.io.File) : ReminderStore {
         val a = JSONArray(reminders.map { r ->
             JSONObject().put("id", r.id).put("title", r.title).put("at", r.at.toString()).put("repeat", r.repeat?.key ?: "")
                 .put("snoozed", r.snoozed?.toString() ?: "").put("fired", r.fired)
+                .put("firedAt", r.firedAt?.toString() ?: "").put("doneAt", r.doneAt?.toString() ?: "")
         })
         val tmp = java.io.File(file.parentFile, file.name + ".tmp")
         tmp.writeText(a.toString())

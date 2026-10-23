@@ -30,6 +30,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.abhay.assistant.R
 import dev.abhay.assistant.reminders.Reminder
+import dev.abhay.assistant.reminders.RecentReminder
 import dev.abhay.assistant.reminders.ReminderBook
 import dev.abhay.assistant.reminders.ReminderTime
 import java.time.LocalDateTime
@@ -108,19 +109,23 @@ fun NotesScreen(viewModel: AssistantViewModel, onOpen: (NoteRef) -> Unit, onBack
     val snackbar = remember { SnackbarHostState() }
     // Reminders cleared here, hidden at once while the store catches up (and shown again on Undo).
     var hidden by remember { mutableStateOf(emptySet<String>()) }
-    val clear = { reminder: Reminder ->
-        hidden = hidden + reminder.id
+    // Upcoming's clear removes the reminder (a repeat entirely); Recent's takes the entry off Recent.
+    val clear = { reminder: Reminder, recent: Boolean ->
+        val key = rowKey(reminder, recent)
+        hidden = hidden + key
         scope.launch {
-            val cleared = withContext(Dispatchers.IO) { viewModel.clearReminder(reminder.id) }
+            val cleared = withContext(Dispatchers.IO) {
+                if (recent) viewModel.dismissReminder(reminder.id) else viewModel.clearReminder(reminder.id)
+            }
             if (cleared == null) {
-                hidden = hidden - reminder.id
+                hidden = hidden - key
                 snackbar.showSnackbar("Couldn't clear it")
                 return@launch
             }
             val undo = snackbar.showSnackbar("Reminder cleared", actionLabel = "Undo", withDismissAction = true, duration = SnackbarDuration.Long)
             if (undo == SnackbarResult.ActionPerformed) {
                 withContext(Dispatchers.IO) { viewModel.restoreReminder(cleared) }
-                hidden = hidden - reminder.id
+                hidden = hidden - key
             }
         }
         Unit
@@ -193,41 +198,70 @@ private fun NotesTab(notes: SafNotes, shown: List<NoteRef>?, warning: String?, o
 }
 
 /**
- * Every reminder still to come, soonest first ([ReminderBook.upcoming], what the alarms are set
- * for), with its next time and repeat; rows aren't clickable. Each has a clear button
- * ([onClear]); those just cleared are [hidden]. Read again when the screen
- * comes back and whenever the reminders change (one fires, is added or cleared).
+ * Two sections. Upcoming: every reminder still to come, soonest first ([ReminderBook.upcoming],
+ * what the alarms are set for), with its next time and repeat. Recent: those whose last occurrence
+ * showed or was done in the past day, newest first, quieter ([ReminderBook.recent]); a repeat can
+ * be in both. Rows aren't clickable; each has a clear button ([onClear]), and those just cleared
+ * are [hidden] (by [rowKey]). A section without rows has no header; with neither, a short line.
+ * Read again when the screen comes back and whenever the reminders change.
  */
 @Composable
-private fun RemindersTab(viewModel: AssistantViewModel, state: LazyListState, resumed: Int, hidden: Set<String>, onClear: (Reminder) -> Unit) {
+private fun RemindersTab(viewModel: AssistantViewModel, state: LazyListState, resumed: Int, hidden: Set<String>, onClear: (Reminder, Boolean) -> Unit) {
     val reminders = viewModel.reminders
     val changed by reminders.changes.collectAsStateWithLifecycle()
-    val shown by produceState<Pair<List<Reminder>, LocalDateTime>?>(null, resumed, changed) {
-        value = withContext(Dispatchers.IO) { reminders.upcoming() to LocalDateTime.now() }
+    val shown by produceState<Triple<List<Reminder>, List<RecentReminder>, LocalDateTime>?>(null, resumed, changed) {
+        value = withContext(Dispatchers.IO) { Triple(reminders.upcoming(), reminders.recent(), LocalDateTime.now()) }
     }
-    val (all, now) = shown ?: return Loading()
-    val list = all.filter { it.id !in hidden }
-    if (list.isEmpty()) return Empty(ReminderTime.NONE_UPCOMING)
-    // One just made by hand: scrolled to, in its place.
+    val (allUpcoming, allRecent, now) = shown ?: return Loading()
+    val upcoming = allUpcoming.filter { rowKey(it, recent = false) !in hidden }
+    val recent = allRecent.filter { rowKey(it.reminder, recent = true) !in hidden }
+    if (upcoming.isEmpty() && recent.isEmpty()) return Empty(ReminderTime.NONE_UPCOMING)
+    // One just made by hand: scrolled to, in its place (under Upcoming's header).
     val added by viewModel.justAdded.collectAsStateWithLifecycle()
-    LaunchedEffect(list, added) {
-        val at = list.indexOfFirst { it.id == added }
+    LaunchedEffect(upcoming, added) {
+        val at = upcoming.indexOfFirst { it.id == added }
         if (at >= 0) {
-            state.animateScrollToItem(at)
+            state.animateScrollToItem(at + 1)
             viewModel.justAdded.value = null
         }
     }
+    val clearButton: @Composable (Reminder, Boolean) -> Unit = { reminder, isRecent ->
+        IconButton(onClick = { onClear(reminder, isRecent) }) { Icon(Icons.Default.Close, contentDescription = "Clear reminder") }
+    }
     // Room under the last row for the FAB.
-    LazyColumn(Modifier.fillMaxSize(), state = state, contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
-        itemsIndexed(list, key = { _, r -> r.id }) { i, reminder ->
-            val supporting = listOfNotNull(ReminderTime.next(reminder.due, now), ReminderTime.repeat(reminder)).joinToString(" · ")
-            SegmentedListItem(shapes = ListItemDefaults.segmentedShapes(i, list.size), modifier = Modifier.animateItem(),
-                leadingContent = { IconBadge(R.drawable.ic_reminder) }, supportingContent = { Text(supporting) },
-                trailingContent = { IconButton(onClick = { onClear(reminder) }) { Icon(Icons.Default.Close, contentDescription = "Clear reminder") } },
-            ) { Text(reminder.title) }
+    LazyColumn(Modifier.fillMaxSize(), state = state, contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
+        if (upcoming.isNotEmpty()) {
+            item(key = "upcoming") { SectionHeader("Upcoming", Modifier.animateItem()) }
+            itemsIndexed(upcoming, key = { _, r -> rowKey(r, recent = false) }) { i, reminder ->
+                val supporting = listOfNotNull(ReminderTime.next(reminder.due, now), ReminderTime.repeat(reminder)).joinToString(" · ")
+                SegmentedListItem(shapes = ListItemDefaults.segmentedShapes(i, upcoming.size), modifier = Modifier.animateItem(),
+                    leadingContent = { IconBadge(R.drawable.ic_reminder) }, supportingContent = { Text(supporting) },
+                    trailingContent = { clearButton(reminder, false) },
+                ) { Text(reminder.title) }
+            }
+        }
+        if (recent.isNotEmpty()) {
+            item(key = "recent") { SectionHeader("Recent", Modifier.animateItem().padding(top = if (upcoming.isEmpty()) 0.dp else 16.dp)) }
+            itemsIndexed(recent, key = { _, e -> rowKey(e.reminder, recent = true) }) { i, entry ->
+                // Quieter: a muted badge with a tick, and the secondary text colour.
+                val quiet = MaterialTheme.colorScheme.onSurfaceVariant
+                val supporting = listOfNotNull(ReminderTime.recent(entry, now), ReminderTime.repeat(entry.reminder)).joinToString(" · ")
+                SegmentedListItem(shapes = ListItemDefaults.segmentedShapes(i, recent.size), modifier = Modifier.animateItem(),
+                    leadingContent = { IconBadge(R.drawable.ic_check, active = false) }, supportingContent = { Text(supporting, color = quiet) },
+                    trailingContent = { clearButton(entry.reminder, true) },
+                ) { Text(entry.reminder.title, color = quiet) }
+            }
         }
     }
 }
+
+@Composable
+private fun SectionHeader(text: String, modifier: Modifier = Modifier) =
+    Text(text, modifier.padding(start = 16.dp, bottom = 8.dp, top = 8.dp), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+
+/** A row's key: a repeat can be in both sections. */
+private fun rowKey(reminder: Reminder, recent: Boolean) = (if (recent) "r:" else "u:") + reminder.id
 
 private val LIST_PADDING = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp)
 

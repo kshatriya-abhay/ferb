@@ -60,9 +60,11 @@ class RemindersDeviceTest {
         assertThat(snoozed.snoozed).isNotNull()
         assertThat(snoozed.at).isEqualTo(reminder.at)
 
-        // Done: the reminder goes.
+        // Done: marked done (it stays a day, for the Reminders tab's Recent), and no longer upcoming.
         ReminderAlarms.pending(context, ReminderReceiver.DONE, reminder.id).send()
-        assertThat(waitFor(10_000) { app.reminders.all().none { it.id == reminder.id } }).isTrue()
+        assertThat(waitFor(10_000) { app.reminders.all().single { it.id == reminder.id }.doneAt != null }).isTrue()
+        assertThat(app.reminders.upcoming().none { it.id == reminder.id }).isTrue()
+        app.reminders.remove(reminder.id)
     }
 
     @Test

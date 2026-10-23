@@ -35,6 +35,7 @@ class AssistantApp : Application() {
             migrateReminders()
             dev.abhay.assistant.reminders.ReminderReceiver.showMissed(this, this)
             reminders.catchUp()
+            reminders.prune()
             alarms.sync(reminders.upcoming())
         }
     }
@@ -56,7 +57,12 @@ class AssistantApp : Application() {
         alarms.sync(reminders.upcoming())
     }
 
-    /** Undo for [clearReminder]: the reminder and its alarm back. Blocking. */
+    /** Takes an entry off the Reminders tab's Recent ([dev.abhay.assistant.reminders.ReminderBook.dismiss]). Blocking. */
+    fun dismissReminder(id: String): dev.abhay.assistant.reminders.Reminder? = reminders.dismiss(id)?.also {
+        alarms.sync(reminders.upcoming())
+    }
+
+    /** Undo for [clearReminder] and [dismissReminder]: the reminder and its alarm back. Blocking. */
     fun restoreReminder(reminder: dev.abhay.assistant.reminders.Reminder) {
         reminders.restore(reminder)
         alarms.sync(reminders.upcoming())
