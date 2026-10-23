@@ -125,17 +125,49 @@ class ReminderBook(private val store: ReminderStore, private val notes: NoteStor
         reminder.noteId?.let { noteId -> noteFor(noteId)?.let { note -> notes.update(note) { NoteText.set(NoteText.set(it, NoteText.REMIND, null), NoteText.REPEAT, null) } } }
     }
 
-    /** Done: a repeat moves to its next time after now (in the note too); otherwise the reminder goes. */
+    /**
+     * Done: a repeat moves to its next time after now (in the note too), unless it already has
+     * ([fired]), when only a snooze goes; otherwise the reminder goes.
+     */
     fun done(id: String): Reminder? {
         val reminder = store.load().firstOrNull { it.id == id } ?: return null
-        val repeat = reminder.repeat ?: return null.also { remove(id) }
+        if (reminder.repeat == null) return null.also { remove(id) }
+        if (reminder.at.isAfter(now())) return reminder.copy(snoozed = null).also { save(it) }
+        return advance(reminder)
+    }
+
+    /**
+     * Its notification has just shown: a repeat moves on to its next time now, so it comes back
+     * whether or not Done is tapped, and a snooze that's over goes. A one-off stays until Done.
+     */
+    fun fired(id: String): Reminder? {
+        val reminder = store.load().firstOrNull { it.id == id } ?: return null
+        val unsnoozed = reminder.copy(snoozed = reminder.snoozed?.takeIf { it.isAfter(now()) })
+        if (unsnoozed.repeat == null || unsnoozed.at.isAfter(now())) return unsnoozed.also { if (it != reminder) save(it) }
+        return advance(unsnoozed)
+    }
+
+    /**
+     * Repeats whose time went by unseen (the phone off, or Ferb's alarms cleared) move to their
+     * next time, so they keep coming: after a reboot, an update, the daily rescan, a launch.
+     */
+    fun catchUp(): List<Reminder> {
+        store.load().filter { it.repeat != null && !it.due.isAfter(now()) }.forEach { advance(it) }
+        return all()
+    }
+
+    /** A repeat at its next time after now, in the note too, without a snooze. */
+    private fun advance(reminder: Reminder): Reminder {
+        val repeat = reminder.repeat!!
         var next = repeat.after(reminder.at)
         while (!next.isAfter(now())) next = repeat.after(next)
         val moved = reminder.copy(at = next, snoozed = null)
-        store.save(store.load().map { if (it.id == id) moved else it })
+        save(moved)
         reminder.noteId?.let { noteId -> noteFor(noteId)?.let { note -> notes.update(note) { NoteText.set(it, NoteText.REMIND, ReminderTime.format(next)) } } }
         return moved
     }
+
+    private fun save(reminder: Reminder) = store.save(store.load().map { if (it.id == reminder.id) reminder else it })
 
     /** Snooze: the notification again in [minutes]; the reminder (and its note) keep their time. */
     fun snooze(id: String, minutes: Long = SNOOZE_MINUTES): Reminder? {

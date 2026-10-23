@@ -64,10 +64,18 @@ class ReminderReceiver : BroadcastReceiver() {
         thread {
             try {
                 when (intent.action) {
-                    FIRE -> app.reminders.all().firstOrNull { it.id == id }?.let { notify(context, it) }
+                    FIRE -> app.reminders.all().firstOrNull { it.id == id }?.let {
+                        notify(context, it)
+                        // A repeat comes back at its next time, Done tapped or not.
+                        app.reminders.fired(it.id)
+                    }
                     DONE -> id?.let { app.reminders.done(it); cancel(context, it) }
                     SNOOZE -> id?.let { app.reminders.snooze(it); cancel(context, it) }
-                    else -> app.reminders.scan() // boot, update, the daily rescan
+                    else -> {
+                        // Boot, update, the daily rescan: the folder again, then repeats missed meanwhile.
+                        app.reminders.scan()
+                        app.reminders.catchUp()
+                    }
                 }
                 app.alarms.sync(app.reminders.all().filter { it.due.isAfter(LocalDateTime.now()) })
             } finally {

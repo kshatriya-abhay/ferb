@@ -31,7 +31,10 @@ class AssistantApp : Application() {
 
     /** The reminders rebuilt from the notes folder and scheduled: on launch, and after any change. */
     fun syncReminders() {
-        kotlin.concurrent.thread { alarms.sync(reminders.scan().filter { it.due.isAfter(java.time.LocalDateTime.now()) }) }
+        kotlin.concurrent.thread {
+            reminders.scan()
+            alarms.sync(reminders.catchUp().filter { it.due.isAfter(java.time.LocalDateTime.now()) })
+        }
     }
     lateinit var foreground: ForegroundTracker
         private set

@@ -54,15 +54,16 @@ class RemindersTest {
     fun aReminderOnANoteWritesItsKeysAndOnlyThose() {
         val original = "---\ntags: [home]\n---\n# Rent\nPay by bank transfer.\n"
         val notes = MemoryNotes("Rent" to original)
-        val reminders = book(notes)
+        val store = MemoryStore()
+        val reminders = book(notes, store)
         val r = reminders.add("Rent", LocalDateTime.of(2026, 11, 1, 9, 0), Repeat.Monthly, notes.list().single())!!
         val text = notes.files.getValue("Rent")
         assertThat(NoteText.get(text, NoteText.ID)).isEqualTo(r.id)
         assertThat(NoteText.get(text, NoteText.REMIND)).isEqualTo("2026-11-01 09:00")
         assertThat(NoteText.get(text, NoteText.REPEAT)).isEqualTo("monthly")
         assertThat(NoteText.body(text)).isEqualTo(NoteText.body(original))
-        // Done: next month, in the note too.
-        assertThat(reminders.done(r.id)!!.at).isEqualTo(LocalDateTime.of(2026, 12, 1, 9, 0))
+        // Done on its notification (Nov 1, 09:05): next month, in the note too.
+        assertThat(ReminderBook(store, notes) { LocalDateTime.of(2026, 11, 1, 9, 5) }.done(r.id)!!.at).isEqualTo(LocalDateTime.of(2026, 12, 1, 9, 0))
         assertThat(NoteText.get(notes.files.getValue("Rent"), NoteText.REMIND)).isEqualTo("2026-12-01 09:00")
         // Removed: the keys go, the id stays (the note keeps its identity).
         reminders.remove(r.id)
@@ -77,6 +78,55 @@ class RemindersTest {
         val reminders = book()
         val r = reminders.add("Water the plants", now.minusDays(3), Repeat.Daily)!!
         assertThat(reminders.done(r.id)!!.at).isEqualTo(now.minusDays(3).plusDays(4))
+    }
+
+    @Test
+    fun aRepeatThatFiredComesBackWithoutDone() {
+        val notes = MemoryNotes("Plants" to "Water them.\n")
+        val reminders = book(notes)
+        val r = reminders.add("Plants", now.minusMinutes(1), Repeat.Daily, notes.list().single())!!
+        // Fired a minute ago: tomorrow, in the note too, and scheduled, as it's due after now.
+        val next = reminders.fired(r.id)!!
+        assertThat(next.at).isEqualTo(now.minusMinutes(1).plusDays(1))
+        assertThat(next.due.isAfter(now)).isTrue()
+        assertThat(NoteText.get(notes.files.getValue("Plants"), NoteText.REMIND)).isEqualTo(ReminderTime.format(next.at))
+        // Done afterwards doesn't skip a day.
+        assertThat(reminders.done(r.id)!!.at).isEqualTo(next.at)
+    }
+
+    @Test
+    fun aSnoozedRepeatThatFiredAgainKeepsItsNextTime() {
+        val store = MemoryStore()
+        val reminders = book(store = store)
+        val r = reminders.add("Stretch", now.minusMinutes(10), Repeat.Daily)!!
+        reminders.fired(r.id) // tomorrow
+        reminders.snooze(r.id) // the notification again in 10 minutes
+        val later = ReminderBook(store, MemoryNotes()) { now.plusMinutes(11) }
+        // The snooze's notification: the snooze goes, the reminder stays due tomorrow.
+        val after = later.fired(r.id)!!
+        assertThat(after.snoozed).isNull()
+        assertThat(after.due).isEqualTo(now.minusMinutes(10).plusDays(1))
+    }
+
+    @Test
+    fun repeatsMissedWhileThePhoneWasOffCatchUp() {
+        val reminders = book()
+        val daily = reminders.add("Pills", now.minusHours(5), Repeat.Daily)!! // due this morning, phone off
+        val oneOff = reminders.add("Oven", now.minusHours(1))!!
+        val later = reminders.add("Call", now.plusHours(2), Repeat.Weekly)!!
+        val after = reminders.catchUp().associateBy { it.id }
+        assertThat(after.getValue(daily.id).at).isEqualTo(now.minusHours(5).plusDays(1))
+        assertThat(after.getValue(oneOff.id)).isEqualTo(oneOff) // a one-off waits for Done
+        assertThat(after.getValue(later.id)).isEqualTo(later)
+    }
+
+    @Test
+    fun aOneOffThatFiredStaysUntilDone() {
+        val reminders = book()
+        val r = reminders.add("Oven", now.minusMinutes(1))!!
+        assertThat(reminders.fired(r.id)).isEqualTo(r)
+        assertThat(reminders.done(r.id)).isNull()
+        assertThat(reminders.all()).isEmpty()
     }
 
     @Test
