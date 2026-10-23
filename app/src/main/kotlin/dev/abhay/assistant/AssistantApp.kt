@@ -26,29 +26,41 @@ class AssistantApp : Application() {
     val onboarding by lazy { Onboarding.from(this) }
     val notes by lazy { SafNotes(this) }
     val voice by lazy { dev.abhay.assistant.voice.VoiceSettings(this) }
-    val reminders by lazy { ReminderBook(FileReminderStore(java.io.File(filesDir, "reminders.json")), notes) { java.time.LocalDateTime.now() } }
+    val reminders by lazy { ReminderBook(FileReminderStore(java.io.File(filesDir, "reminders.json"))) { java.time.LocalDateTime.now() } }
     val alarms by lazy { ReminderAlarms(this) }
 
-    /** The reminders rebuilt from the notes folder and scheduled: on launch, and after any change. */
+    /** The reminders scheduled from Ferb's store: on launch, and after any change. */
     fun syncReminders() {
         kotlin.concurrent.thread {
-            reminders.scan()
+            migrateReminders()
             dev.abhay.assistant.reminders.ReminderReceiver.showMissed(this, this)
             reminders.catchUp()
             alarms.sync(reminders.upcoming())
         }
     }
     /**
-     * Clears a reminder (the Reminders tab): out of the store and its note, its alarm cancelled and
-     * its notification taken down. Blocking (the notes folder may be read): off the main thread.
+     * Once, silently: reminders that lived on notes (until 2026-10-23) read into Ferb's store
+     * ([dev.abhay.assistant.reminders.ReminderMigration]). The notes are only read. Blocking.
      */
-    fun clearReminder(id: String): ReminderBook.Cleared? = reminders.clear(id)?.also {
+    @Synchronized
+    fun migrateReminders() {
+        val prefs = getSharedPreferences("reminders", MODE_PRIVATE)
+        if (prefs.getBoolean(FROM_NOTES, false)) return
+        reminders.import(dev.abhay.assistant.reminders.ReminderMigration.fromNotes(notes, java.time.LocalDateTime.now()))
+        prefs.edit().putBoolean(FROM_NOTES, true).commit()
+    }
+
+    /** Clears a reminder (the Reminders tab): out of the store, its alarm cancelled and its notification taken down. Blocking. */
+    fun clearReminder(id: String): dev.abhay.assistant.reminders.Reminder? = reminders.clear(id)?.also {
         dev.abhay.assistant.reminders.ReminderReceiver.cancel(this, id)
         alarms.sync(reminders.upcoming())
     }
 
-    /** Undo for [clearReminder]: the reminder, its note's keys and its alarm back. Blocking. */
-    fun restoreReminder(cleared: ReminderBook.Cleared): Boolean = reminders.restore(cleared).also { alarms.sync(reminders.upcoming()) }
+    /** Undo for [clearReminder]: the reminder and its alarm back. Blocking. */
+    fun restoreReminder(reminder: dev.abhay.assistant.reminders.Reminder) {
+        reminders.restore(reminder)
+        alarms.sync(reminders.upcoming())
+    }
 
     lateinit var foreground: ForegroundTracker
         private set
@@ -60,3 +72,5 @@ class AssistantApp : Application() {
         syncReminders()
     }
 }
+
+private const val FROM_NOTES = "imported_from_notes"

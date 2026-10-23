@@ -7,10 +7,10 @@ import android.content.pm.PackageManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.common.truth.Truth.assertThat
-import dev.abhay.assistant.notes.NoteText
-import dev.abhay.assistant.reminders.FileReminderStore
+import dev.abhay.assistant.reminders.Reminder
 import dev.abhay.assistant.reminders.ReminderAlarms
-import dev.abhay.assistant.reminders.ReminderBook
+import dev.abhay.assistant.reminders.ReminderMigration
+import dev.abhay.assistant.reminders.Repeat
 import dev.abhay.assistant.reminders.ReminderReceiver
 import java.io.File
 import java.time.LocalDateTime
@@ -49,7 +49,7 @@ class RemindersDeviceTest {
     fun aReminderFiresDoneAndSnooze() {
         assumeTrue("POST_NOTIFICATIONS granted (the script grants it)",
             context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED)
-        val reminder = app.reminders.add(TITLE, LocalDateTime.now().plusSeconds(8))!!
+        val reminder = app.reminders.add(TITLE, LocalDateTime.now().plusSeconds(8))
         app.alarms.sync(app.reminders.all().filter { it.due.isAfter(LocalDateTime.now()) })
         assertThat(waitFor(30_000) { notifications.activeNotifications.any { it.id == reminder.id.hashCode() } }).isTrue()
 
@@ -66,19 +66,14 @@ class RemindersDeviceTest {
     }
 
     @Test
-    fun aReminderOnANoteWritesItsFrontmatter() {
+    fun aReminderThatLivedOnANoteIsReadWithoutWritingTheNote() {
         val notes = NotesDeviceTest.testNotes(context)
-        val note = notes.create("Rent", "---\ntags: [money]\n---\nPay by transfer.\n")!!
-        val book = ReminderBook(FileReminderStore(File(context.cacheDir, "reminders-devicetest.json")), notes) { LocalDateTime.now() }
-        val r = book.add("Rent", LocalDateTime.of(2030, 1, 1, 9, 0), note = note)!!
-        val text = notes.read(note)!!
-        assertThat(NoteText.get(text, NoteText.REMIND)).isEqualTo("2030-01-01 09:00")
-        assertThat(NoteText.get(text, NoteText.ID)).isEqualTo(r.id)
-        assertThat(NoteText.body(text)).isEqualTo("Pay by transfer.\n")
-        // Rebuilt from the folder alone, as after a reinstall.
-        File(context.cacheDir, "reminders-devicetest.json").delete()
-        assertThat(book.scan().map { it.id }).containsExactly(r.id)
-        File(context.cacheDir, "reminders-devicetest.json").delete()
+        val original = "---\nferb-id: dt1\nremind: 2030-01-01 09:00\nrepeat: yearly\n---\nPay by transfer.\n"
+        val note = notes.create("Rent", original)!!
+        val found = ReminderMigration.fromNotes(notes, LocalDateTime.now()).single { it.id == "dt1" }
+        assertThat(found).isEqualTo(Reminder("dt1", "Rent", LocalDateTime.of(2030, 1, 1, 9, 0), Repeat.Yearly))
+        assertThat(notes.read(note)).isEqualTo(original)
+        notes.delete(note)
     }
 
     /** For the script: a reminder in a minute and a half, to fire after the process is killed or the app reinstalled. */

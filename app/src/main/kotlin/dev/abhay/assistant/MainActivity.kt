@@ -52,6 +52,9 @@ class MainActivity : ComponentActivity() {
     /** A note to show, from an intent ([openNote]): its id and name. */
     private val noteToOpen = mutableStateOf<Pair<String, String>?>(null)
 
+    /** A reminder's notification was tapped ([openReminders]): counted, so each one opens the Reminders tab. */
+    private val remindersOpened = mutableStateOf(0)
+
     /** Opened as the phone's assistant ([Intent.ACTION_ASSIST]): counted, so each one brings up the chat ready to type. */
     private val assists = mutableStateOf(0)
 
@@ -64,6 +67,10 @@ class MainActivity : ComponentActivity() {
         // The assist trigger (holding the power button, the corner swipe): its extras, the screen's
         // context, aren't read.
         if (intent?.action == Intent.ACTION_ASSIST) assists.value++
+        if (intent?.getBooleanExtra(EXTRA_REMINDERS, false) == true) {
+            remindersOpened.value++
+            intent.removeExtra(EXTRA_REMINDERS)
+        }
         val id = intent?.getStringExtra(EXTRA_NOTE_ID) ?: return
         noteToOpen.value = id to intent.getStringExtra(EXTRA_NOTE_NAME).orEmpty()
     }
@@ -110,6 +117,9 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(assisted) { if (assisted > 0) stack = listOf("assistant") }
                 // A reply's "Reminders": the Notes screen on that tab, forward as any screen opens.
                 LaunchedEffect(Unit) { viewModel.opens.collect { screen -> if (stack.last() != screen) stack = stack + screen } }
+                // A reminder's notification: the chat, then the Reminders tab over it.
+                val fromNotification by remindersOpened
+                LaunchedEffect(fromNotification) { if (fromNotification > 0 && stack.last() != REMINDERS) stack = listOf("assistant", REMINDERS) }
                 val back = { stack = stack.dropLast(1) }
                 NavStack(stack, onBack = back) { screen ->
                     when {
@@ -140,10 +150,16 @@ class MainActivity : ComponentActivity() {
         /** The Notes screen opened on its Reminders tab. */
         const val REMINDERS = "reminders"
         const val NEW_REMINDER = "new_reminder"
+        private const val EXTRA_REMINDERS = "reminders"
         private const val EXTRA_NOTE_ID = "note_id"
         private const val EXTRA_NOTE_NAME = "note_name"
 
-        /** Opens [note] in Obsidian, through Ferb (a reply's Open, a reminder's notification). */
+        /** Opens Ferb on the Reminders tab (a reminder's notification). */
+        fun openReminders(context: Context): Intent = Intent(context, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            .putExtra(EXTRA_REMINDERS, true)
+
+        /** Opens [note] in Obsidian, through Ferb (a reply's Open). */
         fun openNote(context: Context, note: NoteRef): Intent = Intent(context, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             .putExtra(EXTRA_NOTE_ID, note.id).putExtra(EXTRA_NOTE_NAME, note.name)

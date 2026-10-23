@@ -1,7 +1,6 @@
 package dev.abhay.assistant.reminders
 
 import com.google.common.truth.Truth.assertThat
-import dev.abhay.assistant.notes.MemoryNotes
 import java.time.LocalDateTime
 import org.junit.Test
 
@@ -15,7 +14,7 @@ class UpcomingRemindersTest {
         override fun save(reminders: List<Reminder>) { saved = reminders }
     }
 
-    private fun book(notes: MemoryNotes = MemoryNotes()) = ReminderBook(MemoryStore(), notes) { now }
+    private fun book() = ReminderBook(MemoryStore()) { now }
 
     @Test
     fun soonestFirstAndOnlyWhatsStillToCome() {
@@ -53,15 +52,6 @@ class UpcomingRemindersTest {
         assertThat(said(Repeat.Weekly)).isEqualTo("Every Monday")
         assertThat(said(Repeat.Monthly)).isEqualTo("Monthly")
         assertThat(said(Repeat.Yearly)).isEqualTo("Yearly")
-    }
-
-    @Test
-    fun aReminderWithANoteComesWithIt() {
-        val notes = MemoryNotes("Rent" to "Pay it.\n")
-        val reminders = book(notes)
-        reminders.add("Rent", now.plusDays(1), note = notes.list().single())
-        reminders.add("Stretch", now.plusHours(1))
-        assertThat(reminders.upcomingWithNotes().map { (r, n) -> r.title to n?.name }).containsExactly("Stretch" to null, "Rent" to "Rent").inOrder()
     }
 
     @Test

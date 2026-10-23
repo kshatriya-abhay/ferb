@@ -165,7 +165,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     fun clearReminder(id: String) = assistant.clearReminder(id)
-    fun restoreReminder(cleared: dev.abhay.assistant.reminders.ReminderBook.Cleared) = assistant.restoreReminder(cleared)
+    fun restoreReminder(reminder: dev.abhay.assistant.reminders.Reminder) = assistant.restoreReminder(reminder)
     /**
      * Turns on [tool], offered under a reply no tool could do ([Exchange.turnOn]), and asks again.
      * Its Android permissions, if any, are asked for by the screen at the same time.

@@ -1,6 +1,5 @@
 package dev.abhay.assistant.reminders
 
-import dev.abhay.assistant.notes.NoteRef
 import dev.abhay.assistant.notes.NoteStore
 import dev.abhay.assistant.notes.NoteText
 import dev.abhay.assistant.tools.Durations
@@ -48,11 +47,11 @@ enum class Repeat(val key: String) {
 }
 
 /**
- * One reminder: [title], due [at] (local time), maybe repeating, maybe linked to a note by its
- * `ferb-id` ([noteId]). [snoozed] moves only the next notification, not the reminder itself.
+ * One reminder: [title], due [at] (local time), maybe repeating. [snoozed] moves only the next
+ * notification, not the reminder itself.
  * [fired]: its notification for [at] has shown (a one-off; a repeat moves on instead).
  */
-data class Reminder(val id: String, val title: String, val at: LocalDateTime, val repeat: Repeat? = null, val noteId: String? = null, val snoozed: LocalDateTime? = null, val fired: Boolean = false) {
+data class Reminder(val id: String, val title: String, val at: LocalDateTime, val repeat: Repeat? = null, val snoozed: LocalDateTime? = null, val fired: Boolean = false) {
     /** When the notification is due. */
     val due: LocalDateTime get() = snoozed ?: at
 }
@@ -130,15 +129,13 @@ interface ReminderStore {
 }
 
 /**
- * Reminders: kept by Ferb, linked to notes in the notes folder through their frontmatter
- * (`ferb-id`, `remind`, `repeat`), so a renamed note still matches and the reminders can be
- * rebuilt from the folder ([scan]); a `remind:` added in Obsidian becomes one too. Reminders
- * without a note need no folder. [Alarms][ReminderAlarms] schedule what this decides.
+ * Reminders: title, time, maybe a repeat, kept in Ferb's own store and nowhere else (no notes
+ * since 2026-10-23). [Alarms][ReminderAlarms] schedule what this decides.
  */
-class ReminderBook(store: ReminderStore, private val notes: NoteStore, private val now: () -> LocalDateTime) {
+class ReminderBook(store: ReminderStore, private val now: () -> LocalDateTime) {
     private val _changes = MutableStateFlow(0)
 
-    /** Counts saves (added, fired, done, snoozed, rescanned), so a screen showing reminders refreshes. */
+    /** Counts saves (added, fired, done, snoozed, cleared), so a screen showing reminders refreshes. */
     val changes: StateFlow<Int> = _changes.asStateFlow()
 
     private val store = object : ReminderStore by store {
@@ -153,84 +150,37 @@ class ReminderBook(store: ReminderStore, private val notes: NoteStore, private v
     /** What's still to come, soonest first: what the alarms are set for, and what the Reminders tab lists. */
     fun upcoming(): List<Reminder> = all().filter { it.due.isAfter(now()) }
 
-    /** [upcoming], each with its note when it has one still in the folder (read once for all). */
-    fun upcomingWithNotes(): List<Pair<Reminder, NoteRef?>> {
-        val list = upcoming()
-        if (list.none { it.noteId != null } || !notes.ready) return list.map { it to null }
-        val byId = notes.list().mapNotNull { n -> notes.read(n)?.let { NoteText.get(it, NoteText.ID) }?.let { it to n } }.toMap()
-        return list.map { it to it.noteId?.let(byId::get) }
-    }
-
-    /** Adds a reminder; with [note], also writes its `remind` (and `repeat`) keys there, giving it a `ferb-id` if it has none. */
-    fun add(title: String, at: LocalDateTime, repeat: Repeat? = null, note: NoteRef? = null): Reminder? {
-        var noteId: String? = null
-        if (note != null) {
-            val ok = notes.update(note) { text ->
-                val id = NoteText.get(text, NoteText.ID) ?: NoteStore.newId()
-                noteId = id
-                var next = NoteText.set(text, NoteText.ID, id)
-                next = NoteText.set(next, NoteText.REMIND, ReminderTime.format(at))
-                NoteText.set(next, NoteText.REPEAT, repeat?.key)
-            }
-            if (!ok) return null
-        }
-        val reminder = Reminder(noteId ?: NoteStore.newId(), title, at, repeat, noteId)
-        store.save(store.load().filter { it.id != reminder.id } + reminder)
+    fun add(title: String, at: LocalDateTime, repeat: Repeat? = null): Reminder {
+        val reminder = Reminder(NoteStore.newId(), title, at, repeat)
+        store.save(store.load() + reminder)
         return reminder
     }
 
-    /** Removes a reminder (Undo, or Done without a repeat), and the `remind`/`repeat` keys from its note. */
+    /** Removes a reminder (Undo, or Done without a repeat). */
     fun remove(id: String) {
         clear(id)
     }
 
-    /** What [clear] took away, for its Undo ([restore]): the reminder, and its note's text just before and just after. */
-    data class Cleared(val reminder: Reminder, val noteBefore: String? = null, val noteAfter: String? = null)
-
-    /**
-     * Clears a reminder entirely (a repeat too, not just its next time): out of Ferb's store, and
-     * its note's `remind` and `repeat` keys removed (its `ferb-id` and the note stay). Null if
-     * there's no such reminder, or its note couldn't be changed (then nothing is).
-     */
-    fun clear(id: String): Cleared? {
+    /** Clears a reminder entirely (a repeat too, not just its next time); it's returned for Undo ([restore]), or null if there's none. */
+    fun clear(id: String): Reminder? {
         val reminder = store.load().firstOrNull { it.id == id } ?: return null
-        var before: String? = null
-        var after: String? = null
-        val note = reminder.noteId?.let(::noteFor)
-        if (note != null) {
-            val changed = notes.update(note) { text ->
-                before = text
-                NoteText.set(NoteText.set(text, NoteText.REMIND, null), NoteText.REPEAT, null).also { after = it }
-            }
-            if (!changed) return null
-        }
         store.save(store.load().filter { it.id != id })
-        return Cleared(reminder, before, after)
+        return reminder
+    }
+
+    /** Undoes [clear]: the reminder back as it was (time, repeat, snooze). */
+    fun restore(reminder: Reminder) = store.save(store.load().filter { it.id != reminder.id } + reminder)
+
+    /** Adds reminders kept elsewhere before (the notes' frontmatter, read once: [ReminderMigration]), keeping those already here. */
+    fun import(reminders: List<Reminder>) {
+        val kept = store.load()
+        val new = reminders.filter { r -> kept.none { it.id == r.id } }
+        if (new.isNotEmpty()) store.save(kept + new)
     }
 
     /**
-     * Undoes [clear]: the reminder back as it was (time, repeat, snooze), and its note's keys. A note
-     * unchanged since gets its text back exactly; one changed meanwhile gets the keys added again.
-     * False if its note is gone or couldn't be changed.
-     */
-    fun restore(cleared: Cleared): Boolean {
-        val reminder = cleared.reminder
-        val before = cleared.noteBefore
-        if (reminder.noteId != null && before != null) {
-            val note = noteFor(reminder.noteId) ?: return false
-            val restored = notes.update(note) { now ->
-                if (now == cleared.noteAfter) before
-                else NoteText.set(NoteText.set(now, NoteText.REMIND, NoteText.get(before, NoteText.REMIND)), NoteText.REPEAT, NoteText.get(before, NoteText.REPEAT))
-            }
-            if (!restored) return false
-        }
-        store.save(store.load().filter { it.id != reminder.id } + reminder)
-        return true
-    }
-
-    /**
-     * Done: a repeat moves to its next time after now (in the note too), unless it already has
-     * ([fired]), when only a snooze goes; otherwise the reminder goes.
+     * Done: a repeat moves to its next time after now, unless it already has ([fired]), when only
+     * a snooze goes; otherwise the reminder goes.
      */
     fun done(id: String): Reminder? {
         val reminder = store.load().firstOrNull { it.id == id } ?: return null
@@ -257,59 +207,54 @@ class ReminderBook(store: ReminderStore, private val notes: NoteStore, private v
 
     /**
      * Repeats whose time went by unseen (the phone off, or Ferb's alarms cleared) move to their
-     * next time, so they keep coming: after a reboot, an update, the daily rescan, a launch.
+     * next time, so they keep coming: after a reboot, an update, a launch.
      */
     fun catchUp(): List<Reminder> {
         store.load().filter { it.repeat != null && !it.due.isAfter(now()) }.forEach { advance(it) }
         return all()
     }
 
-    /** A repeat at its next time after now, in the note too, without a snooze. */
+    /** A repeat at its next time after now, without a snooze. */
     private fun advance(reminder: Reminder): Reminder {
         val repeat = reminder.repeat!!
         var next = repeat.after(reminder.at)
         while (!next.isAfter(now())) next = repeat.after(next)
         val moved = reminder.copy(at = next, snoozed = null)
         save(moved)
-        reminder.noteId?.let { noteId -> noteFor(noteId)?.let { note -> notes.update(note) { NoteText.set(it, NoteText.REMIND, ReminderTime.format(next)) } } }
         return moved
     }
 
     private fun save(reminder: Reminder) = store.save(store.load().map { if (it.id == reminder.id) reminder else it })
 
-    /** Snooze: the notification again in [minutes]; the reminder (and its note) keep their time. */
+    /** Snooze: the notification again in [minutes]; the reminder keeps its time. */
     fun snooze(id: String, minutes: Long = SNOOZE_MINUTES): Reminder? {
         val snoozed = store.load().firstOrNull { it.id == id }?.copy(snoozed = now().plusMinutes(minutes).withNano(0)) ?: return null
         store.save(store.load().map { if (it.id == id) snoozed else it })
         return snoozed
     }
 
-    /**
-     * Rebuilds the reminders linked to notes from the folder: each note with a `remind:` key is one
-     * (a note without a `ferb-id` gets one), keeping a snooze; a linked reminder whose note no
-     * longer has the key is gone. Reminders without a note stay. Without a folder, nothing changes.
-     */
-    fun scan(): List<Reminder> {
-        if (!notes.ready) return all()
-        val kept = store.load()
-        val fromNotes = notes.list().mapNotNull { note ->
-            val text = notes.read(note) ?: return@mapNotNull null
-            val at = NoteText.get(text, NoteText.REMIND)?.let(ReminderTime::parse) ?: return@mapNotNull null
-            val id = NoteText.get(text, NoteText.ID) ?: NoteStore.newId().also { id -> notes.update(note) { NoteText.set(it, NoteText.ID, id) } }
-            val before = kept.firstOrNull { it.id == id }
-            val same = before?.takeIf { it.at == at }
-            Reminder(id, note.name, at, Repeat.of(NoteText.get(text, NoteText.REPEAT)), id, same?.snoozed, same?.fired ?: false)
-        }
-        val result = kept.filter { it.noteId == null } + fromNotes
-        store.save(result)
-        return result.sortedBy { it.due }
-    }
-
-    /** The note with [noteId] in its frontmatter, wherever it is now (renamed or not). */
-    fun noteFor(noteId: String): NoteRef? = notes.list().firstOrNull { n -> notes.read(n)?.let { NoteText.get(it, NoteText.ID) } == noteId }
-
     companion object {
         const val SNOOZE_MINUTES = 10L
+    }
+}
+
+/**
+ * Until 2026-10-23 a reminder could live on a note, in its frontmatter (`ferb-id`, `remind`,
+ * `repeat`), and one added there in Obsidian became a reminder. Read once, on the first start
+ * after that ended: each such reminder not already in Ferb's store, as a plain one. The notes are
+ * only read, never written; their keys stay as harmless leftovers.
+ */
+object ReminderMigration {
+    fun fromNotes(notes: NoteStore, now: LocalDateTime): List<Reminder> {
+        if (!notes.ready) return emptyList()
+        return notes.list().mapNotNull { note ->
+            val text = notes.read(note) ?: return@mapNotNull null
+            val at = NoteText.get(text, NoteText.REMIND)?.let(ReminderTime::parse) ?: return@mapNotNull null
+            // Its id was the note's ferb-id; a note without one never reached the store.
+            val id = NoteText.get(text, NoteText.ID) ?: NoteStore.newId()
+            // One gone by counts as shown, so nothing old turns up late.
+            Reminder(id, note.name, at, Repeat.of(NoteText.get(text, NoteText.REPEAT)), fired = !at.isAfter(now))
+        }
     }
 }
 
@@ -322,8 +267,9 @@ class FileReminderStore(private val file: java.io.File) : ReminderStore {
                 val at = LocalDateTime.parse(o.getString("at"))
                 // Saved before "fired" was kept (2026-10-23): one already past counts as shown, so nothing old shows late.
                 val fired = if (o.has("fired")) o.getBoolean("fired") else !at.isAfter(LocalDateTime.now())
+                // A "note" key (a reminder on a note, until 2026-10-23) is dropped: it's a plain reminder now.
                 Reminder(o.getString("id"), o.getString("title"), at, Repeat.of(o.optString("repeat").ifEmpty { null }),
-                    o.optString("note").ifEmpty { null }, o.optString("snoozed").ifEmpty { null }?.let(LocalDateTime::parse), fired)
+                    o.optString("snoozed").ifEmpty { null }?.let(LocalDateTime::parse), fired)
             }
         }
     } catch (e: Exception) {
@@ -334,7 +280,7 @@ class FileReminderStore(private val file: java.io.File) : ReminderStore {
     override fun save(reminders: List<Reminder>) {
         val a = JSONArray(reminders.map { r ->
             JSONObject().put("id", r.id).put("title", r.title).put("at", r.at.toString()).put("repeat", r.repeat?.key ?: "")
-                .put("note", r.noteId ?: "").put("snoozed", r.snoozed?.toString() ?: "").put("fired", r.fired)
+                .put("snoozed", r.snoozed?.toString() ?: "").put("fired", r.fired)
         })
         val tmp = java.io.File(file.parentFile, file.name + ".tmp")
         tmp.writeText(a.toString())

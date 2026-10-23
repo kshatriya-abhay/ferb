@@ -125,7 +125,7 @@ object SetAlarm : Tool(
                 choices = listOf(
                     Choice("Alarm at the next $time") { set(it) },
                     Choice("Reminder on $day at $time") { _ ->
-                        val reminder = reminders.add("Alarm", wanted) ?: return@Choice Outcome.Failed("Couldn't save the reminder")
+                        val reminder = reminders.add("Alarm", wanted)
                         env.remindersChanged()
                         AddReminder.added(env, reminder.id, "I'll remind you on $day at $time")
                     },

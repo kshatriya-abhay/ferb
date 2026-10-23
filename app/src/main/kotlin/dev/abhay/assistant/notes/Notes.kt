@@ -48,7 +48,7 @@ interface NoteStore {
 
         /**
          * The notes Ferb made, for the Notes screen: those with Ferb's id in their frontmatter
-         * (notes and lists it created, and notes it set a reminder on). The folder's other notes
+         * (the notes and lists it created). The folder's other notes
          * aren't listed, though the tools still find them by name (a list kept by hand).
          */
         fun ferbs(notes: List<NoteRef>, read: (NoteRef) -> String?): List<NoteRef> =

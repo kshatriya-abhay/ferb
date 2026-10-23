@@ -37,9 +37,8 @@ class ReminderAlarms(private val context: Context) {
             else alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent)
         }
         prefs.edit().putStringSet(SCHEDULED, reminders.map { it.id }.toSet()).apply()
-        // Once a day, the folder again: reminders set or changed in Obsidian.
-        alarms.setInexactRepeating(AlarmManager.RTC, System.currentTimeMillis() + AlarmManager.INTERVAL_DAY, AlarmManager.INTERVAL_DAY,
-            pending(context, ReminderReceiver.RESCAN, "scan"))
+        // The daily rescan of the notes folder, set until reminders left notes (2026-10-23): gone.
+        alarms.cancel(pending(context, ReminderReceiver.RESCAN, "scan"))
     }
 
     companion object {
@@ -72,8 +71,8 @@ class ReminderReceiver : BroadcastReceiver() {
                     DONE -> id?.let { app.reminders.done(it); cancel(context, it) }
                     SNOOZE -> id?.let { app.reminders.snooze(it); cancel(context, it) }
                     else -> {
-                        // Boot, update, the daily rescan: the folder again, then what was missed meanwhile.
-                        app.reminders.scan()
+                        // Boot, update: what was missed meanwhile, then every alarm again, from the store.
+                        app.migrateReminders()
                         app.reminders.catchUp()
                         showMissed(context, app)
                     }
@@ -107,18 +106,13 @@ class ReminderReceiver : BroadcastReceiver() {
             if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return false
             val manager = context.getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(NotificationChannel(ReminderAlarms.CHANNEL, "Reminders", NotificationManager.IMPORTANCE_HIGH))
-            // Tapped: Ferb, at the reminder's note when it has one.
-            val note = reminder.noteId?.let { (context.applicationContext as AssistantApp).reminders.noteFor(it) }
-            val target = note?.let { MainActivity.openNote(context, it) } ?: Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            // Tapped: Ferb's Reminders tab.
+            val target = MainActivity.openReminders(context)
             val open = PendingIntent.getActivity(context, reminder.id.hashCode(), target, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
             val notification = NotificationCompat.Builder(context, ReminderAlarms.CHANNEL)
                 .setSmallIcon(R.drawable.ic_reminder)
                 .setContentTitle(reminder.title)
-                .setContentText(when {
-                    late -> ReminderTime.due(reminder.at, LocalDateTime.now())
-                    reminder.noteId != null -> "From your notes"
-                    else -> "Reminder"
-                })
+                .setContentText(if (late) ReminderTime.due(reminder.at, LocalDateTime.now()) else "Reminder")
                 .apply { if (late) setWhen(reminder.at.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()).setShowWhen(true) }
                 .setCategory(NotificationCompat.CATEGORY_REMINDER)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)

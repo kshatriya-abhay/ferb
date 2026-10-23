@@ -2,7 +2,6 @@ package dev.abhay.assistant.tools
 
 import android.Manifest
 import dev.abhay.assistant.R
-import dev.abhay.assistant.notes.NoteStore
 import dev.abhay.assistant.reminders.Repeat
 import dev.abhay.assistant.reminders.ReminderTime
 import java.time.LocalDateTime
@@ -16,7 +15,7 @@ object AddReminder : Tool(
     name = "add_reminder",
     title = "Reminders",
     icon = R.drawable.ic_reminder,
-    description = "Remind you of something at a time, with a notification from Ferb; it can repeat, and be linked to a note.",
+    description = "Remind you of something at a time, with a notification from Ferb; it can repeat.",
     onByDefault = false,
     // On tool-check (2026-10-14), right reminders scored 0.19–0.51 and nothing else reached it;
     // a wrong one has Undo.
@@ -32,8 +31,7 @@ object AddReminder : Tool(
          "parameters": {"type": "object", "properties": {
            "text": {"type": "string", "description": "What to be reminded of, in the request's words, such as call mum"},
            "time": {"type": "string", "description": "When, as the request says it, such as tomorrow at 9 or in 20 minutes"},
-           "repeat": {"type": "string", "description": "Only if the request says it repeats: daily, weekly, monthly or yearly"},
-           "note": {"type": "string", "description": "Only if the request names a note: its name"}},
+           "repeat": {"type": "string", "description": "Only if the request says it repeats: daily, weekly, monthly or yearly"}},
            "required": ["text", "time"]}}
     """.trimIndent()
 
@@ -70,17 +68,13 @@ object AddReminder : Tool(
         val said = arguments.text(SAID)
         val repeat = if (resolved) Repeat.of(arguments.text(TimeArgs.REPEAT))
             else said?.let(Repeat::said) ?: Repeat.of(arguments.text("repeat")).takeIf { said == null }
-        // A reminder on a note needs the notes folder; without a note, none.
-        val noteName = arguments.text("note")
-        if (noteName != null && !env.notes.ready) return Prepared.Invalid("Reminders on notes need your notes folder", needs = listOf(NoteStore.NEEDS_FOLDER))
-        val note = noteName?.let { NoteStore.find(it, env.notes.list()) }
         // Without notifications a reminder can't remind: ask first, then the request runs again.
         if (!env.granted(Manifest.permission.POST_NOTIFICATIONS)) {
             return Prepared.Invalid("Ferb needs to show notifications to remind you", needs = listOf(Manifest.permission.POST_NOTIFICATIONS))
         }
         val summary = "Remind you: “$text” · ${describe(at, now)}" + (repeat?.let { ", ${it.key}" } ?: "")
-        return Prepared.Ready(summary, opensApp = false, detail = note?.let { "On the note “${it.name}”" }) { _ ->
-            val reminder = reminders.add(note?.name ?: text, at, repeat, note) ?: return@Ready Outcome.Failed("Couldn't save the reminder in “${note?.name}”")
+        return Prepared.Ready(summary, opensApp = false) { _ ->
+            val reminder = reminders.add(text, at, repeat)
             env.remindersChanged()
             added(env, reminder.id, "I'll remind you: “${reminder.title}” · ${describe(at, now)}" + (repeat?.let { ", ${it.key}" } ?: ""))
         }

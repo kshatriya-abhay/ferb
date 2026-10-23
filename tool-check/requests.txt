@@ -291,6 +291,8 @@ add_reminder | remind me tomorrow at 9 to call the bank
 add_reminder | set a reminder for 6 pm to take my medicine
 add_reminder | remind me every Monday at 8 to take out the bins
 add_reminder | remind me to water the plants at 7 tonight
+# Reminders no longer go on notes (2026-10-23): one that names a list is a plain reminder.
+add_reminder | remind me on Sunday to look at my packing list
 none | I forgot to set a reminder
 none | can you remind me what the capital of Peru is
 none | reminders are annoying

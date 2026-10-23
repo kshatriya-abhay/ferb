@@ -53,7 +53,7 @@ In Android's **Settings → Apps → Default apps → Digital assistant app**, p
 | Lists | | "Add milk and eggs to the shopping list" (a note with checkboxes in your notes folder) |
 | Show lists | | "What's on my shopping list?" (tick items off in the chat) |
 | Tick off | | "Tick milk off the shopping list" |
-| Reminders | | "Remind me on Friday to pay the rent" (Ferb's own notification, with Done and Snooze; can repeat, and be set on a note) |
+| Reminders | | "Remind me on Friday to pay the rent" (Ferb's own notification, with Done and Snooze; can repeat; listed, made by hand and cleared on the Notes screen's Reminders tab) |
 | Directions | | "Show me the way to the Taj Mahal" (opens Google Maps) |
 | Calls | | "Call Kritika" (always asks first) |
 | Messages | | "Text Priya I'm running late" (always asks first; you press send) |

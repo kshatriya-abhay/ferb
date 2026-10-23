@@ -1,7 +1,6 @@
 package dev.abhay.assistant.reminders
 
 import com.google.common.truth.Truth.assertThat
-import dev.abhay.assistant.notes.MemoryNotes
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -54,11 +53,10 @@ class ReminderDraftTest {
     @Test
     fun itSavesThroughTheBookWithoutANote() {
         val store = MemoryStore()
-        val book = ReminderBook(store, MemoryNotes()) { now }
+        val book = ReminderBook(store) { now }
         val at = LocalDateTime.of(2026, 10, 19, 8, 0)
         val saved = ReminderDraft("  Take out the bins ", at.toLocalDate(), at.toLocalTime(), RepeatChoice.Weekly).save(book, now)!!
         assertThat(saved.title).isEqualTo("Take out the bins")
-        assertThat(saved.noteId).isNull()
         assertThat(store.saved).containsExactly(saved)
         assertThat(book.upcoming().single()).isEqualTo(Reminder(saved.id, "Take out the bins", at, Repeat.Weekly))
         // Not valid: nothing saved.

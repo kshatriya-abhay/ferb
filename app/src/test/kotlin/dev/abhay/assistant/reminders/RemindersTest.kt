@@ -2,7 +2,6 @@ package dev.abhay.assistant.reminders
 
 import com.google.common.truth.Truth.assertThat
 import dev.abhay.assistant.notes.MemoryNotes
-import dev.abhay.assistant.notes.NoteText
 import java.time.LocalDateTime
 import org.junit.Test
 
@@ -15,7 +14,7 @@ class RemindersTest {
         override fun save(reminders: List<Reminder>) { saved = reminders }
     }
 
-    private fun book(notes: MemoryNotes = MemoryNotes(), store: MemoryStore = MemoryStore()) = ReminderBook(store, notes) { now }
+    private fun book(store: MemoryStore = MemoryStore()) = ReminderBook(store) { now }
 
     @Test
     fun timesAsSaid() {
@@ -40,37 +39,23 @@ class RemindersTest {
     }
 
     @Test
-    fun aReminderWithoutANoteNeedsNoFolder() {
+    fun aOneOffGoesOnDone() {
         val store = MemoryStore()
-        val reminders = book(MemoryNotes(ready = false), store)
-        val r = reminders.add("Check the oven", now.plusMinutes(20))!!
+        val reminders = book(store)
+        val r = reminders.add("Check the oven", now.plusMinutes(20))
         assertThat(store.saved).containsExactly(r)
+        assertThat(r.id).isNotEmpty()
         // Done without a repeat: gone.
         assertThat(reminders.done(r.id)).isNull()
         assertThat(store.saved).isEmpty()
     }
 
     @Test
-    fun aReminderOnANoteWritesItsKeysAndOnlyThose() {
-        val original = "---\ntags: [home]\n---\n# Rent\nPay by bank transfer.\n"
-        val notes = MemoryNotes("Rent" to original)
+    fun aMonthlyRepeatDoneOnItsNotificationMovesAMonth() {
         val store = MemoryStore()
-        val reminders = book(notes, store)
-        val r = reminders.add("Rent", LocalDateTime.of(2026, 11, 1, 9, 0), Repeat.Monthly, notes.list().single())!!
-        val text = notes.files.getValue("Rent")
-        assertThat(NoteText.get(text, NoteText.ID)).isEqualTo(r.id)
-        assertThat(NoteText.get(text, NoteText.REMIND)).isEqualTo("2026-11-01 09:00")
-        assertThat(NoteText.get(text, NoteText.REPEAT)).isEqualTo("monthly")
-        assertThat(NoteText.body(text)).isEqualTo(NoteText.body(original))
-        // Done on its notification (Nov 1, 09:05): next month, in the note too.
-        assertThat(ReminderBook(store, notes) { LocalDateTime.of(2026, 11, 1, 9, 5) }.done(r.id)!!.at).isEqualTo(LocalDateTime.of(2026, 12, 1, 9, 0))
-        assertThat(NoteText.get(notes.files.getValue("Rent"), NoteText.REMIND)).isEqualTo("2026-12-01 09:00")
-        // Removed: the keys go, the id stays (the note keeps its identity).
-        reminders.remove(r.id)
-        val after = notes.files.getValue("Rent")
-        assertThat(NoteText.get(after, NoteText.REMIND)).isNull()
-        assertThat(NoteText.get(after, NoteText.REPEAT)).isNull()
-        assertThat(after).isEqualTo(NoteText.set(original, NoteText.ID, r.id))
+        val r = book(store).add("Rent", LocalDateTime.of(2026, 11, 1, 9, 0), Repeat.Monthly)
+        // Done on its notification (Nov 1, 09:05): next month.
+        assertThat(ReminderBook(store) { LocalDateTime.of(2026, 11, 1, 9, 5) }.done(r.id)!!.at).isEqualTo(LocalDateTime.of(2026, 12, 1, 9, 0))
     }
 
     @Test
@@ -82,14 +67,12 @@ class RemindersTest {
 
     @Test
     fun aRepeatThatFiredComesBackWithoutDone() {
-        val notes = MemoryNotes("Plants" to "Water them.\n")
-        val reminders = book(notes)
-        val r = reminders.add("Plants", now.minusMinutes(1), Repeat.Daily, notes.list().single())!!
-        // Fired a minute ago: tomorrow, in the note too, and scheduled, as it's due after now.
+        val reminders = book()
+        val r = reminders.add("Plants", now.minusMinutes(1), Repeat.Daily)
+        // Fired a minute ago: tomorrow, and scheduled, as it's due after now.
         val next = reminders.fired(r.id)!!
         assertThat(next.at).isEqualTo(now.minusMinutes(1).plusDays(1))
         assertThat(next.due.isAfter(now)).isTrue()
-        assertThat(NoteText.get(notes.files.getValue("Plants"), NoteText.REMIND)).isEqualTo(ReminderTime.format(next.at))
         // Done afterwards doesn't skip a day.
         assertThat(reminders.done(r.id)!!.at).isEqualTo(next.at)
     }
@@ -101,7 +84,7 @@ class RemindersTest {
         val r = reminders.add("Stretch", now.minusMinutes(10), Repeat.Daily)!!
         reminders.fired(r.id) // tomorrow
         reminders.snooze(r.id) // the notification again in 10 minutes
-        val later = ReminderBook(store, MemoryNotes()) { now.plusMinutes(11) }
+        val later = ReminderBook(store) { now.plusMinutes(11) }
         // The snooze's notification: the snooze goes, the reminder stays due tomorrow.
         val after = later.fired(r.id)!!
         assertThat(after.snoozed).isNull()
@@ -171,25 +154,38 @@ class RemindersTest {
     }
 
     @Test
-    fun theFolderRebuildsLinkedRemindersAndTakesObsidiansToo() {
-        val notes = MemoryNotes(
-            "Dentist" to "---\nremind: 2026-10-20\n---\nBring the card.\n", // set in Obsidian, no id yet
-            "Ideas" to "no reminder",
-        )
+    fun remindersThatLivedOnNotesAreReadOnceAndTheNotesLeftAlone() {
+        val linked = "---\nferb-id: n1\nremind: 2026-10-20 08:00\nrepeat: weekly\n---\nBins.\n"
+        val obsidian = "---\nremind: 2026-10-20\n---\nBring the card.\n" // set in Obsidian, never given an id
+        val old = "---\nferb-id: n3\nremind: 2026-10-01 09:00\n---\n"
+        val notes = MemoryNotes("Bins" to linked, "Dentist" to obsidian, "Old" to old, "Ideas" to "no reminder")
         val store = MemoryStore()
-        val reminders = book(notes, store)
-        reminders.add("Oven", now.plusMinutes(5)) // no note: kept as it is
-        val found = reminders.scan()
-        assertThat(found.map { it.title }).containsExactly("Oven", "Dentist").inOrder()
-        val dentist = found.single { it.title == "Dentist" }
+        val reminders = book(store)
+        // Already in the store (it was linked): kept as it is, its snooze too.
+        store.saved = listOf(Reminder("n1", "Bins", LocalDateTime.of(2026, 10, 20, 8, 0), Repeat.Weekly, snoozed = now.plusMinutes(5)))
+        reminders.import(ReminderMigration.fromNotes(notes, now))
+        assertThat(store.saved.map { it.title }).containsExactly("Bins", "Dentist", "Old")
+        assertThat(store.saved.first { it.id == "n1" }.snoozed).isEqualTo(now.plusMinutes(5))
+        val dentist = store.saved.single { it.title == "Dentist" }
         assertThat(dentist.at).isEqualTo(LocalDateTime.of(2026, 10, 20, 9, 0))
-        // The note got its id, and nothing else changed.
-        assertThat(notes.files.getValue("Dentist")).isEqualTo("---\nremind: 2026-10-20\nferb-id: ${dentist.id}\n---\nBring the card.\n")
-        // Renamed in Obsidian: still found by its id.
-        notes.files["Dentist appointment"] = notes.files.remove("Dentist")!!
-        assertThat(reminders.noteFor(dentist.id)!!.name).isEqualTo("Dentist appointment")
-        // The key removed in Obsidian: the reminder goes on the next scan.
-        notes.files["Dentist appointment"] = NoteText.set(notes.files.getValue("Dentist appointment"), NoteText.REMIND, null)
-        assertThat(reminders.scan().map { it.title }).containsExactly("Oven")
+        assertThat(dentist.repeat).isNull()
+        // Gone by: counts as shown, so it doesn't turn up late.
+        assertThat(store.saved.single { it.title == "Old" }.fired).isTrue()
+        assertThat(reminders.missed()).isEmpty()
+        // Nothing written to the notes.
+        assertThat(notes.files).containsExactly("Bins", linked, "Dentist", obsidian, "Old", old, "Ideas", "no reminder")
+        // Without a folder: nothing to read.
+        assertThat(ReminderMigration.fromNotes(MemoryNotes(ready = false), now)).isEmpty()
+    }
+
+    @Test
+    fun aStoredReminderOnANoteBecomesAPlainOne() {
+        val file = java.io.File.createTempFile("reminders", ".json").apply { deleteOnExit() }
+        file.writeText("""[{"id":"n1","title":"Bins","at":"2099-01-04T08:00","repeat":"weekly","note":"n1","snoozed":"2099-01-04T08:10","fired":false}]""")
+        val store = FileReminderStore(file)
+        val r = store.load().single()
+        assertThat(r).isEqualTo(Reminder("n1", "Bins", LocalDateTime.of(2099, 1, 4, 8, 0), Repeat.Weekly, LocalDateTime.of(2099, 1, 4, 8, 10)))
+        store.save(listOf(r))
+        assertThat(file.readText()).doesNotContain("note")
     }
 }
