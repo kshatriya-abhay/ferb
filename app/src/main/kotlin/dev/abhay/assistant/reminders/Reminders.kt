@@ -8,7 +8,12 @@ import dev.abhay.assistant.tools.When
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
 import java.util.Locale
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -66,6 +71,32 @@ object ReminderTime {
         return if (at.toLocalDate() == now.toLocalDate()) "Due $time" else "Due ${at.format(DateTimeFormatter.ofPattern("EEE d MMM", Locale.US))}, $time"
     }
 
+    /**
+     * The next time, for the Reminders tab: "Today 9:00 pm", "Tomorrow 7:00 am", "Tue 28 Oct, 6:30 pm",
+     * with the year when it isn't this one.
+     */
+    fun next(at: LocalDateTime, now: LocalDateTime): String {
+        val time = at.format(DateTimeFormatter.ofPattern("h:mm a", Locale.US)).lowercase()
+        val day = at.toLocalDate()
+        return when {
+            day == now.toLocalDate() -> "Today $time"
+            day == now.toLocalDate().plusDays(1) -> "Tomorrow $time"
+            day.year == now.year -> "${at.format(DateTimeFormatter.ofPattern("EEE d MMM", Locale.US))}, $time"
+            else -> "${at.format(DateTimeFormatter.ofPattern("EEE d MMM yyyy", Locale.US))}, $time"
+        }
+    }
+
+    /** How it repeats, for the Reminders tab: "Daily", "Every Monday", "Monthly", "Yearly"; null for a one-off. */
+    fun repeat(reminder: Reminder): String? = when (reminder.repeat) {
+        null -> null
+        Repeat.Daily -> "Daily"
+        Repeat.Weekly -> "Every " + reminder.at.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.US)
+        Repeat.Monthly -> "Monthly"
+        Repeat.Yearly -> "Yearly"
+    }
+
+    const val NONE_UPCOMING = "No upcoming reminders. Ask Ferb to remind you."
+
     /** A `remind:` value: a date and time, or a date (09:00); null if it's neither. */
     fun parse(value: String): LocalDateTime? {
         val v = value.trim().trim('"', '\'').replace('T', ' ')
@@ -104,8 +135,31 @@ interface ReminderStore {
  * rebuilt from the folder ([scan]); a `remind:` added in Obsidian becomes one too. Reminders
  * without a note need no folder. [Alarms][ReminderAlarms] schedule what this decides.
  */
-class ReminderBook(private val store: ReminderStore, private val notes: NoteStore, private val now: () -> LocalDateTime) {
+class ReminderBook(store: ReminderStore, private val notes: NoteStore, private val now: () -> LocalDateTime) {
+    private val _changes = MutableStateFlow(0)
+
+    /** Counts saves (added, fired, done, snoozed, rescanned), so a screen showing reminders refreshes. */
+    val changes: StateFlow<Int> = _changes.asStateFlow()
+
+    private val store = object : ReminderStore by store {
+        override fun save(reminders: List<Reminder>) {
+            store.save(reminders)
+            _changes.update { it + 1 }
+        }
+    }
+
     fun all(): List<Reminder> = store.load().sortedBy { it.due }
+
+    /** What's still to come, soonest first: what the alarms are set for, and what the Reminders tab lists. */
+    fun upcoming(): List<Reminder> = all().filter { it.due.isAfter(now()) }
+
+    /** [upcoming], each with its note when it has one still in the folder (read once for all). */
+    fun upcomingWithNotes(): List<Pair<Reminder, NoteRef?>> {
+        val list = upcoming()
+        if (list.none { it.noteId != null } || !notes.ready) return list.map { it to null }
+        val byId = notes.list().mapNotNull { n -> notes.read(n)?.let { NoteText.get(it, NoteText.ID) }?.let { it to n } }.toMap()
+        return list.map { it to it.noteId?.let(byId::get) }
+    }
 
     /** Adds a reminder; with [note], also writes its `remind` (and `repeat`) keys there, giving it a `ferb-id` if it has none. */
     fun add(title: String, at: LocalDateTime, repeat: Repeat? = null, note: NoteRef? = null): Reminder? {

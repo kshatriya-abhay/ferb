@@ -34,7 +34,8 @@ class AssistantApp : Application() {
         kotlin.concurrent.thread {
             reminders.scan()
             dev.abhay.assistant.reminders.ReminderReceiver.showMissed(this, this)
-            alarms.sync(reminders.catchUp().filter { it.due.isAfter(java.time.LocalDateTime.now()) })
+            reminders.catchUp()
+            alarms.sync(reminders.upcoming())
         }
     }
     lateinit var foreground: ForegroundTracker

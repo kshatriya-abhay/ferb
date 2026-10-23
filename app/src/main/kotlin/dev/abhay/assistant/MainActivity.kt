@@ -111,7 +111,7 @@ class MainActivity : ComponentActivity() {
                     when {
                         screen == "assistant" -> AssistantScreen(viewModel, assists = assisted, onOpenSettings = { open("settings") },
                             onOpenLink = { stack = stack + "settings" + "link" }, onOpenNotes = { open("notes") })
-                        screen == "notes" -> NotesScreen(viewModel.notes, onOpen = { showNote(it) }, onBack = back)
+                        screen == "notes" -> NotesScreen(viewModel.notes, viewModel.reminders, onOpen = { showNote(it) }, onBack = back)
                         screen == "settings" -> SettingsScreen(settings, onOpenTools = { open("tools") }, onOpenLink = { open("link") }, onBack = back)
                         screen == "link" -> LinkScreen(settings, onBack = back)
                         screen == "tools" -> ToolsScreen(settings, onOpenTool = { open("tool:$it") }, onBack = back)

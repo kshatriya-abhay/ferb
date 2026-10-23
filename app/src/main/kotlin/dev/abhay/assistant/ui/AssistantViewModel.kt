@@ -146,6 +146,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     }
     val link get() = assistant.link
     val notes get() = assistant.notes
+    val reminders get() = assistant.reminders
     /**
      * Turns on [tool], offered under a reply no tool could do ([Exchange.turnOn]), and asks again.
      * Its Android permissions, if any, are asked for by the screen at the same time.

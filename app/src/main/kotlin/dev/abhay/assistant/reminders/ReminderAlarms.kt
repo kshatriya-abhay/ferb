@@ -78,7 +78,7 @@ class ReminderReceiver : BroadcastReceiver() {
                         showMissed(context, app)
                     }
                 }
-                app.alarms.sync(app.reminders.all().filter { it.due.isAfter(LocalDateTime.now()) })
+                app.alarms.sync(app.reminders.upcoming())
             } finally {
                 result.finish()
             }
