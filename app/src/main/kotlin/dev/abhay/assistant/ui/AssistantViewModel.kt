@@ -8,6 +8,7 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.abhay.assistant.AssistantApp
+import dev.abhay.assistant.Private
 import dev.abhay.assistant.engine.AssistantEngine
 import dev.abhay.assistant.engine.Decision
 import dev.abhay.assistant.engine.NeedleReply
@@ -451,7 +452,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
                     }
                 }
                 Log.i(NanoEars.TAG, "${language.locale}: status check ${listening - startedAt} ms, first words after $firstWords ms, " +
-                    "${SystemClock.elapsedRealtime() - listening} ms listening; heard \"${transcript.heard}\"")
+                    "${SystemClock.elapsedRealtime() - listening} ms listening; heard ${Private.text(transcript.heard)}")
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

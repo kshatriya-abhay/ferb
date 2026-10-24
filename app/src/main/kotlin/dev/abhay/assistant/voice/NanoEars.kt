@@ -1,6 +1,7 @@
 package dev.abhay.assistant.voice
 
 import android.os.SystemClock
+import dev.abhay.assistant.Private
 import android.util.Log
 import com.google.mlkit.genai.common.DownloadStatus
 import com.google.mlkit.genai.common.FeatureStatus
@@ -170,7 +171,7 @@ class NanoEars {
     suspend fun rewrite(said: String): Rewritten {
         val started = SystemClock.elapsedRealtime()
         val answer = writer().generateContent(rewriteRequest(said)).candidates.firstOrNull()?.text.orEmpty()
-        Log.i(TAG, "rewrite ($writerName) in ${SystemClock.elapsedRealtime() - started} ms: \"$said\" -> \"${answer.trim()}\"")
+        Log.i(TAG, "rewrite ($writerName) in ${SystemClock.elapsedRealtime() - started} ms: ${Private.text(said)} -> ${Private.text(answer.trim())}")
         return GeminiRewrite.parse(said, answer)
     }
 
