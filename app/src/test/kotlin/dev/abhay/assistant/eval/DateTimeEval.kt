@@ -147,4 +147,48 @@ class DateTimeEval {
         out.writeText(report.toString())
         println(report)
     }
+
+    /**
+     * A on tool-check/times.txt (2026-10-16), a set it was never debugged against, from the
+     * request text alone (no model). Two rules differ there and are counted apart: an alarm with
+     * a day was "ask" (the alarm tool then took only a time), and an event with no time was a day.
+     */
+    @Test
+    fun timesTxt() {
+        assumeTrue("FERB_EVAL=1 to run the date and time eval", System.getenv("FERB_EVAL") == "1")
+        var now = LocalDateTime.of(2026, 10, 16, 9, 0)
+        val rows = mutableListOf<Triple<String, String, String>>()
+        File(repo, "tool-check/times.txt").readLines().forEach { raw ->
+            Regex("""^# now=(\S+)""").find(raw)?.let { now = LocalDateTime.parse(it.groupValues[1]); return@forEach }
+            if (raw.isBlank() || raw.startsWith("#")) return@forEach
+            val parts = raw.split("|").map { it.trim() }
+            val head = parts[0].split(" ")
+            val kind = when (head[0]) {
+                "alarm" -> DateResolver.Kind.Alarm
+                "event" -> DateResolver.Kind.Event
+                "reminder" -> DateResolver.Kind.Reminder
+                "ask" -> if (Regex("alarm|wake").containsMatchIn(parts[1])) DateResolver.Kind.Alarm else DateResolver.Kind.Reminder
+                else -> return@forEach // timers (lengths, read from Needle's argument) and "none"
+            }
+            val want = if (head[0] == "ask") "ask" else head.drop(1).joinToString(" ").replace("repeat=", "")
+            rows += Triple(want, DateResolver.format(DateResolver.resolve(parts[1], kind, now)), "${now.toString().take(16)} | ${head[0]} | ${parts[1]}")
+        }
+        val right = rows.count { it.first == it.second }
+        val wrong = rows.filter { it.first != it.second }
+        fun rule(r: Triple<String, String, String>) = when {
+            r.first == "ask" && r.third.contains("| ask |") && Regex("alarm|wake").containsMatchIn(r.third) -> "alarm with a day (old tool)"
+            r.third.contains("| event |") && r.first.length == 10 && r.second.startsWith(r.first) && r.second.endsWith("T09:00") -> "event with no time (all day then)"
+            else -> null
+        }
+        val report = StringBuilder("# A on tool-check/times.txt (no model)\n\n")
+        report.append("Lines: ${rows.size}; A matches $right (${right * 100 / rows.size}%)\n")
+        wrong.groupBy { rule(it) }.forEach { (why, set) ->
+            report.append("\n## ${why ?: "Misses"} (${set.size})\n")
+            set.forEach { report.append("want ${it.first} | A ${it.second} | ${it.third}\n") }
+        }
+        val out = File(repo, "build/datetime/score-times-txt.txt")
+        out.parentFile.mkdirs()
+        out.writeText(report.toString())
+        println(report)
+    }
 }

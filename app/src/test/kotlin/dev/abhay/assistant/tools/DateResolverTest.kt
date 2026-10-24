@@ -88,6 +88,27 @@ class DateResolverTest {
         assertThat((at("remind me every weekday at 9 am to stand up") as Resolved.At).rule).isEqualTo(Rule.Weekdays)
     }
 
+    /** Found by scoring on tool-check/times.txt (2026-10-24); the wording here is new. */
+    @Test
+    fun timesTxtBugs() {
+        // Hindi lengths.
+        assertThat(at("15 minute mein yaad dilana")).isEqualTo(on(11, 4, 10, 15))
+        assertThat(at("do ghante mein yaad dilana")).isEqualTo(on(11, 4, 12))
+        assertThat(at("aadhe ghante mein yaad dilana")).isEqualTo(on(11, 4, 10, 30))
+        // Two parts to a length.
+        assertThat(at("remind me in 1 hour 10 minutes to leave")).isEqualTo(on(11, 4, 11, 10))
+        assertThat(at("remind me in 3 hours and 5 min to leave")).isEqualTo(on(11, 4, 13, 5))
+        // Repeats said with a part of the day, or har.
+        assertThat(at("remind me every evening to walk")).isEqualTo(Resolved.At(LocalDateTime.of(2026, 11, 4, 18, 0), Rule.Daily))
+        assertThat(at("har shukravar 7 baje yaad dilana")).isEqualTo(Resolved.At(LocalDateTime.of(2026, 11, 6, 7, 0), Rule.Weekly))
+        // Not one day: ask.
+        assertThat(at("remind me at the weekend to clean")).isInstanceOf(Resolved.Ask::class.java)
+        assertThat(at("remind me on tuesday and thursday at 6 to swim")).isInstanceOf(Resolved.Ask::class.java)
+        // Today's weekday with a bare hour still ahead today (the said-day rule: 4 is 4 pm).
+        assertThat(at("meeting on wednesday at 4", Kind.Event)).isEqualTo(on(11, 4, 16))
+        assertThat(at("meeting on wednesday at 9", Kind.Event)).isEqualTo(on(11, 11, 9))
+    }
+
     @Test
     fun agendaDays() {
         assertThat(at("what's on tomorrow", Kind.Agenda)).isEqualTo(Resolved.Day(LocalDate.of(2026, 11, 5)))

@@ -43,6 +43,12 @@ object DateResolver {
             return Resolved.At(today.plusDays(days.toLong()).atTime(time?.let { it.at ?: it.part?.default } ?: DEFAULT_TIME), rule)
         }
 
+        // A weekend, or two weekdays ("Monday and Wednesday"): which day isn't one Ferb can pick.
+        if (kind != Kind.Agenda) {
+            if (Regex("""\bweekends?\b""").containsMatchIn(t)) return Resolved.Ask("Saturday or Sunday?")
+            if (WEEKDAY.findAll(t).map { it.value }.toSet().size > 1) return Resolved.Ask("Which day?")
+        }
+
         val day = day(t, today)
         val said = time(t)
 
@@ -74,7 +80,7 @@ object DateResolver {
                 val ahead = candidates(said).map { today.atTime(it) }.filter { it.isAfter(now) }.minOrNull()
                 return ahead?.let { Resolved.At(it) } ?: Resolved.Ask("That time today has passed")
             }
-            val time = said?.let { clock(it, day.date != today) } ?: day.tonight.takeIf { it }?.let { Part.Night.default }
+            val time = said?.let { clock(it, day.date != today || day.later != null) } ?: day.tonight.takeIf { it }?.let { Part.Night.default }
             if (time == null) {
                 // No time: a later day at 09:00; today, ask.
                 if (day.date == today && day.later == null) return Resolved.Ask("What time today?")
@@ -111,6 +117,7 @@ object DateResolver {
         Regex("""\bparso[n]?\b""") to "day after tomorrow", Regex("""\bkal\b""") to "tomorrow", Regex("""\baaj\b""") to "today",
         Regex("""\bsubah|\bsubha\b""") to "morning", Regex("""\bdopahar\b""") to "afternoon", Regex("""\bshaam|\bsham\b""") to "evening",
         Regex("""\braat\b""") to "night",
+        Regex("""\bhar (?=(mon|tues|wednes|thurs|fri|satur|sun)day)""") to "every ",
     )
     private val HINDI_NUMBERS = mapOf(
         "ek" to 1, "do" to 2, "teen" to 3, "chaar" to 4, "char" to 4, "paanch" to 5, "panch" to 5, "chhe" to 6, "chhah" to 6, "che" to 6,
@@ -132,6 +139,12 @@ object DateResolver {
             .replace(Regex("""\bpaune\s+($hours)\b""")) { val h = hour(it.groupValues[1]) - 1; "${if (h == 0) 12 else h}:45" }
         // "saat baje": the number words with baje.
         t = t.replace(Regex("""\b(${HINDI_NUMBERS.keys.joinToString("|")})\s+baje\b""")) { "${HINDI_NUMBERS.getValue(it.groupValues[1])} baje" }
+        // Lengths: "10 minute mein", "do ghante mein", "3 din mein" as "in 10 minutes".
+        t = t.replace(Regex("""\b(\d+|${HINDI_NUMBERS.keys.joinToString("|")}|aadhe) (minute|minat|ghante|ghanta|din) (?:mein|me|main)\b""")) {
+            val n = it.groupValues[1].let { w -> if (w == "aadhe") "half an" else (w.toIntOrNull() ?: HINDI_NUMBERS.getValue(w)).toString() }
+            val unit = when (it.groupValues[2]) { "din" -> "days"; "ghante", "ghanta" -> "hours"; else -> "minutes" }
+            "in $n ${if (n == "half an") unit.dropLast(1) else unit}"
+        }
         for ((pattern, english) in HINDI) t = t.replace(pattern, english)
         return t.replace(Regex("""\s+"""), " ").trim()
     }
@@ -140,7 +153,7 @@ object DateResolver {
 
     private fun rule(t: String): Rule? = when {
         Regex("""\b(every weekday|weekdays|every working day)\b""").containsMatchIn(t) -> Rule.Weekdays
-        Regex("""\b(every day|daily|everyday|har roz|roz)\b""").containsMatchIn(t) -> Rule.Daily
+        Regex("""\b(every day|daily|everyday|har roz|roz|every (morning|afternoon|evening|night))\b""").containsMatchIn(t) -> Rule.Daily
         Regex("""\b(every (monday|tuesday|wednesday|thursday|friday|saturday|sunday)|every week|weekly)\b""").containsMatchIn(t) -> Rule.Weekly
         Regex("""\b(every month|monthly)\b""").containsMatchIn(t) -> Rule.Monthly
         else -> null
@@ -154,7 +167,7 @@ object DateResolver {
             val n = m.groupValues[1].let { it.toIntOrNull() ?: ENGLISH_NUMBERS[it] ?: 1 }
             return 0 to n * if (m.groupValues[2] == "week") 7 else 1
         }
-        val m = Regex("""\bin ((?:a quarter of an|half an|an|a|\d+(?:\.\d+)?|[a-z]+)(?: and a half)? (?:hour|minute|min|second)s?(?: and (?:a half|\d+ minutes?))?)""").find(t) ?: return null
+        val m = Regex("""\bin ((?:a quarter of an|half an|an|a|\d+(?:\.\d+)?|[a-z]+)(?: and a half)? (?:hour|minute|min|second)s?(?: and a half)?(?:,? (?:and )?\d+ (?:minute|min)s?)?)""").find(t) ?: return null
         val phrase = m.groupValues[1].replace("a quarter of an hour", "15 minutes")
         val seconds = Durations.parse(phrase) ?: return null
         return seconds to null
@@ -172,6 +185,7 @@ object DateResolver {
         "monday" to DayOfWeek.MONDAY, "tuesday" to DayOfWeek.TUESDAY, "wednesday" to DayOfWeek.WEDNESDAY, "thursday" to DayOfWeek.THURSDAY,
         "friday" to DayOfWeek.FRIDAY, "saturday" to DayOfWeek.SATURDAY, "sunday" to DayOfWeek.SUNDAY,
     )
+    private val WEEKDAY = Regex("""\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b""")
     private val MONTHS = listOf("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
     private const val MONTH = """(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sept|sep|october|oct|november|nov|december|dec)"""
 
