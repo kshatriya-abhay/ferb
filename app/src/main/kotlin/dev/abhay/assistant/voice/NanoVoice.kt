@@ -190,6 +190,40 @@ what is the capital of japan -> NONE
 the alarm woke the baby -> NONE"""
 
     /**
+     * R (2026-10-24, frozen before the blind date set was read): v2 with the date and time rules
+     * the user approved. Times and dates become canonical English phrases relative to now, never
+     * a computed date (Ferb's own resolver works them out from the words as said and as
+     * rewritten); the reminder, alarm or event verb and waking words are kept. Its examples are
+     * new, in no bench file (tested). Not shipped: benched against v2 first.
+     */
+    const val PROMPT_R = """You turn a request to a phone assistant into one short, plain English command for it. The request may be English, Hindi or Hinglish, in Latin letters or Devanagari, and may have typos.
+Reply with exactly one line: the command, or NONE.
+The phone can: set alarms and timers; open apps, settings and the camera; turn the flashlight on or off; set the media volume; play, pause or skip music; make notes, lists and reminders; call and text contacts; give directions; show the calendar, alarms and lists, and add events.
+Reply NONE only when the user isn't asking the phone to do one of these now: questions about the world, how-to questions, chat, greetings, opinions, statements about things or the past, and things the phone can't do. Never turn a statement or a complaint into an action.
+A question about the user's own calendar, alarms or lists is a command to show it: "Show my calendar for <day>", "Show my alarms", "Show my <name> list".
+Name the settings page asked for: "Open <page> settings".
+A word or two of music control is a command: "Skip to the next track", "Go back to the previous track", "Pause the music", "Resume the music".
+Lists: "Add <item> to my <name> list". Ticking, crossing off, finishing, getting or buying an item is "Check off <item> on my <name> list", without the list if none is named. Lists are not notes.
+"Tell <someone> <something>" is a text: "Send a text to <someone>: <something>".
+Keep what the request asks for: a reminder stays a reminder ("remind me", "yaad dilana": "Remind me ..."), an alarm an alarm, a timer a timer, an event an event. Keep waking words: "wake me up", "get up", utha dena and jaga dena are "Wake me up".
+Keep every name, relation, contact, app, place and number as said; translate Hindi words into English. Never add anything the request doesn't say, least of all a time.
+Times and dates are English words relative to now, never a date you work out: kal is tomorrow, parso is in 2 days, narso is in 3 days, aaj is today, agle with a weekday is next and the weekday (somvaar Monday, mangalvaar Tuesday, budhvaar Wednesday, guruvaar Thursday, shukravaar Friday, shanivaar Saturday, ravivaar Sunday). Keep a weekday or a date as said.
+A clock time takes am or pm only from what the request says: subah or savere is am; dopahar and shaam are pm; raat is pm from 8 to 11 and am from 12 to 4. Otherwise keep the hour as said, with no am or pm. sava 7 is 7:15, saade 5 is 5:30, paune 8 is 7:45, dedh baje is 1:30, dhai baje is 2:30.
+Lengths are digits with English units: "in 1 hour 30 minutes", "for 2 minutes 30 seconds"; dedh ghanta is 1 hour 30 minutes, dhai minute 2 minutes 30 seconds, aadha ghanta 30 minutes.
+Examples:
+narso shaam 7 baje yaad dilana ki gas book karni hai -> Remind me in 3 days at 7 pm to book the gas
+budhvaar ko savere 6 baje utha dena -> Wake me up on Wednesday at 6 am
+raat 1 baje ka alarm -> Set an alarm for 1 am
+paune ghante ka timer laga do -> Set a timer for 45 minutes
+torch jala do -> Turn on the flashlight
+open the nfc settings -> Open NFC settings
+any plans on wednesday? -> Show my calendar for Wednesday
+tell meera the door is open -> Send a text to meera: the door is open
+what is the capital of japan -> NONE
+the alarm woke the baby -> NONE"""
+    const val VERSION_R = "r"
+
+    /**
      * The prompt the app (and the phone bench) uses: v2, which beat v1 on the held-out set
      * (tool-check/rewrite-heldout.txt: 70 of 78 against 60, Needle 3 alone 61; 2026-10-24).
      */
