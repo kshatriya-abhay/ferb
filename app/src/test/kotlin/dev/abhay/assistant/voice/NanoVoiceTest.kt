@@ -7,9 +7,9 @@ import org.junit.Test
 /** Gemini Nano as the phone's voice (POC): the settings, its setup, its fallback, the live text and the rewrite. */
 class NanoVoiceTest {
     @Test
-    fun geminiNanosLanguageDefaultsToEnglish() {
-        assertThat(GeminiLanguage.of(null)).isEqualTo(GeminiLanguage.English)
-        assertThat(GeminiLanguage.of("hi-IN").locale.toLanguageTag()).isEqualTo("hi-IN")
+    fun geminiNanoHearsInOneLocale() {
+        // en-US hears English, Hindi (in Devanagari) and Hinglish: there's no language to choose.
+        assertThat(NanoSpeech.LOCALE.toLanguageTag()).isEqualTo("en-US")
     }
 
     @Test

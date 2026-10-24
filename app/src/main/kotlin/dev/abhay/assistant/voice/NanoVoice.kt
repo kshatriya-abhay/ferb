@@ -5,17 +5,12 @@ import org.json.JSONObject
 import java.util.Locale
 
 /**
- * The language Gemini Nano expects. One model hears both: set to English it still wrote Hindi
- * down, in Devanagari (2026-10-24), and both locales report the same AICore feature
- * (nano-v4-full, "Speech Recognition Continuous Streaming"). Japanese wasn't heard.
+ * Gemini Nano's speech recognition, in one locale (the user's decision, 2026-10-25): set to English
+ * it still writes Hindi down, in Devanagari, and Hinglish too (2026-10-24), and both locales report
+ * the same AICore feature, so there's no language to choose.
  */
-enum class GeminiLanguage(val id: String, val title: String, val locale: Locale) {
-    English("en-US", "English", Locale.forLanguageTag("en-US")),
-    Hindi("hi-IN", "Hindi or Hinglish", Locale.forLanguageTag("hi-IN"));
-
-    companion object {
-        fun of(id: String?) = entries.firstOrNull { it.id == id } ?: English
-    }
+object NanoSpeech {
+    val LOCALE: Locale = Locale.forLanguageTag("en-US")
 }
 
 /** Where one part of Gemini Nano's setup stands on this phone: speech recognition, or the rewriting model. */

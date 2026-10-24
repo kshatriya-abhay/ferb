@@ -118,7 +118,6 @@ import dev.abhay.assistant.tools.ToolConfig
 import dev.abhay.assistant.tools.ToolOption
 import dev.abhay.assistant.tools.ToolSettings
 import dev.abhay.assistant.tools.Tools
-import dev.abhay.assistant.voice.GeminiLanguage
 import dev.abhay.assistant.pipeline.AudioStep
 import dev.abhay.assistant.pipeline.RewriteStep
 import dev.abhay.assistant.pipeline.ToolStep
@@ -203,7 +202,6 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
 @Composable
 fun GeminiScreen(settings: SettingsViewModel, onBack: () -> Unit) {
     val setup by settings.gemini.collectAsStateWithLifecycle()
-    val language by settings.language.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { settings.checkGemini() }
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -216,18 +214,6 @@ fun GeminiScreen(settings: SettingsViewModel, onBack: () -> Unit) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            SectionTitle("You speak")
-            Group(GeminiLanguage.entries.map { option ->
-                { shapes ->
-                    SegmentedListItem(
-                        selected = option == language,
-                        onClick = { settings.setLanguage(option) },
-                        shapes = shapes,
-                        leadingContent = { RadioButton(selected = option == language, onClick = null) },
-                        supportingContent = if (option == GeminiLanguage.English) { { Text("Hindi is heard too") } } else null,
-                    ) { Text(option.title) }
-                }
-            })
             SectionTitle("On this phone")
             Group(listOf(
                 { shapes -> PartRow("Hearing you", setup.speech, R.drawable.ic_mic, shapes, onDownload = settings::setUpGeminiSpeech) },

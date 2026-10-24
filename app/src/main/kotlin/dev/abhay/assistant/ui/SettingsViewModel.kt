@@ -4,7 +4,6 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
-import dev.abhay.assistant.voice.GeminiLanguage
 import dev.abhay.assistant.voice.GeminiSetup
 import dev.abhay.assistant.voice.Part
 import dev.abhay.assistant.pipeline.AudioStep
@@ -34,25 +33,19 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     fun setAudio(step: AudioStep) = steps.setAudio(step)
     fun setRewrite(step: RewriteStep) = steps.setRewrite(step)
     fun setTools(step: ToolStep) = steps.setTools(step)
-    /** The language Gemini Nano expects. */
-    val language: StateFlow<GeminiLanguage> = steps.language
-    fun setLanguage(language: GeminiLanguage) {
-        steps.setLanguage(language)
-        checkGemini()
-    }
     /** Gemini Nano's setup (Settings → Gemini Nano): what's on the phone, and download progress. */
     private val nano = (app as AssistantApp).nanoEars
     val gemini: StateFlow<GeminiSetup> = nano.setup
     fun checkGemini() {
         viewModelScope.launch {
-            nano.refresh(steps.language.value)
+            nano.refresh()
             val setup = nano.setup.value
             steps.geminiChecked(speech = setup.speech == Part.Ready, rewrite = setup.rewrite == Part.Ready)
         }
     }
-    fun setUpGemini() = nano.setUp(steps.language.value)
-    fun setUpGeminiSpeech() = nano.setUpSpeech(steps.language.value)
-    fun setUpGeminiRewrite() = nano.setUpRewrite(steps.language.value)
+    fun setUpGemini() = nano.setUp()
+    fun setUpGeminiSpeech() = nano.setUpSpeech()
+    fun setUpGeminiRewrite() = nano.setUpRewrite()
 
     val saved: StateFlow<Map<String, ToolConfig>> = settings.configs
 

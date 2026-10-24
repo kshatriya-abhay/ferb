@@ -91,15 +91,15 @@ class NanoEars {
     }
 
     /** checkStatus() for hearing [language]. */
-    suspend fun status(language: GeminiLanguage): Int =
-        status { listener(language.locale).checkStatus() }.also { Log.i(TAG, "${language.locale}: checkStatus ${NanoChoice.name(it)}") }
+    suspend fun status(): Int =
+        status { listener(NanoSpeech.LOCALE).checkStatus() }.also { Log.i(TAG, "${NanoSpeech.LOCALE}: checkStatus ${NanoChoice.name(it)}") }
 
     /**
      * Checks both parts for [language]; a part already downloading keeps its progress, and one
      * Android is fetching on its own is followed, so its progress shows.
      */
-    suspend fun refresh(language: GeminiLanguage) {
-        val speech = status(language)
+    suspend fun refresh() {
+        val speech = status()
         val rewrite = status { writer().checkStatus() }.also { Log.i(TAG, "rewrite ($writerName): checkStatus ${NanoChoice.name(it)}") }
         _setup.update {
             GeminiSetup(
@@ -107,29 +107,29 @@ class NanoEars {
                 rewrite = if (it.rewrite is Part.Downloading && downloads[REWRITE]?.isActive == true) it.rewrite else Part.of(rewrite),
             )
         }
-        if (speech == FeatureStatus.DOWNLOADING) download(SPEECH, language)
-        if (rewrite == FeatureStatus.DOWNLOADING) download(REWRITE, language)
+        if (speech == FeatureStatus.DOWNLOADING) download(SPEECH)
+        if (rewrite == FeatureStatus.DOWNLOADING) download(REWRITE)
     }
 
     /** One part's download, when its row is tapped. */
-    fun setUpSpeech(language: GeminiLanguage) = download(SPEECH, language)
-    fun setUpRewrite(language: GeminiLanguage) = download(REWRITE, language)
+    fun setUpSpeech() = download(SPEECH)
+    fun setUpRewrite() = download(REWRITE)
 
     /** Set up: downloads every part that needs it, with progress in [setup], then checks again. */
-    fun setUp(language: GeminiLanguage) {
+    fun setUp() {
         val now = _setup.value
-        if (now.speech !is Part.Ready && now.speech != Part.Unavailable) download(SPEECH, language)
-        if (now.rewrite !is Part.Ready && now.rewrite != Part.Unavailable) download(REWRITE, language)
+        if (now.speech !is Part.Ready && now.speech != Part.Unavailable) download(SPEECH)
+        if (now.rewrite !is Part.Ready && now.rewrite != Part.Unavailable) download(REWRITE)
     }
 
-    private fun download(part: String, language: GeminiLanguage) {
+    private fun download(part: String) {
         if (downloads[part]?.isActive == true) return
         fun set(state: Part) = _setup.update { if (part == SPEECH) it.copy(speech = state) else it.copy(rewrite = state) }
         downloads[part] = scope.launch {
             set(Part.Downloading())
             var total: Long? = null
             try {
-                val steps = if (part == SPEECH) listener(language.locale).download() else writer().download()
+                val steps = if (part == SPEECH) listener(NanoSpeech.LOCALE).download() else writer().download()
                 steps.collect { step ->
                     when (step) {
                         is DownloadStatus.DownloadStarted -> {
@@ -153,7 +153,7 @@ class NanoEars {
                 set(Part.Failed(reason(e)))
             }
             // Downloads that were already there end without steps: ask again.
-            val status = if (part == SPEECH) status(language) else status { writer().checkStatus() }
+            val status = if (part == SPEECH) status() else status { writer().checkStatus() }
             if (_setup.value.let { if (part == SPEECH) it.speech else it.rewrite } !is Part.Failed) set(Part.of(status))
         }
     }
@@ -166,11 +166,11 @@ class NanoEars {
     }
 
     /** Listens on the microphone until [stop] (or ML Kit ends it), streaming what it hears. */
-    fun listen(language: GeminiLanguage): Flow<SpeechRecognizerResponse> =
-        listener(language.locale).startRecognition(speechRecognizerRequest { audioSource = AudioSource.fromMic() })
+    fun listen(): Flow<SpeechRecognizerResponse> =
+        listener(NanoSpeech.LOCALE).startRecognition(speechRecognizerRequest { audioSource = AudioSource.fromMic() })
             .takeWhile { it !is SpeechRecognizerResponse.CompletedResponse }
 
-    suspend fun stop(language: GeminiLanguage) = listener(language.locale).stopRecognition()
+    suspend fun stop() = listener(NanoSpeech.LOCALE).stopRecognition()
 
     /** [said] (typed or heard) as one English command for Needle 3, or none ([GeminiRewrite]). */
     suspend fun rewrite(said: String): Rewritten {

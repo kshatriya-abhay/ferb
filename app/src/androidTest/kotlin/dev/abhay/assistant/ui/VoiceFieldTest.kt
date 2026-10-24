@@ -7,7 +7,6 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
-import dev.abhay.assistant.voice.GeminiLanguage
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -22,7 +21,7 @@ class VoiceFieldTest {
         var finished = 0
         var discarded = 0
         compose.setContent {
-            VoiceField(AssistantViewModel.Voice.Recording(0, onPhone = true, live = GeminiLanguage.English, heard = "set an alarm"),
+            VoiceField(AssistantViewModel.Voice.Recording(0, onPhone = true, live = true, heard = "set an alarm"),
                 onFinish = { finished++ }, onDiscard = { discarded++ }, onSend = {})
         }
         compose.onNodeWithText("set an alarm").assertIsDisplayed()

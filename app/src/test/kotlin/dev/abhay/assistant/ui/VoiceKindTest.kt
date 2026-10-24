@@ -9,7 +9,7 @@ class VoiceKindTest {
     fun eachVoiceStateHasItsKind() {
         assertThat(VoiceKind.of(null)).isEqualTo(VoiceKind.None)
         assertThat(VoiceKind.of(AssistantViewModel.Voice.Recording(0))).isEqualTo(VoiceKind.Recording)
-        assertThat(VoiceKind.of(AssistantViewModel.Voice.Recording(0, onPhone = true, live = dev.abhay.assistant.voice.GeminiLanguage.English, heard = "set a"))).isEqualTo(VoiceKind.Recording)
+        assertThat(VoiceKind.of(AssistantViewModel.Voice.Recording(0, onPhone = true, live = true, heard = "set a"))).isEqualTo(VoiceKind.Recording)
         assertThat(VoiceKind.of(AssistantViewModel.Voice.Heard("set an alarm", 900))).isEqualTo(VoiceKind.Waiting)
         assertThat(VoiceKind.of(AssistantViewModel.Voice.Recorded(900, FloatArray(1)))).isEqualTo(VoiceKind.Waiting)
     }

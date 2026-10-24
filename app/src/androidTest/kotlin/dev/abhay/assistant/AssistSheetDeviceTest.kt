@@ -6,7 +6,6 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
-import androidx.test.espresso.Espresso.pressBackUnconditionally
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.common.truth.Truth.assertThat
@@ -59,8 +58,8 @@ class AssistSheetDeviceTest {
             scenario.onActivity { window = it.window.decorView.height }
             assertThat(bar.top).isAtLeast(0f)
             assertThat(bar.bottom).isAtMost(window.toFloat())
-            compose.onNodeWithText("Ask me to do something").assertIsDisplayed()
-            pressBackUnconditionally()
+            compose.onNodeWithText("What would you like done?").assertIsDisplayed()
+            scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
             compose.waitUntil(5_000) { scenario.state == Lifecycle.State.DESTROYED }
             assertThat(scenario.state).isEqualTo(Lifecycle.State.DESTROYED)
         }

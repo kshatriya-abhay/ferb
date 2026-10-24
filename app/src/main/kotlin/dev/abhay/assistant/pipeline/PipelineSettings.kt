@@ -2,7 +2,6 @@ package dev.abhay.assistant.pipeline
 
 import android.content.Context
 import android.content.SharedPreferences
-import dev.abhay.assistant.voice.GeminiLanguage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -63,14 +62,10 @@ class PipelineSettings(context: Context) {
     fun setRewrite(step: RewriteStep) = save { putString(KEY_REWRITE, step.id) }
     fun setTools(step: ToolStep) = save { putString(KEY_TOOLS, step.id) }
 
-    /** The language Gemini Nano expects (English, the default, hears Hindi too). "nano-hi" was Hindi in the first POC build. */
-    private val _language = MutableStateFlow(GeminiLanguage.of(voice.getString(KEY_LANGUAGE, null)
-        ?: GeminiLanguage.Hindi.id.takeIf { voice.getString("ear", null) == "nano-hi" }))
-    val language: StateFlow<GeminiLanguage> = _language.asStateFlow()
-
-    fun setLanguage(language: GeminiLanguage) {
-        voice.edit().putString(KEY_LANGUAGE, language.id).apply()
-        _language.value = language
+    init {
+        // Gemini Nano's language choice is gone (2026-10-25: one locale hears English, Hindi and
+        // Hinglish, [dev.abhay.assistant.voice.NanoSpeech]): the saved choice goes, once.
+        if (voice.contains(KEY_LANGUAGE)) voice.edit().remove(KEY_LANGUAGE).apply()
     }
 
     companion object {
@@ -78,7 +73,7 @@ class PipelineSettings(context: Context) {
         private const val KEY_REWRITE = "rewrite"
         private const val KEY_TOOLS = "tools"
         private const val KEY_MIGRATED = "migrated"
-        /** Kept in "voice", where the first POC build saved it. */
-        private const val KEY_LANGUAGE = "gemini_language"
+        /** Gemini Nano's language choice, removed 2026-10-25; kept in "voice", where the first POC build saved it. */
+        internal const val KEY_LANGUAGE = "gemini_language"
     }
 }

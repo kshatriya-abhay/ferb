@@ -848,7 +848,7 @@ internal fun VoiceField(voice: AssistantViewModel.Voice, onFinish: () -> Unit, o
                         }
                         Icon(painterResource(R.drawable.ic_mic), contentDescription = "Recording", tint = MaterialTheme.colorScheme.error)
                         // Gemini Nano: what it hears so far, as it's said.
-                        if (voice.live != null) Text(voice.heard.ifBlank { "Listening\u2026" }, Modifier.padding(start = 12.dp, top = 8.dp, bottom = 8.dp).weight(1f),
+                        if (voice.live) Text(voice.heard.ifBlank { "Listening\u2026" }, Modifier.padding(start = 12.dp, top = 8.dp, bottom = 8.dp).weight(1f),
                             style = MaterialTheme.typography.bodyLarge, maxLines = 4)
                         else Text(elapsed(now - voice.startedAt), Modifier.padding(start = 12.dp).weight(1f),
                             style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
