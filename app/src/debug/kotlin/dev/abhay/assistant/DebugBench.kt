@@ -97,7 +97,8 @@ object DebugBench {
         LaunchedEffect(isRunning, said) {
             val total = bench.items().size
             val dates = bench.items(PhoneBench.DATES).size
-            counts = "$total requests, $dates date lines loaded\n" + PhoneBench.Model.entries.joinToString("\n") { "${it.file}: ${bench.done(it).size} answered" }
+            val blind = bench.items(PhoneBench.BLIND).size
+            counts = "$total requests, $dates date lines, $blind blind lines loaded\n" + PhoneBench.Model.entries.joinToString("\n") { "${it.file}: ${bench.done(it).size} answered" }
         }
         // The phone sleeps after 120 s otherwise, and Gemini Nano stops with Ferb out of front.
         val view = LocalView.current
@@ -122,6 +123,8 @@ object DebugBench {
                     Button(onClick = { start(app, PhoneBench.Model.Rewrite) }) { Text("Rewrite all requests with Gemini Nano") }
                     // Dates and times (2026-10-24): today's rewrite, with a calendar (B), and as time JSON (C), one after the other.
                     Button(onClick = { start(app, *PhoneBench.Model.dates.toTypedArray()) }) { Text("Dates: Gemini Nano's three passes") }
+                    // The blind round: prompt R on the blind set and datetime-v2, then v2 on the blind set.
+                    Button(onClick = { start(app, *PhoneBench.Model.blind.toTypedArray()) }) { Text("Blind dates: prompt R") }
                 }
             }
         }

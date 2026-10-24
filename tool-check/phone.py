@@ -14,6 +14,7 @@ rewrite prompt's held-out lines (rewrite-heldout.txt), routed and scored as the 
     phone.py pipeline M    score rewrite -> Needle 3 against Needle 3 alone, with what the rewrite helped and hurt
     phone.py compare M ... Needle 3 alone and each rewrite, side by side on every set
     phone.py dates-prep    the date lines (datetime-v2.txt, each with its "now") pushed as files/bench/dates.jsonl
+    phone.py blind-prep    the blind set's lines, the same way, as files/bench/dates-blind.jsonl
     phone.py dates-out     after Settings -> Bench -> "Dates" and pull: the passes as build/datetime/ inputs
                            (dates.py needle FILE for the rewrites, DateTimeEval for the slots), with Gemini's latency
 
@@ -255,19 +256,20 @@ def laptop():
         print(model, "(laptop):", next(l for l in scored.splitlines() if "right (tool" in l))
 
 DATES_SET = "datetime-v2.txt"
-DATE_PASSES = ["dates-rewrites-v2", "dates-calendar", "dates-slots"]
+DATE_PASSES = ["dates-rewrites-v2", "dates-calendar", "dates-slots", "dates-r", "blind-r", "blind-rewrites-v2"]
 
-def dates_prep():
+def dates_prep(set_name=DATES_SET, out_name="dates.jsonl"):
+    """The lines of [set_name] (read by the program, not shown), each with its now, pushed as files/bench/[out_name]."""
     rows = []
-    for raw in open(os.path.join(HERE, DATES_SET)):
+    for raw in open(os.path.join(HERE, set_name)):
         if not raw.strip() or raw.startswith("#"): continue
         now, tool, expected, request = [x.strip() for x in raw.split("|", 3)]
         rows.append({"id": str(len(rows)), "request": request, "tools": [], "now": now.split()[0]})
     os.makedirs(OUT, exist_ok=True)
-    with open(os.path.join(OUT, "dates.jsonl"), "w") as f:
+    with open(os.path.join(OUT, out_name), "w") as f:
         for r in rows: f.write(json.dumps(r, ensure_ascii=False) + "\n")
-    print(f"{len(rows)} date lines")
-    push("dates.jsonl")
+    print(f"{len(rows)} lines of {set_name}")
+    push(out_name)
 
 def dates_out():
     dest = os.path.join(REPO, "build", "datetime")
@@ -299,5 +301,6 @@ if __name__ == "__main__":
     elif command == "score": score(sys.argv[2])
     elif command == "laptop": laptop()
     elif command == "dates-prep": dates_prep()
+    elif command == "blind-prep": dates_prep("datetime-blind.txt", "dates-blind.jsonl")
     elif command == "dates-out": dates_out()
     else: sys.exit(__doc__)

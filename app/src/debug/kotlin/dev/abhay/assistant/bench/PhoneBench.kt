@@ -49,10 +49,15 @@ class PhoneBench(private val app: AssistantApp) {
         // The date and time lines (tool-check/datetime-v2.txt, pushed as dates.jsonl, each with its "now").
         DatesRewrite("dates-rewrites-${GeminiRewrite.VERSION}", DATES, prompt = { GeminiRewrite.PROMPT }),
         DatesCalendar("dates-calendar", DATES, prompt = { DatePrompts.calendarPrompt(it.now!!) }, maxTokens = GeminiRewrite.MAX_TOKENS + 20),
-        DatesSlots("dates-slots", DATES, prompt = { DatePrompts.SLOTS }, maxTokens = DatePrompts.SLOTS_MAX_TOKENS, command = false);
+        DatesSlots("dates-slots", DATES, prompt = { DatePrompts.SLOTS }, maxTokens = DatePrompts.SLOTS_MAX_TOKENS, command = false),
+        // The blind round (2026-10-24): prompt R on datetime-v2 and the blind set, and v2 on the blind set.
+        DatesR("dates-r", DATES, prompt = { GeminiRewrite.PROMPT_R }, maxTokens = R_MAX_TOKENS),
+        BlindR("blind-r", BLIND, prompt = { GeminiRewrite.PROMPT_R }, maxTokens = R_MAX_TOKENS),
+        BlindRewrite("blind-rewrites-${GeminiRewrite.VERSION}", BLIND, prompt = { GeminiRewrite.PROMPT });
 
         companion object {
             val dates = listOf(DatesRewrite, DatesCalendar, DatesSlots)
+            val blind = listOf(BlindR, DatesR, BlindRewrite)
         }
     }
 
@@ -173,6 +178,9 @@ class PhoneBench(private val app: AssistantApp) {
         const val TAG = "FerbBench"
         const val REQUESTS = "requests.jsonl"
         const val DATES = "dates.jsonl"
+        const val BLIND = "dates-blind.jsonl"
+        /** R says times in words ("in 3 days at 7 pm"): a little more room than v2's. */
+        const val R_MAX_TOKENS = 48
         /** At most about 2 requests a second to AICore. */
         const val GAP_MS = 500L
     }
