@@ -76,6 +76,7 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.truth)
+    testImplementation(libs.natural.date.parser)
     testImplementation(libs.org.json)
     testImplementation(libs.kotlinx.coroutines.test)
 

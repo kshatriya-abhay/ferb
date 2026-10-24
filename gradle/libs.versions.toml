@@ -12,6 +12,8 @@ material3 = "1.5.0-alpha29"
 materialComponents = "1.14.0"
 junit = "4.13.2"
 truth = "1.4.5"
+# The date bench only (test sources): natural-date-parser, an independent reader of dates (2026-10-24).
+naturalDateParser = "1.0.3"
 orgJson = "20250517"
 androidxTestRunner = "1.7.0"
 androidxTestExtJunit = "1.3.0"
@@ -38,6 +40,7 @@ kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutine
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 junit = { module = "junit:junit", version.ref = "junit" }
 truth = { module = "com.google.truth:truth", version.ref = "truth" }
+natural-date-parser = { module = "io.github.ggutim:natural-date-parser", version.ref = "naturalDateParser" }
 # Android's org.json is a stub in JVM unit tests; this is the real implementation for them.
 org-json = { module = "org.json:json", version.ref = "orgJson" }
 androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidxTestRunner" }
