@@ -625,8 +625,15 @@ object MediaControl : Tool(
     // was sent as pause on the phone. Ferb sends the explicit keys, never the play/pause toggle.
     private val RESUME = Regex("""\b(resume|continue|unpause|un-pause|carry on|play again|start again|keep playing)\b""", RegexOption.IGNORE_CASE)
 
-    override fun fromRequest(arguments: Map<String, Any?>, request: String): Map<String, Any?> =
-        if (RESUME.containsMatchIn(request) && arguments.text("action")?.lowercase() == "pause") arguments + ("action" to "play") else arguments
+    override fun fromRequest(arguments: Map<String, Any?>, request: String): Map<String, Any?> {
+        val action = arguments.text("action")?.lowercase()
+        return when {
+            // An action out of the enum that means play ("resume" as the action itself).
+            action != null && RESUME.matches(action) -> arguments + ("action" to "play")
+            RESUME.containsMatchIn(request) && action == "pause" -> arguments + ("action" to "play")
+            else -> arguments
+        }
+    }
 
     /** What undoes each action, as a button. */
     private val OPPOSITE = mapOf("play" to "pause", "pause" to "play", "next" to "previous", "previous" to "next")

@@ -145,8 +145,9 @@ class ToolsTest {
         assertThat(media("pause", "Resume the music")).isEqualTo("Media: play")
         assertThat(media("pause", "resume")).isEqualTo("Media: play")
         assertThat(media("pause", "Resume")).isEqualTo("Media: play")
-        // An action outside the enum is refused, never taken as pause.
-        assertThat(reason(MediaControl.prepare(MediaControl.fromRequest(mapOf("action" to "resume"), "resume"), PrepareEnv(apps)))).isNotNull()
+        // "resume" as the action itself is play; any other action outside the enum is refused, never taken as pause.
+        assertThat(media("resume", "resume")).isEqualTo("Media: play")
+        assertThat(reason(MediaControl.prepare(MediaControl.fromRequest(mapOf("action" to "stop"), "stop"), PrepareEnv(apps)))).isNotNull()
         assertThat(media("pause", "unpause the song")).isEqualTo("Media: play")
         assertThat(media("pause", "please carry on with the playlist")).isEqualTo("Media: play")
         assertThat(media("pause", "pause the music")).isEqualTo("Media: pause")
