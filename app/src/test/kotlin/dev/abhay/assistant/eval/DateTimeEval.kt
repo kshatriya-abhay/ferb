@@ -240,6 +240,19 @@ class DateTimeEval {
         rows.filter { r -> gates[2].second(r)?.let { it != "ask" && !(r.a.tool == r.line.tool && it == r.line.expected) } == true }.forEach { r ->
             report.append("${r.line.now} | want ${r.line.tool} ${r.line.expected} | ran ${r.a.tool} ${gates[2].second(r)} | ${r.line.request}\n")
         }
+        // C against A, both reading the line's own tool: Gemini Nano's slots or A's regex on the request as typed.
+        if (slots != null) {
+            data class Pair2(val line: Line, val c: String, val a: String)
+            val both = lines.map { line -> Pair2(line, approachC(line.tool, slots[line.i], line.now), approachA(line, answers.getValue(line.i), line.request)) }
+            val differ = both.filter { it.c != it.a }
+            report.append("\n## C's slots against A's own reading of the typed request (the line's tool)\n")
+            report.append("agree ${both.size - differ.size}/${both.size}; differ ${differ.size}: C right ${differ.count { it.c == it.line.expected }}, " +
+                "A right ${differ.count { it.a == it.line.expected }}, neither ${differ.count { it.c != it.line.expected && it.a != it.line.expected }}\n")
+            val hi = both.filter { hindi.containsMatchIn(it.line.request.lowercase()) }
+            report.append("Hindi: C right ${hi.count { it.c == it.line.expected }}/${hi.size}, A right ${hi.count { it.a == it.line.expected }}/${hi.size}\n")
+            report.append("C unreadable (no JSON or not v1): ${lines.count { l -> slots[l.i]?.let { r -> Regex("""\{[\s\S]*\}""").find(r)?.value?.let { TimeExpr.parse(it) } } == null }}\n")
+            differ.forEach { report.append("${it.line.now} | ${it.line.tool} | want ${it.line.expected} | C ${it.c} | A ${it.a} | ${it.line.request} | slots ${slots[it.line.i]?.replace("\n", " ")}\n") }
+        }
         // Needle 3's confidence on the timed tools it got right.
         report.append("\n## Needle 3's confidence on the right tool (median / min, called or held back)\n")
         rows.filter { it.a.tool == it.line.tool && it.a.confidence != null }.groupBy { it.line.tool }.forEach { (tool, set) ->
