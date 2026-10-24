@@ -16,7 +16,8 @@ Routing is route.py's (each tool's cues; none mentioned: every tool). Needle 3 a
 app's engine; Gemini Nano gets Computer mode's schema call (timed, t4; see the app's debug
 bench/SchemaCall.kt), and its "when" becomes the time arguments as schema.py reads them. Gemini
 Nano has no confidence score: its calls count as 1.00, so only "right" compares with Needle 3's.
-LENIENT=1 also reads the whole call objects out of answers that aren't valid JSON (score-MODEL-lenient.txt).
+Answers are read as Ferb reads them (engine/SchemaCallReply.kt): the whole answer, else its first
+complete call, else a "tool" with its arguments; calls to tools not offered are dropped.
 """
 import json, os, re, statistics, subprocess, sys
 
@@ -102,75 +103,62 @@ def needle(on=None):
     subprocess.run(["adb", "shell", "am", "instrument", "-w", "-e", "class", f"{PACKAGE}.PhoneBenchTest", *extra,
                     f"{PACKAGE}.test/androidx.test.runner.AndroidJUnitRunner"], check=True)
 
-# --- Gemini Nano's answer, read as Ferb Link's SchemaCall.reply reads it, then as schema.py scores it. ---
+# --- Gemini Nano's answer, read as Ferb reads it (the app's engine/SchemaCallReply.kt, the same
+# rules; SchemaCallReplyTest checks the two agree on the bench's answers), then scored as schema.py
+# scores schema calls: "when" becomes the time arguments. ---
 from schema import alarm_time, seconds
 
-LEAKED = re.compile(r"\}\}|```")
-MALFORMED = []
+TOOL_ARGUMENTS = re.compile(r'"tool"\s*:\s*"(\w+)"\s*,\s*"arguments"\s*:\s*')
+WHEN_AFTER = re.compile(r'\s*,\s*"when"\s*:\s*')
+DECODER = json.JSONDecoder()
 
-def complete_calls(raw):
-    """LENIENT=1: the whole call objects in broken JSON, in order (Gemini Nano often writes one,
-    then runs on repeating it until max tokens): what an enforced schema would likely have kept."""
-    decoder, calls, i = json.JSONDecoder(), [], 0
-    while (i := raw.find("{", i)) >= 0:
-        try:
-            value, end = decoder.raw_decode(raw, i)
-        except json.JSONDecodeError:
-            i += 1
-            continue
-        if isinstance(value, dict) and "tool" in value:
-            calls.append(value)
-            i = end
-        else:
-            i += 1
-    if calls: return calls
-    # No whole call object (a brace left out: {"tool": "set_timer", "arguments": {...}]}): each
-    # "tool": name with the arguments object after it, and a "when" object if one follows.
-    for m in re.finditer(r'"tool"\s*:\s*"(\w+)"\s*,\s*"arguments"\s*:\s*', raw):
-        try:
-            args, end = decoder.raw_decode(raw, m.end())
-        except json.JSONDecodeError:
-            continue
-        when = None
-        w = re.match(r'\s*,\s*"when"\s*:\s*', raw[end:])
-        if w:
-            try:
-                when, _ = decoder.raw_decode(raw, end + w.end())
-            except json.JSONDecodeError:
-                pass
-        calls.append({"tool": m[1], "arguments": args, "when": when})
-    return calls
-
-def gemini_calls(raw):
-    """[{name, arguments}] from the schema call's JSON, or None if it doesn't parse."""
-    start, end = raw.find("{"), raw.rfind("}")
-    if start < 0 or end <= start: return None
+def value_at(raw, i):
+    while i < len(raw) and raw[i].isspace(): i += 1
     try:
-        answer = json.loads(raw[start:end + 1])
-    except json.JSONDecodeError:
-        if not os.environ.get("LENIENT"): return None
-        answer = {"calls": complete_calls(raw)}
-    calls = []
-    for call in answer.get("calls") or []:
-        if not isinstance(call, dict) or not call.get("tool"): continue
-        # Gemini Nano sometimes nests the call in "tool" ({"tool": {"name", "arguments"}}): the API
-        # can't enforce the schema as llama.cpp did. Read leniently, and counted (MALFORMED).
-        if isinstance(call["tool"], dict):
-            MALFORMED.append(call)
-            call = {"tool": call["tool"].get("name"), "arguments": call["tool"].get("arguments"), "when": call.get("when")}
-            if not isinstance(call["tool"], str): continue
-        if not isinstance(call["tool"], str): continue
-        args = {k: (v[:LEAKED.search(v).start()].rstrip() if isinstance(v, str) and LEAKED.search(v) else v)
-                for k, v in (call.get("arguments") if isinstance(call.get("arguments"), dict) else {}).items()}
-        w = call.get("when") if isinstance(call.get("when"), dict) else None
+        return DECODER.raw_decode(raw, i)
+    except (json.JSONDecodeError, IndexError):
+        return None, None
+
+def call_of(v):
+    if isinstance(v, dict) and isinstance(v.get("tool"), str) and isinstance(v.get("arguments"), dict):
+        return {"tool": v["tool"], "arguments": v["arguments"], "when": v["when"] if isinstance(v.get("when"), dict) else None}
+    return None
+
+def parse(raw, offered):
+    """(calls, how): how is Whole, FirstCall, ToolArguments or Unreadable, as SchemaCallReply.parse."""
+    def only(calls, how): return [c for c in calls if c["tool"] in offered], how
+    start = raw.find("{")
+    if start < 0: return [], "Unreadable"
+    answer, _ = value_at(raw, start)
+    if isinstance(answer, dict) and isinstance(answer.get("calls"), list):
+        return only([c for c in map(call_of, answer["calls"]) if c], "Whole")
+    i = raw.find("{", start + 1)
+    while i >= 0:
+        c = call_of(value_at(raw, i)[0])
+        if c: return only([c], "FirstCall")
+        i = raw.find("{", i + 1)
+    for m in TOOL_ARGUMENTS.finditer(raw):
+        args, end = value_at(raw, m.end())
+        if not isinstance(args, dict): continue
+        w = WHEN_AFTER.match(raw, end)
+        when = value_at(raw, w.end())[0] if w else None
+        return only([{"tool": m[1], "arguments": args, "when": when if isinstance(when, dict) else None}], "ToolArguments")
+    return [], "Unreadable"
+
+def scored_calls(calls):
+    """[{name, arguments}] for score.py, with "when" as the time arguments (schema.py's rules)."""
+    out = []
+    for call in calls:
+        args, w = dict(call["arguments"]), call["when"]
         if w and call["tool"] == "set_alarm" and alarm_time(w): args["time"] = alarm_time(w)
         if w and call["tool"] == "set_timer" and seconds(w): args["duration"] = f"{seconds(w)} seconds"
-        calls.append({"name": call["tool"], "arguments": args})
-    return calls
+        out.append({"name": call["tool"], "arguments": args})
+    return out
 
 def answers(model):
     rows = [json.loads(l) for l in open(os.path.join(OUT, f"{model}.jsonl")) if l.strip()]
-    out, unread, errors = {}, [], []
+    offered = {r["id"]: set(r["tools"]) for r in (json.loads(l) for l in open(os.path.join(OUT, "requests.jsonl")))}
+    out, hows, errors = {}, {}, []
     for r in rows:
         if "error" in r:
             errors.append(r)
@@ -180,13 +168,13 @@ def answers(model):
             reply["ms"] = r.get("ms")
             out[r["request"]] = json.dumps(reply)
         else:
-            calls = gemini_calls(r["raw"])
-            if calls is None: unread.append(r)
-            out[r["request"]] = json.dumps({"function_calls": calls or [], "confidence": 1.0, "ms": r.get("ms")})
-    return rows, out, unread, errors
+            calls, how = parse(r["raw"], offered[r["id"]])
+            hows.setdefault(how, []).append(r)
+            out[r["request"]] = json.dumps({"function_calls": scored_calls(calls), "confidence": 1.0, "ms": r.get("ms")})
+    return rows, out, hows, errors
 
 def score(model):
-    rows, out, unread, errors = answers(model)
+    rows, out, hows, errors = answers(model)
     tools = os.path.join(BUILD, "all.json")
     report = []
     for name, path in (("without @hi", "requests-no-hi.txt"), ("the 2026-10-11 overlap", "requests-overlap.txt"), ("@hi", "requests-hi.txt")):
@@ -213,14 +201,14 @@ def score(model):
         report.append(f"latency on the phone, ms: median {statistics.median(ms):.0f}, 90th percentile {ms[int(len(ms) * 0.9)]}, n={len(ms)}")
     if errors:
         report.append(f"errors: {len(errors)}, e.g. " + "; ".join(sorted({e['error'][:80] for e in errors})[:3]))
-    if unread:
-        report.append(f"answers that didn't parse as JSON (scored as no call): {len(unread)}, e.g. {unread[0]['raw'][:160]!r}")
+    if hows:
+        report.append("answers read as: " + ", ".join(f"{h} {len(v)}" for h, v in sorted(hows.items())) +
+                      (f"; unreadable (no call), e.g. {hows['Unreadable'][0]['raw'][:160]!r}" if hows.get("Unreadable") else ""))
     if model != "needle3":
-        report.append(f"calls nested in \"tool\" (read leniently): {len(MALFORMED)}")
         shown = [r for r in rows if "schema" in r]
         report.append(f"schema in the prompt: {sum(r['schema'] for r in shown)} of {len(shown)} (left out where it made the request too long)")
     text = "\n".join(report)
-    path = os.path.join(OUT, f"score-{model}{'-lenient' if os.environ.get('LENIENT') else ''}.txt")
+    path = os.path.join(OUT, f"score-{model}.txt")
     open(path, "w").write(text + "\n")
     print(text)
     print(f"\n(saved in {os.path.relpath(path, REPO)})")
