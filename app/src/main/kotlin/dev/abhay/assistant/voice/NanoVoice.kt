@@ -196,15 +196,23 @@ the alarm woke the baby -> NONE"""
     const val PROMPT = PROMPT_V2
     const val VERSION = "v2"
 
+    const val CUT_OFF = "answer cut off"
+
     /** Room for one short command; NONE takes a token or two. */
     const val MAX_TOKENS = 40
 
-    /** The model's answer: its first line, without quotes, an arrow or "Command:"; null for NONE. */
-    fun parse(said: String, answer: String): Rewritten {
+    /**
+     * The model's answer: its first line, without quotes, an arrow or "Command:"; null for NONE.
+     * [cut]: the answer stopped at the token limit. A first line it cut off fails, so a half-written
+     * command ("Send a text to bhaiya: I") never runs (as Ferb Link's, 2026-10-24); NONE, or a cut
+     * in a later line, is whole.
+     */
+    fun parse(said: String, answer: String, cut: Boolean = false): Rewritten {
         val line = answer.trim().lineSequence().firstOrNull { it.isNotBlank() }.orEmpty().trim()
             .substringAfter("->").removePrefix("Command:").trim().trim('"', '\u201c', '\u201d', '`').trim()
         require(line.isNotEmpty()) { "Gemini Nano wrote nothing" }
         val none = line.trimEnd('.').equals(NONE, ignoreCase = true)
+        require(!cut || none || answer.trimStart().contains('\n')) { CUT_OFF }
         return Rewritten(said, if (none) null else line)
     }
 }

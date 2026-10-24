@@ -92,9 +92,13 @@ class PhoneBench(private val app: AssistantApp) {
                     if (gemini == null) line.put("raw", needle(item))
                     else {
                         val prompt = model.prompt!!(item)
-                        val raw = paced(line) { gemini.generateContent(NanoEars.rewriteRequest(item.request, prompt, model.maxTokens)) }.candidates.firstOrNull()?.text.orEmpty()
+                        val candidate = paced(line) { gemini.generateContent(NanoEars.rewriteRequest(item.request, prompt, model.maxTokens)) }.candidates.firstOrNull()
+                        val raw = candidate?.text.orEmpty()
+                        val cut = candidate?.finishReason == com.google.mlkit.genai.prompt.Candidate.FinishReason.MAX_TOKENS
                         line.put("raw", raw)
-                        if (model.command) line.put("command", GeminiRewrite.parse(item.request, raw).command ?: JSONObject.NULL)
+                        if (cut) line.put("cut", true)
+                        // A cut-off command fails as in the app: the request goes on as typed.
+                        if (model.command) line.put("command", GeminiRewrite.parse(item.request, raw, cut).command ?: JSONObject.NULL)
                     }
                 } catch (e: CancellationException) {
                     throw e

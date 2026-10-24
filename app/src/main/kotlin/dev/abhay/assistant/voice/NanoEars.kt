@@ -7,6 +7,7 @@ import com.google.mlkit.genai.common.DownloadStatus
 import com.google.mlkit.genai.common.FeatureStatus
 import com.google.mlkit.genai.common.GenAiException
 import com.google.mlkit.genai.common.audio.AudioSource
+import com.google.mlkit.genai.prompt.Candidate
 import com.google.mlkit.genai.prompt.Generation
 import com.google.mlkit.genai.prompt.GenerativeModel
 import com.google.mlkit.genai.prompt.ModelPreference
@@ -170,9 +171,11 @@ class NanoEars {
     /** [said] (typed or heard) as one English command for Needle 3, or none ([GeminiRewrite]). */
     suspend fun rewrite(said: String): Rewritten {
         val started = SystemClock.elapsedRealtime()
-        val answer = writer().generateContent(rewriteRequest(said)).candidates.firstOrNull()?.text.orEmpty()
+        val candidate = writer().generateContent(rewriteRequest(said)).candidates.firstOrNull()
+        val answer = candidate?.text.orEmpty()
+        val cut = candidate?.finishReason == Candidate.FinishReason.MAX_TOKENS
         Log.i(TAG, "rewrite ($writerName) in ${SystemClock.elapsedRealtime() - started} ms: ${Private.text(said)} -> ${Private.text(answer.trim())}")
-        return GeminiRewrite.parse(said, answer)
+        return GeminiRewrite.parse(said, answer, cut)
     }
 
     companion object {

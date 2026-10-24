@@ -146,6 +146,12 @@ class AnswerFlowTest {
         // Timed out.
         val slow = answer("torch on karo", pipeline = steps(RewriteStep.Link), link = FakeLink(rewrite = RewriteReply.failed("timed out", "10 s")), geminiUsable = false)
         assertThat(slow.fallbacks.single().why).isEqualTo("Ferb Link: timed out")
+        // Cut off at max_tokens: failed, so its half-written raw is never the command.
+        val cut = RewriteReply(emptyList(), error = "answer cut off", raw = "Send a message to bhaiya: I", instructed = true)
+        val words = answer("bhaiya ko message karo ki main late hoon", pipeline = steps(RewriteStep.Link), link = FakeLink(rewrite = cut), geminiUsable = false)
+        assertThat(words.command).isNull()
+        assertThat(needleAsked.last().first).isEqualTo("bhaiya ko message karo ki main late hoon")
+        assertThat(words.fallbacks.single().why).isEqualTo("Ferb Link: answer cut off")
     }
 
     @Test

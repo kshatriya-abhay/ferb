@@ -72,6 +72,16 @@ class NanoVoiceTest {
         assertThat(GeminiRewrite.parse("x", " none.").command).isNull()
     }
 
+    @Test
+    fun aCommandCutOffAtTheTokenLimitFails() {
+        val cut = runCatching { GeminiRewrite.parse("bhaiya ko message karo ki main late hoon", "Send a text to bhaiya: main", cut = true) }
+        assertThat(cut.exceptionOrNull()?.message).isEqualTo(GeminiRewrite.CUT_OFF)
+        // A cut in a later line, or NONE, is whole; and not cut, the same words are the command.
+        assertThat(GeminiRewrite.parse("x", "Turn on the flashlight\nAnd then", cut = true).command).isEqualTo("Turn on the flashlight")
+        assertThat(GeminiRewrite.parse("x", "NONE", cut = true).command).isNull()
+        assertThat(GeminiRewrite.parse("x", "Send a text to bhaiya: main").command).isEqualTo("Send a text to bhaiya: main")
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun anEmptyAnswerFails() {
         GeminiRewrite.parse("kal 7 baje", "  \n ")

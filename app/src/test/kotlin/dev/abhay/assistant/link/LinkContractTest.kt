@@ -161,9 +161,14 @@ class LinkContractTest {
         val none = replies.getValue("rewrite-gemini-none")
         assertThat(dev.abhay.assistant.voice.GeminiRewrite.parse("the alarm woke the baby", none.raw!!).command).isNull()
         // Failures say so, and still echo the prompt: a missing echo always means an older Ferb Link.
-        listOf("rewrite-gemini-bad_reply", "rewrite-gemini-bad_request").forEach {
+        listOf("rewrite-gemini-bad_reply", "rewrite-gemini-bad_request", "rewrite-gemini-cut").forEach {
             assertShort(replies.getValue(it).error)
             assertThat(replies.getValue(it).instructed).isTrue()
+        }
+        // Cut off at max_tokens (2026-10-24): a failure, with the half-written raw kept but not a command.
+        replies.getValue("rewrite-gemini-cut").let {
+            assertThat(it.commands).isEmpty()
+            assertThat(it.raw).isNotEmpty()
         }
         // An older Ferb Link answers with its own prompt, without the echo or raw: the step falls back.
         val old = replies.getValue("rewrite-gemini-old")
