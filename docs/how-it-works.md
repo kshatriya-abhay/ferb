@@ -65,6 +65,8 @@ Ferb Link's options are greyed out, with why, until Ferb Link is installed and p
 
 **Tool selection** sends the request (as rewritten) and the routed tools' names and descriptions to Jev, TypeSafe's cloud model, through Ferb Link, which holds its key and a spending limit; Ferb itself stays offline. From a probability of 0.5 (`LinkPolicy.JEV_BAR`), Needle 3 gets only Jev's tool and runs it at that tool's own bar with the usual checks; "none" means no call.
 
+**On the first launch** (and from Settings → Run setup again), after the welcome, one page per step explains its options in plain words, with the recommended one picked (the defaults above, from what AICore says) and why an option can't be used now; Gemini Nano still to download has its Set up there. Next saves the option shown, so a default can't change later under the user; Skip keeps what's chosen and goes to the chat. A last page opens Android's default apps to make Ferb the assistant, and is left out once it is (`OnboardingFlow`, `Page`).
+
 **When a step fails** for a request, that request goes on without it, and the reply says so ("Rewrite · Gemini Nano instead"; the details say why at length): Ferb Link's audio falls back to Whistle on the same recording, Ferb Link's rewrite to Gemini Nano when it's set up (else the words as they are), a failed Gemini Nano rewrite to the words as they are, and Jev to none. An older Ferb Link that ignores Ferb's prompt counts as a failed rewrite.
 
 **The path in the details:** tapping a reply shows the steps the request took, as they ran, with each step's pick or confidence: "Voice: Gemini Nano → Rewrite: Gemini Nano → Tool selection: Jev (Alarms, 0.93) → Needle 3 (0.81)", or "Typed → Rewrite: off (Ferb Link: not set up) → Needle 3 (0.81)".

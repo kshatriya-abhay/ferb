@@ -18,7 +18,7 @@ You need an Android phone with a 64-bit ARM processor (most phones since 2017) a
 
 ### First launch
 
-A short welcome says what Ferb does and that it runs on the phone; tap **Start**. Then "How can I help?" shows a few requests to try; tap one, or type your own in the box at the bottom. Try:
+A short welcome says what Ferb does and that it runs on the phone; tap **Start**. Three pages follow, one for each step of how Ferb understands you (how it hears you, whether it rewrites your request first, and whether Jev picks the tool), each with the recommended choice already picked and anything your phone can't use yet greyed out; then one on making Ferb your phone's assistant. **Skip** goes straight to the chat, and **Settings → Run setup again** brings the pages back. Then "How can I help?" shows a few requests to try; tap one, or type your own in the box at the bottom. Try:
 
 - "Set a timer for 10 minutes"
 - "Turn on the flashlight"
@@ -26,7 +26,7 @@ A short welcome says what Ferb does and that it runs on the phone; tap **Start**
 - "Open the calculator"
 - "Open Wi-Fi settings"
 
-Each reply shows what Ferb did, with buttons such as **Turn off**, **Undo** or **Open again**. When Ferb isn't sure enough, or the tool is one that reaches other people, it asks first: **Shall I do this?** Tap a reply to see the details (how sure Needle 3 was, and why it asked or ran). Tips explain each of these once, the first time it appears; **Settings → Show tips again** brings them back.
+Each reply shows what Ferb did, with buttons such as **Turn off**, **Undo** or **Open again**. When Ferb isn't sure enough, or the tool is one that reaches other people, it asks first: **Shall I do this?** Tap a reply to see the details (how sure Needle 3 was, and why it asked or ran). Tips explain each of these once, the first time it appears; **Settings → Show tips again** brings them back, with the setup pages.
 
 ### Turn on more tools
 

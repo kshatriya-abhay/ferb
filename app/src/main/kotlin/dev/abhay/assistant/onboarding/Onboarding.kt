@@ -30,7 +30,7 @@ enum class Tip(val text: String) {
     }
 }
 
-/** What onboarding has done so far: the welcome screen passed, and the tips seen. */
+/** What onboarding has done so far: the welcome and the steps' pages passed ([Page]), and the tips seen. */
 data class OnboardingState(val welcomed: Boolean = false, val seen: Set<Tip> = emptySet())
 
 /**
@@ -51,6 +51,9 @@ class Onboarding(private val load: () -> OnboardingState, private val store: (On
 
     /** "Show tips again": the welcome screen and every tip, as on the first launch. */
     fun reset() = change { OnboardingState() }
+
+    /** "Run setup again": the welcome and the steps' pages, keeping the tips seen. */
+    fun rerun() = change { it.copy(welcomed = false) }
 
     private fun change(update: (OnboardingState) -> OnboardingState) {
         _state.update(update)
@@ -75,6 +78,33 @@ class Onboarding(private val load: () -> OnboardingState, private val store: (On
                 },
                 store = { s -> prefs.edit().putBoolean(WELCOMED, s.welcomed).putStringSet(SEEN, s.seen.map { it.name }.toSet()).apply() },
             )
+        }
+    }
+}
+
+/**
+ * The first launch's pages, in order: what Ferb is, then one page per step of how it understands
+ * you (each with its options, the recommended one picked), then making Ferb the phone's assistant
+ * (left out once it is). Every page can be skipped; Settings → Run setup again shows them again.
+ */
+enum class Page {
+    Welcome, Audio, Rewrite, Tools, Assistant;
+
+    companion object {
+        /** The pages to show: [Assistant] only while Ferb isn't the phone's assistant yet. */
+        fun shown(assistantHeld: Boolean): List<Page> = entries.filter { it != Assistant || !assistantHeld }
+
+        /**
+         * The page after [page], or null at the end (the chat). A page no longer shown (Ferb made
+         * the assistant from its own page) is the end too.
+         */
+        fun next(page: Page, assistantHeld: Boolean): Page? = shown(assistantHeld).let { pages ->
+            pages.indexOf(page).takeIf { it >= 0 }?.let { pages.getOrNull(it + 1) }
+        }
+
+        /** The page before [page], or null at the first (back leaves the app, as on any first screen). */
+        fun previous(page: Page, assistantHeld: Boolean): Page? = shown(assistantHeld).let { pages ->
+            pages.indexOf(page).takeIf { it >= 0 }?.let { pages.getOrNull(it - 1) } ?: pages.last().takeIf { page !in pages && page == Assistant }
         }
     }
 }

@@ -40,7 +40,7 @@ import dev.abhay.assistant.ui.SettingsScreen
 import dev.abhay.assistant.ui.SettingsViewModel
 import dev.abhay.assistant.ui.ToolConfigScreen
 import dev.abhay.assistant.ui.ToolsScreen
-import dev.abhay.assistant.ui.WelcomeScreen
+import dev.abhay.assistant.ui.Onboarding
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
@@ -87,7 +87,7 @@ class MainActivity : ComponentActivity() {
             MaterialExpressiveTheme(colorScheme = colors, motionScheme = MotionScheme.expressive()) {
                 val viewModel: AssistantViewModel = viewModel()
                 val settings: SettingsViewModel = viewModel()
-                // The first launch (or after Settings → Show tips again): the welcome screen first.
+                // The first launch (or after Settings → Run setup again or Show tips again): the welcome and the steps' pages first.
                 val onboarding by viewModel.onboarding.state.collectAsStateWithLifecycle()
                 // Welcome to the chat: Material's fade through, for screens with no spatial relation
                 // (https://m3.material.io/styles/motion/transitions/transition-patterns).
@@ -96,7 +96,7 @@ class MainActivity : ComponentActivity() {
                     fadeIn(motion.defaultEffectsSpec()) togetherWith fadeOut(motion.defaultEffectsSpec())
                 }) { welcomed ->
                 if (!welcomed) {
-                    WelcomeScreen(onStart = { viewModel.onboarding.welcomed() })
+                    Onboarding(settings, onDone = { viewModel.onboarding.welcomed() })
                     return@AnimatedContent
                 }
                 var stack by rememberSaveable { mutableStateOf(listOf("assistant")) }

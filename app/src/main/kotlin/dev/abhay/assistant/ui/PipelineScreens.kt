@@ -78,6 +78,10 @@ internal fun <T : Any> StepOptions(
     available: Availability,
     gemini: GeminiSetup,
     onOpenGemini: () -> Unit,
+    /** Marked "Recommended" (onboarding). */
+    recommended: T? = null,
+    /** Gemini Nano's settings button (not in onboarding, which has no page for it). */
+    geminiButton: Boolean = true,
 ) {
     Group(options.map { option ->
         { shapes ->
@@ -90,13 +94,14 @@ internal fun <T : Any> StepOptions(
                 enabled = enabled,
                 leadingContent = { RadioButton(selected = option.value == selected, onClick = null, enabled = enabled) },
                 supportingContent = {
-                    Text(when {
+                    val line = when {
                         reason != null -> reason
                         option.gemini -> "${option.hint} · ${gemini.summary()}"
                         else -> option.hint
-                    })
+                    }
+                    Text(if (option.value == recommended && reason == null) "$RECOMMENDED · $line" else line)
                 },
-                trailingContent = if (option.gemini) {
+                trailingContent = if (option.gemini && geminiButton) {
                     {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             VerticalDivider(Modifier.height(32.dp).padding(end = 4.dp))
@@ -110,6 +115,8 @@ internal fun <T : Any> StepOptions(
         }
     })
 }
+
+internal const val RECOMMENDED = "Recommended"
 
 /** The Gemini Nano rows' settings button, which opens its page (the row itself only selects it). */
 internal const val GEMINI_SETTINGS = "Gemini Nano settings"
