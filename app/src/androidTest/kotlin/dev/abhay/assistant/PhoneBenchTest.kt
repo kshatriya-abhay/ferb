@@ -19,9 +19,10 @@ class PhoneBenchTest {
     private val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as AssistantApp
 
     @Test
-    fun needle3() = runBlocking {
+    fun needle3() {
         val bench = PhoneBench(app)
         assumeTrue("no bench requests pushed", bench.items().isNotEmpty())
-        Log.i(PhoneBench.TAG, bench.run(PhoneBench.Model.Needle3) { done, total, _ -> if (done % 25 == 0) Log.i(PhoneBench.TAG, "needle3 $done/$total") })
+        val result = runBlocking { bench.run(PhoneBench.Model.Needle3) { done, total, _ -> if (done % 25 == 0) Log.i(PhoneBench.TAG, "needle3 $done/$total") } }
+        Log.i(PhoneBench.TAG, result)
     }
 }
