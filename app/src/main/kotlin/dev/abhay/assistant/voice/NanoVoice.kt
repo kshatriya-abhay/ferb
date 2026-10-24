@@ -224,16 +224,17 @@ the alarm woke the baby -> NONE"""
     const val VERSION_R = "r"
 
     /**
-     * The prompt the app (and the phone bench) uses: v2, which beat v1 on the held-out set
-     * (tool-check/rewrite-heldout.txt: 70 of 78 against 60, Needle 3 alone 61; 2026-10-24).
+     * The prompt the app uses, for Gemini Nano and for Ferb Link (sent as its instructions): R
+     * (2026-10-25, the user's decision). On the blind date set it picked the right tool for 138 of
+     * 154 requests, against v2's 107 and 87 without a rewrite. v2 stays for the bench.
      */
-    const val PROMPT = PROMPT_V2
-    const val VERSION = "v2"
+    const val PROMPT = PROMPT_R
+    const val VERSION = VERSION_R
 
     const val CUT_OFF = "answer cut off"
 
-    /** Room for one short command; NONE takes a token or two. */
-    const val MAX_TOKENS = 40
+    /** Room for one short command; R says times in words ("in 3 days at 7 pm"). NONE takes a token or two. */
+    const val MAX_TOKENS = 48
 
     /**
      * The model's answer: its first line, without quotes, an arrow or "Command:"; null for NONE.

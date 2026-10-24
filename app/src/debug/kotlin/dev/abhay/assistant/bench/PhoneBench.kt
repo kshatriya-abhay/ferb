@@ -47,13 +47,13 @@ class PhoneBench(private val app: AssistantApp) {
         Needle3("needle3"),
         Rewrite("rewrites-${GeminiRewrite.VERSION}-gemini-full", prompt = { GeminiRewrite.PROMPT }),
         // The date and time lines (tool-check/datetime-v2.txt, pushed as dates.jsonl, each with its "now").
-        DatesRewrite("dates-rewrites-${GeminiRewrite.VERSION}", DATES, prompt = { GeminiRewrite.PROMPT }),
+        DatesRewrite("dates-rewrites-v2", DATES, prompt = { GeminiRewrite.PROMPT_V2 }),
         DatesCalendar("dates-calendar", DATES, prompt = { DatePrompts.calendarPrompt(it.now!!) }, maxTokens = GeminiRewrite.MAX_TOKENS + 20),
         DatesSlots("dates-slots", DATES, prompt = { DatePrompts.SLOTS }, maxTokens = DatePrompts.SLOTS_MAX_TOKENS, command = false),
         // The blind round (2026-10-24): prompt R on datetime-v2 and the blind set, and v2 on the blind set.
         DatesR("dates-r", DATES, prompt = { GeminiRewrite.PROMPT_R }, maxTokens = R_MAX_TOKENS),
         BlindR("blind-r", BLIND, prompt = { GeminiRewrite.PROMPT_R }, maxTokens = R_MAX_TOKENS),
-        BlindRewrite("blind-rewrites-${GeminiRewrite.VERSION}", BLIND, prompt = { GeminiRewrite.PROMPT });
+        BlindRewrite("blind-rewrites-v2", BLIND, prompt = { GeminiRewrite.PROMPT_V2 });
 
         companion object {
             val dates = listOf(DatesRewrite, DatesCalendar, DatesSlots)
