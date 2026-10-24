@@ -12,6 +12,9 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.google.common.truth.Truth.assertThat
 import dev.abhay.assistant.pipeline.AudioStep
 import dev.abhay.assistant.ui.OPEN_CHAT
+import dev.abhay.assistant.ui.SHEET_BAR
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onNodeWithTag
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -48,6 +51,15 @@ class AssistSheetDeviceTest {
             compose.onNodeWithText("Ferb").assertExists()
             compose.onNodeWithContentDescription(OPEN_CHAT).assertExists()
             compose.onNodeWithText("What would you like done?").assertExists()
+            // The box is on screen straight away, with no drag: whole, inside the window
+            // (2026-10-24: at half height it was below the fold).
+            compose.waitForIdle()
+            val bar = compose.onNodeWithTag(SHEET_BAR).assertIsDisplayed().fetchSemanticsNode().boundsInWindow
+            var window = 0
+            scenario.onActivity { window = it.window.decorView.height }
+            assertThat(bar.top).isAtLeast(0f)
+            assertThat(bar.bottom).isAtMost(window.toFloat())
+            compose.onNodeWithText("Ask me to do something").assertIsDisplayed()
             pressBackUnconditionally()
             compose.waitUntil(5_000) { scenario.state == Lifecycle.State.DESTROYED }
             assertThat(scenario.state).isEqualTo(Lifecycle.State.DESTROYED)
