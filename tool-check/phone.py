@@ -302,7 +302,7 @@ def readers(set_name, r_file, out_dir):
     rewritten = {json.loads(l)["i"]: json.loads(l).get("command") for l in open(r_file) if l.strip()}
     rows += [{"i": r["i"], "now": r["now"], "text": rewritten[r["i"]], "source": "R"} for r in list(rows) if rewritten.get(r["i"])]
     data = "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows).encode()
-    subprocess.run(["adb", "exec-in", "run-as", BENCH, "sh", "-c", "cat > files/inputs.jsonl"], input=data, check=True)
+    subprocess.run(["adb", "exec-in", "run-as", BENCH, "sh", "-c", "mkdir -p files && cat > files/inputs.jsonl"], input=data, check=True)
     print(f"{len(rows)} inputs pushed")
     subprocess.run(["adb", "shell", "am", "instrument", "-w", "-e", "class", f"{BENCH}.DateBenchTest", f"{BENCH}.test/androidx.test.runner.AndroidJUnitRunner"], check=True)
     os.makedirs(out_dir, exist_ok=True)

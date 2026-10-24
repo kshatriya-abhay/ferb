@@ -60,7 +60,7 @@ def needle(source):
             tp, rp = os.path.join(tmp, "tools.json"), os.path.join(tmp, "requests.txt")
             json.dump([t for t in tools if t["name"] in names], open(tp, "w"))
             open(rp, "w").write("".join(f"none | {text}\n" for _, text in items))
-            out = subprocess.run([TOOL_CHECK, MODEL, tp, rp, f], env={**os.environ, "TOOL_CHECK_RAW": "1"}, capture_output=True, text=True, check=True).stdout
+            out = subprocess.run([TOOL_CHECK, MODEL, tp, rp, f], env={**os.environ, "TOOL_CHECK_RAW": "1"}, capture_output=True, check=True).stdout.decode("utf-8", errors="replace")  # Needle 3 can split a Devanagari character
             got = dict(l.split("\t", 1) for l in out.splitlines() if "\t" in l)
             for i, text in items: answers[i] = (text, got[text])
     os.makedirs(OUT, exist_ok=True)
