@@ -17,6 +17,21 @@ class ToolRouterTest {
     }
 
     @Test
+    fun remindIsntATimerUnlessATimerIsSaid() {
+        assertThat(route("remind me in 25 minutes to water the plants")).doesNotContain("set_timer")
+        assertThat(route("can you give me a reminder in an hour")).doesNotContain("set_timer")
+        assertThat(route("start a 5 minute timer to remind me about the tea")).contains("set_timer")
+        assertThat(route("countdown 2 minutes and remind me")).contains("set_timer")
+        assertThat(route("25 minute timer")).containsExactly("set_timer")
+        // Whatever keywords the user gives timers.
+        val mine = configs + ("set_timer" to configs.getValue("set_timer").copy(keywords = listOf("minute")))
+        assertThat(ToolRouter.route("remind me in 25 minutes", enabled, mine).map { it.name }).doesNotContain("set_timer")
+        val saved = ToolConfig.fromJson("""{"keywords": ["minute"]}""", SetTimer)
+        assertThat(saved.mentionedIn("remind me in 25 minutes")).isFalse()
+        assertThat(saved.mentionedIn("25 minutes please")).isTrue()
+    }
+
+    @Test
     fun aRequestMentioningNoToolGetsNone() {
         assertThat(route("what's the capital of France")).isEmpty()
         // "tell" goes to Messages since 2026-10-12 ("tell rohit I'm late"); Needle 3 calls nothing for a joke.

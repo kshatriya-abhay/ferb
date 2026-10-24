@@ -16,9 +16,11 @@ data class ToolConfig(
     val runFrom: Double,
     val options: Map<String, String> = emptyMap(),
     val keywords: List<String> = emptyList(),
+    /** [Tool.ruledOutBy]: not saved, always the tool's. */
+    val ruledOutBy: String? = null,
 ) {
-    /** [keywords] as a matcher; null if there are none, so no request mentions the tool. */
-    val cues: Regex? by lazy { Keywords.regex(keywords) }
+    /** [keywords] as a matcher, less [ruledOutBy]; null if there are none, so no request mentions the tool. */
+    val cues: Regex? by lazy { Keywords.regex(keywords, ruledOutBy) }
 
     /** Whether [request] contains one of the [keywords]. */
     fun mentionedIn(request: String): Boolean = cues?.containsMatchIn(request) == true
@@ -43,6 +45,7 @@ data class ToolConfig(
             runFrom = tool.defaultRunFrom,
             options = tool.options.associate { it.key to it.default },
             keywords = tool.keywords,
+            ruledOutBy = tool.ruledOutBy,
         )
 
         /** Reads [json] for [tool]; anything missing or unreadable falls back to the tool's default. */
@@ -59,6 +62,7 @@ data class ToolConfig(
                 // An empty saved list is the user's choice (no keywords), not a missing one.
                 keywords = o.optJSONArray("keywords")?.let { words -> (0 until words.length()).mapNotNull { Keywords.clean(words.optString(it)) }.distinct() }
                     ?: fallback.keywords,
+                ruledOutBy = fallback.ruledOutBy,
             )
         }
 

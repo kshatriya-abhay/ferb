@@ -297,7 +297,12 @@ object SetTimer : Tool(
            "required": ["duration"]}}
     """.trimIndent()
 
-    override val keywords = listOf("timer", "countdown", "count down", "remind me in", "minute", "min", "second", "sec", "hour", "hr")
+    override val keywords = listOf("timer", "countdown", "count down", "minute", "min", "second", "sec", "hour", "hr")
+
+    // "Remind me in 45 minutes to take the medicine" has "minute" but is a reminder: Needle 3 gave
+    // timers for these at 0.68-0.75, over the bar (2026-10-24), and descriptions didn't change it.
+    // So a request saying remind, without a timer word, doesn't go to timers.
+    override val ruledOutBy = """(?![\s\S]*(?<!\w)(?:timer|countdown|count\s+down))[\s\S]*?(?<!\w)remind"""
 
     override fun prepare(arguments: Map<String, Any?>, env: PrepareEnv): Prepared {
         val said = arguments.text("duration") ?: return Prepared.Invalid("No length given")

@@ -18,10 +18,12 @@ object Keywords {
      * there are no words: such a tool is mentioned by no request. Written so Python's `re` reads
      * the same pattern (tool-check's router and scorer), so no `\Q…\E` quoting.
      */
-    fun regex(words: List<String>): Regex? {
+    fun regex(words: List<String>, ruledOutBy: String? = null): Regex? {
         val alternatives = words.mapNotNull(::clean).distinct().ifEmpty { return null }
             .joinToString("|") { word -> word.split(' ').joinToString("""\s+""") { part -> part.replace(SPECIAL) { """\${it.value}""" } } }
-        return Regex("""(?<!\w)(?:$alternatives)s?(?!\w)""", RegexOption.IGNORE_CASE)
+        val words = """(?<!\w)(?:$alternatives)s?(?!\w)"""
+        // Ruled out: [ruledOutBy] tried at the request's start, so a request it matches has no match.
+        return Regex(if (ruledOutBy == null) words else """^(?!$ruledOutBy)[\s\S]*?$words""", RegexOption.IGNORE_CASE)
     }
 
     /** ASCII punctuation, quoted with a backslash, which both Java and Python read as the character. */

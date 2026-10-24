@@ -287,6 +287,14 @@ none | got it, thanks
 none | tick tock goes the clock
 # Reminders (add_reminder, 2026-10-14): "remind me" moved here from Calendar.
 add_reminder | remind me in 20 minutes to check the oven
+# "remind me in <length>" is a reminder, not a timer (2026-10-24: Needle 3 gave timers for two such
+# lines in the date set); near misses: a timer that says "remind".
+add_reminder | remind me in 2 hours to move the car
+add_reminder | remind me in 45 minutes to take the medicine
+add_reminder | remind me in an hour and a half to pick up the dry cleaning
+add_reminder | can you remind me in 10 minutes to turn off the stove
+set_timer seconds=600 | set a timer for 10 minutes to remind me about the tea
+set_timer seconds=1800 | 30 minute timer, remind me when it's done
 add_reminder | remind me tomorrow at 9 to call the bank
 add_reminder | set a reminder for 6 pm to take my medicine
 add_reminder | remind me every Monday at 8 to take out the bins

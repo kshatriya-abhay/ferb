@@ -135,6 +135,13 @@ abstract class Tool(
     open val keywords: List<String> = emptyList()
 
     /**
+     * A pattern (Java and Python `re` alike), matched from a request's start, for requests that don't mention this tool even when
+     * they contain its [keywords], whichever keywords the user has: "remind me in 2 hours" has
+     * "hour" but isn't a timer. Null: none.
+     */
+    open val ruledOutBy: String? = null
+
+    /**
      * Whether [arguments] come from [request], e.g. an alarm's time is one the request says. A call
      * that isn't asks first, whatever its confidence. True when the tool doesn't check.
      */

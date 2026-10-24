@@ -32,7 +32,7 @@ class ToolSchemasTest {
             File(dir, "$name.json").writeText(json)
         }
         // The cue words, for tool-check's scorer to apply the same "asks first" rule as the app.
-        File(dir, "cues.json").writeText(JSONObject(Tools.all.associate { it.name to Keywords.regex(it.keywords)!!.pattern }).toString(1))
+        File(dir, "cues.json").writeText(JSONObject(Tools.all.associate { it.name to ToolConfig.defaults(it).cues!!.pattern }).toString(1))
         // Each tool's default bar, so the scorer decides "runs" or "asks" per tool the way the app does.
         File(dir, "bars.json").writeText(JSONObject(Tools.all.associate { it.name to it.defaultRunFrom }).toString(1))
         // The tools that always ask by default, for laptop.py --decide's "runs" or "asks".
