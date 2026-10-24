@@ -1,6 +1,7 @@
 package dev.abhay.assistant.eval
 
 import dev.abhay.assistant.eval.frozen.DateResolverA0
+import dev.abhay.assistant.eval.frozen.DateResolverA1
 import dev.abhay.assistant.tools.DateResolver
 import dev.abhay.assistant.tools.Durations
 import dev.abhay.assistant.tools.ToolRouter
@@ -55,12 +56,12 @@ object DateReaders {
 
     val A1 = Reader { text, tool, now ->
         val kind = when (tool) {
-            "add_reminder" -> DateResolver.Kind.Reminder; "set_alarm" -> DateResolver.Kind.Alarm
-            "add_event" -> DateResolver.Kind.Event; "show_agenda" -> DateResolver.Kind.Agenda
-            "set_timer" -> return@Reader lengthIn(DateResolver.normalise(text))
+            "add_reminder" -> DateResolverA1.Kind.Reminder; "set_alarm" -> DateResolverA1.Kind.Alarm
+            "add_event" -> DateResolverA1.Kind.Event; "show_agenda" -> DateResolverA1.Kind.Agenda
+            "set_timer" -> return@Reader lengthIn(DateResolverA1.normalise(text))
             else -> return@Reader "ask"
         }
-        runCatching { DateResolver.format(DateResolver.resolve(text, kind, now)) }.getOrDefault("ask")
+        runCatching { DateResolverA1.format(DateResolverA1.resolve(text, kind, now)) }.getOrDefault("ask")
     }
 
     /**
