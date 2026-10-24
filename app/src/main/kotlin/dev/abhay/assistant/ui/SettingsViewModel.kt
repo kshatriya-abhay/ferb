@@ -50,6 +50,8 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { nano.refresh(voice.language.value) }
     }
     fun setUpGemini() = nano.setUp(voice.language.value)
+    fun setUpGeminiSpeech() = nano.setUpSpeech(voice.language.value)
+    fun setUpGeminiRewrite() = nano.setUpRewrite(voice.language.value)
 
     val saved: StateFlow<Map<String, ToolConfig>> = settings.configs
 

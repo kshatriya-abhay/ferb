@@ -105,6 +105,10 @@ class NanoEars {
         if (rewrite == FeatureStatus.DOWNLOADING) download(REWRITE, language)
     }
 
+    /** One part's download, when its row is tapped. */
+    fun setUpSpeech(language: GeminiLanguage) = download(SPEECH, language)
+    fun setUpRewrite(language: GeminiLanguage) = download(REWRITE, language)
+
     /** Set up: downloads every part that needs it, with progress in [setup], then checks again. */
     fun setUp(language: GeminiLanguage) {
         val now = _setup.value
@@ -177,6 +181,27 @@ class NanoEars {
 
     companion object {
         const val TAG = "FerbNano"
+
+        /**
+         * AICore's own settings page (Android Settings shows it through IA_SETTINGS): seen to make
+         * the Prompt API's model available (2026-10-24). If Android won't open it for Ferb, AICore's
+         * app info.
+         */
+        fun openAiCoreSettings(context: android.content.Context) {
+            val settings = android.content.Intent("com.android.settings.action.IA_SETTINGS")
+                .setClassName(AICORE, "com.google.android.apps.aicore.app.settings.AiCoreSettingsActivity")
+            val info = android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:$AICORE"))
+            for (intent in listOf(settings, info)) {
+                try {
+                    context.startActivity(intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                    return
+                } catch (e: Exception) {
+                    Log.w(TAG, "can't open ${intent.action}", e)
+                }
+            }
+        }
+
+        private const val AICORE = "com.google.android.aicore"
         private const val SPEECH = "speech"
         private const val REWRITE = "rewrite"
     }

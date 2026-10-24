@@ -258,8 +258,8 @@ fun GeminiScreen(settings: SettingsViewModel, onBack: () -> Unit) {
             })
             SectionTitle("On this phone")
             Group(listOf(
-                { shapes -> PartRow("Hearing you", setup.speech, R.drawable.ic_mic, shapes) },
-                { shapes -> PartRow("Writing it in English", setup.rewrite, R.drawable.ic_sms, shapes) },
+                { shapes -> PartRow("Hearing you", setup.speech, R.drawable.ic_mic, shapes, onDownload = settings::setUpGeminiSpeech) },
+                { shapes -> PartRow("Writing it in English", setup.rewrite, R.drawable.ic_sms, shapes, onDownload = settings::setUpGeminiRewrite) },
             ))
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp), horizontalArrangement = Arrangement.End) {
                 when {
@@ -298,25 +298,33 @@ fun GeminiScreen(settings: SettingsViewModel, onBack: () -> Unit) {
     }
 }
 
-/** One part of Gemini Nano's setup: where it stands, with a progress bar while it downloads. */
+/**
+ * One part of Gemini Nano's setup: where it stands, with a progress bar while it downloads. Only a
+ * part to download can be tapped, which downloads it; one that needs a download also links to
+ * AICore's settings, where turning it on made the rewriting model available (2026-10-24).
+ */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun PartRow(title: String, part: Part, @DrawableRes icon: Int, shapes: ListItemShapes) {
-    SegmentedListItem(
-        onClick = {},
-        shapes = shapes,
-        leadingContent = { IconBadge(if (part == Part.Ready) R.drawable.ic_check else icon, active = part == Part.Ready) },
-        supportingContent = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(part.label(), color = if (part is Part.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
-                if (part is Part.Downloading) {
-                    val fraction = part.fraction
-                    if (fraction != null) LinearWavyProgressIndicator(progress = { fraction }, Modifier.fillMaxWidth())
-                    else LinearWavyProgressIndicator(Modifier.fillMaxWidth())
-                }
+private fun PartRow(title: String, part: Part, @DrawableRes icon: Int, shapes: ListItemShapes, onDownload: () -> Unit) {
+    val context = LocalContext.current
+    val canDownload = part == Part.NeedsDownload || part is Part.Failed
+    val leading: @Composable () -> Unit = { IconBadge(if (part == Part.Ready) R.drawable.ic_check else icon, active = part == Part.Ready) }
+    val supporting: @Composable () -> Unit = {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(if (canDownload) "${part.label()}: tap to download" else part.label(),
+                color = if (part is Part.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+            if (part is Part.Downloading) {
+                val fraction = part.fraction
+                if (fraction != null) LinearWavyProgressIndicator(progress = { fraction }, Modifier.fillMaxWidth())
+                else LinearWavyProgressIndicator(Modifier.fillMaxWidth())
             }
-        },
-    ) { Text(title) }
+        }
+    }
+    val trailing: @Composable () -> Unit = {
+        if (part == Part.NeedsDownload) TextButton(onClick = { dev.abhay.assistant.voice.NanoEars.openAiCoreSettings(context) }) { Text("AICore settings") }
+    }
+    if (canDownload) SegmentedListItem(onClick = onDownload, shapes = shapes, leadingContent = leading, supportingContent = supporting, trailingContent = trailing) { Text(title) }
+    else SegmentedListItem(shapes = shapes, leadingContent = leading, supportingContent = supporting) { Text(title) }
 }
 
 /**
