@@ -201,6 +201,19 @@ object SaidNumbers {
     }
 }
 
+/**
+ * am and pm however they're written after a time: "10 a.m.", "10am.", "10 A.M.", "10 a m",
+ * "10a.m" are all "10 am" (2026-10-24: "10 a.m." wasn't a time of day, its "a" read as one).
+ */
+object Meridiem {
+    private val SAID = Regex("""(?<=\d)(\s*)([ap])\s?\.?\s?m\b\.?""", RegexOption.IGNORE_CASE)
+
+    fun normalise(text: String): String = SAID.replace(text) { "${it.groupValues[1]}${it.groupValues[2].lowercase()}m" }
+
+    /** The same, padded to the same length, so positions found in it are the original's. */
+    fun sameLength(text: String): String = SAID.replace(text) { "${it.groupValues[1]}${it.groupValues[2].lowercase()}m".padEnd(it.value.length) }
+}
+
 /** A spoken or written time of day as hour (0–23) and minute. */
 object TimeOfDay {
     private val PATTERN = Regex("""^(\d{1,2})(?:\s*[:.h]\s*(\d{2}))?\s*(am|a\.m\.|pm|p\.m\.)?$""")
@@ -242,7 +255,7 @@ object TimeOfDay {
     }
 
     fun parse(text: String): Pair<Int, Int>? {
-        val lower = text.trim().lowercase()
+        val lower = Meridiem.normalise(text.trim()).lowercase()
         val hint = when {
             MORNING.containsMatchIn(lower) -> "am"
             LATER.containsMatchIn(lower) -> "pm"

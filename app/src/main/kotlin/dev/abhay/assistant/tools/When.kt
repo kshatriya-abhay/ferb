@@ -220,8 +220,8 @@ object When {
     /** Lower case, "a.m." as "am", single spaces. Numbers in words aren't read yet ("at five"). */
     private fun normalise(text: String) = sameLength(text.lowercase()).replace(Regex("""\s+"""), " ")
 
-    /** "a.m." as "am  ": the same length, so positions found in it are the original's. */
-    private fun sameLength(lower: String) = lower.replace(Regex("""\ba\.m\."""), "am  ").replace(Regex("""\bp\.m\."""), "pm  ")
+    /** "a.m." as "am  " ([Meridiem]): the same length, so positions found in it are the original's. */
+    private fun sameLength(lower: String) = Meridiem.sameLength(lower)
 
     /** What [strip] takes out: day and time phrases, with the little words that lead into them. */
     private val STRIPPED = listOf(

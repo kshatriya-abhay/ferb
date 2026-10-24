@@ -71,6 +71,8 @@ class WhenTest {
     @Test
     fun times() {
         assertThat(read("dentist tomorrow at 5").time).isEqualTo(time(17))
+        assertThat(read("dentist tomorrow at 10 A.M.").time).isEqualTo(time(10))
+        assertThat(read("dentist tomorrow at 4 p m").time).isEqualTo(time(16))
         assertThat(read("standup at 9:30").time).isEqualTo(time(9, 30))
         assertThat(read("call at 10 am").time).isEqualTo(time(10))
         assertThat(read("call at 10 a.m. tomorrow").time).isEqualTo(time(10))

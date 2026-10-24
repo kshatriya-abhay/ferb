@@ -43,6 +43,13 @@ class ToolsTest {
             // As Ferb Link leaves the model's own words for the time of day.
             "11 o'clock at night" to (23 to 0), "7 o'clock in the morning" to (7 to 0), "3 o'clock in the afternoon" to (15 to 0))
         spoken.forEach { (text, expected) -> assertThat(TimeOfDay.parse(text)).isEqualTo(expected) }
+        // am and pm however they're written (2026-10-24: "10 a.m." wasn't a time of day).
+        val written = mapOf("10 a.m." to (10 to 0), "10 A.M." to (10 to 0), "10am." to (10 to 0), "10 a m" to (10 to 0), "10a.m" to (10 to 0),
+            "7:15 P.M." to (19 to 15), "7 p. m." to (19 to 0), "12 a.m." to (0 to 0))
+        written.forEach { (text, expected) -> assertThat(TimeOfDay.parse(text)).isEqualTo(expected) }
+        assertThat(summary(SetAlarm.prepare(SetAlarm.fromRequest(mapOf("time" to "10 a.m."), "set an alarm for 10 a.m."), PrepareEnv(apps)))).contains("10:00")
+        // Not a meridiem: "a meeting" after a number.
+        assertThat(Meridiem.normalise("5 a meeting")).isEqualTo("5 a meeting")
     }
 
     @Test

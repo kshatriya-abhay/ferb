@@ -91,6 +91,9 @@ class DateResolverTest {
     @Test
     fun alarmsAndRepeats() {
         assertThat(at("wake me up at 6:30 am", Kind.Alarm)).isEqualTo(on(11, 5, 6, 30))
+        assertThat(at("set an alarm for 10 a.m.", Kind.Alarm)).isEqualTo(on(11, 5, 10))
+        assertThat(at("remind me at 8 P.M. to call", Kind.Reminder)).isEqualTo(on(11, 4, 20))
+        assertThat(at("remind me at 7 a m tomorrow to call", Kind.Reminder)).isEqualTo(on(11, 5, 7))
         assertThat(at("remind me every day at 8 pm to take my pills")).isEqualTo(Resolved.At(LocalDateTime.of(2026, 11, 4, 20, 0), Rule.Daily))
         assertThat((at("remind me every weekday at 9 am to stand up") as Resolved.At).rule).isEqualTo(Rule.Weekdays)
     }

@@ -162,7 +162,7 @@ object DateResolver {
 
     /** Lower case, Hindi day and time words in English, "saade paanch baje" as "5:30". */
     internal fun normalise(text: String): String {
-        var t = " " + latin(text).lowercase().replace(Regex("""[,!?।]"""), " ") + " "
+        var t = " " + Meridiem.normalise(latin(text)).lowercase().replace(Regex("""[,!?।]"""), " ") + " "
         // An event's span is its start: "6 to 8 pm" is 6 pm (A1).
         t = t.replace(Regex("""\b(\d{1,2})(?::(\d{2}))?\s*(?:to|-|se|till|until)\s*\d{1,2}(?::\d{2})?\s*(am|pm)\b""")) {
             "${it.groupValues[1]}:${it.groupValues[2].ifEmpty { "00" }} ${it.groupValues[3]}"
