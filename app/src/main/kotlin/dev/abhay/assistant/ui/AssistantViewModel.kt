@@ -152,7 +152,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         /** What Gemini Nano heard, waiting to be sent (✓ sends it at once; this is for a retry). */
         data class Heard(val text: String, val ms: Long) : Voice
         /** [pcm]: 16 kHz float, [ms] long; heard by the audio step when sent. [audio]: unused, kept for the tests' shape. */
-        class Recorded(val audio: ByteArray?, val ms: Long, val pcm: FloatArray? = null) : Voice
+        class Recorded(val ms: Long, val pcm: FloatArray? = null) : Voice
     }
 
     private val assistant = app as AssistantApp
@@ -359,7 +359,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             }
             _state.update {
                 if (it.voice !is Voice.Recording) it
-                else it.copy(voice = Voice.Recorded(null, ms, pcm).takeIf { pcm.isNotEmpty() },
+                else it.copy(voice = Voice.Recorded(ms, pcm).takeIf { pcm.isNotEmpty() },
                     notice = if (pcm.isEmpty()) "Nothing recorded: tap the mic, speak, then tap ✓" else null)
             }
             sendIfAsked()

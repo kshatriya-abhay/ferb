@@ -115,5 +115,12 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
+        <!-- ML Kit's telemetry (Google's datatransport), out (2026-10-24): with no INTERNET it could
+             never send, and its job needs a network. The backend discovery goes too, so with no
+             backend it drops events before scheduling anything; the scheduler's service and
+             receiver have nothing to do. -->
+        <service android:name="com.google.android.datatransport.runtime.backends.TransportBackendDiscovery" tools:node="remove" />
+        <service android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.JobInfoSchedulerService" tools:node="remove" />
+        <receiver android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.AlarmManagerSchedulerBroadcastReceiver" tools:node="remove" />
     </application>
 </manifest>

@@ -56,9 +56,6 @@ class ChatActivity : ComponentActivity() {
     /** A reminder's notification was tapped ([openReminders]): counted, so each one opens the Reminders tab. */
     private val remindersOpened = mutableStateOf(0)
 
-    /** Opened as the phone's assistant ([Intent.ACTION_ASSIST]): counted, so each one brings up the chat ready to type. */
-    private val assists = mutableStateOf(0)
-
     private var chat: AssistantViewModel? = null
 
     /** Out of sight, a recording of the chat's own goes (see [AssistantViewModel.leftScreen]). */
@@ -73,9 +70,6 @@ class ChatActivity : ComponentActivity() {
     }
 
     private fun read(intent: Intent?) {
-        // The assist trigger (holding the power button, the corner swipe): its extras, the screen's
-        // context, aren't read.
-        if (intent?.action == Intent.ACTION_ASSIST) assists.value++
         if (intent?.getBooleanExtra(EXTRA_REMINDERS, false) == true) {
             remindersOpened.value++
             intent.removeExtra(EXTRA_REMINDERS)
@@ -122,9 +116,6 @@ class ChatActivity : ComponentActivity() {
                     opening?.let { (id, name) -> showNote(NoteRef(id, name, 0)) }
                     noteToOpen.value = null
                 }
-                // The assistant trigger: back to the chat, from wherever Ferb was.
-                val assisted by assists
-                LaunchedEffect(assisted) { if (assisted > 0) stack = listOf("assistant") }
                 // A reply's "Reminders": the Notes screen on that tab, forward as any screen opens.
                 LaunchedEffect(Unit) { viewModel.opens.collect { screen -> if (stack.last() != screen) stack = stack + screen } }
                 // A reminder's notification: the chat, then the Reminders tab over it.
@@ -133,7 +124,7 @@ class ChatActivity : ComponentActivity() {
                 val back = { stack = stack.dropLast(1) }
                 NavStack(stack, onBack = back) { screen ->
                     when {
-                        screen == "assistant" -> AssistantScreen(viewModel, assists = assisted, onOpenSettings = { open("settings") },
+                        screen == "assistant" -> AssistantScreen(viewModel, onOpenSettings = { open("settings") },
                             onOpenLink = { stack = stack + "settings" + "link" }, onOpenNotes = { open("notes") })
                         screen == "notes" || screen == REMINDERS -> NotesScreen(viewModel, onOpen = { showNote(it) }, onBack = back,
                             tab = if (screen == REMINDERS) NotesTab.Reminders else NotesTab.Notes,

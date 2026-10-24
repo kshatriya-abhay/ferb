@@ -101,8 +101,6 @@ class NanoEars {
     suspend fun refresh(language: GeminiLanguage) {
         val speech = status(language)
         val rewrite = status { writer().checkStatus() }.also { Log.i(TAG, "rewrite ($writerName): checkStatus ${NanoChoice.name(it)}") }
-        // Only logged: whether other languages are there (Japanese wasn't heard, 2026-10-24).
-        for (tag in listOf("ja-JP")) status { listener(Locale.forLanguageTag(tag)).checkStatus() }.let { Log.i(TAG, "$tag: checkStatus ${NanoChoice.name(it)}") }
         _setup.update {
             GeminiSetup(
                 speech = if (it.speech is Part.Downloading && downloads[SPEECH]?.isActive == true) it.speech else Part.of(speech),

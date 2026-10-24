@@ -156,9 +156,7 @@ import androidx.compose.runtime.rememberUpdatedState
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, onOpenLink: () -> Unit = onOpenSettings, onOpenNotes: () -> Unit = {},
-                    /** Times Ferb was opened as the phone's assistant: each one focuses the box, keyboard up. */
-                    assists: Int = 0) {
+fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, onOpenLink: () -> Unit = onOpenSettings, onOpenNotes: () -> Unit = {}) {
     val engine by viewModel.engine.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val enabled by viewModel.enabledTools.collectAsStateWithLifecycle()
@@ -281,7 +279,7 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
                     viewModel.notify("Ferb needs the microphone to hear you. You can still type.")
                 }
             }
-            InputBar(state, ready = engine is AssistantEngine.State.Ready, focus = assists, onChange = viewModel::onInputChange, onSend = { viewModel.send() },
+            InputBar(state, ready = engine is AssistantEngine.State.Ready, focus = 0, onChange = viewModel::onInputChange, onSend = { viewModel.send() },
                 // While a step uses the computer, a tap on the box wakes its model while the request is typed.
                 onFocus = { if (usesComputer) viewModel.wakeComputer() },
                 mic = micAvailable,
