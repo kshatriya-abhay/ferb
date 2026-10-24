@@ -1,0 +1,90 @@
+# Held out for the rewrite prompt (2026-10-24): written before the v2 prompt, from the patterns v1
+# hurt on the bench (settings pages, questions about the user's own calendar, alarms and lists,
+# one-word media commands, list verbs), plus everyday requests, true NONEs and Hinglish. None of
+# these lines is in another bench file or a prompt; never use them as prompt examples or tune on
+# them. Format and scoring as requests.txt (score.py); categories are the "# @" sections.
+# @settings
+open_settings page=battery | open the battery page in settings
+open_settings page=wi-fi | can you open the wifi page in settings
+open_settings page=bluetooth | bluetooth settings now
+open_settings page=display | brightness settings
+open_settings page=sound | take me to the sound settings
+open_settings page=storage | storage settings please
+open_settings page=location | open location settings
+open_settings page=notifications | notifications settings
+open_settings page=airplane_mode | airplane mode settings
+open_settings page=language | open the language settings
+open_settings page=date_time | date and time settings
+open_settings page=accessibility | open accessibility settings
+open_settings page=privacy | take me to privacy settings
+open_settings page=apps | show me the app settings
+# @own: questions about the user's own calendar, alarms and lists
+show_agenda | do I have anything on Monday
+show_agenda | what's my schedule this weekend
+show_agenda | any meetings tomorrow morning
+show_agenda | when is my next meeting
+show_agenda | am I free Saturday afternoon
+show_alarms | which alarms are set
+show_alarms | did I set an alarm for tomorrow
+show_alarms | when does my alarm go off
+show_list | what's on my grocery list
+show_list | what's left on my packing list
+show_list | read me my to-do list
+# @media: one or two words
+control_media action=next | skip
+control_media action=pause | pause
+control_media action=play | play
+control_media action=previous | go back a song
+control_media action=next | next one
+control_media action=pause | kill the music
+control_media action=previous | last track
+# @lists: list verbs
+add_to_list | add tomatoes to the grocery list
+add_to_list | put renew passport on my to-do list
+add_to_list | add charger to the packing list
+check_off | mark bread as done on the shopping list
+check_off | tick off renew passport
+check_off | I bought the tomatoes
+# @everyday
+set_alarm time=05:50 | wake me up at 5:50
+set_alarm time=21:30 | alarm for 9:30 pm
+set_timer seconds=1200 | 20 minute timer please
+set_timer seconds=150 | timer for two and a half minutes
+set_volume percent=80 | volume to 80 percent
+set_flashlight on=true | could you turn the flashlight on
+set_flashlight on=false | switch the torch off
+open_app app_name=spotify | start spotify
+open_app app_name=youtube | launch youtube
+make_call name=neha | give neha a call
+send_text name=arjun | text arjun running late
+get_directions destination="city mall" | directions to city mall
+create_note | note down that the locker number is 37
+add_reminder | remind me at 5 to pick up the laundry
+add_event | add lunch with Kavya on Thursday at 1 to my calendar
+open_camera/open_app | open the camera for a selfie
+# @none: nothing for the phone to do
+none | what's the time in London
+none | how far is the moon from earth
+none | how do I turn on dark mode
+none | why does my battery drain so fast
+none | I love this song
+none | my sister called me yesterday
+none | alarms in movies are always so loud
+none | good morning
+none | what's a good name for a cat
+none | the timer on my oven is broken
+none | how do I take a screenshot
+none | tell me about the history of bluetooth
+none | is it going to rain tomorrow
+none | settings menus are confusing
+none | can you order a pizza
+# @hinglish
+set_alarm time=05:30 | subah saade paanch baje ka alarm
+set_timer seconds=300 | paanch minute ka timer chala do
+set_volume percent=30 | aawaz 30 percent kar do
+make_call name=papa | papa ko phone lagao
+open_settings page=bluetooth | bluetooth settings kholo
+show_agenda | kal mera kya plan hai
+control_media action=next | agla song lagao
+none | aaj mausam kaisa hai
+none | main thak gaya hoon
