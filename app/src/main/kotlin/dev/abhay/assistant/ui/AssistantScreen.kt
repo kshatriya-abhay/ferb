@@ -69,6 +69,13 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -293,7 +300,7 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
                         else -> askMic.launch(Manifest.permission.RECORD_AUDIO)
                     }
                 },
-                onStop = viewModel::stopRecording, onDiscard = viewModel::discardRecording)
+                onFinish = viewModel::finishRecording, onDiscard = viewModel::discardRecording)
         }
     }
 
@@ -802,13 +809,25 @@ private fun InputBar(
     /** Whether to show the mic ([Mic.shows]). */
     mic: Boolean = true,
     onMic: () -> Unit = {},
-    onStop: () -> Unit = {},
+    onFinish: () -> Unit = {},
     onDiscard: () -> Unit = {},
 ) {
     Column(Modifier.padding(bottom = 12.dp)) {
-        when (val clip = state.voice) {
-            null -> InputField(state, ready, onChange, onSend, onMic.takeIf { mic }, onFocus, focus)
-            else -> VoiceField(clip, onStop, onDiscard, onSend)
+        // The box and a recording in its place morph into each other (the theme's motion scheme);
+        // only a change of kind animates, not each new word heard.
+        val spatial = MaterialTheme.motionScheme.defaultSpatialSpec<IntSize>()
+        val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+        val scale = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+        AnimatedContent(
+            targetState = VoiceKind.of(state.voice),
+            transitionSpec = {
+                (fadeIn(effects) + scaleIn(scale, initialScale = 0.94f)) togetherWith fadeOut(effects) using SizeTransform(clip = false) { _, _ -> spatial }
+            },
+            label = "voice",
+        ) { kind ->
+            val clip = state.voice
+            if (kind == VoiceKind.None || clip == null) InputField(state, ready, onChange, onSend, onMic.takeIf { mic }, onFocus, focus)
+            else VoiceField(clip, onFinish, onDiscard, onSend)
         }
         // Who answers, in a row of its own under the box, so the box keeps its width for the request.
         // Always enabled, so the choice stays readable: a request on its way has read it already,
@@ -837,59 +856,77 @@ private fun UsingJev() {
 /** The shape and colour of the chat box, shared by the text field and a recording in its place. */
 private val BoxShape = RoundedCornerShape(28.dp)
 
+/** What the box shows: the text field, a recording under way, or one waiting to be sent again. */
+internal enum class VoiceKind {
+    None, Recording, Waiting;
+
+    companion object {
+        fun of(voice: AssistantViewModel.Voice?) = when (voice) {
+            null -> None
+            is AssistantViewModel.Voice.Recording -> Recording
+            else -> Waiting
+        }
+    }
+}
+
 /**
- * A spoken request in the box's place: while recording, the time so far (30 s at most, for Ferb
- * Link and Whistle alike) and Stop; once stopped, its length, ✕ to drop it, and Send.
+ * A spoken request in the box's place. While recording: the time so far (30 s at most) or, with
+ * Gemini Nano, the words heard so far; then ✕ (cancel: nothing is sent) and ✓ (stop and send at
+ * once), M3 Expressive's split of a secondary tonal button and a bigger filled primary one. A
+ * recording that stopped by itself at its limit, or one kept after a failure, waits with ✕ and Send.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun VoiceField(voice: AssistantViewModel.Voice, onStop: () -> Unit, onDiscard: () -> Unit, onSend: () -> Unit) {
-    Surface(
-        shape = BoxShape,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 4.dp).heightIn(min = 56.dp),
-    ) {
-        Row(Modifier.padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            when (voice) {
-                is AssistantViewModel.Voice.Recording -> {
-                    val now by produceState(SystemClock.elapsedRealtime()) {
-                        while (true) {
-                            delay(250)
-                            value = SystemClock.elapsedRealtime()
+internal fun VoiceField(voice: AssistantViewModel.Voice, onFinish: () -> Unit, onDiscard: () -> Unit, onSend: () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Surface(
+            shape = BoxShape,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+        ) {
+            Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                when (voice) {
+                    is AssistantViewModel.Voice.Recording -> {
+                        val now by produceState(SystemClock.elapsedRealtime()) {
+                            while (true) {
+                                delay(250)
+                                value = SystemClock.elapsedRealtime()
+                            }
                         }
+                        Icon(painterResource(R.drawable.ic_mic), contentDescription = "Recording", tint = MaterialTheme.colorScheme.error)
+                        // Gemini Nano: what it hears so far, as it's said.
+                        if (voice.live != null) Text(voice.heard.ifBlank { "Listening\u2026" }, Modifier.padding(start = 12.dp, top = 8.dp, bottom = 8.dp).weight(1f),
+                            style = MaterialTheme.typography.bodyLarge, maxLines = 4)
+                        else Text(elapsed(now - voice.startedAt), Modifier.padding(start = 12.dp).weight(1f),
+                            style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
                     }
-                    Icon(painterResource(R.drawable.ic_mic), contentDescription = "Recording", tint = MaterialTheme.colorScheme.error)
-                    // Gemini Nano (POC): what it hears so far, as it's said, in the box's place.
-                    if (voice.live != null) Text(voice.heard.ifBlank { "Listening\u2026" }, Modifier.padding(start = 12.dp, top = 8.dp, bottom = 8.dp).weight(1f),
-                        style = MaterialTheme.typography.bodyLarge, maxLines = 4)
-                    else Text(elapsed(now - voice.startedAt), Modifier.padding(start = 12.dp).weight(1f),
-                        style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
-                    FilledIconButton(onClick = onStop, Modifier.padding(end = 4.dp),
-                        colors = IconButtonDefaults.filledIconButtonColors(containerColor = MaterialTheme.colorScheme.error)) {
-                        Icon(painterResource(R.drawable.ic_stop), contentDescription = "Stop recording")
+                    is AssistantViewModel.Voice.Heard -> {
+                        Icon(painterResource(R.drawable.ic_mic), contentDescription = "Heard", tint = MaterialTheme.colorScheme.primary)
+                        Text(voice.text, Modifier.padding(start = 12.dp, top = 8.dp, bottom = 8.dp).weight(1f), style = MaterialTheme.typography.bodyLarge, maxLines = 4)
                     }
-                }
-                // Gemini Nano (POC): what it heard, to send (written in English first) or drop.
-                is AssistantViewModel.Voice.Heard -> {
-                    Icon(painterResource(R.drawable.ic_mic), contentDescription = "Heard", tint = MaterialTheme.colorScheme.primary)
-                    Text(voice.text, Modifier.padding(start = 12.dp, top = 8.dp, bottom = 8.dp).weight(1f), style = MaterialTheme.typography.bodyLarge, maxLines = 4)
-                    IconButton(onClick = onDiscard) { Icon(Icons.Default.Close, contentDescription = "Discard what was heard") }
-                    FilledIconButton(onClick = onSend, Modifier.padding(end = 4.dp)) {
-                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
-                    }
-                }
-                is AssistantViewModel.Voice.Recorded -> {
-                    Icon(painterResource(R.drawable.ic_mic), contentDescription = "Recorded", tint = MaterialTheme.colorScheme.primary)
-                    Text(elapsed(voice.ms), Modifier.padding(start = 12.dp).weight(1f), style = MaterialTheme.typography.titleMedium)
-                    IconButton(onClick = onDiscard) { Icon(Icons.Default.Close, contentDescription = "Discard the recording") }
-                    FilledIconButton(onClick = onSend, Modifier.padding(end = 4.dp)) {
-                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                    is AssistantViewModel.Voice.Recorded -> {
+                        Icon(painterResource(R.drawable.ic_mic), contentDescription = "Recorded", tint = MaterialTheme.colorScheme.primary)
+                        Text(elapsed(voice.ms), Modifier.padding(start = 12.dp).weight(1f), style = MaterialTheme.typography.titleMedium)
                     }
                 }
             }
         }
+        Spacer(Modifier.width(8.dp))
+        FilledTonalIconButton(onClick = onDiscard, modifier = Modifier.size(IconButtonDefaults.smallContainerSize()), shapes = IconButtonDefaults.shapes()) {
+            Icon(Icons.Default.Close, contentDescription = CANCEL, Modifier.size(IconButtonDefaults.smallIconSize))
+        }
+        Spacer(Modifier.width(8.dp))
+        val recording = voice is AssistantViewModel.Voice.Recording
+        FilledIconButton(onClick = if (recording) onFinish else onSend, modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()), shapes = IconButtonDefaults.shapes()) {
+            if (recording) Icon(painterResource(R.drawable.ic_check), contentDescription = FINISH, Modifier.size(IconButtonDefaults.mediumIconSize))
+            else Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", Modifier.size(IconButtonDefaults.mediumIconSize))
+        }
     }
 }
+
+/** The recording's two buttons, by what they say to TalkBack (and the UI tests). */
+internal const val CANCEL = "Cancel"
+internal const val FINISH = "Stop and send"
 
 /** "0:04". */
 private fun elapsed(ms: Long) = String.format(Locale.US, "%d:%02d", ms / 60_000, ms / 1000 % 60)

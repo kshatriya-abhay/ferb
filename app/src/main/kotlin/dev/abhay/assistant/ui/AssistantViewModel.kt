@@ -46,6 +46,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -284,6 +285,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
      */
     fun startRecording(onPhone: Boolean = false) {
         if (_state.value.busy || recorder.recording || pcmRecorder.recording || pcmRecording != null || nanoJob != null) return
+        sendWhenStopped = false
         if (onPhone) {
             // Off: Whistle never loads (the mic is hidden then, so this is only a guard).
             if (!assistant.voice.whistle.value) return
@@ -325,6 +327,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
                 else it.copy(voice = Voice.Recorded(null, ms, pcm).takeIf { pcm.isNotEmpty() },
                     notice = if (pcm.isEmpty()) "Nothing recorded: tap the mic, speak, then tap it again" else null)
             }
+            sendIfAsked()
         }
     }
 
@@ -380,13 +383,17 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
                 _state.update { it.copy(notice = "Gemini Nano couldn't hear it: ${e.message ?: e}") }
             } finally {
                 nanoJob = null
+                // Cancelled (✕): nothing is kept, whatever was heard.
+                val cancelled = !isActive
                 val heard = transcript.heard
                 val ms = SystemClock.elapsedRealtime() - startedAt
                 _state.update {
                     if ((it.voice as? Voice.Recording)?.live == null) it
+                    else if (cancelled) it.copy(voice = null)
                     else if (heard.isBlank()) it.copy(voice = null, notice = if (failed) it.notice else PhoneVoice.NO_WORDS)
                     else it.copy(voice = Voice.Heard(heard, ms))
                 }
+                if (!cancelled) sendIfAsked()
             }
         }
     }
@@ -421,7 +428,25 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Stops recording; the recording waits for Send (or [discardRecording]). */
+    /** The tick (✓) was tapped: the recording is sent as soon as it's stopped. */
+    private var sendWhenStopped = false
+
+    /** ✓: stops recording and sends it straight away (heard, rewritten and answered as usual). */
+    fun finishRecording() {
+        if (_state.value.voice !is Voice.Recording) return
+        sendWhenStopped = true
+        stopRecording()
+    }
+
+    /** After a recording stopped: sends it if ✓ asked for that. A recording that hit its limit by itself waits for Send. */
+    private fun sendIfAsked() {
+        if (!sendWhenStopped) return
+        sendWhenStopped = false
+        val voice = _state.value.voice
+        if (voice is Voice.Recorded || voice is Voice.Heard) send()
+    }
+
+    /** Stops recording; the recording waits for Send (or [discardRecording]); see [finishRecording]. */
     fun stopRecording() {
         val recording = _state.value.voice as? Voice.Recording ?: return
         recording.live?.let { language ->
@@ -440,9 +465,12 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             it.copy(voice = audio?.let { a -> Voice.Recorded(a, ms) },
                 notice = if (audio == null) "Nothing recorded: tap the mic, speak, then tap it again" else null)
         }
+        sendIfAsked()
     }
 
+    /** ✕: discards the recording (or what was heard); nothing is sent. */
     fun discardRecording() {
+        sendWhenStopped = false
         nanoJob?.cancel()
         nanoJob = null
         recorder.cancel()
