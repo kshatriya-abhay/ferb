@@ -5,6 +5,9 @@ import dev.abhay.assistant.reminders.ReminderTime
 import dev.abhay.assistant.tools.DateResolver
 import dev.abhay.assistant.tools.Durations
 import dev.abhay.assistant.tools.TimeOfDay
+import dev.abhay.assistant.tools.ToolRouter
+import dev.abhay.assistant.tools.ToolSettings
+import dev.abhay.assistant.tools.Tools
 import dev.abhay.assistant.tools.When
 import java.io.File
 import java.time.LocalDate
@@ -132,6 +135,40 @@ class DateTimeEval {
         block("all", rows)
         block("Hindi and Hinglish", rows.filter { hindi.containsMatchIn(it.line.request.lowercase()) })
         rows.groupBy { it.line.tool }.forEach { (tool, set) -> block(tool, set) }
+        // What Ferb does with each line under a gate: runs a call (right, or wrong: the tool, the
+        // time, or a run where it should ask) or asks. A wrong run is the worst; an ask is safe.
+        val configs = ToolSettings.defaults()
+        val timed = setOf("add_reminder", "set_alarm", "set_timer", "add_event", "show_agenda")
+        fun routedAlone(r: Row) = ToolRouter.route(r.a.text ?: r.line.request, Tools.all, configs).map { it.name }.filter { it in timed } == listOf(r.a.tool)
+        fun resolvedFor(r: Row): String = r.a.tool?.let { tool -> approachA(r.line.copy(tool = tool), r.a, r.a.text ?: r.line.request) } ?: "ask"
+        val gates = listOf<Pair<String, (Row) -> String?>>(
+            "today (Needle's bar, today's times)" to { r -> if (r.a.tool != null && !r.a.heldBack) r.base.takeIf { r.a.tool == r.line.tool } ?: "wrong tool" else null },
+            "A, Needle's bar" to { r -> if (r.a.tool != null && !r.a.heldBack) resolvedFor(r) else null },
+            "E: A, and held back runs when the router routes only that timed tool" to { r ->
+                if (r.a.tool != null && (!r.a.heldBack || routedAlone(r))) resolvedFor(r) else null
+            },
+        )
+        report.append("\n## Decisions: run right / run wrong / asked (when it should ask: asked)\n")
+        for ((label, gate) in gates) {
+            for ((set, title) in listOf(rows to "all", rows.filter { hindi.containsMatchIn(it.line.request.lowercase()) } to "Hindi")) {
+                var right = 0; var wrong = 0; var asked = 0; var askRight = 0
+                set.forEach { r ->
+                    val did = gate(r)?.takeIf { it != "ask" }
+                    val toolRight = r.a.tool == r.line.tool
+                    when {
+                        did == null -> if (r.line.expected == "ask") askRight++ else asked++
+                        r.line.expected != "ask" && toolRight && did == r.line.expected -> right++
+                        else -> wrong++
+                    }
+                }
+                val asks = set.count { it.line.expected == "ask" }
+                report.append("$label, $title: run right ${pct(right, set.size)}; run wrong $wrong; asked needlessly $asked; asked when it should $askRight/$asks\n")
+            }
+        }
+        report.append("\n## E's wrong runs\n")
+        rows.filter { r -> gates[2].second(r)?.let { it != "ask" && !(r.a.tool == r.line.tool && it == r.line.expected) } == true }.forEach { r ->
+            report.append("${r.line.now} | want ${r.line.tool} ${r.line.expected} | ran ${r.a.tool} ${gates[2].second(r)} | ${r.line.request}\n")
+        }
         // Needle 3's confidence on the timed tools it got right.
         report.append("\n## Needle 3's confidence on the right tool (median / min, called or held back)\n")
         rows.filter { it.a.tool == it.line.tool && it.a.confidence != null }.groupBy { it.line.tool }.forEach { (tool, set) ->
@@ -143,6 +180,63 @@ class DateTimeEval {
             report.append("${it.line.now} | ${it.line.tool} | want ${it.line.expected} | A ${it.a2} | base ${it.base} | ${it.line.request}\n")
         }
         val out = File(repo, "build/datetime/score-$name.txt")
+        out.parentFile.mkdirs()
+        out.writeText(report.toString())
+        println(report)
+    }
+
+    /**
+     * The main bench (`mise run tool-check` first: build/tool-check/requests.txt and its answers):
+     * what E adds (timed calls under their bar that it runs) and whether they're the right tool,
+     * and alarm and timer values from A against today's code. The bench has no clock: 04:30 on a
+     * Friday, so a bare alarm hour is the morning's, as the bench writes it.
+     */
+    @Test
+    fun mainBench() {
+        assumeTrue("FERB_EVAL=1 to run the date and time eval", System.getenv("FERB_EVAL") == "1")
+        val requests = File(repo, "build/tool-check/requests.txt")
+        val answersFile = File(repo, "app/build/tool-check/all.answers")
+        assumeTrue("mise run tool-check first", requests.exists() && answersFile.exists())
+        val now = LocalDateTime.of(2026, 10, 16, 4, 30)
+        val replies = answersFile.readLines().filter { '\t' in it }.associate { it.substringBefore('\t') to JSONObject(it.substringAfter('\t')) }
+        val configs = ToolSettings.defaults()
+        val timed = setOf("add_reminder", "set_alarm", "set_timer", "add_event", "show_agenda")
+        val report = StringBuilder("# E and A on the main bench (build/tool-check/requests.txt, Needle 3 routed)\n")
+        var extraRight = 0; val extraWrong = mutableListOf<String>()
+        var alarms = 0; var alarmToday = 0; var alarmA = 0; val alarmDiff = mutableListOf<String>()
+        requests.readLines().filter { it.isNotBlank() && !it.startsWith("#") && "|" in it }.forEach { raw ->
+            val (spec, request) = raw.split("|", limit = 2).map { it.trim() }
+            val want = spec.split(" ")
+            val tools = want[0].split("/")
+            val args = want.drop(1).associate { it.substringBefore("=") to it.substringAfter("=") }
+            val reply = replies[request] ?: return@forEach
+            val call = reply.optJSONArray("function_calls")?.optJSONObject(0) ?: return@forEach
+            val tool = call.getString("name")
+            if (tool !in timed) return@forEach
+            val confidence = reply.optDouble("confidence")
+            val bar = configs.getValue(tool).runFrom
+            val routed = ToolRouter.route(request, Tools.all, configs).map { it.name }.filter { it in timed }
+            val kind = mapOf("add_reminder" to DateResolver.Kind.Reminder, "set_alarm" to DateResolver.Kind.Alarm,
+                "add_event" to DateResolver.Kind.Event, "show_agenda" to DateResolver.Kind.Agenda)[tool]
+            val resolved = kind?.let { DateResolver.resolve(request, it, now) }
+            val runsA = resolved != null && resolved !is DateResolver.Resolved.Ask || tool == "set_timer"
+            if (confidence < bar && routed == listOf(tool) && runsA) {
+                if (tool in tools) extraRight++ else extraWrong += "want ${want[0]} | ran $tool ${"%.2f".format(confidence)} | $request"
+            }
+            if (tool == "set_alarm" && "set_alarm" in tools && args["time"] != null) {
+                alarms++
+                val today = call.optJSONObject("arguments")?.optString("time")?.let { TimeOfDay.parse(it) }?.let { (h, m) -> "%02d:%02d".format(h, m) }
+                val a = (resolved as? DateResolver.Resolved.At)?.at?.toLocalTime()?.toString()
+                if (today == args["time"]) alarmToday++
+                if (a == args["time"]) alarmA++
+                if (a != args["time"]) alarmDiff += "want ${args["time"]} | today $today | A ${a ?: "ask"} | $request"
+            }
+        }
+        report.append("\nE's extra runs (under the bar, routed only to that timed tool, A resolves): right tool $extraRight, wrong ${extraWrong.size}\n")
+        extraWrong.forEach { report.append("  $it\n") }
+        report.append("\nAlarm times (lines with time=): today's code $alarmToday/$alarms, A $alarmA/$alarms\n")
+        alarmDiff.forEach { report.append("  $it\n") }
+        val out = File(repo, "build/datetime/score-main-bench.txt")
         out.parentFile.mkdirs()
         out.writeText(report.toString())
         println(report)

@@ -77,6 +77,7 @@ class DateResolverTest {
         assertThat(at("remind me today to buy milk")).isInstanceOf(Resolved.Ask::class.java)
         assertThat(at("remind me today at 8 am to buy milk")).isInstanceOf(Resolved.Ask::class.java)
         assertThat(at("set an alarm for tomorrow", Kind.Alarm)).isInstanceOf(Resolved.Ask::class.java)
+        assertThat(at("set an alarm for tomorrow morning", Kind.Alarm)).isInstanceOf(Resolved.Ask::class.java)
         // Tonight, said after 20:00 with no time.
         assertThat(at("remind me tonight to lock up", clock = LocalDateTime.of(2026, 11, 4, 21, 0))).isInstanceOf(Resolved.Ask::class.java)
     }

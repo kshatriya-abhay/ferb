@@ -70,7 +70,8 @@ object DateResolver {
         }
 
         if (said == null && day == null) return Resolved.Ask(if (kind == Kind.Alarm) "When should the alarm ring?" else "When? Say a day or a time")
-        if (said == null && kind == Kind.Alarm) return Resolved.Ask("What time should the alarm ring?")
+        // An alarm needs a clock time: "morning" alone isn't one ("my alarm didn't go off this morning").
+        if (kind == Kind.Alarm && said?.at == null) return Resolved.Ask("What time should the alarm ring?")
 
         // A weekday said on that weekday: today while its time is ahead, else a week on ("this" and
         // bare ones; "next" is a week on already).
