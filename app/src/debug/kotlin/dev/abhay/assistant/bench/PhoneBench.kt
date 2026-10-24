@@ -77,7 +77,7 @@ class PhoneBench(private val app: AssistantApp) {
                     when {
                         gemini == null -> line.put("raw", needle(item))
                         model.rewrites -> {
-                            val raw = gemini.generateContent(dev.abhay.assistant.voice.NanoEars.rewriteRequest(item.request)).candidates.firstOrNull()?.text.orEmpty()
+                            val raw = paced(line) { gemini.generateContent(dev.abhay.assistant.voice.NanoEars.rewriteRequest(item.request)) }.candidates.firstOrNull()?.text.orEmpty()
                             line.put("raw", raw)
                             line.put("command", dev.abhay.assistant.voice.GeminiRewrite.parse(item.request, raw).command ?: JSONObject.NULL)
                         }
@@ -89,13 +89,15 @@ class PhoneBench(private val app: AssistantApp) {
                     line.put("error", e.message ?: e.toString())
                     (e as? GenAiException)?.let { line.put("code", it.errorCode) }
                 }
-                line.put("ms", SystemClock.elapsedRealtime() - started)
+                // The model's own time: waits for AICore's quota (paced) aren't latency.
+                line.put("ms", SystemClock.elapsedRealtime() - started - line.optLong("waited_ms", 0))
                 out(model).appendText(line.toString() + "\n")
                 answered += item.id
                 progress(answered.size, items.size, line.optString("error").ifEmpty { null })
                 // Quota or background use: every request after would fail too.
                 val code = line.optInt("code", -1)
-                if (code == GenAiException.ErrorCode.PER_APP_BATTERY_USE_QUOTA_EXCEEDED || code == GenAiException.ErrorCode.BACKGROUND_USE_BLOCKED) {
+                if (code == GenAiException.ErrorCode.PER_APP_BATTERY_USE_QUOTA_EXCEEDED || code == GenAiException.ErrorCode.BACKGROUND_USE_BLOCKED ||
+                    code == GenAiException.ErrorCode.BUSY) {
                     // Not an answer: kept out of the file, so a rerun asks it again.
                     val kept = out(model).readLines().dropLast(1)
                     out(model).writeText(kept.joinToString("\n", postfix = if (kept.isEmpty()) "" else "\n"))
@@ -126,6 +128,30 @@ class PhoneBench(private val app: AssistantApp) {
     }
 
     private var tokenLimit: Int? = null
+    private var lastCall = 0L
+
+    /**
+     * [call] at AICore's pace: at least [GAP_MS] after the last request, and on BUSY ("out of
+     * usage quota, try again later": the rewrite pass met it after 421 requests at about 4 a
+     * second, 2026-10-24) waits 15, 30, 60, 60 then 60 s before trying again, then gives up (the
+     * pass stops, so a rerun asks it again). The waits go in "waited_ms", out of the latency.
+     */
+    private suspend fun <T> paced(line: JSONObject, call: suspend () -> T): T {
+        var waited = 0L
+        for (wait in listOf(0L, 15_000L, 30_000L, 60_000L, 60_000L, 60_000L)) {
+            val gap = (lastCall + GAP_MS - SystemClock.elapsedRealtime()).coerceAtLeast(0) + wait
+            if (gap > 0) { delay(gap); waited += gap }
+            line.put("waited_ms", waited)
+            try {
+                return call().also { lastCall = SystemClock.elapsedRealtime() }
+            } catch (e: GenAiException) {
+                lastCall = SystemClock.elapsedRealtime()
+                if (e.errorCode != GenAiException.ErrorCode.BUSY || wait == 60_000L && waited >= 225_000L) throw e
+                Log.w(TAG, "BUSY; waiting (${waited / 1000} s so far)")
+            }
+        }
+        error("unreachable")
+    }
 
     /**
      * Computer mode's schema call (timed, t4) as the system instruction, the request as typed.
@@ -166,6 +192,8 @@ class PhoneBench(private val app: AssistantApp) {
     companion object {
         const val TAG = "FerbBench"
         const val REQUESTS = "requests.jsonl"
+        /** At most about 2 requests a second to AICore. */
+        const val GAP_MS = 500L
         /** schema.py's NOW, so dates read as in the laptop's schema-call runs. */
         const val NOW = "2026-10-16T09:00 (Friday)"
     }
