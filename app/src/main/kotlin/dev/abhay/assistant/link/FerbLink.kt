@@ -56,6 +56,8 @@ object LinkContract {
     const val METHOD_REWRITE = "rewrite"
 
     const val EXTRA_REQUEST = "request"
+    /** Ferb Link turns down a longer request (complete, rewrite, decide) as bad_request, "too long" (03392d7). */
+    const val MAX_REQUEST_CHARS = 2000
     const val EXTRA_TOOLS = "tools"
     /** How long Ferb Link may wait for the computer (1–60 s); an older Ferb Link ignores it and waits 30 s. */
     const val EXTRA_TIMEOUT_MS = "timeout_ms"
