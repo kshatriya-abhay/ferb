@@ -38,7 +38,7 @@ Five tools are on at first: **Alarms, Timers, Open apps, Settings pages** and **
 
 ### Make Ferb your phone's assistant
 
-In Android's **Settings → Apps → Default apps → Digital assistant app**, pick **Ferb**. Then holding the power button, or swiping up from a bottom corner, opens Ferb's chat, ready to type. Ferb doesn't read the screen and asks for no extra permission for this.
+In Android's **Settings → Apps → Default apps → Digital assistant app**, pick **Ferb**. Then holding the power button, or swiping up from a bottom corner, opens Ferb in a sheet over whatever app you're in, already listening (or ready to type, with audio processing off): say it, tap ✓, and the reply shows there. Drag it up, or tap it, for the full chat. Ferb doesn't read the screen and asks for no extra permission for this.
 
 ## What it can do
 

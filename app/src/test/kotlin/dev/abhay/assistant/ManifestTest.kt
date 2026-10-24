@@ -20,8 +20,10 @@ class ManifestTest {
 
     @Test
     fun ferbQualifiesAsTheAssistant() {
-        val main = elements("activity").single { it.getAttributeNS(android, "name") == ".MainActivity" }
+        // The sheet over the app in front (AssistActivity), not the chat.
+        val main = elements("activity").single { it.getAttributeNS(android, "name") == ".AssistActivity" }
         assertThat(main.getAttributeNS(android, "exported")).isEqualTo("true")
+        assertThat(main.getAttributeNS(android, "excludeFromRecents")).isEqualTo("true")
         val filters = main.getElementsByTagName("intent-filter").let { l -> (0 until l.length).map { l.item(it) as Element } }
         val assist = filters.single { f ->
             f.getElementsByTagName("action").let { a -> (0 until a.length).any { (a.item(it) as Element).getAttributeNS(android, "name") == "android.intent.action.ASSIST" } }

@@ -202,9 +202,9 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { assistant.link.wake() }
     }
 
-    private val _state = MutableStateFlow(UiState())
+    /** Shared by the chat and the assistant's sheet ([AssistantApp.chat]). */
+    private val _state = assistant.chat
     val state: StateFlow<UiState> = _state.asStateFlow()
-    private var nextId = 0L
 
     init {
         // Loads the model on first use in this process. Each request then gets the tools it
@@ -258,7 +258,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             val text = answer.command ?: said
             val calls = shown.calls.map { call -> CallState(call, prepare(call, text), Status.Waiting) }
             val spoken = heardBy != null
-            val exchange = Exchange(nextId++, if (spoken) text else said, shown, verdict.decision, verdict.runAt, verdict.alwaysConfirm, verdict.unmentioned, verdict.ungrounded,
+            val exchange = Exchange(assistant.exchangeIds.getAndIncrement(), if (spoken) text else said, shown, verdict.decision, verdict.runAt, verdict.alwaysConfirm, verdict.unmentioned, verdict.ungrounded,
                 answer.checked, calls, SystemClock.elapsedRealtime() - started,
                 heard = said.takeIf { spoken && answer.command != null },
                 understood = answer.command.takeIf { !spoken },
@@ -525,7 +525,10 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     override fun onCleared() {
+        // A recording of this screen's (the sheet closed while listening) goes with it.
+        if (nanoJob != null || pcmRecording != null) _state.update { it.copy(voice = null) }
         nanoJob?.cancel()
+        pcmRecording?.cancel()
         pcmRecorder.stop()
     }
 

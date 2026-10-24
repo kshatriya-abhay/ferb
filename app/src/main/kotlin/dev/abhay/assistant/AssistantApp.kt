@@ -23,6 +23,13 @@ class AssistantApp : Application() {
     val link by lazy { FerbLink(this) }
     val onboarding by lazy { Onboarding.from(this) }
     val notes by lazy { SafNotes(this) }
+    /**
+     * The chat, for the process: the full chat and the assistant's sheet over another app show the
+     * same conversation, so opening the chat from the sheet carries it on.
+     */
+    val chat by lazy { kotlinx.coroutines.flow.MutableStateFlow(dev.abhay.assistant.ui.AssistantViewModel.UiState()) }
+    val exchangeIds = java.util.concurrent.atomic.AtomicLong()
+
     /** How Ferb understands a request: audio processing, rewrite, tool selection (Settings). */
     val pipeline by lazy { dev.abhay.assistant.pipeline.PipelineSettings(this) }
     /** Gemini Nano's speech recognition (POC), when picked in Settings. */

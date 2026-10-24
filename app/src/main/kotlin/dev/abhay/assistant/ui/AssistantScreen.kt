@@ -416,7 +416,7 @@ private fun History(
  * for a typed one, what the rewrite [understood] it as, when that differs.
  */
 @Composable
-private fun RequestBubble(text: String, heard: String? = null, understood: String? = null) {
+internal fun RequestBubble(text: String, heard: String? = null, understood: String? = null) {
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
         Surface(
             color = MaterialTheme.colorScheme.primary,
@@ -455,7 +455,7 @@ private fun AssistantBubble(onClick: (() -> Unit)? = null, content: @Composable 
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun Thinking(asking: String?, still: Boolean = false) {
+internal fun Thinking(asking: String?, still: Boolean = false) {
     AssistantBubble {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             // Still while Whistle transcribes: an animation competes with the engine for its cores.
@@ -471,7 +471,7 @@ private fun Thinking(asking: String?, still: Boolean = false) {
  * apology when no tool fits. Tapping the bubble opens the rest (Details).
  */
 @Composable
-private fun ReplyBubble(
+internal fun ReplyBubble(
     exchange: AssistantViewModel.Exchange,
     onRun: () -> Unit,
     onSkip: () -> Unit,
@@ -675,7 +675,7 @@ private fun summary(prepared: Prepared) = when (prepared) {
 /** Everything behind a reply: how sure Needle 3 was against the bar, its reasoning, the raw calls, timings. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () -> Unit) {
+internal fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () -> Unit) {
     val reply = exchange.reply
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -871,7 +871,7 @@ private fun elapsed(ms: Long) = String.format(Locale.US, "%d:%02d", ms / 60_000,
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun InputField(
+internal fun InputField(
     state: AssistantViewModel.UiState, ready: Boolean,
     onChange: (String) -> Unit, onSend: () -> Unit, onMic: (() -> Unit)?, onFocus: () -> Unit,
     focus: Int = 0,

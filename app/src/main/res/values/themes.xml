@@ -3,4 +3,13 @@
     <!-- Material 3 for the window behind Compose (launch frame, system bars), with the wallpaper's
          dynamic colours, light or dark with the system. Compose draws everything else. -->
     <style name="Theme.Assistant" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar" />
+
+    <!-- The assistant's sheet (AssistActivity) over the app in front: a see-through window, the
+         sheet and its scrim drawn by Compose. -->
+    <style name="Theme.Assistant.Sheet">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
 </resources>
