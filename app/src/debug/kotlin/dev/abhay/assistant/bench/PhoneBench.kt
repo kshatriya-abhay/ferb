@@ -38,9 +38,12 @@ class PhoneBench(private val app: AssistantApp) {
      */
     enum class Model(val file: String) {
         Needle3("needle3"), GeminiFull("gemini-full"), GeminiFast("gemini-fast"),
-        RewriteFull("rewrites-gemini-full"), RewriteFast("rewrites-gemini-fast");
+        RewriteFull("rewrites-gemini-full"), RewriteFast("rewrites-gemini-fast"),
+        /** The v2 rewrite prompt (FULL only: FAST gave the same answers on this phone). */
+        RewriteV2Full("rewrites-v2-gemini-full");
 
-        val rewrites get() = this == RewriteFull || this == RewriteFast
+        val rewrites get() = this == RewriteFull || this == RewriteFast || this == RewriteV2Full
+        val prompt get() = if (this == RewriteV2Full) dev.abhay.assistant.voice.GeminiRewrite.PROMPT_V2 else dev.abhay.assistant.voice.GeminiRewrite.PROMPT_V1
     }
 
     data class Item(val id: String, val request: String, val tools: List<String>)
@@ -77,7 +80,7 @@ class PhoneBench(private val app: AssistantApp) {
                     when {
                         gemini == null -> line.put("raw", needle(item))
                         model.rewrites -> {
-                            val raw = paced(line) { gemini.generateContent(dev.abhay.assistant.voice.NanoEars.rewriteRequest(item.request)) }.candidates.firstOrNull()?.text.orEmpty()
+                            val raw = paced(line) { gemini.generateContent(dev.abhay.assistant.voice.NanoEars.rewriteRequest(item.request, model.prompt)) }.candidates.firstOrNull()?.text.orEmpty()
                             line.put("raw", raw)
                             line.put("command", dev.abhay.assistant.voice.GeminiRewrite.parse(item.request, raw).command ?: JSONObject.NULL)
                         }

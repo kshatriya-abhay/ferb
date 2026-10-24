@@ -52,8 +52,11 @@ def prep():
     os.makedirs(OUT, exist_ok=True)
     main_set = requests_of(bench_files({"hi"}))
     hi_set = [r for r in requests_of(hi_lines()) if r not in set(main_set)]
+    # The rewrite prompt's held-out lines (rewrite-heldout.txt, frozen 2026-10-24), as their own set.
+    held = requests_of(open(os.path.join(HERE, "rewrite-heldout.txt")))
+    open(os.path.join(OUT, "rewrite-heldout.txt"), "w").writelines(open(os.path.join(HERE, "rewrite-heldout.txt")))
     seen, rows = set(), []
-    for prefix, requests in (("r", main_set), ("h", hi_set)):
+    for prefix, requests in (("r", main_set), ("h", hi_set), ("x", held)):
         for n, r in enumerate(requests):
             if r in seen: continue
             seen.add(r)
@@ -67,7 +70,8 @@ def prep():
     old = {l.split("\t", 1)[0] for l in open(LAPTOP.format("needle3")) if "\t" in l}
     overlap = [l for l in bench_files({"hi"}) if l.startswith("#") or ("|" in l and l.split("|", 1)[1].strip() in old)]
     open(os.path.join(OUT, "requests-overlap.txt"), "w").writelines(overlap)
-    print(f"{len(rows)} requests ({sum(r['id'][0] == 'r' for r in rows)} without @hi, {sum(r['id'][0] == 'h' for r in rows)} @hi); "
+    print(f"{len(rows)} requests ({sum(r['id'][0] == 'r' for r in rows)} without @hi, {sum(r['id'][0] == 'h' for r in rows)} @hi, "
+          f"{sum(r['id'][0] == 'x' for r in rows)} held out); "
           f"every tool for {sum(len(r['tools']) == len(everything) for r in rows)}")
 
 def adb(*args, stdin=None, out=None):
@@ -89,7 +93,8 @@ def rewritten(model):
     push(name)
 
 def pull():
-    for model in ("needle3", "gemini-full", "gemini-fast", "rewrites-gemini-full", "rewrites-gemini-fast", "needle3-on-gemini-full", "needle3-on-gemini-fast"):
+    for model in ("needle3", "gemini-full", "gemini-fast", "rewrites-gemini-full", "rewrites-gemini-fast", "needle3-on-gemini-full", "needle3-on-gemini-fast",
+                  "rewrites-v2-gemini-full", "needle3-on-v2-gemini-full"):
         path = os.path.join(OUT, f"{model}.jsonl")
         with open(path, "wb") as f:
             subprocess.run(["adb", "exec-out", "run-as", PACKAGE, "sh", "-c", f"cat files/bench/{model}.jsonl 2>/dev/null"], stdout=f, check=False)
@@ -225,7 +230,8 @@ def score(model):
     print(text)
     print(f"\n(saved in {os.path.relpath(path, REPO)})")
 
-SETS = (("without @hi", "requests-no-hi.txt"), ("the 2026-10-11 overlap", "requests-overlap.txt"), ("@hi", "requests-hi.txt"))
+SETS = (("without @hi", "requests-no-hi.txt"), ("the 2026-10-11 overlap", "requests-overlap.txt"), ("@hi", "requests-hi.txt"),
+        ("held out", "rewrite-heldout.txt"))
 
 def run_score(path, answers_by_request):
     wanted = requests_of(open(os.path.join(OUT, path)))
@@ -259,7 +265,7 @@ def pipeline(model):
         answers[request] = json.dumps(reply)
         rewrite_ms.append(r["ms"]); total_ms.append(r["ms"] + n["ms"])
     direct_answers = {q: json.dumps(json.loads(d["raw"])) for q, d in direct.items()}
-    report = [f"# Gemini Nano {model.split('-')[1].upper()} rewrite -> Needle 3, against Needle 3 direct (phone, text only)"]
+    report = [f"# Gemini Nano rewrite ({model}) -> Needle 3, against Needle 3 direct (phone, text only)"]
     for name, path in SETS:
         out, right, marks = run_score(path, answers)
         report.append(f"\n== {name}\n" + "\n".join(l for l in out.splitlines() if not re.match(r"(OK  |ok\? |ARGS|MISS) ", l)))
@@ -272,7 +278,7 @@ def pipeline(model):
             helped = [q for q in right if right[q] and not d_right[q]]
             hurt = [q for q in right if d_right[q] and not right[q]]
             report.append(f"helped {len(helped)}, hurt {len(hurt)}")
-            if path == "requests-no-hi.txt":
+            if path in ("requests-no-hi.txt", "rewrite-heldout.txt"):
                 def show(q): return f"  {q!r} -> {said[q].get('command') or 'NONE'!r}: {marks[q][:4].strip()} {marks[q][60:].strip()[:110]}"
                 report.append("helped, e.g.:\n" + "\n".join(show(q) for q in helped[:12]))
                 report.append("hurt, all:\n" + "\n".join(show(q) for q in hurt))
@@ -290,6 +296,26 @@ def pipeline(model):
     path = os.path.join(OUT, f"score-pipeline-{model}.txt")
     open(path, "w").write(text + "\n")
     print(text)
+
+def compare(models):
+    """Needle 3 direct and each rewrite pipeline ([models], e.g. gemini-full v2-gemini-full), side by side on every set."""
+    direct = {json.loads(l)["request"]: json.dumps(json.loads(json.loads(l)["raw"])) for l in open(os.path.join(OUT, "needle3.jsonl")) if l.strip()}
+    columns = [("Needle 3 direct", direct)]
+    for model in models:
+        rewrites = {json.loads(l)["id"]: json.loads(l) for l in open(os.path.join(OUT, f"rewrites-{model}.jsonl")) if l.strip()}
+        on = {json.loads(l)["id"]: json.loads(l) for l in open(os.path.join(OUT, f"needle3-on-{model}.jsonl")) if l.strip()}
+        answers = {r["request"]: json.dumps(json.loads(on[i]["raw"]) if r.get("command") and i in on else {"function_calls": []}) for i, r in rewrites.items()}
+        columns.append((model, answers))
+    print(f"{'set':<26}" + "".join(f"{name:>26}" for name, _ in columns))
+    for name, path in SETS:
+        cells = []
+        for _, answers in columns:
+            wanted = requests_of(open(os.path.join(OUT, path)))
+            if any(r not in answers for r in wanted): cells.append("not run"); continue
+            _, right, marks = run_score(path, answers)
+            none = [q for q in wanted if marks[q].split()[2] == "none"]
+            cells.append(f"{sum(right.values())}/{len(wanted)} (none {sum(right[q] for q in none)}/{len(none)})")
+        print(f"{name:<26}" + "".join(f"{c:>26}" for c in cells))
 
 def laptop():
     """The laptop's saved answers (Needle 3, Gemma 4 E2B; 2026-10-11) scored on the overlap, today's labels."""
@@ -310,6 +336,7 @@ if __name__ == "__main__":
     elif command == "needle": needle(sys.argv[2] if len(sys.argv) > 2 else None)
     elif command == "rewritten": rewritten(sys.argv[2])
     elif command == "pipeline": pipeline(sys.argv[2])
+    elif command == "compare": compare(sys.argv[2:])
     elif command == "score": score(sys.argv[2])
     elif command == "laptop": laptop()
     else: sys.exit(__doc__)

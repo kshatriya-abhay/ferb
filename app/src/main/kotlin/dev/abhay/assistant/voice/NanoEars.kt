@@ -178,7 +178,7 @@ class NanoEars {
         const val TAG = "FerbNano"
 
         /** The rewrite as Gemini Nano is asked it, in the app and on the phone bench alike: greedy, short. */
-        fun rewriteRequest(said: String) = generateContentRequest(SystemInstruction(GeminiRewrite.PROMPT), TextPart(said)) {
+        fun rewriteRequest(said: String, prompt: String = GeminiRewrite.PROMPT) = generateContentRequest(SystemInstruction(prompt), TextPart(said)) {
             temperature = 0f
             topK = 1
             maxOutputTokens = GeminiRewrite.MAX_TOKENS

@@ -117,8 +117,9 @@ object DebugBench {
                     LinearProgressIndicator(progress = { progress }, Modifier.fillMaxWidth())
                     OutlinedButton(onClick = ::stop) { Text("Stop") }
                 } else {
-                    // Phase A: Gemini Nano rewrites every request, FULL then FAST; Needle 3 runs on them later with no screen.
-                    Button(onClick = { start(app, PhoneBench.Model.RewriteFull, PhoneBench.Model.RewriteFast) }) { Text("Rewrite all: Gemini Nano FULL, then FAST") }
+                    // The rewrite prompts: v2 on every request, then v1 on what it hasn't seen (the held-out lines); Needle 3 later, with no screen.
+                    Button(onClick = { start(app, PhoneBench.Model.RewriteV2Full, PhoneBench.Model.RewriteFull) }) { Text("Rewrite: v2 on all, then v1 on the new lines") }
+                    OutlinedButton(onClick = { start(app, PhoneBench.Model.RewriteFull, PhoneBench.Model.RewriteFast) }) { Text("Rewrite all: v1, FULL then FAST") }
                     OutlinedButton(onClick = { start(app, PhoneBench.Model.RewriteFull, limit = 10) }) { Text("Trial: 10 rewrites, FULL") }
                 }
             }

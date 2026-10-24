@@ -87,6 +87,19 @@ class NanoVoiceTest {
     }
 
     @Test
+    fun noPromptExampleIsABenchOrHeldOutLine() {
+        // The bench (and the held-out set) must measure the prompt, not recall its examples.
+        val bench = java.io.File("../tool-check").listFiles { f -> f.name.endsWith(".txt") }!!.flatMap { it.readLines() }
+            .filter { "|" in it && !it.startsWith("#") }.map { it.substringAfter("|").trim().lowercase() }.toSet()
+        assertThat(bench).isNotEmpty()
+        for (prompt in listOf(GeminiRewrite.PROMPT_V1, GeminiRewrite.PROMPT_V2)) {
+            val examples = prompt.substringAfter("Examples:\n").lines().map { it.substringBefore(" -> ").trim().lowercase() }
+            assertThat(examples).isNotEmpty()
+            assertThat(examples.filter { it in bench }).isEmpty()
+        }
+    }
+
+    @Test
     fun thePromptsExamplesAreShortAndEndInNoneForQuestions() {
         assertThat(GeminiRewrite.PROMPT).contains("Reply with exactly one line: the command, or NONE.")
         assertThat(GeminiRewrite.PROMPT).contains("what is the capital of japan -> NONE")

@@ -170,7 +170,7 @@ data class Rewritten(val said: String, val command: String?)
 object GeminiRewrite {
     const val NONE = "NONE"
 
-    const val PROMPT = """You turn a request to a phone assistant into one short, plain English command for it. The request may be English, Hindi or Hinglish, in Latin letters or Devanagari, and may have typos.
+    const val PROMPT_V1 = """You turn a request to a phone assistant into one short, plain English command for it. The request may be English, Hindi or Hinglish, in Latin letters or Devanagari, and may have typos.
 Reply with exactly one line: the command, or NONE.
 The phone can: set alarms and timers; open apps, settings and the camera; turn the flashlight on or off; set the media volume; play, pause or skip music; make notes, lists and reminders; call and text contacts; give directions; show the calendar and add events.
 Reply NONE when the user isn't asking the phone to do one of these now: questions about the world, how-to questions, chat, greetings, opinions, statements about things or the past, and things the phone can't do.
@@ -183,6 +183,36 @@ bhaiya ko message karo ki main late hoon -> Send a text to bhaiya: main late hoo
 remind me to drink water at 4 -> Remind me to drink water at 4
 what is the capital of japan -> NONE
 my phone feels slow today -> NONE"""
+
+    /**
+     * v2: v1's hurts on the bench (2026-10-24) as general rules, its examples new (in no bench or
+     * held-out file): the settings page kept, questions about the user's own calendar, alarms and
+     * lists shown, a word or two of music control is a command, list verbs stay list actions, "tell"
+     * is a text, and a statement or complaint never becomes an action with a made-up time.
+     */
+    const val PROMPT_V2 = """You turn a request to a phone assistant into one short, plain English command for it. The request may be English, Hindi or Hinglish, in Latin letters or Devanagari, and may have typos.
+Reply with exactly one line: the command, or NONE.
+The phone can: set alarms and timers; open apps, settings and the camera; turn the flashlight on or off; set the media volume; play, pause or skip music; make notes, lists and reminders; call and text contacts; give directions; show the calendar, alarms and lists, and add events.
+Reply NONE only when the user isn't asking the phone to do one of these now: questions about the world, how-to questions, chat, greetings, opinions, statements about things or the past, and things the phone can't do. Never turn a statement or a complaint into an action.
+A question about the user's own calendar, alarms or lists is a command to show it: "Show my calendar for <day>", "Show my alarms", "Show my <name> list".
+Name the settings page asked for: "Open <page> settings".
+A word or two of music control is a command: "Skip to the next track", "Go back to the previous track", "Pause the music", "Resume the music".
+Lists: "Add <item> to my <name> list". Ticking, crossing off, finishing, getting or buying an item is "Check off <item> on my <name> list", without the list if none is named. Lists are not notes.
+"Tell <someone> <something>" is a text: "Send a text to <someone>: <something>".
+Keep every name, contact, app, place, number, time, date and length exactly as said; translate Hindi words into English. Never add anything the request doesn't say, least of all a time. Keep the user's own words for notes and messages.
+Amounts as numbers: half is 50 percent and half an hour 30 minutes; sava 7 is 7:15, saade 5 is 5:30, paune 8 is 7:45, dedh ghanta is 1 hour 30 minutes, dhai minute is 2 minutes 30 seconds.
+Examples:
+kal subah 6 baje ka alarm laga do -> Set an alarm for 6 am tomorrow
+torch jala do -> Turn on the flashlight
+open the nfc settings -> Open NFC settings
+any plans on wednesday? -> Show my calendar for Wednesday
+got the batteries -> Check off batteries
+tell meera the door is open -> Send a text to meera: the door is open
+what is the capital of japan -> NONE
+the alarm woke the baby -> NONE"""
+
+    /** The prompt the app uses: v1 until v2 beats it on the held-out set (tool-check/rewrite-heldout.txt). */
+    const val PROMPT = PROMPT_V1
 
     /** Room for one short command; NONE takes a token or two. */
     const val MAX_TOKENS = 40
