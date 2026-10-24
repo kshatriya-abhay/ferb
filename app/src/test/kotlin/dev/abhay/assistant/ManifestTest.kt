@@ -40,7 +40,12 @@ class ManifestTest {
 
     @Test
     fun thePermissionsAreTheToolsOwnAndNeverInternet() {
-        val permissions = elements("uses-permission").map { it.getAttributeNS(android, "name") }
+        val tools = "http://schemas.android.com/tools"
+        val (removed, asked) = elements("uses-permission").partition { it.getAttributeNS(tools, "node") == "remove" }
+        val permissions = asked.map { it.getAttributeNS(android, "name") }
+        // What a library merges in for the network (ML Kit's usage logs) is taken out again.
+        assertThat(removed.map { it.getAttributeNS(android, "name") })
+            .containsExactly("android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE")
         assertThat(permissions).containsExactly(
             "com.android.alarm.permission.SET_ALARM",
             "android.permission.READ_CONTACTS", "android.permission.CALL_PHONE",

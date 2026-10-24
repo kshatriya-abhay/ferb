@@ -26,6 +26,8 @@ class AssistantApp : Application() {
     val onboarding by lazy { Onboarding.from(this) }
     val notes by lazy { SafNotes(this) }
     val voice by lazy { dev.abhay.assistant.voice.VoiceSettings(this) }
+    /** Gemini Nano's speech recognition (POC), when picked in Settings. */
+    val nanoEars by lazy { dev.abhay.assistant.voice.NanoEars() }
     val reminders by lazy { ReminderBook(FileReminderStore(java.io.File(filesDir, "reminders.json"))) { java.time.LocalDateTime.now() } }
     val alarms by lazy { ReminderAlarms(this) }
 

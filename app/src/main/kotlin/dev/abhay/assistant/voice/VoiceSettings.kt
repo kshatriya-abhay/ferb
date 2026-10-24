@@ -21,8 +21,19 @@ class VoiceSettings(context: Context) {
         _whistle.value = on
     }
 
+    /** Who hears it with voice on this phone on: Whistle (the default) or Gemini Nano (POC). */
+    private val _ear = MutableStateFlow(PhoneEar.of(prefs.getString(KEY_EAR, null)))
+    val ear: StateFlow<PhoneEar> = _ear.asStateFlow()
+
+    fun setEar(ear: PhoneEar) {
+        prefs.edit().putString(KEY_EAR, ear.id).apply()
+        _ear.value = ear
+    }
+
     companion object {
         private const val KEY_WHISTLE = "whistle"
+        private const val KEY_EAR = "ear"
+        const val EAR_TITLE = "Heard by"
         const val TITLE = "Voice on this phone (Whistle)"
         const val DESCRIPTION = "Speak requests in English, heard on this phone. Computer mode can still listen."
     }

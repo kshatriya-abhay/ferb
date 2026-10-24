@@ -116,6 +116,8 @@ import dev.abhay.assistant.tools.ToolConfig
 import dev.abhay.assistant.tools.ToolOption
 import dev.abhay.assistant.tools.ToolSettings
 import dev.abhay.assistant.tools.Tools
+import dev.abhay.assistant.voice.NanoChoice
+import dev.abhay.assistant.voice.PhoneEar
 import dev.abhay.assistant.voice.VoiceSettings
 import java.util.Locale
 import org.json.JSONObject
@@ -144,7 +146,10 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
             ))
             // Voice: Whistle hears spoken requests on the phone; off, it's never loaded.
             val whistle by settings.whistle.collectAsStateWithLifecycle()
-            Group(listOf { shapes ->
+            val ear by settings.ear.collectAsStateWithLifecycle()
+            val nanoStatus by settings.nanoStatus.collectAsStateWithLifecycle()
+            LaunchedEffect(Unit) { settings.checkNano() }
+            Group(listOfNotNull({ shapes ->
                 SegmentedListItem(
                     onClick = { settings.setWhistle(!whistle) },
                     shapes = shapes,
@@ -152,7 +157,7 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
                     supportingContent = { Text(VoiceSettings.DESCRIPTION) },
                     trailingContent = { Switch(checked = whistle, onCheckedChange = null) },
                 ) { Text(VoiceSettings.TITLE) }
-            })
+            }, if (!whistle) null else { shapes -> EarRow(ear, nanoStatus, settings::setEar, shapes) }))
             Group(listOf { shapes ->
                 SegmentedListItem(
                     onClick = { settings.onboarding.reset() },
@@ -171,6 +176,39 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
                     },
                 ) { Text("Private by design") }
             })
+        }
+    }
+}
+
+/**
+ * Who hears a spoken request on the phone (POC): Whistle, or Gemini Nano in English or Hindi, each
+ * with what its checkStatus() said. Gemini Nano falls back to Whistle when it can't hear.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun EarRow(ear: PhoneEar, status: Map<PhoneEar, Int>, onChoose: (PhoneEar) -> Unit, shapes: ListItemShapes) {
+    var open by remember { mutableStateOf(false) }
+    fun said(e: PhoneEar) = status[e]?.let { "Gemini Nano: ${NanoChoice.name(it)}" }
+    Box {
+        SegmentedListItem(
+            onClick = { open = true },
+            shapes = shapes,
+            supportingContent = { Text(listOfNotNull(ear.title, said(ear)).joinToString(" \u00b7 ")) },
+            trailingContent = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
+        ) { Text(VoiceSettings.EAR_TITLE) }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            PhoneEar.entries.forEach { option ->
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text(option.title)
+                            said(option)?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        }
+                    },
+                    leadingIcon = { RadioButton(selected = option == ear, onClick = null) },
+                    onClick = { open = false; onChoose(option) },
+                )
+            }
         }
     }
 }

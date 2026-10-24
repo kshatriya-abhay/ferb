@@ -2,6 +2,8 @@ package dev.abhay.assistant.ui
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import dev.abhay.assistant.AssistantApp
 import dev.abhay.assistant.link.LinkMode
 import dev.abhay.assistant.tools.ToolConfig
@@ -30,6 +32,24 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     private val voice = (app as AssistantApp).voice
     val whistle: StateFlow<Boolean> = voice.whistle
     fun setWhistle(on: Boolean) = voice.setWhistle(on)
+    /** Who hears it (POC): Whistle or Gemini Nano in a language; picking Gemini Nano starts its download if it needs one. */
+    val ear: StateFlow<dev.abhay.assistant.voice.PhoneEar> = voice.ear
+    private val nanoEars = (app as AssistantApp).nanoEars
+    fun setEar(ear: dev.abhay.assistant.voice.PhoneEar) {
+        voice.setEar(ear)
+        if (ear.nano) viewModelScope.launch {
+            val status = nanoEars.status(ear)
+            nanoStatus.update { it + (ear to status) }
+            if (status == com.google.mlkit.genai.common.FeatureStatus.DOWNLOADABLE) nanoEars.download(ear)
+        }
+    }
+    /** checkStatus() for each Gemini Nano language, read when Settings opens. */
+    val nanoStatus = MutableStateFlow<Map<dev.abhay.assistant.voice.PhoneEar, Int>>(emptyMap())
+    fun checkNano() {
+        viewModelScope.launch {
+            for (ear in dev.abhay.assistant.voice.PhoneEar.NANO) nanoStatus.update { it + (ear to nanoEars.status(ear)) }
+        }
+    }
     val saved: StateFlow<Map<String, ToolConfig>> = settings.configs
 
     /** The one-time tips (a tool's page has one), and "Show tips again". */
