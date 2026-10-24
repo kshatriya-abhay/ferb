@@ -18,6 +18,7 @@ import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.toShape
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import dev.abhay.assistant.tools.Flashlight
 import dev.abhay.assistant.tools.GetDirections
@@ -69,6 +70,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.scaleIn
@@ -855,9 +857,14 @@ internal fun VoiceField(voice: AssistantViewModel.Voice, onFinish: () -> Unit, o
         }
         Spacer(Modifier.width(8.dp))
         val recording = voice is AssistantViewModel.Voice.Recording
-        FilledIconButton(onClick = if (recording) onFinish else onSend, modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()), shapes = IconButtonDefaults.shapes()) {
-            if (recording) Icon(painterResource(R.drawable.ic_check), contentDescription = FINISH, Modifier.size(IconButtonDefaults.mediumIconSize))
-            else Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", Modifier.size(IconButtonDefaults.mediumIconSize))
+        // Silent after speech: a ring round ✓ fills over the 2 s before it's sent by itself.
+        val sending = (voice as? AssistantViewModel.Voice.Recording)?.sendingIn
+        Box(contentAlignment = Alignment.Center) {
+            if (sending != null) CircularWavyProgressIndicator(progress = { sending }, Modifier.size(IconButtonDefaults.mediumContainerSize().width + 8.dp).semantics { contentDescription = SENDING })
+            FilledIconButton(onClick = if (recording) onFinish else onSend, modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()), shapes = IconButtonDefaults.shapes()) {
+                if (recording) Icon(painterResource(R.drawable.ic_check), contentDescription = FINISH, Modifier.size(IconButtonDefaults.mediumIconSize))
+                else Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", Modifier.size(IconButtonDefaults.mediumIconSize))
+            }
         }
     }
 }
@@ -865,6 +872,8 @@ internal fun VoiceField(voice: AssistantViewModel.Voice, onFinish: () -> Unit, o
 /** The recording's two buttons, by what they say to TalkBack (and the UI tests). */
 internal const val CANCEL = "Cancel"
 internal const val FINISH = "Stop and send"
+/** The ring round ✓ while it's about to send by itself. */
+internal const val SENDING = "Sending when you stop speaking"
 
 /** "0:04". */
 private fun elapsed(ms: Long) = String.format(Locale.US, "%d:%02d", ms / 60_000, ms / 1000 % 60)

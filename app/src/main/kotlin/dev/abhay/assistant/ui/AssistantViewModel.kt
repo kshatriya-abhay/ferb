@@ -21,6 +21,8 @@ import dev.abhay.assistant.pipeline.Pipeline
 import dev.abhay.assistant.pipeline.RewriteStep
 import dev.abhay.assistant.pipeline.ToolStep
 import dev.abhay.assistant.voice.AacEncoder
+import dev.abhay.assistant.voice.EnergyVad
+import dev.abhay.assistant.voice.Endpoint
 import dev.abhay.assistant.voice.Part
 import dev.abhay.assistant.link.Transcript
 import dev.abhay.assistant.tools.CallRunner
@@ -49,6 +51,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -135,7 +138,11 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
          * [onPhone]: recorded as PCM on the phone (for Whistle, or for the computer through Ferb
          * Link); [live]: Gemini Nano hears it as it's said, its words shown as they come.
          */
-        data class Recording(val startedAt: Long, val onPhone: Boolean = false, val live: GeminiLanguage? = null, val heard: String = "") : Voice
+        data class Recording(
+            val startedAt: Long, val onPhone: Boolean = false, val live: GeminiLanguage? = null, val heard: String = "",
+            /** Silent after speech: how far through the 2 s before it's sent by itself (0–1), for ✓'s ring; null otherwise. */
+            val sendingIn: Float? = null,
+        ) : Voice
         /** What Gemini Nano heard, waiting to be sent (✓ sends it at once; this is for a retry). */
         data class Heard(val text: String, val ms: Long) : Voice
         /** [pcm]: 16 kHz float, [ms] long; heard by the audio step when sent. [audio]: unused, kept for the tests' shape. */
@@ -308,10 +315,23 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     private fun startPhoneRecording() {
         val startedAt = SystemClock.elapsedRealtime()
         _state.update { it.copy(voice = Voice.Recording(startedAt, onPhone = true), notice = null) }
+        // Auto-send: speech, then 2 s of silence, sends it; no speech in 8 s stops it, sending nothing.
+        val vad = EnergyVad()
+        var decided = false
         val job = viewModelScope.async {
             try {
                 // At 30 s (Whistle's most, and Ferb Link's) it stops by itself and waits for Send.
-                pcmRecorder.record()
+                pcmRecorder.record(onChunk = { chunk, read ->
+                    val decision = vad.feed(chunk, 0, read)
+                    val sending = vad.endpoint.sending(vad.nowMs)
+                    viewModelScope.launch {
+                        showSending(sending)
+                        if (!decided && decision != Endpoint.Decision.Continue) {
+                            decided = true
+                            autoStop(decision)
+                        }
+                    }
+                })
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -325,6 +345,10 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             if (pcmRecording !== job) return@launch
             pcmRecording = null
             val ms = SystemClock.elapsedRealtime() - startedAt
+            if (heardNothing) {
+                heardNothing = false
+                return@launch _state.update { if (it.voice is Voice.Recording) it.copy(voice = null, notice = NOTHING_HEARD) else it }
+            }
             _state.update {
                 if (it.voice !is Voice.Recording) it
                 else it.copy(voice = Voice.Recorded(null, ms, pcm).takeIf { pcm.isNotEmpty() },
@@ -336,6 +360,30 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
 
     /** Gemini Nano listening: it ends with what was heard, sent at once by ✓. */
     private var nanoJob: kotlinx.coroutines.Job? = null
+
+    /** No speech before the endpointer gave up: the recording stops, and nothing is sent. */
+    private var heardNothing = false
+
+    /** ✓'s ring while silent after speech ([Endpoint.sending]), on the recording shown. */
+    private fun showSending(sending: Float?) = _state.update { s ->
+        val r = s.voice as? Voice.Recording ?: return@update s
+        val now = r.sendingIn
+        if (now == sending || (now != null && sending != null && kotlin.math.abs(now - sending) < 0.04f)) s
+        else s.copy(voice = r.copy(sendingIn = sending))
+    }
+
+    /** The endpointer's call: 2 s of silence after speech sends it, as ✓ would; no speech, nothing. */
+    private fun autoStop(decision: Endpoint.Decision) {
+        if (_state.value.voice !is Voice.Recording) return
+        when (decision) {
+            Endpoint.Decision.End -> finishRecording()
+            Endpoint.Decision.NoSpeech -> {
+                heardNothing = true
+                stopRecording()
+            }
+            Endpoint.Decision.Continue -> {}
+        }
+    }
 
     /**
      * Gemini Nano hears the request, what it hears so far showing in the box's place. When its
@@ -360,16 +408,36 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             val listening = SystemClock.elapsedRealtime()
             var firstWords = -1L
             var failed = false
+            // Auto-send: a new partial result is speech; 2 s without one after speech sends it, none in 8 s stops it.
+            val endpoint = Endpoint()
+            var shown = ""
+            fun heard(text: String) {
+                live(text)
+                if (text.isNotBlank() && text != shown) endpoint.speech(SystemClock.elapsedRealtime() - listening)
+                shown = text
+            }
+            val ticker = launch {
+                while (isActive) {
+                    delay(100)
+                    val at = SystemClock.elapsedRealtime() - listening
+                    showSending(endpoint.sending(at))
+                    when (endpoint.decide(at)) {
+                        Endpoint.Decision.Continue -> {}
+                        Endpoint.Decision.End -> { finishRecording(); break }
+                        Endpoint.Decision.NoSpeech -> { heardNothing = true; stopRecording(); break }
+                    }
+                }
+            }
             try {
                 nano.listen(language).collect { response ->
                     when (response) {
                         is SpeechRecognizerResponse.PartialTextResponse -> {
                             if (firstWords < 0) firstWords = SystemClock.elapsedRealtime() - listening
-                            live(transcript.partial(response.text))
+                            heard(transcript.partial(response.text))
                         }
                         is SpeechRecognizerResponse.FinalTextResponse -> {
                             if (firstWords < 0) firstWords = SystemClock.elapsedRealtime() - listening
-                            live(transcript.final(response.text))
+                            heard(transcript.final(response.text))
                         }
                         is SpeechRecognizerResponse.ErrorResponse -> throw response.e
                         else -> {}
@@ -384,14 +452,17 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
                 Log.w(NanoEars.TAG, "${language.locale}: recognition failed", e)
                 _state.update { it.copy(notice = "Gemini Nano couldn't hear it: ${e.message ?: e}") }
             } finally {
+                ticker.cancel()
                 nanoJob = null
                 // Cancelled (✕): nothing is kept, whatever was heard.
                 val cancelled = !isActive
                 val heard = transcript.heard
                 val ms = SystemClock.elapsedRealtime() - startedAt
+                val nothing = heardNothing.also { heardNothing = false }
                 _state.update {
                     if ((it.voice as? Voice.Recording)?.live == null) it
                     else if (cancelled) it.copy(voice = null)
+                    else if (nothing) it.copy(voice = null, notice = NOTHING_HEARD)
                     else if (heard.isBlank()) it.copy(voice = null, notice = if (failed) it.notice else PhoneVoice.NO_WORDS)
                     else it.copy(voice = Voice.Heard(heard, ms))
                 }
@@ -443,6 +514,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     /** ✕: discards the recording (or what was heard); nothing is sent. */
     fun discardRecording() {
         sendWhenStopped = false
+        heardNothing = false
         nanoJob?.cancel()
         nanoJob = null
         pcmRecording?.cancel()
@@ -661,6 +733,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
 
     private companion object {
         const val TAG = "Assistant"
+        /** No speech before the endpointer gave up (8 s): nothing was sent, and the mic is ready again. */
+        const val NOTHING_HEARD = "Didn't hear anything"
         const val WAKE_EVERY_MS = 60_000L
     }
 }

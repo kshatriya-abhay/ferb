@@ -19,9 +19,12 @@ class PcmRecorder {
     @Volatile var recording = false
         private set
 
-    /** Records until [stop] or the cap; [onLimit] runs (on the recording thread) when the cap ended it. */
+    /**
+     * Records until [stop] or the cap; [onLimit] runs (on the recording thread) when the cap ended
+     * it, and [onChunk] with each read (the samples and how many), for the endpointer.
+     */
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
-    suspend fun record(onLimit: () -> Unit = {}): FloatArray = withContext(Dispatchers.IO) {
+    suspend fun record(onLimit: () -> Unit = {}, onChunk: (FloatArray, Int) -> Unit = { _, _ -> }): FloatArray = withContext(Dispatchers.IO) {
         stopRequested = false
         val chunk = FloatArray(CHUNK_SAMPLES)
         val minBuffer = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL, ENCODING)
@@ -42,6 +45,7 @@ class PcmRecorder {
                 check(read >= 0) { "the microphone stopped ($read)" }
                 chunk.copyInto(clip, size, 0, read)
                 size += read
+                onChunk(chunk, read)
             }
             if (size >= MAX_SAMPLES) onLimit()
         } finally {

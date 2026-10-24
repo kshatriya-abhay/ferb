@@ -33,6 +33,22 @@ class VoiceFieldTest {
     }
 
     @Test
+    fun silentAfterSpeechTheTickShowsItsSendingRing() {
+        compose.setContent {
+            VoiceField(AssistantViewModel.Voice.Recording(0, onPhone = true, sendingIn = 0.5f), onFinish = {}, onDiscard = {}, onSend = {})
+        }
+        compose.onNodeWithContentDescription(SENDING).assertIsDisplayed()
+    }
+
+    @Test
+    fun whileSpeakingThereIsNoRing() {
+        compose.setContent {
+            VoiceField(AssistantViewModel.Voice.Recording(0, onPhone = true), onFinish = {}, onDiscard = {}, onSend = {})
+        }
+        compose.onNodeWithContentDescription(SENDING).assertDoesNotExist()
+    }
+
+    @Test
     fun aWaitingRecordingOffersSendAgain() {
         var sent = 0
         compose.setContent {
