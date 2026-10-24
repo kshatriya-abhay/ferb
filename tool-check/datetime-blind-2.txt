@@ -19,13 +19,13 @@
 #   night/raat and tonight 20:00. With an hour: subah is am; dopahar, shaam and raat are pm (raat 12
 #   is midnight).
 # - Alarms always need a time; an alarm without one asks.
-# - Alarms with a bare hour (no am/pm, part of the day or wake word) follow the user's alarm rules:
-#   with a day given (tomorrow, kal, a weekday, a date), 5-11 are am, 12 is noon, 1-4 are pm;
-#   with no day (or "today"), the candidate inside 06:00-18:00 if still ahead, else the other half
-#   if still ahead today, else tomorrow by the day-given rule. Never a time already past today.
+# - A bare hour (no am/pm, part of the day, wake word or 24-hour time), for alarms, reminders and
+#   events alike (rule changed by the user 2026-10-25):
+#   - with a day given (tomorrow, kal, a weekday, a date): for alarms 5-11 are am, 12 is noon, 1-4
+#     are pm; for reminders and events 7-11 are am, 12 is noon, 1-6 are pm;
+#   - with no day, or "today": the nearest candidate (am or pm) still ahead that isn't in
+#     00:00-04:59. Times in 00:00-04:59 only when said so ("2 am", "raat 2 baje", "02:30").
 # - Wake words (wake, get up, utha, uthana, jaga) make the hour am.
-# - Other bare hours (reminders, events): with a day said, 7-11 are am, 12 is noon,
-#   1-6 are pm; with no day, it is the next time that hour comes round (am or pm, today or tomorrow).
 # - A clock time or part of the day with no day that has passed today rolls to tomorrow; a time said for today
 #   (aaj/today/tonight) that has passed asks.
 # - kal is always tomorrow, even just after midnight; parso is +2, narso is +3.
@@ -55,7 +55,7 @@
 2027-01-11T23:15 Mon | set_alarm | 2027-01-12T16:00 | set an alarm for 4 tomorrow
 2027-01-11T23:15 Mon | set_alarm | 2027-01-12T12:00 | alarm at 12
 2027-01-11T23:15 Mon | add_reminder | 2027-01-12T07:00 | remind me at 7 to call the AC repair guy
-2027-01-13T03:00 Wed | set_alarm | 2027-01-13T17:45 | alarm for 5:45
+2027-01-13T03:00 Wed | set_alarm | 2027-01-13T05:45 | alarm for 5:45
 2027-01-13T03:00 Wed | set_alarm | 2027-01-13T05:45 | wake me at 5:45
 2027-01-15T12:30 Fri | set_alarm | 2027-01-15T15:30 | alarm 3:30
 2027-01-15T12:30 Fri | set_alarm | 2027-01-15T23:00 | set alarm for 11 today
