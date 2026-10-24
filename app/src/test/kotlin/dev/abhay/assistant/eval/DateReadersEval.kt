@@ -221,6 +221,18 @@ class DateReadersEval {
             val (x, y) = keys[i] to keys[j]
             score { l -> values[x]?.get(l.i)?.takeIf { it == values[y]?.get(l.i) } }.forEach { (g, s) -> report.append("$x + $y | $g | $s\n") }
         }
+        // What went wrong, for the readers and the pair the decision is between (report only).
+        for (k in listOf("A1(said)", "A1(R) + A1(said)")) {
+            val parts = k.split(" + ")
+            report.append("\n## $k: wrong runs\n")
+            for (l in lines) {
+                val t = tool(l) ?: continue
+                val vs = parts.map { values[it]?.get(l.i) }
+                val v = vs.first()?.takeIf { x -> x != "ask" && vs.all { it == x } } ?: continue
+                if (!(l.expected != "ask" && t == l.tool && v == l.expected))
+                    report.append("${l.section} | ${l.now} | want ${l.tool} ${l.expected} | ran $t $v | ${l.request} | R: ${answers[l.i]?.text}\n")
+            }
+        }
         report.append("\n## Latency per read (laptop, µs median / 90th)\n")
         ms.forEach { (n, list) -> val s = list.sorted(); report.append("$n: ${s[s.size / 2]} / ${s[s.size * 9 / 10]}\n") }
         devices.forEach { (n, r) -> val s = r.ms().sorted(); if (s.isNotEmpty()) report.append("$n (phone, ms): ${s[s.size / 2]} / ${s[s.size * 9 / 10]}\n") }
