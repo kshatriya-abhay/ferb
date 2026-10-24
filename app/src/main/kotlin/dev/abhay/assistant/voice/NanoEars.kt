@@ -166,21 +166,23 @@ class NanoEars {
 
     suspend fun stop(language: GeminiLanguage) = listener(language.locale).stopRecognition()
 
-    /** [heard] as an English command for Needle 3; English needs no model ([GeminiRewrite.needed]). */
-    suspend fun rewrite(heard: String): Rewritten {
-        if (!GeminiRewrite.needed(heard)) return Rewritten(heard, heard, hindi = false)
+    /** [said] (typed or heard) as one English command for Needle 3, or none ([GeminiRewrite]). */
+    suspend fun rewrite(said: String): Rewritten {
         val started = SystemClock.elapsedRealtime()
-        val answer = writer().generateContent(generateContentRequest(SystemInstruction(GeminiRewrite.PROMPT), TextPart(heard)) {
-            temperature = 0f
-            topK = 1
-            maxOutputTokens = 200
-        }).candidates.firstOrNull()?.text.orEmpty()
-        Log.i(TAG, "rewrite ($writerName) in ${SystemClock.elapsedRealtime() - started} ms: \"$heard\" -> $answer")
-        return GeminiRewrite.parse(heard, answer)
+        val answer = writer().generateContent(rewriteRequest(said)).candidates.firstOrNull()?.text.orEmpty()
+        Log.i(TAG, "rewrite ($writerName) in ${SystemClock.elapsedRealtime() - started} ms: \"$said\" -> \"${answer.trim()}\"")
+        return GeminiRewrite.parse(said, answer)
     }
 
     companion object {
         const val TAG = "FerbNano"
+
+        /** The rewrite as Gemini Nano is asked it, in the app and on the phone bench alike: greedy, short. */
+        fun rewriteRequest(said: String) = generateContentRequest(SystemInstruction(GeminiRewrite.PROMPT), TextPart(said)) {
+            temperature = 0f
+            topK = 1
+            maxOutputTokens = GeminiRewrite.MAX_TOKENS
+        }
 
         /**
          * AICore's own settings page (Android Settings shows it through IA_SETTINGS): seen to make

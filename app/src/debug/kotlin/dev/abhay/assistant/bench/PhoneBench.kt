@@ -31,29 +31,41 @@ import org.json.JSONObject
  * laptop's score.py. A rerun resumes: requests already answered are skipped. One model at a time.
  */
 class PhoneBench(private val app: AssistantApp) {
-    enum class Model(val file: String) { Needle3("needle3"), GeminiFull("gemini-full"), GeminiFast("gemini-fast") }
+    /**
+     * Needle 3; Gemini Nano's schema call (FULL, FAST; superseded); and Gemini Nano's rewrite
+     * before Needle 3 (the app's GeminiRewrite prompt), whose output tool-check/phone.py routes
+     * and gives Needle 3 (run with [input] set to its file).
+     */
+    enum class Model(val file: String) {
+        Needle3("needle3"), GeminiFull("gemini-full"), GeminiFast("gemini-fast"),
+        RewriteFull("rewrites-gemini-full"), RewriteFast("rewrites-gemini-fast");
+
+        val rewrites get() = this == RewriteFull || this == RewriteFast
+    }
 
     data class Item(val id: String, val request: String, val tools: List<String>)
 
     val dir = File(app.filesDir, "bench")
 
-    fun items(): List<Item> = File(dir, "requests.jsonl").takeIf { it.exists() }?.readLines().orEmpty().filter { it.isNotBlank() }.map {
+    fun items(input: String = REQUESTS): List<Item> = File(dir, input).takeIf { it.exists() }?.readLines().orEmpty().filter { it.isNotBlank() }.map {
         val o = JSONObject(it)
         val tools = o.getJSONArray("tools")
         Item(o.getString("id"), o.getString("request"), (0 until tools.length()).map(tools::getString))
     }
 
-    private fun out(model: Model) = File(dir, "${model.file}.jsonl")
+    private fun out(model: Model, output: String? = null) = File(dir, "${output ?: model.file}.jsonl")
 
-    /** The ids [model] has answered already. */
-    fun done(model: Model): Set<String> = out(model).takeIf { it.exists() }?.readLines().orEmpty()
+    /** The ids [model] has answered already (into [output], if not its own file). */
+    fun done(model: Model, output: String? = null): Set<String> = out(model, output).takeIf { it.exists() }?.readLines().orEmpty()
         .filter { it.isNotBlank() }.mapNotNull { runCatching { JSONObject(it).getString("id") }.getOrNull() }.toSet()
 
     /** Answers what's left (at most [limit]), calling [progress] with (done, total) after each; stops on a blocking error. */
-    suspend fun run(model: Model, limit: Int = Int.MAX_VALUE, progress: (Int, Int, String?) -> Unit = { _, _, _ -> }): String = withContext(Dispatchers.Default) {
-        val items = items()
-        require(items.isNotEmpty()) { "no requests: push files/bench/requests.jsonl first (tool-check/phone.py push)" }
-        val answered = done(model).toMutableSet()
+    suspend fun run(model: Model, limit: Int = Int.MAX_VALUE, input: String = REQUESTS, output: String? = null,
+                    progress: (Int, Int, String?) -> Unit = { _, _, _ -> }): String = withContext(Dispatchers.Default) {
+        val items = items(input)
+        require(items.isNotEmpty()) { "no requests: push files/bench/$input first (tool-check/phone.py)" }
+        fun out(model: Model) = out(model, output)
+        val answered = done(model, output).toMutableSet()
         val todo = items.filter { it.id !in answered }.take(limit)
         Log.i(TAG, "${model.file}: ${todo.size} to go of ${items.size}")
         val gemini = if (model == Model.Needle3) null else gemini(model)
@@ -62,8 +74,15 @@ class PhoneBench(private val app: AssistantApp) {
                 val line = JSONObject().put("id", item.id).put("request", item.request)
                 val started = SystemClock.elapsedRealtime()
                 try {
-                    if (gemini == null) line.put("raw", needle(item))
-                    else line.put("raw", ask(gemini, item, line))
+                    when {
+                        gemini == null -> line.put("raw", needle(item))
+                        model.rewrites -> {
+                            val raw = gemini.generateContent(dev.abhay.assistant.voice.NanoEars.rewriteRequest(item.request)).candidates.firstOrNull()?.text.orEmpty()
+                            line.put("raw", raw)
+                            line.put("command", dev.abhay.assistant.voice.GeminiRewrite.parse(item.request, raw).command ?: JSONObject.NULL)
+                        }
+                        else -> line.put("raw", ask(gemini, item, line))
+                    }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -96,7 +115,7 @@ class PhoneBench(private val app: AssistantApp) {
     }
 
     private suspend fun gemini(model: Model): GenerativeModel {
-        val preference = if (model == Model.GeminiFast) ModelPreference.FAST else ModelPreference.FULL
+        val preference = if (model == Model.GeminiFast || model == Model.RewriteFast) ModelPreference.FAST else ModelPreference.FULL
         val client = Generation.getClient(generationConfig { modelConfig = modelConfig { releaseStage = ModelReleaseStage.STABLE; this.preference = preference } })
         val status = client.checkStatus()
         check(status == FeatureStatus.AVAILABLE) { "Gemini Nano ${model.file} isn't available (checkStatus $status)" }
@@ -146,6 +165,7 @@ class PhoneBench(private val app: AssistantApp) {
 
     companion object {
         const val TAG = "FerbBench"
+        const val REQUESTS = "requests.jsonl"
         /** schema.py's NOW, so dates read as in the laptop's schema-call runs. */
         const val NOW = "2026-10-16T09:00 (Friday)"
     }

@@ -20,9 +20,13 @@ class PhoneBenchTest {
 
     @Test
     fun needle3() {
+        // -e input requests-X.jsonl -e output needle3-X: Needle 3 on Gemini Nano's rewrites (phone.py).
+        val args = InstrumentationRegistry.getArguments()
+        val input = args.getString("input") ?: PhoneBench.REQUESTS
+        val output = args.getString("output")
         val bench = PhoneBench(app)
-        assumeTrue("no bench requests pushed", bench.items().isNotEmpty())
-        val result = runBlocking { bench.run(PhoneBench.Model.Needle3) { done, total, _ -> if (done % 25 == 0) Log.i(PhoneBench.TAG, "needle3 $done/$total") } }
+        assumeTrue("no bench requests pushed", bench.items(input).isNotEmpty())
+        val result = runBlocking { bench.run(PhoneBench.Model.Needle3, input = input, output = output) { done, total, _ -> if (done % 25 == 0) Log.i(PhoneBench.TAG, "needle3 $done/$total") } }
         Log.i(PhoneBench.TAG, result)
     }
 }

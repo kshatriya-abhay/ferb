@@ -153,51 +153,46 @@ class LiveTranscript {
 }
 
 /**
- * What Gemini Nano heard, written for Needle 3 (Computer mode's step, on the phone): [heard] as
- * said, in Latin letters, and [text] as a plain English command. English goes on as heard.
+ * A request as Gemini Nano wrote it for Needle 3: [command], one short plain English command, or
+ * null when it asks the phone to do nothing ("NONE": a question, a how-to, chat, a statement, or
+ * something the phone can't do).
  */
-data class Rewritten(val heard: String, val text: String, val hindi: Boolean)
+data class Rewritten(val said: String, val command: String?)
 
 /**
- * The rewrite before Needle 3: Ferb Link's transcribe prompt (ServerClient.TRANSCRIBE, its lessons
- * from the audio bench) for text Gemini Nano wrote down, which may be in Devanagari.
+ * Gemini Nano before Needle 3 (Computer mode's step, on the phone): every request, typed or
+ * heard, English, Hinglish or Hindi, becomes one plain English command, or NONE. Needle 3's
+ * weakest spot was knowing when to call nothing (75 of 137 right on the phone bench, 2026-10-24),
+ * so NONE is Gemini Nano's to say. The phone bench measures this same prompt (tool-check/phone.py);
+ * its examples are in no bench file. Lessons from Ferb Link's transcribe and rewrite prompts:
+ * keep every name and number as said, add nothing, Hindi amounts as numbers.
  */
 object GeminiRewrite {
-    const val PROMPT = """You get a voice request to a phone assistant as speech recognition wrote it down. It may be English, Hindi or Hinglish, in Latin letters or in Devanagari. Reply with JSON only, with three fields, in this order: {"hindi": ..., "heard": "...", "text": "..."}
-- "hindi": true if any word was Hindi (Hinglish counts), false if every word was English.
-- "heard": the same words, in Latin letters. Write Hindi words the way people type Hinglish ("subah 5 baje ka alarm laga do"), never in Devanagari. Keep English words in English. Write numbers as digits.
-- "text": the same request as a short, plain English command, for example "Set an alarm for 5 am". Translate only: keep every name, app, place, number, time and date exactly as in "heard", don't add, drop or guess anything, and don't answer the request.
-Hindi amounts: sava (a quarter more: sava saat = 7:15, sava ghanta = 1 hour 15 minutes), saade (a half more: saade paanch = 5:30), paune (a quarter less: paune aath = 7:45), dedh (one and a half: dedh ghanta = 1 hour 30 minutes), dhai (two and a half: dhai minute = 2 minutes 30 seconds, dhai baje = 2:30). In "text" write the exact time or length ("Wake me up at 7:15").
-In "text", write other amounts as numbers too: half is 50 percent, a quarter 25 percent, full or max 100 percent ("aadhi aawaz" becomes "Set the volume to 50 percent"). A request of one or two action words is still a command: "next", "stop", "pause", "louder" stay as said."""
+    const val NONE = "NONE"
 
-    /**
-     * Common Hindi words in Latin letters (Ferb Link's HINDI_WORDS): only words that aren't also
-     * everyday English, so an English request goes straight to Needle 3.
-     */
-    private val HINDI_WORDS = setOf(
-        "kholo", "karo", "kar", "kardo", "laga", "lagao", "lagado", "chalao", "chalu", "bajao", "bhejo", "batao", "dikhao",
-        "ka", "ki", "ke", "ko", "hai", "hain", "mein", "se", "mujhe", "mera", "meri", "mere", "kya", "kaise", "kaisa",
-        "baje", "kal", "aaj", "subah", "shaam", "raat", "ghante", "ghanta", "dedh", "dhai", "abhi", "jaldi", "nahi",
-        "aur", "wala", "wali", "rasta", "liye", "saath", "daal", "dalo", "bolo", "sunao", "yaad", "dilana",
-    )
+    const val PROMPT = """You turn a request to a phone assistant into one short, plain English command for it. The request may be English, Hindi or Hinglish, in Latin letters or Devanagari, and may have typos.
+Reply with exactly one line: the command, or NONE.
+The phone can: set alarms and timers; open apps, settings and the camera; turn the flashlight on or off; set the media volume; play, pause or skip music; make notes, lists and reminders; call and text contacts; give directions; show the calendar and add events.
+Reply NONE when the user isn't asking the phone to do one of these now: questions about the world, how-to questions, chat, greetings, opinions, statements about things or the past, and things the phone can't do.
+Keep every name, contact, app, place, number, time, date and length exactly as said; translate Hindi words into English. Never add anything the request doesn't say. Keep the user's own words for notes and messages.
+Hindi amounts as numbers: sava 7 is 7:15, saade 5 is 5:30, paune 8 is 7:45, dedh ghanta is 1 hour 30 minutes, dhai minute is 2 minutes 30 seconds, aadhi aawaz is 50 percent volume.
+Examples:
+kal subah 6 baje ka alarm laga do -> Set an alarm for 6 am tomorrow
+torch jala do -> Turn on the flashlight
+bhaiya ko message karo ki main late hoon -> Send a text to bhaiya: main late hoon
+remind me to drink water at 4 -> Remind me to drink water at 4
+what is the capital of japan -> NONE
+my phone feels slow today -> NONE"""
 
-    /** Whether [heard] needs the rewrite: any Devanagari, or a Hindi word in Latin letters. */
-    fun needed(heard: String): Boolean =
-        heard.any { it in 'ऀ'..'ॿ' } || heard.lowercase().split(Regex("[^a-z]+")).any { it in HINDI_WORDS }
+    /** Room for one short command; NONE takes a token or two. */
+    const val MAX_TOKENS = 40
 
-    /**
-     * The model's answer, read: the first JSON object in it. English ("hindi" false) keeps what was
-     * heard, as Computer mode does: the model once "translated" English and dropped a "not".
-     */
-    fun parse(heard: String, answer: String): Rewritten {
-        val start = answer.indexOf('{')
-        val end = answer.lastIndexOf('}')
-        require(start >= 0 && end > start) { "no JSON in Gemini Nano's answer" }
-        val o = JSONObject(answer.substring(start, end + 1))
-        val hindi = o.optBoolean("hindi", needed(heard))
-        val latin = o.optString("heard").trim().ifEmpty { heard }
-        val text = o.optString("text").trim()
-        require(text.isNotEmpty() || !hindi) { "Gemini Nano wrote no command" }
-        return if (hindi) Rewritten(latin, text, true) else Rewritten(heard, heard, false)
+    /** The model's answer: its first line, without quotes, an arrow or "Command:"; null for NONE. */
+    fun parse(said: String, answer: String): Rewritten {
+        val line = answer.trim().lineSequence().firstOrNull { it.isNotBlank() }.orEmpty().trim()
+            .substringAfter("->").removePrefix("Command:").trim().trim('"', '\u201c', '\u201d', '`').trim()
+        require(line.isNotEmpty()) { "Gemini Nano wrote nothing" }
+        val none = line.trimEnd('.').equals(NONE, ignoreCase = true)
+        return Rewritten(said, if (none) null else line)
     }
 }

@@ -55,18 +55,27 @@ object DebugBench {
     val running = MutableStateFlow(false)
     val fraction = MutableStateFlow(0f)
 
-    fun start(app: AssistantApp, model: PhoneBench.Model, limit: Int = Int.MAX_VALUE) {
+    /** Runs [models] one after the other (never at once), each resuming where it stopped. */
+    fun start(app: AssistantApp, vararg models: PhoneBench.Model, limit: Int = Int.MAX_VALUE) {
         if (job?.isActive == true) return
         running.value = true
         job = scope.launch {
-            status.value = try {
-                PhoneBench(app).run(model, limit) { done, total, error ->
-                    fraction.value = done.toFloat() / total
-                    status.value = "${model.file}: $done of $total" + (error?.let { " (last: $it)" } ?: "")
+            val results = mutableListOf<String>()
+            try {
+                for (model in models) {
+                    results += try {
+                        PhoneBench(app).run(model, limit) { done, total, error ->
+                            fraction.value = done.toFloat() / total
+                            status.value = (results + "${model.file}: $done of $total" + listOfNotNull(error?.let { "(last: $it)" })).joinToString("\n")
+                        }
+                    } catch (e: Exception) {
+                        "${model.file} failed: ${e.message ?: e}"
+                    }
+                    status.value = results.joinToString("\n")
+                    if (results.last().contains("stopped") || results.last().contains("failed")) break
                 }
-            } catch (e: Exception) {
-                "${model.file} failed: ${e.message ?: e}"
             } finally {
+                status.value = results.joinToString("\n").ifEmpty { status.value }
                 running.value = false
             }
         }
@@ -108,10 +117,9 @@ object DebugBench {
                     LinearProgressIndicator(progress = { progress }, Modifier.fillMaxWidth())
                     OutlinedButton(onClick = ::stop) { Text("Stop") }
                 } else {
-                    Button(onClick = { start(app, PhoneBench.Model.GeminiFull, limit = 10) }) { Text("Trial: 10 requests, Gemini Nano FULL") }
-                    Button(onClick = { start(app, PhoneBench.Model.GeminiFull) }) { Text("Run Gemini Nano FULL") }
-                    Button(onClick = { start(app, PhoneBench.Model.GeminiFast) }) { Text("Run Gemini Nano FAST") }
-                    OutlinedButton(onClick = { start(app, PhoneBench.Model.Needle3) }) { Text("Run Needle 3") }
+                    // Phase A: Gemini Nano rewrites every request, FULL then FAST; Needle 3 runs on them later with no screen.
+                    Button(onClick = { start(app, PhoneBench.Model.RewriteFull, PhoneBench.Model.RewriteFast) }) { Text("Rewrite all: Gemini Nano FULL, then FAST") }
+                    OutlinedButton(onClick = { start(app, PhoneBench.Model.RewriteFull, limit = 10) }) { Text("Trial: 10 rewrites, FULL") }
                 }
             }
         }

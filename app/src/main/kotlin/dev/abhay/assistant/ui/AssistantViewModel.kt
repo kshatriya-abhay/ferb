@@ -392,15 +392,14 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * What Gemini Nano heard, written as a plain English command for Needle 3 (English as heard,
-     * Hindi through the Prompt API), then answered like a typed request, with what was heard shown.
-     * When the rewrite fails, the words stay, to send again.
+     * What Gemini Nano heard, written as one plain English command for Needle 3 (the bench's
+     * prompt, [dev.abhay.assistant.voice.GeminiRewrite]), then answered like a typed request, with
+     * what was heard shown. NONE (nothing for the phone to do) answers without Needle 3. When the
+     * rewrite fails, the words stay, to send again.
      */
     private fun sendGemini(clip: Voice.Heard) {
         if (_state.value.busy || engine.value !is AssistantEngine.State.Ready) return
-        val rewriting = dev.abhay.assistant.voice.GeminiRewrite.needed(clip.text)
-        _state.update { it.copy(busy = true, voice = null, notice = null, pending = clip.text,
-            asking = if (rewriting) "Gemini Nano is writing it in English\u2026" else null) }
+        _state.update { it.copy(busy = true, voice = null, notice = null, pending = clip.text, asking = "Gemini Nano is writing it in English\u2026") }
         viewModelScope.launch {
             val rewritten = try {
                 assistant.nanoEars.rewrite(clip.text)
@@ -412,9 +411,13 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
                     notice = "Gemini Nano couldn't write it in English: ${e.message ?: e}") }
                 return@launch
             }
-            _state.update { it.copy(pending = rewritten.text, asking = null) }
-            if (rewritten.hindi) answer(rewritten.text, heard = rewritten.heard, phoneVoice = listOf("Gemini Nano", "Gemini Nano (English)"))
-            else answer(rewritten.text, heard = null, phoneVoice = listOf("Gemini Nano"))
+            val command = rewritten.command
+            if (command == null) {
+                _state.update { it.copy(busy = false, pending = null, asking = null, notice = "Nothing for the phone to do in \u201c${clip.text}\u201d") }
+                return@launch
+            }
+            _state.update { it.copy(pending = command, asking = null) }
+            answer(command, heard = clip.text.takeUnless { it.equals(command, ignoreCase = true) }, phoneVoice = listOf("Gemini Nano", "Gemini Nano (English)"))
         }
     }
 

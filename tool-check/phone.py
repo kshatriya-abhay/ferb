@@ -8,6 +8,9 @@ with the laptop's (summary-all-routed.txt).
     phone.py pull        copy every model's answers back
     phone.py score MODEL score needle3, gemini-full or gemini-fast with score.py (and the @hi lines apart)
     phone.py laptop      the laptop's saved Needle 3 and Gemma 4 E2B answers on the same overlap, to compare
+    phone.py rewritten M Gemini Nano's rewrites (M: gemini-full or gemini-fast) routed and pushed for Needle 3 (after pull)
+    phone.py needle M    Needle 3 on M's rewrites, with no screen (lock first)
+    phone.py pipeline M  score rewrite -> Needle 3 against Needle 3 direct, with what the rewrite helped and hurt
 
 Routing is route.py's (each tool's cues; none mentioned: every tool). Needle 3 answers through the
 app's engine; Gemini Nano gets Computer mode's schema call (timed, t4; see the app's debug
@@ -37,13 +40,15 @@ def hi_lines():
     # The @hi sections' lines: those the --skip hi files leave out.
     return [l for l in everything if l not in without or l.startswith("#")]
 
-def prep():
+def routed(request):
+    """route.py's routing: the tools whose cues the text has; every tool when it has none."""
     tools = json.load(open(os.path.join(BUILD, "all.json")))
     cues = json.load(open(os.path.join(BUILD, "cues.json")))
-    everything = [t["name"] for t in tools]
-    def routed(request):
-        mentioned = [t["name"] for t in tools if t["name"] not in cues or re.search(cues[t["name"]], request, re.IGNORECASE)]
-        return mentioned or everything
+    mentioned = [t["name"] for t in tools if t["name"] not in cues or re.search(cues[t["name"]], request, re.IGNORECASE)]
+    return mentioned or [t["name"] for t in tools]
+
+def prep():
+    everything = [t["name"] for t in json.load(open(os.path.join(BUILD, "all.json")))]
     os.makedirs(OUT, exist_ok=True)
     main_set = requests_of(bench_files({"hi"}))
     hi_set = [r for r in requests_of(hi_lines()) if r not in set(main_set)]
@@ -68,21 +73,33 @@ def prep():
 def adb(*args, stdin=None, out=None):
     return subprocess.run(["adb", *args], stdin=stdin, stdout=out, check=True)
 
-def push():
-    with open(os.path.join(OUT, "requests.jsonl"), "rb") as f:
-        adb("exec-in", "run-as", PACKAGE, "sh", "-c", "mkdir -p files/bench && cat > files/bench/requests.jsonl", stdin=f)
-    print("pushed")
+def push(name="requests.jsonl"):
+    with open(os.path.join(OUT, name), "rb") as f:
+        adb("exec-in", "run-as", PACKAGE, "sh", "-c", f"mkdir -p files/bench && cat > files/bench/{name}", stdin=f)
+    print(f"pushed {name}")
+
+def rewritten(model):
+    """Gemini Nano's rewrites ([model]: gemini-full or gemini-fast) routed as route.py routes, for Needle 3; NONE left out (no call)."""
+    rows = [json.loads(l) for l in open(os.path.join(OUT, f"rewrites-{model}.jsonl")) if l.strip()]
+    out = [{"id": r["id"], "request": r["command"], "tools": routed(r["command"])} for r in rows if r.get("command")]
+    name = f"requests-{model}.jsonl"
+    with open(os.path.join(OUT, name), "w") as f:
+        for row in out: f.write(json.dumps(row, ensure_ascii=False) + "\n")
+    print(f"{len(rows)} rewrites: {len(out)} commands for Needle 3, {sum(1 for r in rows if 'error' not in r and not r.get('command'))} NONE, {sum('error' in r for r in rows)} errors")
+    push(name)
 
 def pull():
-    for model in ("needle3", "gemini-full", "gemini-fast"):
+    for model in ("needle3", "gemini-full", "gemini-fast", "rewrites-gemini-full", "rewrites-gemini-fast", "needle3-on-gemini-full", "needle3-on-gemini-fast"):
         path = os.path.join(OUT, f"{model}.jsonl")
         with open(path, "wb") as f:
             subprocess.run(["adb", "exec-out", "run-as", PACKAGE, "sh", "-c", f"cat files/bench/{model}.jsonl 2>/dev/null"], stdout=f, check=False)
         n = sum(1 for l in open(path) if l.strip())
         print(f"{model}: {n} answers")
 
-def needle():
-    subprocess.run(["adb", "shell", "am", "instrument", "-w", "-e", "class", f"{PACKAGE}.PhoneBenchTest",
+def needle(on=None):
+    """Needle 3's pass with no screen: on the bench's requests, or on [on]'s rewrites (needle3-on-[on].jsonl)."""
+    extra = ["-e", "input", f"requests-{on}.jsonl", "-e", "output", f"needle3-on-{on}"] if on else []
+    subprocess.run(["adb", "shell", "am", "instrument", "-w", "-e", "class", f"{PACKAGE}.PhoneBenchTest", *extra,
                     f"{PACKAGE}.test/androidx.test.runner.AndroidJUnitRunner"], check=True)
 
 # --- Gemini Nano's answer, read as Ferb Link's SchemaCall.reply reads it, then as schema.py scores it. ---
@@ -208,6 +225,72 @@ def score(model):
     print(text)
     print(f"\n(saved in {os.path.relpath(path, REPO)})")
 
+SETS = (("without @hi", "requests-no-hi.txt"), ("the 2026-10-11 overlap", "requests-overlap.txt"), ("@hi", "requests-hi.txt"))
+
+def run_score(path, answers_by_request):
+    wanted = requests_of(open(os.path.join(OUT, path)))
+    text = "".join(f"{r}\t{answers_by_request[r]}\n" for r in wanted)
+    out = subprocess.run([sys.executable, os.path.join(HERE, "score.py"), os.path.join(BUILD, "all.json"), os.path.join(OUT, path),
+                          os.path.join(BUILD, "bars.json"), os.path.join(BUILD, "cues.json")], input=text, capture_output=True, text=True, check=True).stdout
+    marks = [l for l in out.splitlines() if re.match(r"(OK  |ok\? |ARGS|MISS) ", l)]
+    assert len(marks) == len(wanted), (len(marks), len(wanted))
+    right = {r: m[:4] in ("OK  ", "ok? ") for r, m in zip(wanted, marks)}
+    return out, right, dict(zip(wanted, marks))
+
+def pipeline(model):
+    """Gemini Nano's rewrite ([model]) then Needle 3, against Needle 3 direct, on the same sets."""
+    by_id = {}
+    for l in open(os.path.join(OUT, f"rewrites-{model}.jsonl")):
+        if l.strip(): r = json.loads(l); by_id[r["id"]] = r
+    needle_on = {}
+    for l in open(os.path.join(OUT, f"needle3-on-{model}.jsonl")):
+        if l.strip(): r = json.loads(l); needle_on[r["id"]] = r
+    direct = {json.loads(l)["request"]: json.loads(l) for l in open(os.path.join(OUT, "needle3.jsonl")) if l.strip()}
+    answers, rewrite_ms, total_ms, said = {}, [], [], {}
+    for rid, r in by_id.items():
+        request = r["request"]
+        said[request] = r
+        if "error" in r or not r.get("command"):
+            answers[request] = json.dumps({"function_calls": [], "confidence": 0.0})
+            if "error" not in r: rewrite_ms.append(r["ms"]); total_ms.append(r["ms"])
+            continue
+        n = needle_on[rid]
+        reply = json.loads(n["raw"]) if "raw" in n else {"function_calls": []}
+        answers[request] = json.dumps(reply)
+        rewrite_ms.append(r["ms"]); total_ms.append(r["ms"] + n["ms"])
+    direct_answers = {q: json.dumps(json.loads(d["raw"])) for q, d in direct.items()}
+    report = [f"# Gemini Nano {model.split('-')[1].upper()} rewrite -> Needle 3, against Needle 3 direct (phone, text only)"]
+    for name, path in SETS:
+        out, right, marks = run_score(path, answers)
+        report.append(f"\n== {name}\n" + "\n".join(l for l in out.splitlines() if not re.match(r"(OK  |ok\? |ARGS|MISS) ", l)))
+        if path == "requests-hi.txt":
+            d_out, d_right, _ = run_score(path, direct_answers)
+            report.append("Needle 3 direct on @hi: " + next(l for l in d_out.splitlines() if "right (tool" in l))
+        else:
+            d_out, d_right, d_marks = run_score(path, direct_answers)
+            report.append("Needle 3 direct: " + next(l for l in d_out.splitlines() if "right (tool" in l))
+            helped = [q for q in right if right[q] and not d_right[q]]
+            hurt = [q for q in right if d_right[q] and not right[q]]
+            report.append(f"helped {len(helped)}, hurt {len(hurt)}")
+            if path == "requests-no-hi.txt":
+                def show(q): return f"  {q!r} -> {said[q].get('command') or 'NONE'!r}: {marks[q][:4].strip()} {marks[q][60:].strip()[:110]}"
+                report.append("helped, e.g.:\n" + "\n".join(show(q) for q in helped[:12]))
+                report.append("hurt, all:\n" + "\n".join(show(q) for q in hurt))
+        per = {}
+        for q, m in marks.items():
+            t = per.setdefault(re.match(r"\S+\s+[\d.]+\s+(\S+)", m)[1], [0, 0]); t[0] += right[q]; t[1] += 1
+        report.append("right by expected tool: " + ", ".join(f"{t} {a}/{b}" for t, (a, b) in sorted(per.items())))
+    def stats(x):
+        x = sorted(x); return f"median {statistics.median(x):.0f}, 90th percentile {x[int(len(x) * 0.9)]} (n={len(x)})"
+    errors = [r for r in by_id.values() if "error" in r]
+    report.append(f"\nrewrite ms: {stats(rewrite_ms)}\nend to end ms (rewrite + Needle 3; NONE is the rewrite alone): {stats(total_ms)}")
+    report.append(f"NONE: {sum(1 for r in by_id.values() if 'error' not in r and not r.get('command'))} of {len(by_id)}; rewrite errors: {len(errors)}" +
+                  (f", e.g. {errors[0]['error'][:100]}" if errors else ""))
+    text = "\n".join(report)
+    path = os.path.join(OUT, f"score-pipeline-{model}.txt")
+    open(path, "w").write(text + "\n")
+    print(text)
+
 def laptop():
     """The laptop's saved answers (Needle 3, Gemma 4 E2B; 2026-10-11) scored on the overlap, today's labels."""
     for model in ("needle3", "gemma-4-e2b"):
@@ -224,7 +307,9 @@ if __name__ == "__main__":
     if command == "prep": prep()
     elif command == "push": push()
     elif command == "pull": pull()
-    elif command == "needle": needle()
+    elif command == "needle": needle(sys.argv[2] if len(sys.argv) > 2 else None)
+    elif command == "rewritten": rewritten(sys.argv[2])
+    elif command == "pipeline": pipeline(sys.argv[2])
     elif command == "score": score(sys.argv[2])
     elif command == "laptop": laptop()
     else: sys.exit(__doc__)

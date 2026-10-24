@@ -72,29 +72,24 @@ class NanoVoiceTest {
     }
 
     @Test
-    fun englishGoesStraightOnAndHindiIsWrittenInEnglish() {
-        assertThat(GeminiRewrite.needed("Set an alarm for 7 am tomorrow")).isFalse()
-        assertThat(GeminiRewrite.needed("कल सुबह सात बजे का अलार्म लगा दो")).isTrue()
-        assertThat(GeminiRewrite.needed("kal subah 7 baje alarm laga do")).isTrue()
+    fun theRewriteIsOneCommandOrNone() {
+        assertThat(GeminiRewrite.parse("torch jala do", "Turn on the flashlight\n")).isEqualTo(Rewritten("torch jala do", "Turn on the flashlight"))
+        // Quotes, an arrow or a label around it go; only the first line counts.
+        assertThat(GeminiRewrite.parse("x", "x -> \"Call Priya\"\nSomething else").command).isEqualTo("Call Priya")
+        assertThat(GeminiRewrite.parse("x", "Command: Set a timer for 5 minutes").command).isEqualTo("Set a timer for 5 minutes")
+        assertThat(GeminiRewrite.parse("what is the capital of japan", "NONE").command).isNull()
+        assertThat(GeminiRewrite.parse("x", " none.").command).isNull()
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun anEmptyAnswerFails() {
+        GeminiRewrite.parse("kal 7 baje", "  \n ")
     }
 
     @Test
-    fun theModelsAnswerIsRead() {
-        val said = "कल सुबह सात बजे का अलार्म लगा दो"
-        val got = GeminiRewrite.parse(said, "```json\n{\"hindi\": true, \"heard\": \"kal subah 7 baje ka alarm laga do\", \"text\": \"Set an alarm for 7 am tomorrow\"}\n```")
-        assertThat(got).isEqualTo(Rewritten("kal subah 7 baje ka alarm laga do", "Set an alarm for 7 am tomorrow", hindi = true))
-        // English keeps what was heard: the model once dropped a "not" translating it.
-        val english = GeminiRewrite.parse("don't remind me", "{\"hindi\": false, \"heard\": \"don't remind me\", \"text\": \"Remind me\"}")
-        assertThat(english).isEqualTo(Rewritten("don't remind me", "don't remind me", hindi = false))
-    }
-
-    @Test(expected = IllegalArgumentException::class)
-    fun anAnswerWithoutJsonFails() {
-        GeminiRewrite.parse("kal 7 baje", "Sure! Here is your command.")
-    }
-
-    @Test(expected = IllegalArgumentException::class)
-    fun hindiWithoutACommandFails() {
-        GeminiRewrite.parse("kal 7 baje", "{\"hindi\": true, \"heard\": \"kal 7 baje\", \"text\": \"\"}")
+    fun thePromptsExamplesAreShortAndEndInNoneForQuestions() {
+        assertThat(GeminiRewrite.PROMPT).contains("Reply with exactly one line: the command, or NONE.")
+        assertThat(GeminiRewrite.PROMPT).contains("what is the capital of japan -> NONE")
+        assertThat(GeminiRewrite.MAX_TOKENS).isAtMost(48)
     }
 }
