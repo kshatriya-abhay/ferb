@@ -59,6 +59,14 @@ class ChatActivity : ComponentActivity() {
     /** Opened as the phone's assistant ([Intent.ACTION_ASSIST]): counted, so each one brings up the chat ready to type. */
     private val assists = mutableStateOf(0)
 
+    private var chat: AssistantViewModel? = null
+
+    /** Out of sight, a recording of the chat's own goes (see [AssistantViewModel.leftScreen]). */
+    override fun onStop() {
+        super.onStop()
+        if (!isChangingConfigurations) chat?.leftScreen()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         read(intent)
@@ -86,6 +94,7 @@ class ChatActivity : ComponentActivity() {
             val colors = if (isSystemInDarkTheme()) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
             MaterialExpressiveTheme(colorScheme = colors, motionScheme = MotionScheme.expressive()) {
                 val viewModel: AssistantViewModel = viewModel()
+                chat = viewModel
                 val settings: SettingsViewModel = viewModel()
                 // The first launch (or after Settings → Run setup again or Show tips again): the welcome and the steps' pages first.
                 val onboarding by viewModel.onboarding.state.collectAsStateWithLifecycle()

@@ -55,7 +55,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
@@ -349,7 +348,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         }
         pcmRecording = job
         viewModelScope.launch {
-            val pcm = job.await() ?: return@launch
+            // The recorder failed (the mic in use elsewhere): clear it, or the mic stays blocked.
+            val pcm = job.await() ?: run { if (pcmRecording === job) pcmRecording = null; return@launch }
             if (pcmRecording !== job) return@launch
             pcmRecording = null
             val ms = SystemClock.elapsedRealtime() - startedAt
@@ -402,11 +402,14 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         val startedAt = SystemClock.elapsedRealtime()
         _state.update { it.copy(voice = Voice.Recording(startedAt, onPhone = true, live = language), notice = null) }
         fun live(heard: String) = _state.update { s -> (s.voice as? Voice.Recording)?.takeIf { it.live != null }?.let { s.copy(voice = it.copy(heard = heard)) } ?: s }
-        nanoJob = viewModelScope.launch {
+        // Started once it's stored: a status() that returns without suspending would otherwise clear
+        // nanoJob before the assignment, which then kept a finished job and blocked the mic for good.
+        lateinit var self: kotlinx.coroutines.Job
+        self = viewModelScope.launch(start = kotlinx.coroutines.CoroutineStart.LAZY) {
             val nano = assistant.nanoEars
             val choice = NanoChoice.of(nano.status(language))
             if (choice is NanoChoice.Whistle) {
-                nanoJob = null
+                if (nanoJob === self) nanoJob = null
                 Log.i(NanoEars.TAG, "${language.locale}: Whistle instead (${choice.notice})")
                 startPhoneRecording()
                 _state.update { it.copy(notice = choice.notice) }
@@ -461,7 +464,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
                 _state.update { it.copy(notice = "Gemini Nano couldn't hear it: ${e.message ?: e}") }
             } finally {
                 ticker.cancel()
-                nanoJob = null
+                if (nanoJob === self) nanoJob = null
                 // Cancelled (✕): nothing is kept, whatever was heard.
                 val cancelled = !isActive
                 val heard = transcript.heard
@@ -477,6 +480,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
                 if (!cancelled) sendIfAsked()
             }
         }
+        nanoJob = self
+        self.start()
     }
 
     /** What Gemini Nano heard, answered like a typed request through the rest of the steps. */
@@ -520,6 +525,14 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     /** ✕: discards the recording (or what was heard); nothing is sent. */
+    /**
+     * The screen went out of sight: a recording of its own goes (✓ already pressed, it's sent). So a
+     * recording on screen is always the screen's own, and ✓ or ✕ on it stops the real recorder.
+     */
+    fun leftScreen() {
+        if (!sendWhenStopped && (nanoJob != null || pcmRecording != null)) discardRecording()
+    }
+
     fun discardRecording() {
         sendWhenStopped = false
         heardNothing = false
@@ -629,7 +642,6 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     private val runner by lazy { CallRunner(assistant.foreground.inFront) }
-    private val running = Mutex()
 
     /**
      * Runs an exchange's waiting calls, one at a time (see [CallRunner]); a call that failed its
@@ -640,8 +652,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             ?.filter { i -> _state.value.history.first { it.id == exchangeId }.calls[i].status == Status.Waiting }.orEmpty()
         if (waiting.isEmpty()) return
         updateExchange(exchangeId) { e -> e.copy(calls = e.calls.mapIndexed { i, c -> if (i in waiting) c.copy(status = Status.Queued) else c }) }
-        viewModelScope.launch {
-            running.withLock {
+        assistant.calls.launch {
+            assistant.callsRunning.withLock {
                 fun call(i: Int) = _state.value.history.first { it.id == exchangeId }.calls[i]
                 runner.run(
                     calls = waiting,
@@ -671,7 +683,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             e.copy(calls = e.calls.mapIndexed { i, c -> if (i == callIndex) c.copy(status = status) else c })
         }
         set(Status.Queued)
-        viewModelScope.launch {
+        assistant.calls.launch {
             val outcome = try {
                 action.run(FollowUpEnv(launchContext(), awaitBack = runner::awaitBack))
             } catch (e: CancellationException) {

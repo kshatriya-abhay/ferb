@@ -31,6 +31,13 @@ class AssistActivity : ComponentActivity() {
     /** Each assist invocation, so the sheet listens again (or focuses its box). */
     private val opened = mutableIntStateOf(0)
 
+    private var viewModel: AssistantViewModel? = null
+
+    override fun onStop() {
+        super.onStop()
+        if (!isChangingConfigurations) viewModel?.leftScreen()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (intent.action == Intent.ACTION_ASSIST) opened.intValue++
@@ -46,6 +53,7 @@ class AssistActivity : ComponentActivity() {
             val colors = if (isSystemInDarkTheme()) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
             MaterialExpressiveTheme(colorScheme = colors, motionScheme = MotionScheme.expressive()) {
                 val viewModel: AssistantViewModel = viewModel()
+                this@AssistActivity.viewModel = viewModel
                 AssistSheet(
                     viewModel,
                     opened = opened.intValue,
