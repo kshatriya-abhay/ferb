@@ -215,6 +215,14 @@ class DateTimeEval {
             "E: A, and held back runs when the router routes only that timed tool" to { r ->
                 if (r.a.tool != null && (!r.a.heldBack || routedAlone(r))) resolvedFor(r) else null
             },
+        ) + listOf<Pair<String, (Row) -> String?>>(
+            // The hybrid: the tool from Needle 3 on the (rewritten) text, the time from A on the words
+            // as said, and asking when the words as said name other timed tools but not this one.
+            "H: E's gate, A on the words as said, the said words' tools agreeing" to { r ->
+                val said = ToolRouter.route(r.line.request, Tools.all, configs).map { it.name }.filter { it in timed }
+                if (r.a.tool != null && (!r.a.heldBack || routedAlone(r)) && (said.isEmpty() || r.a.tool in said))
+                    approachA(r.line.copy(tool = r.a.tool), r.a, r.line.request) else null
+            },
         ) + if (slots == null) emptyList() else listOf<Pair<String, (Row) -> String?>>(
             "C, Needle's bar" to { r -> if (r.a.tool != null && !r.a.heldBack) approachC(r.a.tool, slots[r.line.i], r.line.now) else null },
             "E with C's time" to { r -> if (r.a.tool != null && (!r.a.heldBack || routedAlone(r))) approachC(r.a.tool, slots[r.line.i], r.line.now) else null },
@@ -239,6 +247,12 @@ class DateTimeEval {
         report.append("\n## E's wrong runs\n")
         rows.filter { r -> gates[2].second(r)?.let { it != "ask" && !(r.a.tool == r.line.tool && it == r.line.expected) } == true }.forEach { r ->
             report.append("${r.line.now} | want ${r.line.tool} ${r.line.expected} | ran ${r.a.tool} ${gates[2].second(r)} | ${r.line.request}\n")
+        }
+        gates.firstOrNull { it.first.startsWith("H:") }?.let { (_, gate) ->
+            report.append("\n## H's wrong runs\n")
+            rows.filter { r -> gate(r)?.let { it != "ask" && !(r.a.tool == r.line.tool && it == r.line.expected) } == true }.forEach { r ->
+                report.append("${r.line.now} | want ${r.line.tool} ${r.line.expected} | ran ${r.a.tool} ${gate(r)} | ${r.line.request} | text ${r.a.text}\n")
+            }
         }
         // C against A, both reading the line's own tool: Gemini Nano's slots or A's regex on the request as typed.
         if (slots != null) {

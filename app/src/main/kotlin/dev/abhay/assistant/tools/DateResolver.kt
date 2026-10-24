@@ -274,7 +274,7 @@ object DateResolver {
             return withPart(h, m.groupValues[2].toInt(), if (h > 12) true else null, part, thisPart)
         }
         // "at 7", "7 o'clock", "7 baje", "for 8" (an alarm), "at seven".
-        Regex("""\b(?:at|for|by) $hourWord\b(?! (?:minute|min|hour|second|day|week)s?\b)""").find(t)?.let { m -> num(m.groupValues[1])?.let { return withPart(it, 0, null, part, thisPart) } }
+        Regex("""\b(?:at|for|by) $hourWord\b(?! (?:minute|min|hour|second|day|week)s?\b)(?![/:.]\d)""").find(t)?.let { m -> num(m.groupValues[1])?.let { return withPart(it, 0, null, part, thisPart) } }
         Regex("""\b$hourWord (?:o'clock|oclock|baje)\b""").find(t)?.let { m -> num(m.groupValues[1])?.let { return withPart(it, 0, null, part, thisPart) } }
         // "tomorrow at 7" said as "7 tomorrow", "alarm at 6": a lone hour next to a day or a part.
         Regex("""\b$hourWord (?:tomorrow|today|in the (?:morning|evening))\b""").find(t)?.let { m -> num(m.groupValues[1])?.let { return withPart(it, 0, null, part, thisPart) } }
