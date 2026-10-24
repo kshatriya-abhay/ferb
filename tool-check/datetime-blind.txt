@@ -1,0 +1,193 @@
+# Dates and times, BLIND set: frozen. Nobody tunes a prompt, rule or resolver on it; it is only scored.
+# Written 2026-10-24 by the ferb-link session, which has not seen DateResolver, times.txt or the rows of
+# datetime*.txt. The expected values were worked out from the rules below, independently of Ferb's code.
+#
+# Format (as datetime.txt): now | tool | expected | request   (split on " | " at most 3 times)
+# - now: "YYYY-MM-DDTHH:MM Ddd", local time; the date is authoritative, Ddd is a check.
+# - tool: add_reminder, set_alarm, set_timer, add_event or show_agenda.
+# - expected: a moment "YYYY-MM-DDTHH:MM"; a repeat "YYYY-MM-DDTHH:MM rule" (the first occurrence
+#   after now; daily, weekdays, weekly, monthly); a day "YYYY-MM-DD" for show_agenda; a length
+#   "+PTnHnMnS" for set_timer (non-zero parts only); or "ask" when Ferb should ask, not guess.
+# - request: as a person would type or say it: English, Hinglish in Latin letters, Hindi in Devanagari.
+#
+# Rules (the user's decisions):
+# - A weekday, bare or with this/coming/next (agle), is the upcoming one: today only if its time is
+#   still ahead, otherwise next week. "next <weekday>" said on that weekday is +7; said on another
+#   day it is the coming one ("next Saturday" on a Wednesday is 3 days on).
+# - A weekday, date, "tomorrow" or "in N days" with no time is 09:00. "Today" with no time asks.
+# - Parts of the day with no hour: morning/subah 09:00, afternoon/dopahar 14:00, evening/shaam 18:00,
+#   night/raat and tonight 20:00. With an hour: subah is am; dopahar, shaam and raat are pm (raat 12
+#   is midnight).
+# - Alarms always need a time; an alarm without one asks.
+# - Wake words (wake, get up, utha, uthana, jaga) make the hour am.
+# - A bare hour (no am/pm, part of the day or wake word): with a day said, 7-11 are am, 12 is noon,
+#   1-6 are pm; with no day, it is the next time that hour comes round (am or pm, today or tomorrow).
+# - A clock time with no day that has passed today rolls to tomorrow; a time said for today
+#   (aaj/today/tonight) that has passed asks.
+# - kal is always tomorrow, even just after midnight; parso is +2, narso is +3.
+# - "in N minutes/hours" counts exactly from now; sava +15, saade +30, paune -15, dedh 1.5.
+# - noon is 12:00; midnight is 00:00 at the start of the next day.
+# - Dates are day-first (en-IN): 5/1 is 5 January. A date with no year or month rolls forward to its
+#   next occurrence ("the 5th" on the 20th is next month's; "25 Dec" on 26 Dec is next year's).
+#   A date that is explicitly past (with a year) or doesn't exist (30 Feb, 31 April) asks.
+# - An event's time is its start ("6 to 8 pm" is 18:00).
+
+# English
+2026-10-26T08:10 Mon | add_reminder | 2026-10-26T18:00 | remind me to buy 2 litres milk at 6
+2026-10-26T08:10 Mon | set_alarm | 2026-10-27T05:00 | set an alarm for 5 tomorrow morning
+2026-10-26T08:10 Mon | show_agenda | 2026-10-26 | what's my schedule today
+2026-10-26T08:10 Mon | add_reminder | 2026-10-26T18:00 | remind me this evening to iron my shirt for the interview
+2026-10-26T21:30 Mon | set_alarm | 2026-10-27T06:00 | wake me up at 6
+2026-10-26T21:30 Mon | add_reminder | ask | remind me tonight to call mom
+2026-10-26T21:30 Mon | add_reminder | 2026-10-27T21:00 | remind me tomorrow at 9pm to take my tablets
+2026-10-26T21:30 Mon | add_reminder | 2026-10-27T21:00 daily | remind me every day at 9pm to take my BP tablets
+2026-10-26T21:30 Mon | add_reminder | 2026-10-27T14:00 | remind me tomorrow afternoon to call the bank about the cheque
+2026-10-27T10:00 Tue | add_reminder | 2026-10-30T09:00 | pls remind me friday to pay the electricity bill
+2026-10-27T10:00 Tue | add_event | 2026-10-29T16:30 | add dentist appointment on thursday at 4:30
+2026-10-27T10:00 Tue | add_reminder | ask | remind me today to book the tatkal tickets
+2026-10-27T10:00 Tue | add_reminder | 2026-10-28T08:00 | ugh remind me tmrw at 8 to submit the form
+2026-10-27T10:00 Tue | add_reminder | 2026-10-28T15:00 | remind me tomorow at 3 to pick up the kids
+2026-10-27T10:00 Tue | add_reminder | 2026-10-27T17:00 | remind me to text Riya at 5 that the meeting moved to 7
+2026-10-27T10:00 Tue | add_reminder | 2026-10-29T10:00 | remind me the day after tomorrow at 10 to return the library book
+2026-10-28T15:00 Wed | add_reminder | 2026-10-31T09:00 | remind me next saturday to get the car serviced
+2026-10-28T15:00 Wed | add_event | 2026-11-03T10:00 | coming tuesday parent teacher meeting at 10
+2026-10-28T15:00 Wed | add_reminder | 2026-10-28T18:00 | can you remind me on wednesday evening to pay the credit card bill
+2026-10-28T15:00 Wed | show_agenda | 2026-10-30 | what have i got on friday
+2026-10-28T19:00 Wed | add_reminder | 2026-11-04T18:00 | remind me wednesday evening to pay the society maintenance
+2026-10-28T19:00 Wed | add_reminder | 2026-10-28T21:00 | remind me at 9 tonight to lock the main gate
+2026-10-28T19:00 Wed | add_reminder | 2026-10-28T23:00 | remind me at 11 tonight to switch off the inverter
+2026-10-28T19:00 Wed | set_alarm | 2026-10-29T05:30 | alarm 5.30
+2026-10-29T09:00 Thu | set_alarm | 2026-10-29T12:30 | alarm at 12:30 pm for the lunch call
+2026-10-29T09:00 Thu | add_reminder | 2026-10-29T16:15 | remind me at quarter past 4 to call the vet
+2026-10-29T09:00 Thu | set_alarm | 2026-10-30T06:45 | set an alarm for quarter to 7 tomorrow
+2026-10-29T13:00 Thu | add_reminder | 2026-10-30T12:00 | remind me at noon to send the invoice to Mehta
+2026-10-29T13:00 Thu | add_reminder | 2026-10-30T01:00 | remind me at 1 to take the antibiotic
+2026-10-29T22:00 Thu | add_reminder | 2026-10-30T00:00 | remind me at midnight to wish Kabir happy birthday
+2026-10-29T22:00 Thu | add_reminder | 2026-10-30T00:00 | remind me in 2 hours to check if the dough has risen
+2026-10-29T23:10 Thu | set_alarm | 2026-10-30T04:45 | set alarm 4:45 am
+2026-10-29T23:10 Thu | set_alarm | ask | set an alarm
+2026-10-30T10:00 Fri | add_reminder | 2026-11-02T08:45 weekdays | every weekday at 8:45 remind me to join the standup
+2026-10-30T10:00 Fri | add_event | 2026-11-02T17:15 | doctor's appointment 2nd nov 5:15 pm
+2026-10-30T10:00 Fri | set_alarm | ask | alarm for saturday
+2026-10-30T22:00 Fri | set_alarm | 2026-11-01T07:00 | get me up at 7 on sunday
+2026-10-30T22:00 Fri | add_reminder | 2026-10-30T22:30 | remind me in half an hour to turn off the geyser
+2026-10-31T11:00 Sat | add_reminder | 2026-11-07T09:00 | remind me next saturday to clean the balcony
+2026-10-31T11:00 Sat | add_reminder | 2026-10-31T17:00 | remind me on saturday at 5 to collect the parcel from the guard
+2026-10-31T11:00 Sat | show_agenda | 2026-11-02 | what do i have on monday
+2026-10-31T11:00 Sat | add_event | 2026-11-02T11:00 | meeting with Sharma ji on monday 11 am
+2026-10-31T11:00 Sat | add_event | 2026-10-31T18:00 | block saturday 6 to 8 pm for the society meeting
+2026-10-31T19:00 Sat | add_reminder | 2026-11-07T17:00 | remind me on saturday at 5 to call the plumber
+2026-10-31T19:00 Sat | add_reminder | 2026-11-01T09:00 | remind me tomorrow to order the cylinder
+2026-11-01T00:20 Sun | set_alarm | 2026-11-02T07:00 | alarm for 7 tomorrow
+2026-11-01T00:20 Sun | add_reminder | 2026-11-01T01:05 | remind me in 45 mins to take the clothes out of the machine
+2026-11-01T00:20 Sun | add_reminder | 2026-11-01T04:00 | yo remind me at 4 to call the electrician
+2026-11-01T08:00 Sun | add_reminder | 2026-11-01T09:00 weekly | remind me every sunday morning to water the plants
+2026-11-01T08:00 Sun | set_timer | +PT10M | timer 10 min
+2026-11-01T08:00 Sun | set_timer | +PT1H30M | set a timer for an hour and a half for the dal
+2026-11-01T08:00 Sun | set_timer | +PT1M30S | start a 90 second timer
+2026-11-01T08:00 Sun | show_agenda | 2026-11-02 | what's on my calendar tomorrow
+2026-11-01T10:00 Sun | add_reminder | 2026-12-01T09:00 monthly | remind me every month on the 1st to pay the maid
+2026-11-01T10:00 Sun | add_reminder | 2026-11-04T09:00 | remind me in 3 days to follow up with the landlord
+2026-11-01T10:00 Sun | add_reminder | 2026-11-11T09:00 | in 10 days remind me to renew my passport
+2026-11-05T10:00 Thu | add_event | 2026-11-28T16:00 | add Arjun's birthday party on the 28th at 4
+2026-11-05T10:00 Thu | add_reminder | 2026-11-05T13:00 | remind me at 1 to eat lunch, i keep forgetting
+2026-11-05T10:00 Thu | set_timer | +PT25M | timer for 25 minutes pasta
+2026-11-05T10:00 Thu | set_timer | +PT2H | timer 2 hrs
+2026-11-06T10:00 Fri | add_event | 2026-11-13T13:00 | add team lunch next friday 1pm
+2026-11-06T10:00 Fri | add_reminder | ask | remind me on 10 march 2025 to file the taxes
+2026-11-10T12:00 Tue | add_event | 2026-12-14T19:00 | add Neha's wedding reception on 14/12 at 7pm
+2026-11-10T12:00 Tue | add_reminder | ask | remind me on 30th feb about the insurance renewal
+2026-11-10T12:00 Tue | add_reminder | ask | remind me on 31 april to pay the school fees
+2026-11-20T16:00 Fri | show_agenda | 2026-12-15 | anything planned for the 15th?
+2026-11-20T16:00 Fri | add_reminder | 2026-12-10T09:00 | remind me next month on the 10th to pay the car emi
+2026-11-30T18:00 Mon | add_reminder | 2026-12-03T09:00 | remind me on the 3rd to pay rent
+2026-12-20T12:00 Sun | add_event | 2027-01-05T09:00 | put mehendi function on 5/1
+2026-12-26T09:30 Sat | add_reminder | 2027-12-25T09:00 | on dec 25 remind me to call grandma
+2026-12-31T23:50 Thu | add_reminder | 2027-01-01T09:00 | remind me on the 1st of jan to change the wifi password
+2026-12-31T23:50 Thu | set_alarm | 2027-01-01T06:30 | set alarm for 6:30 tomorrow
+2026-12-31T23:50 Thu | add_reminder | 2027-01-01T00:05 | remind me in 15 minutes to call everyone for new year
+
+# Hinglish (Latin letters)
+2026-11-02T22:00 Mon | set_alarm | 2026-11-03T06:00 | kal subah 6 baje utha dena
+2026-11-02T22:00 Mon | add_event | 2026-11-04T19:00 | parso shaam 7 baje Rahul ki party hai, add kar do
+2026-11-02T22:00 Mon | add_event | 2026-11-05T14:00 | narso dopahar 2 baje dentist
+2026-11-02T22:00 Mon | set_alarm | 2026-11-03T05:30 | subah 5:30 ka alarm
+2026-11-02T22:00 Mon | set_alarm | ask | kal ka alarm laga do
+2026-11-02T22:00 Mon | set_alarm | 2026-11-03T07:00 | kal 7 baje ka alarm laga do
+2026-11-02T22:00 Mon | set_alarm | 2026-11-03T04:00 | kal subah 4 baje ka alarm, flight hai
+2026-11-02T22:00 Mon | add_reminder | 2026-11-03T23:00 | kal raat 11 baje yaad dilana ki Netflix cancel karna hai
+2026-11-02T22:00 Mon | add_reminder | 2026-11-03T21:00 daily | har roz raat 9 baje dawai yaad dilana
+2026-11-02T18:00 Mon | add_reminder | 2026-11-02T22:00 | aaj raat 10 baje yaad dilana ki gas band karni hai
+2026-11-02T18:00 Mon | set_timer | +PT10M | 10 minute ka timer laga do
+2026-11-02T18:00 Mon | set_timer | +PT30M | aadhe ghante ka timer
+2026-11-02T18:00 Mon | add_reminder | 2026-11-02T19:30 | dedh ghante baad yaad dilana ki dhobi aayega
+2026-11-02T18:00 Mon | add_reminder | 2026-11-02T19:15 | sava ghante baad bolna chai banani hai
+2026-11-02T18:00 Mon | show_agenda | 2026-11-04 | budhvaar ko kya hai
+2026-11-02T18:00 Mon | add_reminder | 2026-11-03T09:00 | kal subah yaad dilana ki 2 kilo aata lena hai
+2026-11-02T18:00 Mon | add_reminder | 2026-11-03T18:00 | kal shaam ko yaad dilana mummy ko call karna hai
+2026-11-02T18:00 Mon | add_reminder | 2026-11-03T15:00 | bhai kal 3 baje yaad dila dena ki courier lena hai
+2026-11-04T15:00 Wed | add_event | 2026-11-09T11:00 | agle somvar ko 11 baje meeting hai
+2026-11-04T15:00 Wed | add_reminder | 2026-11-06T16:00 | shukravar ko 4 baje yaad dilana ki cake order karna hai
+2026-11-04T15:00 Wed | add_reminder | 2026-11-04T20:00 | raat ko yaad dilana ki phone charge karna hai
+2026-11-04T15:00 Wed | add_reminder | 2026-11-04T16:30 | saade 4 baje bolna ki bachon ko pick karna hai
+2026-11-04T15:00 Wed | add_reminder | 2026-11-04T20:00 | Priya ko message karna hai, 8 baje yaad dilana ki party 9 baje hai
+2026-11-04T15:00 Wed | add_reminder | 2026-11-04T15:20 | 20 min baad yaad dilana ki doodh ubal raha hai
+2026-11-04T15:00 Wed | add_reminder | 2026-11-04T18:00 | teen ghante baad bolna ki khana garam karna hai
+2026-11-04T15:00 Wed | set_timer | +PT5M | 5 minute ka timer lagao maggi ke liye
+2026-11-04T15:00 Wed | set_timer | +PT1H | ek ghante ka timer
+2026-11-04T15:00 Wed | set_timer | +PT45S | 45 second ka timer
+2026-11-04T15:00 Wed | add_reminder | 2026-11-06T09:00 | do din baad yaad dilana ki gaadi ki service hai
+2026-11-04T15:00 Wed | add_event | 2026-11-05T12:00 | kal dopahar 12 baje lunch Rohit ke saath
+2026-11-04T15:00 Wed | add_event | 2026-11-10T18:00 | mangalvaar shaam 6 baje gym
+2026-11-04T15:00 Wed | show_agenda | 2026-11-04 | aaj kya kya hai mera
+2026-11-04T15:00 Wed | show_agenda | 2026-11-05 | kal ka schedule batao
+2026-11-05T08:00 Thu | add_reminder | 2026-11-05T08:45 | paune 9 baje yaad dilana ki cab book karni hai
+2026-11-05T08:00 Thu | add_reminder | 2026-11-05T11:00 | guruvaar ko doctor ka appointment hai 11 baje, yaad dilana
+2026-11-05T12:00 Thu | add_reminder | 2026-11-12T11:00 | guruvaar 11 baje yaad dilana ki dawai lene jana hai
+2026-11-05T19:00 Thu | add_reminder | ask | aaj 5 baje yaad dilana ki dhobi ko kapde dene hain
+2026-11-05T19:00 Thu | add_reminder | 2026-11-06T00:00 | raat 12 baje yaad dilana ki Kabir ko wish karna hai
+2026-11-05T23:00 Thu | add_reminder | 2026-11-06T10:00 | 10 baje yaad dilana ki AC ki service wale ko call karna hai
+2026-11-05T23:00 Thu | set_alarm | 2026-11-06T06:00 | mujhe 6 baje jaga dena
+2026-11-06T22:00 Fri | set_alarm | 2026-11-08T09:00 | itwaar ko 9 baje utha dena
+2026-11-06T22:00 Fri | set_alarm | ask | parso ka alarm laga dena
+2026-11-07T10:00 Sat | add_reminder | 2026-11-14T09:00 | agle shanivaar ko yaad dilana ki bijli ka bill bharna hai
+2026-11-07T10:00 Sat | add_reminder | 2026-11-09T09:15 weekdays | har weekday subah 9:15 standup yaad dilana
+2026-11-07T10:00 Sat | set_alarm | 2026-11-08T06:30 | kal subah saade 6 baje uthana
+2026-11-09T11:00 Mon | add_reminder | 2026-11-16T10:00 weekly | har somvar subah 10 baje team call yaad dilana
+2026-11-20T16:00 Fri | add_reminder | 2026-12-15T09:00 | 15 tareekh ko rent dena hai yaad dilana
+2026-11-20T16:00 Fri | add_reminder | 2026-12-05T09:00 | agle mahine 5 tareekh ko emi yaad dilana
+2026-11-20T16:00 Fri | add_reminder | ask | 31 november ko yaad dilana ki fees bharni hai
+2026-11-22T00:30 Sun | set_alarm | 2026-11-23T06:00 | kal subah 6 baje utha dena yaar
+2026-12-31T15:00 Thu | add_reminder | 2027-01-01T09:00 | 1 jan ko yaad dilana insurance renew karna hai
+
+# Hindi (Devanagari)
+2026-11-09T17:00 Mon | set_alarm | 2026-11-10T06:00 | कल सुबह 6 बजे का अलार्म लगा दो
+2026-11-09T17:00 Mon | add_reminder | 2026-11-11T17:00 | परसों शाम 5 बजे याद दिलाना कि दवाई लेनी है
+2026-11-09T17:00 Mon | set_timer | +PT10M | 10 मिनट का टाइमर लगाओ
+2026-11-09T17:00 Mon | add_reminder | 2026-11-09T21:00 | आज रात 9 बजे याद दिलाना कि गेट बंद करना है
+2026-11-09T17:00 Mon | add_event | 2026-11-13T11:00 | शुक्रवार को 11 बजे मीटिंग है
+2026-11-09T17:00 Mon | add_reminder | 2026-11-16T09:00 | अगले सोमवार को बिजली का बिल भरना याद दिलाना
+2026-11-09T17:00 Mon | add_reminder | 2026-11-09T17:30 | आधे घंटे बाद याद दिलाना कि दूध लेना है
+2026-11-09T17:00 Mon | set_timer | +PT1H30M | डेढ़ घंटे का टाइमर
+2026-11-09T17:00 Mon | show_agenda | 2026-11-10 | कल का शेड्यूल बताओ
+2026-11-09T17:00 Mon | add_reminder | 2026-11-09T19:15 | सवा 7 बजे याद दिलाना कि बच्चों को ट्यूशन छोड़ना है
+2026-11-09T17:00 Mon | add_event | 2026-11-12T15:00 | नरसों दोपहर 3 बजे डॉक्टर के पास जाना है
+2026-11-09T17:00 Mon | show_agenda | 2026-11-09 | आज क्या क्या है
+2026-11-09T17:00 Mon | add_reminder | 2026-11-10T18:00 | कल शाम को याद दिलाना कि मम्मी को फोन करना है
+2026-11-09T17:00 Mon | set_alarm | ask | अलार्म लगा दो
+2026-11-09T17:00 Mon | add_reminder | 2026-11-09T19:00 | 2 घंटे बाद याद दिलाना कि गाड़ी निकालनी है
+2026-11-09T17:00 Mon | show_agenda | 2026-11-11 | बुधवार को क्या है
+2026-11-09T17:00 Mon | set_timer | +PT5M | 5 मिनट का टाइमर
+2026-11-09T17:00 Mon | add_reminder | 2026-11-10T15:00 | कल 3 बजे याद दिलाना कि कूरियर आएगा
+2026-11-09T17:00 Mon | add_reminder | 2026-11-12T09:00 | 3 दिन बाद याद दिलाना कि पासपोर्ट ऑफिस जाना है
+2026-11-09T17:00 Mon | add_reminder | ask | आज 4 बजे याद दिलाना कि बैंक जाना है
+2026-11-09T22:00 Mon | set_alarm | 2026-11-10T05:00 | मुझे 5 बजे उठा देना
+2026-11-09T22:00 Mon | set_alarm | 2026-11-10T04:30 | साढ़े चार बजे का अलार्म
+2026-11-09T22:00 Mon | add_reminder | 2026-11-10T00:00 | रात 12 बजे याद दिलाना कि दीदी को बर्थडे विश करना है
+2026-11-10T09:00 Tue | add_reminder | 2026-11-11T08:00 daily | हर रोज़ सुबह 8 बजे याद दिलाना कि पौधों को पानी देना है
+2026-11-10T09:00 Tue | add_reminder | 2026-11-10T09:45 | पौने 10 बजे याद दिलाना कि कैब बुक करनी है
+2026-11-12T20:00 Thu | set_alarm | 2026-11-15T08:00 | रविवार को 8 बजे जगा देना
+2026-11-14T19:00 Sat | add_reminder | 2026-11-21T18:00 weekly | हर शनिवार शाम 6 बजे याद दिलाना कि राशन मंगवाना है
+2026-12-02T11:00 Wed | add_reminder | 2026-12-15T09:00 | 15 तारीख को किराया देना है
+2026-12-02T11:00 Wed | add_reminder | ask | 30 फरवरी को याद दिलाना कि बीमा रिन्यू करना है
+2026-12-31T22:00 Thu | add_reminder | 2027-01-01T09:00 | 1 जनवरी को याद दिलाना कि पासवर्ड बदलना है
