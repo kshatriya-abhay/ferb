@@ -58,11 +58,12 @@ object ShowAgenda : Tool(
      * day "G20 summit", and "what is a calendar year" as "year" (0.52 and 0.70 on tool-check).
      */
     override fun grounded(arguments: Map<String, Any?>, request: String) =
-        arguments.text("day")?.let { When.day(it, LocalDate.now()) != null } ?: true
+        arguments[TimeArgs.RESOLVED] == true || arguments.text("day")?.let { When.day(it, LocalDate.now()) != null } ?: true
 
-    /** The day [request] names, else the one Needle 3 gave, else today. */
+    /** The day Ferb resolved ([DateGate]), else the day [request] names, else the one Needle 3 gave, else today. */
     fun dayFor(arguments: Map<String, Any?>, today: LocalDate): LocalDate =
-        arguments.text(REQUEST)?.let { When.day(it, today) } ?: arguments.text("day")?.let { When.day(it, today) } ?: today
+        arguments.text(TimeArgs.DAY)?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+            ?: arguments.text(REQUEST)?.let { When.day(it, today) } ?: arguments.text("day")?.let { When.day(it, today) } ?: today
 
     override fun prepare(arguments: Map<String, Any?>, env: PrepareEnv): Prepared {
         val today = env.now.toLocalDate()

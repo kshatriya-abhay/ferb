@@ -38,7 +38,7 @@ class AnswerFlowTest {
     /** Ferb Link, scripted: its status, the computer's rewrite, Jev's picks, and what was asked. */
     private inner class FakeLink(
         var status: LinkStatus = LinkStatus.Ready(model = "gemma-4-e2b", jev = true),
-        val rewrite: RewriteReply = RewriteReply(listOf("Set an alarm for 7:15"), raw = "Set an alarm for 7:15", instructed = true, ms = 41),
+        val rewrite: RewriteReply = RewriteReply(listOf("Set an alarm for 7:15 am"), raw = "Set an alarm for 7:15 am", instructed = true, ms = 41),
         val picks: Map<String, JevReply> = emptyMap(),
     ) : LinkCalls {
         val asked = mutableListOf<String>()
@@ -70,18 +70,21 @@ class AnswerFlowTest {
         said: String,
         pipeline: Pipeline = Pipeline(AudioStep.Whistle, RewriteStep.Off, ToolStep.Off),
         link: FakeLink = FakeLink(),
-        gemini: suspend (String) -> Rewritten = geminiSays("Set an alarm for 7:15"),
+        gemini: suspend (String) -> Rewritten = geminiSays("Set an alarm for 7:15 am"),
         heardBy: List<Step>? = null,
         geminiUsable: Boolean = true,
-    ) = runBlocking { AnswerFlow(link, needle(), gemini).answer(said, enabled, configs, pipeline, heardBy, geminiUsable) }
+    ) = runBlocking { AnswerFlow(link, needle(), gemini, now = { NOW }).answer(said, enabled, configs, pipeline, heardBy, geminiUsable) }
 
     private fun Answer.chain() = Step.chain(path)
+
+    /** The clock the answers are worked out at: Thursday 8 October 2026, 10:00 (an alarm at 7:15 rings tomorrow). */
+    private val NOW = java.time.ZonedDateTime.of(2026, 10, 8, 10, 0, 0, 0, java.time.ZoneId.of("Asia/Kolkata"))
     private fun steps(rewrite: RewriteStep = RewriteStep.Off, tools: ToolStep = ToolStep.Off) = Pipeline(AudioStep.Whistle, rewrite, tools)
 
     @Test
     fun withEveryStepOffNeedle3AnswersTheWordsAsTheyAre() {
         val got = answer("wake me up at 7:15")
-        assertThat(got.chain()).isEqualTo("Typed → Needle 3 (0.81)")
+        assertThat(got.chain()).isEqualTo("Typed → Needle 3 (0.81) → Dates: Ferb (Fri 9 Oct, 7:15)")
         assertThat(got.verdict.decision).isEqualTo(Decision.Run)
         assertThat(got.command).isNull()
         assertThat(needleAsked.single().first).isEqualTo("wake me up at 7:15")
@@ -90,17 +93,17 @@ class AnswerFlowTest {
     @Test
     fun aSpokenRequestStartsWithWhatHeardIt() {
         val got = answer("wake me up at 7:15", heardBy = listOf(Step("Voice: Gemini Nano")), pipeline = steps(RewriteStep.Gemini))
-        assertThat(got.chain()).isEqualTo("Voice: Gemini Nano → Rewrite: Gemini Nano → Needle 3 (0.81)")
+        assertThat(got.chain()).isEqualTo("Voice: Gemini Nano → Rewrite: Gemini Nano → Needle 3 (0.81) → Dates: Ferb (Fri 9 Oct, 7:15)")
     }
 
     @Test
     fun geminiNanosCommandIsWhatNeedle3Gets() {
         val got = answer("subah sava saat baje utha dena", pipeline = steps(RewriteStep.Gemini))
-        assertThat(got.chain()).isEqualTo("Typed → Rewrite: Gemini Nano → Needle 3 (0.81)")
-        assertThat(got.command).isEqualTo("Set an alarm for 7:15")
-        assertThat(needleAsked.single().first).isEqualTo("Set an alarm for 7:15")
+        assertThat(got.chain()).isEqualTo("Typed → Rewrite: Gemini Nano → Needle 3 (0.81) → Dates: Ferb (Fri 9 Oct, 7:15)")
+        assertThat(got.command).isEqualTo("Set an alarm for 7:15 am")
+        assertThat(needleAsked.single().first).isEqualTo("Set an alarm for 7:15 am")
         // Unchanged by the rewrite: no "Understood as".
-        assertThat(answer("Set an alarm for 7:15", pipeline = steps(RewriteStep.Gemini)).command).isNull()
+        assertThat(answer("Set an alarm for 7:15 am", pipeline = steps(RewriteStep.Gemini)).command).isNull()
     }
 
     @Test
@@ -132,7 +135,7 @@ class AnswerFlowTest {
     @Test
     fun aFailedGeminiNanoRewriteGoesOnWithTheWordsAsTheyAre() {
         val got = answer("wake me up at 7:15", pipeline = steps(RewriteStep.Gemini), gemini = geminiSays(null, fails = true))
-        assertThat(got.chain()).isEqualTo("Typed → Rewrite: off (Gemini Nano failed) → Needle 3 (0.81)")
+        assertThat(got.chain()).isEqualTo("Typed → Rewrite: off (Gemini Nano failed) → Needle 3 (0.81) → Dates: Ferb (Fri 9 Oct, 7:15)")
         assertThat(got.fallbacks).containsExactly(Fallback("Rewrite", "your words as they are", "Gemini Nano: BUSY"))
         assertThat(needleAsked.single().first).isEqualTo("wake me up at 7:15")
     }
@@ -141,7 +144,7 @@ class AnswerFlowTest {
     fun ferbLinksRewriteUsesFerbsPromptAndRules() {
         val link = FakeLink()
         val got = answer("kal subah sava saat baje", pipeline = steps(RewriteStep.Link), link = link)
-        assertThat(got.chain()).isEqualTo("Typed → Rewrite: Ferb Link (41 ms) → Needle 3 (0.81)")
+        assertThat(got.chain()).isEqualTo("Typed → Rewrite: Ferb Link (41 ms) → Needle 3 (0.81) → Dates: Ferb (Fri 9 Oct, 7:15)")
         assertThat(link.asked).containsExactly("rewrite: kal subah sava saat baje")
         assertThat(got.fallbacks).isEmpty()
         // NONE from the computer, read by Ferb's own rules.
@@ -154,11 +157,11 @@ class AnswerFlowTest {
         // An older Ferb Link (its own prompt, no echo): Gemini Nano instead.
         val old = FakeLink(rewrite = RewriteReply(listOf("Turn on the flashlight", "Turn the volume up")))
         val viaGemini = answer("torch on karo", pipeline = steps(RewriteStep.Link), link = old)
-        assertThat(viaGemini.chain()).isEqualTo("Typed → Rewrite: Gemini Nano instead → Needle 3 (0.81)")
+        assertThat(viaGemini.chain()).isEqualTo("Typed → Rewrite: Gemini Nano instead → Needle 3 (0.81) → Dates: Ferb (asks: your words don't say when; the rewrite says Fri 9 Oct, 7:15)")
         assertThat(viaGemini.fallbacks.single().line).isEqualTo("Rewrite: Gemini Nano instead (Ferb Link: too old, update it)")
         // The computer away, and Gemini Nano not set up: the words as they are.
         val away = answer("torch on karo", pipeline = steps(RewriteStep.Link), link = FakeLink(status = LinkStatus.NotSetUp), geminiUsable = false)
-        assertThat(away.chain()).isEqualTo("Typed → Rewrite: off (Ferb Link: not set up) → Needle 3 (0.81)")
+        assertThat(away.chain()).isEqualTo("Typed → Rewrite: off (Ferb Link: not set up) → Needle 3 (0.81) → Dates: Ferb (asks: When should the alarm ring?)")
         assertThat(away.fallbacks.single()).isEqualTo(Fallback("Rewrite", "your words as they are", "Ferb Link: not set up"))
         // Timed out.
         val slow = answer("torch on karo", pipeline = steps(RewriteStep.Link), link = FakeLink(rewrite = RewriteReply.failed("timed out", "10 s")), geminiUsable = false)
@@ -173,11 +176,11 @@ class AnswerFlowTest {
 
     @Test
     fun jevNarrowsNeedle3sToolsToItsPick() {
-        val link = FakeLink(picks = mapOf("Set an alarm for 7:15" to jev(SetAlarm.name, 0.93)))
+        val link = FakeLink(picks = mapOf("Set an alarm for 7:15 am" to jev(SetAlarm.name, 0.93)))
         val got = answer("subah sava saat baje", pipeline = steps(RewriteStep.Gemini, ToolStep.Link), link = link)
-        assertThat(got.chain()).isEqualTo("Typed → Rewrite: Gemini Nano → Tool selection: Jev (Alarms, 0.93) → Needle 3 (0.81)")
+        assertThat(got.chain()).isEqualTo("Typed → Rewrite: Gemini Nano → Tool selection: Jev (Alarms, 0.93) → Needle 3 (0.81) → Dates: Ferb (Fri 9 Oct, 7:15)")
         // Jev gets the command, not the Hinglish.
-        assertThat(link.asked).containsExactly("decide: Set an alarm for 7:15")
+        assertThat(link.asked).containsExactly("decide: Set an alarm for 7:15 am")
         assertThat(needleAsked.single().second).containsExactly(SetAlarm.name)
         assertThat(got.checked).containsExactly(SetAlarm.name)
     }
@@ -195,7 +198,7 @@ class AnswerFlowTest {
     fun withoutJevNeedle3PicksFromTheRoutedTools() {
         // Jev off in Ferb Link.
         val off = answer("wake me up at 7:15", pipeline = steps(tools = ToolStep.Link), link = FakeLink(status = LinkStatus.Ready(jev = false)))
-        assertThat(off.chain()).isEqualTo("Typed → Tool selection: off (Jev off) → Needle 3 (0.81)")
+        assertThat(off.chain()).isEqualTo("Typed → Tool selection: off (Jev off) → Needle 3 (0.81) → Dates: Ferb (Fri 9 Oct, 7:15)")
         assertThat(off.fallbacks.single()).isEqualTo(Fallback("Tool selection", "Needle 3 alone", "Jev is off in Ferb Link"))
         // Jev timed out.
         val slow = answer("wake me up at 7:15", pipeline = steps(tools = ToolStep.Link))

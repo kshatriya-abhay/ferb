@@ -12,6 +12,7 @@ import dev.abhay.assistant.pipeline.Fallback
 import dev.abhay.assistant.pipeline.Pipeline
 import dev.abhay.assistant.pipeline.RewriteStep
 import dev.abhay.assistant.pipeline.ToolStep
+import dev.abhay.assistant.tools.DateGate
 import dev.abhay.assistant.tools.DateResolver
 import dev.abhay.assistant.tools.SaidNumbers
 import dev.abhay.assistant.tools.TimeArgs
@@ -190,12 +191,35 @@ class AnswerFlow(
         asking(null)
         val reply = askNeedle(text, enabled, needleTools)
         if (enabled.isNotEmpty()) path += needleStep(reply)
-        val texts = listOf(text, said).distinct()
-        val shown = reply.copy(calls = reply.calls.map { call -> call.copy(arguments = TimeArgs.apply(call.name, call.arguments, texts, now())) })
-        // A number the rewrite brought in that the request never said ("wake me up early" as "6
-        // am"): its calls ask first, as a value the request doesn't say does.
+        // Timed calls (2026-10-25, the blind date round): the engine held one back but the router
+        // names that timed tool alone, so it comes back to be weighed (gate E).
+        fun timedRouted(t: String) = ToolRouter.route(t, enabled, configs).map { it.name }.filter(DateGate::timed)
+        val heldBack = reply.suppressed.firstOrNull { DateGate.timed(it.name) && timedRouted(text) == listOf(it.name) }
+        val calls = if (reply.calls.isEmpty() && heldBack != null) listOf(heldBack) else reply.calls
+        // Ferb's own time: the words as said and the rewrite read alike ([DateGate]); Needle 3's never decides.
+        val gated = calls.map { call -> if (DateGate.timed(call.name)) DateGate.apply(call.name, call.arguments, said, command, now()) else null }
+        val shown = reply.copy(
+            calls = calls.mapIndexed { i, call -> call.copy(arguments = gated[i]?.arguments ?: call.arguments) },
+            suppressed = reply.suppressed.filter { it !== heldBack },
+        )
+        gated.filterNotNull().firstOrNull()?.let { g ->
+            path += Step("Dates: Ferb", if (g.agreed) DateGate.shown(g.said) else "asks: ${g.arguments[TimeArgs.ASK]}")
+        }
+        // The words as said name other timed tools, not this one ("remind me" rewritten as an alarm): ask (gate H).
+        val saidTimed = timedRouted(said)
+        val otherTool = calls.any { DateGate.timed(it.name) && saidTimed.isNotEmpty() && it.name !in saidTimed }
         val verdict = Verdict.of(shown, configs, text).let { v ->
-            if (command != null && shown.calls.isNotEmpty() && v.decision == Decision.Run && invents(command, said)) v.copy(decision = Decision.Confirm, ungrounded = true) else v
+            when {
+                v.decision == Decision.Refuse || shown.calls.isEmpty() -> v
+                otherTool -> v.copy(decision = Decision.Confirm, ungrounded = true)
+                // A number the rewrite brought in that the request never said ("wake me up early" as
+                // "6 am"): its calls ask first, as a value the request doesn't say does.
+                command != null && invents(command, said) -> v.copy(decision = Decision.Confirm, ungrounded = true)
+                // Timed calls whose two readings agree run, whatever Needle 3's confidence (gate E),
+                // unless the tool always asks or the request doesn't mention it.
+                gated.all { it?.agreed == true } && !v.alwaysConfirm && !v.unmentioned && !v.ungrounded -> v.copy(decision = Decision.Run)
+                else -> v
+            }
         }
         return Answer(
             shown = shown,
