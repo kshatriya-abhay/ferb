@@ -20,8 +20,12 @@
 #   is midnight).
 # - Alarms always need a time; an alarm without one asks.
 # - Wake words (wake, get up, utha, uthana, jaga) make the hour am.
-# - A bare hour (no am/pm, part of the day or wake word): with a day said, 7-11 are am, 12 is noon,
-#   1-6 are pm; with no day, it is the next time that hour comes round (am or pm, today or tomorrow).
+# - A bare hour (no am/pm, part of the day, wake word or 24-hour time), for alarms, reminders and
+#   events alike (rule changed by the user 2026-10-25; rows 28, 47 and 145 changed with it):
+#   - with a day given (tomorrow, kal, a weekday, a date): for alarms 5-11 are am, 12 is noon, 1-4
+#     are pm; for reminders and events 7-11 are am, 12 is noon, 1-6 are pm;
+#   - with no day, or "today": the nearest candidate (am or pm) still ahead that isn't in
+#     00:00-04:59. Times in 00:00-04:59 only when said so ("2 am", "raat 2 baje", "02:30").
 # - A clock time with no day that has passed today rolls to tomorrow; a time said for today
 #   (aaj/today/tonight) that has passed asks.
 # - kal is always tomorrow, even just after midnight; parso is +2, narso is +3.
@@ -61,7 +65,7 @@
 2026-10-29T09:00 Thu | add_reminder | 2026-10-29T16:15 | remind me at quarter past 4 to call the vet
 2026-10-29T09:00 Thu | set_alarm | 2026-10-30T06:45 | set an alarm for quarter to 7 tomorrow
 2026-10-29T13:00 Thu | add_reminder | 2026-10-30T12:00 | remind me at noon to send the invoice to Mehta
-2026-10-29T13:00 Thu | add_reminder | 2026-10-30T01:00 | remind me at 1 to take the antibiotic
+2026-10-29T13:00 Thu | add_reminder | 2026-10-30T13:00 | remind me at 1 to take the antibiotic
 2026-10-29T22:00 Thu | add_reminder | 2026-10-30T00:00 | remind me at midnight to wish Kabir happy birthday
 2026-10-29T22:00 Thu | add_reminder | 2026-10-30T00:00 | remind me in 2 hours to check if the dough has risen
 2026-10-29T23:10 Thu | set_alarm | 2026-10-30T04:45 | set alarm 4:45 am
@@ -80,7 +84,7 @@
 2026-10-31T19:00 Sat | add_reminder | 2026-11-01T09:00 | remind me tomorrow to order the cylinder
 2026-11-01T00:20 Sun | set_alarm | 2026-11-02T07:00 | alarm for 7 tomorrow
 2026-11-01T00:20 Sun | add_reminder | 2026-11-01T01:05 | remind me in 45 mins to take the clothes out of the machine
-2026-11-01T00:20 Sun | add_reminder | 2026-11-01T04:00 | yo remind me at 4 to call the electrician
+2026-11-01T00:20 Sun | add_reminder | 2026-11-01T16:00 | yo remind me at 4 to call the electrician
 2026-11-01T08:00 Sun | add_reminder | 2026-11-01T09:00 weekly | remind me every sunday morning to water the plants
 2026-11-01T08:00 Sun | set_timer | +PT10M | timer 10 min
 2026-11-01T08:00 Sun | set_timer | +PT1H30M | set a timer for an hour and a half for the dal
@@ -182,7 +186,7 @@
 2026-11-09T17:00 Mon | add_reminder | 2026-11-12T09:00 | 3 दिन बाद याद दिलाना कि पासपोर्ट ऑफिस जाना है
 2026-11-09T17:00 Mon | add_reminder | ask | आज 4 बजे याद दिलाना कि बैंक जाना है
 2026-11-09T22:00 Mon | set_alarm | 2026-11-10T05:00 | मुझे 5 बजे उठा देना
-2026-11-09T22:00 Mon | set_alarm | 2026-11-10T04:30 | साढ़े चार बजे का अलार्म
+2026-11-09T22:00 Mon | set_alarm | 2026-11-10T16:30 | साढ़े चार बजे का अलार्म
 2026-11-09T22:00 Mon | add_reminder | 2026-11-10T00:00 | रात 12 बजे याद दिलाना कि दीदी को बर्थडे विश करना है
 2026-11-10T09:00 Tue | add_reminder | 2026-11-11T08:00 daily | हर रोज़ सुबह 8 बजे याद दिलाना कि पौधों को पानी देना है
 2026-11-10T09:00 Tue | add_reminder | 2026-11-10T09:45 | पौने 10 बजे याद दिलाना कि कैब बुक करनी है
