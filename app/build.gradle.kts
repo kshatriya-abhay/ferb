@@ -63,6 +63,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.material.components)
     implementation(libs.mlkit.genai.speech)
+    debugImplementation(libs.mlkit.genai.prompt)
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)

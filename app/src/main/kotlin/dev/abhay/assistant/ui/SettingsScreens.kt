@@ -87,6 +87,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -119,6 +120,7 @@ import dev.abhay.assistant.tools.Tools
 import dev.abhay.assistant.voice.NanoChoice
 import dev.abhay.assistant.voice.PhoneEar
 import dev.abhay.assistant.voice.VoiceSettings
+import kotlinx.coroutines.launch
 import java.util.Locale
 import org.json.JSONObject
 import kotlin.math.roundToInt
@@ -158,6 +160,24 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
                     trailingContent = { Switch(checked = whistle, onCheckedChange = null) },
                 ) { Text(VoiceSettings.TITLE) }
             }, if (!whistle) null else { shapes -> EarRow(ear, nanoStatus, settings::setEar, shapes) }))
+            // Debug builds only (POC): one Prompt API request, for Gemini Nano's status and latency.
+            if (dev.abhay.assistant.NanoPromptCheck.AVAILABLE) {
+                var result by remember { mutableStateOf<String?>(null) }
+                val scope = rememberCoroutineScope()
+                Group(listOf { shapes ->
+                    SegmentedListItem(
+                        onClick = {
+                            if (result != CHECKING) {
+                                result = CHECKING
+                                scope.launch { result = dev.abhay.assistant.NanoPromptCheck.run() }
+                            }
+                        },
+                        shapes = shapes,
+                        leadingContent = { IconBadge(R.drawable.ic_lightbulb) },
+                        supportingContent = { Text(result ?: "Tap to check FAST and FULL and time one request") },
+                    ) { Text(dev.abhay.assistant.NanoPromptCheck.TITLE) }
+                })
+            }
             Group(listOf { shapes ->
                 SegmentedListItem(
                     onClick = { settings.onboarding.reset() },
@@ -179,6 +199,8 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
         }
     }
 }
+
+private const val CHECKING = "Checking\u2026"
 
 /**
  * Who hears a spoken request on the phone (POC): Whistle, or Gemini Nano in English or Hindi, each
