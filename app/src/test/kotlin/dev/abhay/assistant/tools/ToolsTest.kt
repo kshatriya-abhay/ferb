@@ -133,6 +133,13 @@ class ToolsTest {
         assertThat(SetVolume.grounded(mapOf("percent" to 40), "set volume to 40")).isTrue()
         assertThat(summary(MediaControl.prepare(mapOf("action" to "next"), PrepareEnv(apps)))).isEqualTo("Media: next")
         assertThat(reason(MediaControl.prepare(mapOf("action" to "rewind"), PrepareEnv(apps)))).isNotNull()
+        // Resuming is play, whatever Needle 3 said; pausing stays pause.
+        fun media(action: String, request: String) = summary(MediaControl.prepare(MediaControl.fromRequest(mapOf("action" to action), request), PrepareEnv(apps)))
+        assertThat(media("pause", "Resume the music")).isEqualTo("Media: play")
+        assertThat(media("pause", "unpause the song")).isEqualTo("Media: play")
+        assertThat(media("pause", "please carry on with the playlist")).isEqualTo("Media: play")
+        assertThat(media("pause", "pause the music")).isEqualTo("Media: pause")
+        assertThat(media("next", "continue to the next song")).isEqualTo("Media: next")
     }
 
     @Test

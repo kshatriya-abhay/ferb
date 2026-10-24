@@ -607,6 +607,14 @@ object MediaControl : Tool(
         return Prepared.Ready("Media: $action", opensApp = false) { context -> press(context, action!!) }
     }
 
+    // Resuming is play, whatever Needle 3 says: on tool-check (2026-10-24) "resume" was pause at
+    // 0.66 and "unpause the song" at 0.59, and "Resume the music" (Gemini Nano's own wording)
+    // was sent as pause on the phone. Ferb sends the explicit keys, never the play/pause toggle.
+    private val RESUME = Regex("""\b(resume|continue|unpause|un-pause|carry on|play again|start again|keep playing)\b""", RegexOption.IGNORE_CASE)
+
+    override fun fromRequest(arguments: Map<String, Any?>, request: String): Map<String, Any?> =
+        if (RESUME.containsMatchIn(request) && arguments.text("action")?.lowercase() == "pause") arguments + ("action" to "play") else arguments
+
     /** What undoes each action, as a button. */
     private val OPPOSITE = mapOf("play" to "pause", "pause" to "play", "next" to "previous", "previous" to "next")
 

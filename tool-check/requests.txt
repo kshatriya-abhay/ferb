@@ -134,6 +134,13 @@ control_media action=play | resume
 control_media action=previous | previous track
 control_media action=next | skip this song
 control_media action=pause | stop the music
+# Resuming is play (2026-10-24: "Resume the music", the rewrite's own wording, was sent as pause).
+control_media action=play | Resume the music
+control_media action=play | continue playing
+control_media action=play | unpause
+control_media action=play | unpause the song
+none | update my resume
+none | continue the story
 none | what song is this
 none | who sings this
 open_camera/open_app | take a selfie
