@@ -130,7 +130,7 @@ import kotlin.math.roundToInt
 
 /** The settings home: the tools (a page of their own), Ferb Link (likewise), voice on the phone, and the model, which runs on the phone. */
 @Composable
-fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenLink: () -> Unit, onOpenGemini: () -> Unit = {}, onBack: () -> Unit) {
+fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenLink: () -> Unit, onOpenGemini: () -> Unit = {}, onOpenBench: () -> Unit = {}, onBack: () -> Unit) {
     val saved by settings.saved.collectAsStateWithLifecycle()
     val linkMode by settings.linkMode.collectAsStateWithLifecycle()
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -196,6 +196,16 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
                     ) { Text(PhoneEar.Gemini.title) }
                 },
             ))
+            // Debug builds only: the phone bench (Needle 3 and Gemini Nano on tool-check's requests).
+            if (dev.abhay.assistant.DebugBench.AVAILABLE) Group(listOf { shapes ->
+                SegmentedListItem(
+                    onClick = onOpenBench,
+                    shapes = shapes,
+                    leadingContent = { IconBadge(R.drawable.ic_tune) },
+                    supportingContent = { Text("Needle 3 and Gemini Nano on the bench's requests") },
+                    trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
+                ) { Text("Bench (debug)") }
+            })
             Group(listOf { shapes ->
                 SegmentedListItem(
                     onClick = { settings.onboarding.reset() },

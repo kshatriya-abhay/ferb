@@ -131,8 +131,9 @@ class MainActivity : ComponentActivity() {
                             // The page beneath becomes the Reminders tab, so Save or Back lands there.
                             onNewReminder = { stack = stack.dropLast(1) + REMINDERS + NEW_REMINDER })
                         screen == NEW_REMINDER -> NewReminderScreen(viewModel, onDone = back)
-                        screen == "settings" -> SettingsScreen(settings, onOpenTools = { open("tools") }, onOpenLink = { open("link") }, onOpenGemini = { open("gemini") }, onBack = back)
+                        screen == "settings" -> SettingsScreen(settings, onOpenTools = { open("tools") }, onOpenLink = { open("link") }, onOpenGemini = { open("gemini") }, onOpenBench = { open("bench") }, onBack = back)
                         screen == "gemini" -> GeminiScreen(settings, onBack = back)
+                        screen == "bench" -> DebugBench.Screen(onBack = back)
                         screen == "link" -> LinkScreen(settings, onBack = back)
                         screen == "tools" -> ToolsScreen(settings, onOpenTool = { open("tool:$it") }, onBack = back)
                         screen.startsWith("keywords:") -> KeywordsScreen(settings, screen.removePrefix("keywords:"), onBack = back)
