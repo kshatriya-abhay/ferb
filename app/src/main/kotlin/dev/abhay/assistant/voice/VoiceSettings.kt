@@ -7,8 +7,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * "Voice on this phone (Whistle)" (Settings), on by default. Off: Whistle is never loaded, and the
- * mic shows only when the computer hears the request ([Mic.shows]).
+ * "Use voice to text on-device" (Settings → Voice), on by default, and who writes it down
+ * ([PhoneEar]: Whistle, or Gemini Nano in a [GeminiLanguage]). Off: neither is loaded, and the mic
+ * shows only when the computer hears the request ([Mic.shows]).
  */
 class VoiceSettings(context: Context) {
     private val prefs = context.getSharedPreferences("voice", Context.MODE_PRIVATE)
@@ -30,12 +31,22 @@ class VoiceSettings(context: Context) {
         _ear.value = ear
     }
 
+    /** The language Gemini Nano expects (English, the default, hears Hindi too). "nano-hi" was Hindi in the first POC build. */
+    private val _language = MutableStateFlow(GeminiLanguage.of(prefs.getString(KEY_LANGUAGE, null)
+        ?: GeminiLanguage.Hindi.id.takeIf { prefs.getString(KEY_EAR, null) == "nano-hi" }))
+    val language: StateFlow<GeminiLanguage> = _language.asStateFlow()
+
+    fun setLanguage(language: GeminiLanguage) {
+        prefs.edit().putString(KEY_LANGUAGE, language.id).apply()
+        _language.value = language
+    }
+
     companion object {
         private const val KEY_WHISTLE = "whistle"
         private const val KEY_EAR = "ear"
-        const val EAR_TITLE = "Heard by"
-        const val TITLE = "Voice on this phone (Whistle)"
-        const val DESCRIPTION = "Speak requests in English, heard on this phone. Computer mode can still listen."
+        private const val KEY_LANGUAGE = "gemini_language"
+        const val TITLE = "Use voice to text on-device"
+        const val DESCRIPTION = "Speak requests, written down on this phone. Computer mode can still listen."
     }
 }
 

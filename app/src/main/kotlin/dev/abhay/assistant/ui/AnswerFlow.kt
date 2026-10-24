@@ -95,15 +95,18 @@ class AnswerFlow(
         mode: LinkMode,
         answerer: Answerer,
         jevSwitch: Boolean,
-        /** A request Whistle heard on the phone (Phone-mode voice): the request is its transcript. */
-        whistle: Boolean = false,
+        /**
+         * A request heard on the phone (Phone-mode voice), with the steps that wrote it down:
+         * ["Whistle"], or ["Gemini Nano"] and, for Hindi, ["Gemini Nano", "Gemini Nano (English)"].
+         */
+        phoneVoice: List<String>? = null,
     ): Answer {
         val routed = ToolRouter.route(request, enabled, configs)
         val chosen = LinkPolicy.laptopFirst(mode, answerer)
         val path = mutableListOf<Step>()
         path += when {
+            phoneVoice != null -> listOf(Step("Voice")) + phoneVoice.map { Step(it) }
             heard != null -> listOf(Step("Voice"), Step("Gemma transcription"))
-            whistle -> listOf(Step("Voice"), Step("Whistle"))
             else -> listOf(Step("Typed"))
         }
         val status = if (mode != LinkMode.Off && enabled.isNotEmpty()) link.status() else null

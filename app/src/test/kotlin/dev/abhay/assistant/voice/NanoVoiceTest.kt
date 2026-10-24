@@ -4,26 +4,57 @@ import com.google.common.truth.Truth.assertThat
 import com.google.mlkit.genai.common.FeatureStatus
 import org.junit.Test
 
-/** Gemini Nano as the phone's ear (POC): the setting, its fallback to Whistle, and the live text. */
+/** Gemini Nano as the phone's voice (POC): the settings, its setup, its fallback, the live text and the rewrite. */
 class NanoVoiceTest {
     @Test
-    fun whistleIsTheDefaultAndNanoComesInTwoLanguages() {
+    fun whistleIsTheDefaultAndTheFirstBuildsChoicesBecomeGemini() {
         assertThat(PhoneEar.of(null)).isEqualTo(PhoneEar.Whistle)
         assertThat(PhoneEar.of("gone")).isEqualTo(PhoneEar.Whistle)
-        assertThat(PhoneEar.of("nano-hi")).isEqualTo(PhoneEar.NanoHindi)
-        assertThat(PhoneEar.NANO.map { it.locale!!.toLanguageTag() }).containsExactly("en-US", "hi-IN").inOrder()
-        assertThat(PhoneEar.Whistle.nano).isFalse()
+        assertThat(PhoneEar.of("gemini")).isEqualTo(PhoneEar.Gemini)
+        assertThat(PhoneEar.of("nano-en")).isEqualTo(PhoneEar.Gemini)
+        assertThat(PhoneEar.of("nano-hi")).isEqualTo(PhoneEar.Gemini)
+        assertThat(PhoneEar.Whistle.hint).isEqualTo("On-device, English only")
+        assertThat(PhoneEar.Gemini.hint).isEqualTo("On-device")
+        assertThat(GeminiLanguage.of(null)).isEqualTo(GeminiLanguage.English)
+        assertThat(GeminiLanguage.of("hi-IN").locale.toLanguageTag()).isEqualTo("hi-IN")
     }
 
     @Test
-    fun whistleHearsItWhenNanoCant() {
+    fun eachPartSaysWhereItStands() {
+        assertThat(Part.of(FeatureStatus.AVAILABLE)).isEqualTo(Part.Ready)
+        assertThat(Part.of(FeatureStatus.DOWNLOADABLE)).isEqualTo(Part.NeedsDownload)
+        assertThat(Part.of(FeatureStatus.DOWNLOADING)).isEqualTo(Part.Downloading())
+        assertThat(Part.of(FeatureStatus.UNAVAILABLE)).isEqualTo(Part.Unavailable)
+        assertThat(Part.Downloading().label()).isEqualTo("Downloading…")
+        assertThat(Part.Downloading(4_200_000, null).label()).isEqualTo("Downloading: 4.2 MB so far")
+        assertThat(Part.Downloading(120_000_000, 480_000_000).label()).isEqualTo("Downloading: 120 of 480 MB")
+        assertThat(Part.Downloading(120_000_000, 480_000_000).fraction).isEqualTo(0.25f)
+        assertThat(Part.Downloading(5, 0).fraction).isNull()
+        assertThat(Part.Failed("not enough space on the phone").label()).isEqualTo("Couldn't download: not enough space on the phone")
+    }
+
+    @Test
+    fun theSettingsRowSumsTheSetupUp() {
+        assertThat(GeminiSetup(Part.Ready, Part.Ready).summary()).isEqualTo("Ready")
+        assertThat(GeminiSetup(Part.Ready, Part.Ready).ready).isTrue()
+        assertThat(GeminiSetup(Part.Ready, Part.NeedsDownload).summary()).isEqualTo("Set up needed: tap to download")
+        assertThat(GeminiSetup(Part.Ready, Part.NeedsDownload).needsSetUp).isTrue()
+        assertThat(GeminiSetup(Part.Downloading(100, 400), Part.Downloading(100, 600)).summary()).isEqualTo("Downloading: 20%")
+        // Android fetching it with no numbers yet: Set up follows it, for progress.
+        assertThat(GeminiSetup(Part.Ready, Part.Downloading()).summary()).isEqualTo("Downloading…")
+        assertThat(GeminiSetup(Part.Ready, Part.Downloading()).needsSetUp).isTrue()
+        assertThat(GeminiSetup(Part.Ready, Part.Downloading(10, 100)).needsSetUp).isFalse()
+        assertThat(GeminiSetup(Part.Unavailable, Part.Ready).summary()).isEqualTo("Not available on this phone")
+        assertThat(GeminiSetup().summary()).isEqualTo("Checking…")
+    }
+
+    @Test
+    fun whistleHearsItWhenGeminiCant() {
         assertThat(NanoChoice.of(FeatureStatus.AVAILABLE)).isEqualTo(NanoChoice.Nano)
-        // The model to fetch: Whistle meanwhile, and the download starts.
-        assertThat(NanoChoice.of(FeatureStatus.DOWNLOADABLE)).isEqualTo(NanoChoice.Whistle(NanoChoice.DOWNLOADING, download = true))
+        assertThat(NanoChoice.of(FeatureStatus.DOWNLOADABLE)).isEqualTo(NanoChoice.Whistle(NanoChoice.NOT_SET_UP))
         assertThat(NanoChoice.of(FeatureStatus.DOWNLOADING)).isEqualTo(NanoChoice.Whistle(NanoChoice.DOWNLOADING))
         assertThat(NanoChoice.of(FeatureStatus.UNAVAILABLE)).isEqualTo(NanoChoice.Whistle(NanoChoice.UNAVAILABLE))
         assertThat(NanoChoice.of(42)).isEqualTo(NanoChoice.Whistle(NanoChoice.UNAVAILABLE))
-        assertThat(NanoChoice.name(FeatureStatus.DOWNLOADABLE)).isEqualTo("downloadable")
     }
 
     @Test
@@ -35,15 +66,33 @@ class NanoVoiceTest {
         assertThat(live.partial(" tomorrow ")).isEqualTo("Set an alarm for 7 tomorrow")
         assertThat(live.final("tomorrow.")).isEqualTo("Set an alarm for 7 tomorrow.")
         assertThat(live.final("  ")).isEqualTo("Set an alarm for 7 tomorrow.")
-        assertThat(live.heard).isEqualTo("Set an alarm for 7 tomorrow.")
+        assertThat(LiveTranscript().heard).isEmpty()
     }
 
     @Test
-    fun whatWasTypedStaysFirst() {
-        val live = LiveTranscript("remind me ")
-        assertThat(live.text()).isEqualTo("remind me")
-        assertThat(live.partial("to call mum")).isEqualTo("remind me to call mum")
-        assertThat(live.heard).isEqualTo("to call mum")
-        assertThat(LiveTranscript().heard).isEmpty()
+    fun englishGoesStraightOnAndHindiIsWrittenInEnglish() {
+        assertThat(GeminiRewrite.needed("Set an alarm for 7 am tomorrow")).isFalse()
+        assertThat(GeminiRewrite.needed("कल सुबह सात बजे का अलार्म लगा दो")).isTrue()
+        assertThat(GeminiRewrite.needed("kal subah 7 baje alarm laga do")).isTrue()
+    }
+
+    @Test
+    fun theModelsAnswerIsRead() {
+        val said = "कल सुबह सात बजे का अलार्म लगा दो"
+        val got = GeminiRewrite.parse(said, "```json\n{\"hindi\": true, \"heard\": \"kal subah 7 baje ka alarm laga do\", \"text\": \"Set an alarm for 7 am tomorrow\"}\n```")
+        assertThat(got).isEqualTo(Rewritten("kal subah 7 baje ka alarm laga do", "Set an alarm for 7 am tomorrow", hindi = true))
+        // English keeps what was heard: the model once dropped a "not" translating it.
+        val english = GeminiRewrite.parse("don't remind me", "{\"hindi\": false, \"heard\": \"don't remind me\", \"text\": \"Remind me\"}")
+        assertThat(english).isEqualTo(Rewritten("don't remind me", "don't remind me", hindi = false))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun anAnswerWithoutJsonFails() {
+        GeminiRewrite.parse("kal 7 baje", "Sure! Here is your command.")
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun hindiWithoutACommandFails() {
+        GeminiRewrite.parse("kal 7 baje", "{\"hindi\": true, \"heard\": \"kal 7 baje\", \"text\": \"\"}")
     }
 }

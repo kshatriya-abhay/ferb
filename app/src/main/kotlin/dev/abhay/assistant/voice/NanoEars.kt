@@ -1,76 +1,183 @@
 package dev.abhay.assistant.voice
 
+import android.os.SystemClock
 import android.util.Log
 import com.google.mlkit.genai.common.DownloadStatus
 import com.google.mlkit.genai.common.FeatureStatus
+import com.google.mlkit.genai.common.GenAiException
 import com.google.mlkit.genai.common.audio.AudioSource
+import com.google.mlkit.genai.prompt.Generation
+import com.google.mlkit.genai.prompt.GenerativeModel
+import com.google.mlkit.genai.prompt.ModelPreference
+import com.google.mlkit.genai.prompt.ModelReleaseStage
+import com.google.mlkit.genai.prompt.SystemInstruction
+import com.google.mlkit.genai.prompt.TextPart
+import com.google.mlkit.genai.prompt.generateContentRequest
+import com.google.mlkit.genai.prompt.generationConfig
+import com.google.mlkit.genai.prompt.modelConfig
 import com.google.mlkit.genai.speechrecognition.SpeechRecognition
 import com.google.mlkit.genai.speechrecognition.SpeechRecognizer
 import com.google.mlkit.genai.speechrecognition.SpeechRecognizerOptions
 import com.google.mlkit.genai.speechrecognition.SpeechRecognizerResponse
 import com.google.mlkit.genai.speechrecognition.speechRecognizerOptions
 import com.google.mlkit.genai.speechrecognition.speechRecognizerRequest
+import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.takeWhile
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Gemini Nano's speech recognition (ML Kit GenAI, Advanced mode), one client per language, for the
- * process. It records from the microphone itself and runs in AICore, on the phone. Only works with
- * Ferb in front. ML Kit's telemetry can't send anything: Ferb has no INTERNET permission.
+ * Gemini Nano on this phone, for the process (POC): speech recognition (ML Kit GenAI, Advanced
+ * mode), and the Prompt API's model, which writes what was heard as English for Needle 3. Both run
+ * in AICore, on the phone, and only with Ferb in front. ML Kit's telemetry can't send anything:
+ * Ferb has no INTERNET permission.
  */
 class NanoEars {
-    private val clients = mutableMapOf<PhoneEar, SpeechRecognizer>()
+    private val listeners = mutableMapOf<Locale, SpeechRecognizer>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private var download: Job? = null
+    private val downloads = mutableMapOf<String, Job>()
+
+    /** Where the setup stands for the language last checked ([refresh]). */
+    private val _setup = MutableStateFlow(GeminiSetup())
+    val setup: StateFlow<GeminiSetup> = _setup.asStateFlow()
 
     @Synchronized
-    private fun client(ear: PhoneEar): SpeechRecognizer = clients.getOrPut(ear) {
+    private fun listener(locale: Locale): SpeechRecognizer = listeners.getOrPut(locale) {
         SpeechRecognition.getClient(speechRecognizerOptions {
-            locale = requireNotNull(ear.locale)
+            this.locale = locale
             preferredMode = SpeechRecognizerOptions.Mode.MODE_ADVANCED
         })
     }
 
-    /** checkStatus() for [ear]: a [FeatureStatus]; UNAVAILABLE when the check itself fails. */
-    suspend fun status(ear: PhoneEar): Int = try {
-        client(ear).checkStatus().also { Log.i(TAG, "${ear.locale}: checkStatus ${NanoChoice.name(it)}") }
+    /** The rewriting model: FAST (the smaller one, quicker to answer) unless only FULL is there. */
+    private var writer: GenerativeModel? = null
+    private var writerName = "FAST"
+
+    private suspend fun writer(): GenerativeModel {
+        writer?.let { return it }
+        fun model(preference: Int) = Generation.getClient(generationConfig {
+            modelConfig = modelConfig { releaseStage = ModelReleaseStage.STABLE; this.preference = preference }
+        })
+        val fast = model(ModelPreference.FAST)
+        val chosen = if (status { fast.checkStatus() } == FeatureStatus.UNAVAILABLE) {
+            fast.close()
+            writerName = "FULL"
+            model(ModelPreference.FULL)
+        } else fast
+        return chosen.also { writer = it }
+    }
+
+    private suspend fun status(check: suspend () -> Int): Int = try {
+        check()
     } catch (e: Exception) {
-        Log.w(TAG, "${ear.locale}: checkStatus failed", e)
+        Log.w(TAG, "checkStatus failed", e)
         FeatureStatus.UNAVAILABLE
     }
 
-    /** Starts the model's download through AICore, once at a time; progress goes to the log. */
-    fun download(ear: PhoneEar) {
-        if (download?.isActive == true) return
-        download = scope.launch {
+    /** checkStatus() for hearing [language]. */
+    suspend fun status(language: GeminiLanguage): Int =
+        status { listener(language.locale).checkStatus() }.also { Log.i(TAG, "${language.locale}: checkStatus ${NanoChoice.name(it)}") }
+
+    /**
+     * Checks both parts for [language]; a part already downloading keeps its progress, and one
+     * Android is fetching on its own is followed, so its progress shows.
+     */
+    suspend fun refresh(language: GeminiLanguage) {
+        val speech = status(language)
+        val rewrite = status { writer().checkStatus() }.also { Log.i(TAG, "rewrite ($writerName): checkStatus ${NanoChoice.name(it)}") }
+        // Only logged: whether other languages are there (Japanese wasn't heard, 2026-10-24).
+        for (tag in listOf("ja-JP")) status { listener(Locale.forLanguageTag(tag)).checkStatus() }.let { Log.i(TAG, "$tag: checkStatus ${NanoChoice.name(it)}") }
+        _setup.update {
+            GeminiSetup(
+                speech = if (it.speech is Part.Downloading && downloads[SPEECH]?.isActive == true) it.speech else Part.of(speech),
+                rewrite = if (it.rewrite is Part.Downloading && downloads[REWRITE]?.isActive == true) it.rewrite else Part.of(rewrite),
+            )
+        }
+        if (speech == FeatureStatus.DOWNLOADING) download(SPEECH, language)
+        if (rewrite == FeatureStatus.DOWNLOADING) download(REWRITE, language)
+    }
+
+    /** Set up: downloads every part that needs it, with progress in [setup], then checks again. */
+    fun setUp(language: GeminiLanguage) {
+        val now = _setup.value
+        if (now.speech !is Part.Ready && now.speech != Part.Unavailable) download(SPEECH, language)
+        if (now.rewrite !is Part.Ready && now.rewrite != Part.Unavailable) download(REWRITE, language)
+    }
+
+    private fun download(part: String, language: GeminiLanguage) {
+        if (downloads[part]?.isActive == true) return
+        fun set(state: Part) = _setup.update { if (part == SPEECH) it.copy(speech = state) else it.copy(rewrite = state) }
+        downloads[part] = scope.launch {
+            set(Part.Downloading())
+            var total: Long? = null
             try {
-                client(ear).download().collect { step ->
+                val steps = if (part == SPEECH) listener(language.locale).download() else writer().download()
+                steps.collect { step ->
                     when (step) {
-                        is DownloadStatus.DownloadStarted -> Log.i(TAG, "${ear.locale}: download started, ${step.bytesToDownload} bytes")
-                        is DownloadStatus.DownloadProgress -> Log.i(TAG, "${ear.locale}: downloaded ${step.totalBytesDownloaded} bytes")
-                        is DownloadStatus.DownloadCompleted -> Log.i(TAG, "${ear.locale}: download completed")
-                        is DownloadStatus.DownloadFailed -> Log.w(TAG, "${ear.locale}: download failed", step.e)
+                        is DownloadStatus.DownloadStarted -> {
+                            total = step.bytesToDownload
+                            Log.i(TAG, "$part: download started, ${step.bytesToDownload} bytes")
+                            set(Part.Downloading(0, total))
+                        }
+                        is DownloadStatus.DownloadProgress -> set(Part.Downloading(step.totalBytesDownloaded, total))
+                        is DownloadStatus.DownloadCompleted -> {
+                            Log.i(TAG, "$part: download completed")
+                            set(Part.Ready)
+                        }
+                        is DownloadStatus.DownloadFailed -> {
+                            Log.w(TAG, "$part: download failed", step.e)
+                            set(Part.Failed(reason(step.e)))
+                        }
                     }
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "${ear.locale}: download failed", e)
+                Log.w(TAG, "$part: download failed", e)
+                set(Part.Failed(reason(e)))
             }
+            // Downloads that were already there end without steps: ask again.
+            val status = if (part == SPEECH) status(language) else status { writer().checkStatus() }
+            if (_setup.value.let { if (part == SPEECH) it.speech else it.rewrite } !is Part.Failed) set(Part.of(status))
         }
     }
 
+    private fun reason(e: Throwable): String = when ((e as? GenAiException)?.errorCode) {
+        GenAiException.ErrorCode.NOT_ENOUGH_DISK_SPACE -> "not enough space on the phone"
+        GenAiException.ErrorCode.NEEDS_SYSTEM_UPDATE -> "the phone needs a system update"
+        GenAiException.ErrorCode.BACKGROUND_USE_BLOCKED -> "keep Ferb open while it downloads"
+        else -> e.message ?: e.toString()
+    }
+
     /** Listens on the microphone until [stop] (or ML Kit ends it), streaming what it hears. */
-    fun listen(ear: PhoneEar): Flow<SpeechRecognizerResponse> =
-        client(ear).startRecognition(speechRecognizerRequest { audioSource = AudioSource.fromMic() })
+    fun listen(language: GeminiLanguage): Flow<SpeechRecognizerResponse> =
+        listener(language.locale).startRecognition(speechRecognizerRequest { audioSource = AudioSource.fromMic() })
             .takeWhile { it !is SpeechRecognizerResponse.CompletedResponse }
 
-    suspend fun stop(ear: PhoneEar) = client(ear).stopRecognition()
+    suspend fun stop(language: GeminiLanguage) = listener(language.locale).stopRecognition()
+
+    /** [heard] as an English command for Needle 3; English needs no model ([GeminiRewrite.needed]). */
+    suspend fun rewrite(heard: String): Rewritten {
+        if (!GeminiRewrite.needed(heard)) return Rewritten(heard, heard, hindi = false)
+        val started = SystemClock.elapsedRealtime()
+        val answer = writer().generateContent(generateContentRequest(SystemInstruction(GeminiRewrite.PROMPT), TextPart(heard)) {
+            temperature = 0f
+            topK = 1
+            maxOutputTokens = 200
+        }).candidates.firstOrNull()?.text.orEmpty()
+        Log.i(TAG, "rewrite ($writerName) in ${SystemClock.elapsedRealtime() - started} ms: \"$heard\" -> $answer")
+        return GeminiRewrite.parse(heard, answer)
+    }
 
     companion object {
         const val TAG = "FerbNano"
+        private const val SPEECH = "speech"
+        private const val REWRITE = "rewrite"
     }
 }

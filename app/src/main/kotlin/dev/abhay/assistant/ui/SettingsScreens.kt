@@ -63,6 +63,8 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -117,7 +119,8 @@ import dev.abhay.assistant.tools.ToolConfig
 import dev.abhay.assistant.tools.ToolOption
 import dev.abhay.assistant.tools.ToolSettings
 import dev.abhay.assistant.tools.Tools
-import dev.abhay.assistant.voice.NanoChoice
+import dev.abhay.assistant.voice.GeminiLanguage
+import dev.abhay.assistant.voice.Part
 import dev.abhay.assistant.voice.PhoneEar
 import dev.abhay.assistant.voice.VoiceSettings
 import kotlinx.coroutines.launch
@@ -127,7 +130,7 @@ import kotlin.math.roundToInt
 
 /** The settings home: the tools (a page of their own), Ferb Link (likewise), voice on the phone, and the model, which runs on the phone. */
 @Composable
-fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenLink: () -> Unit, onBack: () -> Unit) {
+fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenLink: () -> Unit, onOpenGemini: () -> Unit = {}, onBack: () -> Unit) {
     val saved by settings.saved.collectAsStateWithLifecycle()
     val linkMode by settings.linkMode.collectAsStateWithLifecycle()
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -146,38 +149,55 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
                 },
                 { shapes -> LinkRow(settings, onOpen = onOpenLink, shapes = shapes) },
             ))
-            // Voice: Whistle hears spoken requests on the phone; off, it's never loaded.
-            val whistle by settings.whistle.collectAsStateWithLifecycle()
+            // Voice: on, Whistle or Gemini Nano writes spoken requests down on the phone; off, neither loads.
+            val onDevice by settings.whistle.collectAsStateWithLifecycle()
             val ear by settings.ear.collectAsStateWithLifecycle()
-            val nanoStatus by settings.nanoStatus.collectAsStateWithLifecycle()
-            LaunchedEffect(Unit) { settings.checkNano() }
-            Group(listOfNotNull({ shapes ->
-                SegmentedListItem(
-                    onClick = { settings.setWhistle(!whistle) },
-                    shapes = shapes,
-                    leadingContent = { IconBadge(R.drawable.ic_mic, active = whistle) },
-                    supportingContent = { Text(VoiceSettings.DESCRIPTION) },
-                    trailingContent = { Switch(checked = whistle, onCheckedChange = null) },
-                ) { Text(VoiceSettings.TITLE) }
-            }, if (!whistle) null else { shapes -> EarRow(ear, nanoStatus, settings::setEar, shapes) }))
-            // Debug builds only (POC): one Prompt API request, for Gemini Nano's status and latency.
-            if (dev.abhay.assistant.NanoPromptCheck.AVAILABLE) {
-                var result by remember { mutableStateOf<String?>(null) }
-                val scope = rememberCoroutineScope()
-                Group(listOf { shapes ->
+            val gemini by settings.gemini.collectAsStateWithLifecycle()
+            LaunchedEffect(Unit) { settings.checkGemini() }
+            SectionTitle("Voice")
+            Group(listOf(
+                { shapes ->
                     SegmentedListItem(
+                        onClick = { settings.setWhistle(!onDevice) },
+                        shapes = shapes,
+                        leadingContent = { IconBadge(R.drawable.ic_mic, active = onDevice) },
+                        supportingContent = { Text(VoiceSettings.DESCRIPTION) },
+                        trailingContent = { Switch(checked = onDevice, onCheckedChange = null) },
+                    ) { Text(VoiceSettings.TITLE) }
+                },
+                { shapes ->
+                    SegmentedListItem(
+                        selected = ear == PhoneEar.Whistle,
+                        onClick = { settings.setEar(PhoneEar.Whistle) },
+                        shapes = shapes,
+                        enabled = onDevice,
+                        leadingContent = { RadioButton(selected = ear == PhoneEar.Whistle, onClick = null, enabled = onDevice) },
+                        supportingContent = { Text(PhoneEar.Whistle.hint) },
+                    ) { Text(PhoneEar.Whistle.title) }
+                },
+                { shapes ->
+                    // Picked before it's set up: its page opens, to set it up.
+                    SegmentedListItem(
+                        selected = ear == PhoneEar.Gemini,
                         onClick = {
-                            if (result != CHECKING) {
-                                result = CHECKING
-                                scope.launch { result = dev.abhay.assistant.NanoPromptCheck.run() }
-                            }
+                            settings.setEar(PhoneEar.Gemini)
+                            if (!gemini.ready) onOpenGemini()
                         },
                         shapes = shapes,
-                        leadingContent = { IconBadge(R.drawable.ic_lightbulb) },
-                        supportingContent = { Text(result ?: "Tap to check FAST and FULL and time one request") },
-                    ) { Text(dev.abhay.assistant.NanoPromptCheck.TITLE) }
-                })
-            }
+                        enabled = onDevice,
+                        leadingContent = { RadioButton(selected = ear == PhoneEar.Gemini, onClick = null, enabled = onDevice) },
+                        supportingContent = { Text("${PhoneEar.Gemini.hint} \u00b7 ${gemini.summary()}") },
+                        trailingContent = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                VerticalDivider(Modifier.height(32.dp).padding(end = 4.dp))
+                                IconButton(onClick = onOpenGemini, enabled = onDevice) {
+                                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Gemini Nano settings")
+                                }
+                            }
+                        },
+                    ) { Text(PhoneEar.Gemini.title) }
+                },
+            ))
             Group(listOf { shapes ->
                 SegmentedListItem(
                     onClick = { settings.onboarding.reset() },
@@ -203,36 +223,100 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
 private const val CHECKING = "Checking\u2026"
 
 /**
- * Who hears a spoken request on the phone (POC): Whistle, or Gemini Nano in English or Hindi, each
- * with what its checkStatus() said. Gemini Nano falls back to Whistle when it can't hear.
+ * Gemini Nano (POC): the language it expects, whether each part is on the phone (hearing, and
+ * writing what was heard in English for Needle 3), and Set up, which downloads what's missing
+ * with its progress. Downloads go through Android; Ferb has no internet access.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun EarRow(ear: PhoneEar, status: Map<PhoneEar, Int>, onChoose: (PhoneEar) -> Unit, shapes: ListItemShapes) {
-    var open by remember { mutableStateOf(false) }
-    fun said(e: PhoneEar) = status[e]?.let { "Gemini Nano: ${NanoChoice.name(it)}" }
-    Box {
-        SegmentedListItem(
-            onClick = { open = true },
-            shapes = shapes,
-            supportingContent = { Text(listOfNotNull(ear.title, said(ear)).joinToString(" \u00b7 ")) },
-            trailingContent = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
-        ) { Text(VoiceSettings.EAR_TITLE) }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            PhoneEar.entries.forEach { option ->
-                DropdownMenuItem(
-                    text = {
-                        Column {
-                            Text(option.title)
-                            said(option)?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                        }
-                    },
-                    leadingIcon = { RadioButton(selected = option == ear, onClick = null) },
-                    onClick = { open = false; onChoose(option) },
-                )
+fun GeminiScreen(settings: SettingsViewModel, onBack: () -> Unit) {
+    val setup by settings.gemini.collectAsStateWithLifecycle()
+    val language by settings.language.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { settings.checkGemini() }
+    val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        topBar = { TopBar("Gemini Nano", subtitle = setup.summary(), onBack = onBack, scroll = bar) }) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
+            Text(
+                "Gemini Nano hears your request on this phone, then writes it as a plain English command for Needle 3, as Computer mode does. " +
+                    "It runs in Android's AICore and needs a one-time download.",
+                Modifier.padding(horizontal = 32.dp, vertical = 8.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            SectionTitle("You speak")
+            Group(GeminiLanguage.entries.map { option ->
+                { shapes ->
+                    SegmentedListItem(
+                        selected = option == language,
+                        onClick = { settings.setLanguage(option) },
+                        shapes = shapes,
+                        leadingContent = { RadioButton(selected = option == language, onClick = null) },
+                        supportingContent = if (option == GeminiLanguage.English) { { Text("Hindi is heard too") } } else null,
+                    ) { Text(option.title) }
+                }
+            })
+            SectionTitle("On this phone")
+            Group(listOf(
+                { shapes -> PartRow("Hearing you", setup.speech, R.drawable.ic_mic, shapes) },
+                { shapes -> PartRow("Writing it in English", setup.rewrite, R.drawable.ic_sms, shapes) },
+            ))
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp), horizontalArrangement = Arrangement.End) {
+                when {
+                    setup.ready -> OutlinedButton(onClick = settings::checkGemini) { Text("Check again") }
+                    setup.downloading && !setup.needsSetUp -> Button(onClick = {}, enabled = false) { Text("Downloading\u2026") }
+                    setup.parts.any { it == Part.Unavailable } -> OutlinedButton(onClick = settings::checkGemini) { Text("Check again") }
+                    else -> Button(onClick = settings::setUpGemini, enabled = setup.parts.none { it == Part.Checking }) { Text("Set up") }
+                }
+            }
+            Text(
+                "Downloads go through Android, not Ferb, which has no internet access. Keep Ferb open until they finish.",
+                Modifier.padding(horizontal = 32.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            // Debug builds only: one Prompt API request, for FAST and FULL's status and latency.
+            if (dev.abhay.assistant.NanoPromptCheck.AVAILABLE) {
+                var result by remember { mutableStateOf<String?>(null) }
+                val scope = rememberCoroutineScope()
+                Spacer(Modifier.height(16.dp))
+                Group(listOf { shapes ->
+                    SegmentedListItem(
+                        onClick = {
+                            if (result != CHECKING) {
+                                result = CHECKING
+                                scope.launch { result = dev.abhay.assistant.NanoPromptCheck.run() }
+                            }
+                        },
+                        shapes = shapes,
+                        leadingContent = { IconBadge(R.drawable.ic_lightbulb) },
+                        supportingContent = { Text(result ?: "Tap to check FAST and FULL and time one request") },
+                    ) { Text(dev.abhay.assistant.NanoPromptCheck.TITLE) }
+                })
             }
         }
     }
+}
+
+/** One part of Gemini Nano's setup: where it stands, with a progress bar while it downloads. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun PartRow(title: String, part: Part, @DrawableRes icon: Int, shapes: ListItemShapes) {
+    SegmentedListItem(
+        onClick = {},
+        shapes = shapes,
+        leadingContent = { IconBadge(if (part == Part.Ready) R.drawable.ic_check else icon, active = part == Part.Ready) },
+        supportingContent = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(part.label(), color = if (part is Part.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+                if (part is Part.Downloading) {
+                    val fraction = part.fraction
+                    if (fraction != null) LinearWavyProgressIndicator(progress = { fraction }, Modifier.fillMaxWidth())
+                    else LinearWavyProgressIndicator(Modifier.fillMaxWidth())
+                }
+            }
+        },
+    ) { Text(title) }
 }
 
 /**

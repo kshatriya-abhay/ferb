@@ -100,6 +100,7 @@ Working on Ferb itself (tests, tuning the tools, comparing models): [docs/develo
 | [Whistle](https://huggingface.co/Cactus-Compute/whistle) by Cactus Compute | Apache-2.0 | Speech to text on the phone (Phone-mode voice, English), bundled |
 | [Needle engine](https://github.com/cactus-compute/needle) by Cactus Compute | Apache-2.0 | Runs Needle 3 and Whistle (`libneedle.a`, linked prebuilt; Linux build for `tool-check`) |
 | [ML Kit GenAI Speech Recognition](https://developers.google.com/ml-kit/genai/speech-recognition/android) by Google (`genai-speech-recognition`) | [ML Kit Terms](https://developers.google.com/ml-kit/terms) | Gemini Nano speech to text through AICore (Phone-mode voice, English or Hindi; a proof of concept on Pixel 10 and 11). Its network permissions are removed from Ferb |
+| [ML Kit GenAI Prompt API](https://developers.google.com/ml-kit/genai/prompt/android) by Google (`genai-prompt`), with Gemini Nano | [ML Kit Terms](https://developers.google.com/ml-kit/terms) | Writes what Gemini Nano heard as an English command for Needle 3, through AICore (the same proof of concept) |
 | Local Models Demo (the author's own app) | — | Whistle's transcribe bridge and PCM recorder, adapted |
 | [AndroidX](https://developer.android.com/jetpack/androidx) (Compose, Material 3, Lifecycle) | Apache-2.0 | UI |
 | [Material Components for Android](https://github.com/material-components/material-components-android) | Apache-2.0 | The Material 3 window theme behind Compose |

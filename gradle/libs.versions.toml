@@ -17,7 +17,7 @@ androidxTestRunner = "1.7.0"
 androidxTestExtJunit = "1.3.0"
 # POC: Gemini Nano voice (AICore) on Pixel 10/11. Its telemetry permissions are removed in the manifest.
 mlkitSpeech = "1.0.0-alpha1"
-# POC, debug builds only: one Prompt API request, to see Gemini Nano's status and latency.
+# POC: Gemini Nano writes what it heard in English for Needle 3 (Prompt API, AICore).
 mlkitPrompt = "1.0.0-beta4"
 
 [libraries]

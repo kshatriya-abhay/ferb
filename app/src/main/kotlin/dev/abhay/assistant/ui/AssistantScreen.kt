@@ -808,7 +808,7 @@ private fun InputBar(
     Column(Modifier.padding(bottom = 12.dp)) {
         when (val clip = state.voice) {
             null -> InputField(state, ready, onChange, onSend, onMic.takeIf { mic }, onFocus, focus)
-            else -> VoiceField(clip, onStop, onDiscard, onSend, heard = state.input)
+            else -> VoiceField(clip, onStop, onDiscard, onSend)
         }
         // Who answers, in a row of its own under the box, so the box keeps its width for the request.
         // Always enabled, so the choice stays readable: a request on its way has read it already,
@@ -843,7 +843,7 @@ private val BoxShape = RoundedCornerShape(28.dp)
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun VoiceField(voice: AssistantViewModel.Voice, onStop: () -> Unit, onDiscard: () -> Unit, onSend: () -> Unit, heard: String = "") {
+private fun VoiceField(voice: AssistantViewModel.Voice, onStop: () -> Unit, onDiscard: () -> Unit, onSend: () -> Unit) {
     Surface(
         shape = BoxShape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -860,13 +860,22 @@ private fun VoiceField(voice: AssistantViewModel.Voice, onStop: () -> Unit, onDi
                     }
                     Icon(painterResource(R.drawable.ic_mic), contentDescription = "Recording", tint = MaterialTheme.colorScheme.error)
                     // Gemini Nano (POC): what it hears so far, as it's said, in the box's place.
-                    if (voice.live != null) Text(heard.ifBlank { "Listening\u2026" }, Modifier.padding(start = 12.dp, top = 8.dp, bottom = 8.dp).weight(1f),
+                    if (voice.live != null) Text(voice.heard.ifBlank { "Listening\u2026" }, Modifier.padding(start = 12.dp, top = 8.dp, bottom = 8.dp).weight(1f),
                         style = MaterialTheme.typography.bodyLarge, maxLines = 4)
                     else Text(elapsed(now - voice.startedAt), Modifier.padding(start = 12.dp).weight(1f),
                         style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
                     FilledIconButton(onClick = onStop, Modifier.padding(end = 4.dp),
                         colors = IconButtonDefaults.filledIconButtonColors(containerColor = MaterialTheme.colorScheme.error)) {
                         Icon(painterResource(R.drawable.ic_stop), contentDescription = "Stop recording")
+                    }
+                }
+                // Gemini Nano (POC): what it heard, to send (written in English first) or drop.
+                is AssistantViewModel.Voice.Heard -> {
+                    Icon(painterResource(R.drawable.ic_mic), contentDescription = "Heard", tint = MaterialTheme.colorScheme.primary)
+                    Text(voice.text, Modifier.padding(start = 12.dp, top = 8.dp, bottom = 8.dp).weight(1f), style = MaterialTheme.typography.bodyLarge, maxLines = 4)
+                    IconButton(onClick = onDiscard) { Icon(Icons.Default.Close, contentDescription = "Discard what was heard") }
+                    FilledIconButton(onClick = onSend, Modifier.padding(end = 4.dp)) {
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
                     }
                 }
                 is AssistantViewModel.Voice.Recorded -> {
