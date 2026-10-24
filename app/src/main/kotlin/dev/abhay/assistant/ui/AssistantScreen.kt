@@ -726,14 +726,29 @@ internal fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () -
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (reply.reasoning.isNotBlank()) {
-                Text(reply.reasoning, style = MaterialTheme.typography.bodyMedium, fontStyle = FontStyle.Italic,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
             if (exchange.calls.isNotEmpty() || reply.suppressed.isNotEmpty()) {
                 HorizontalDivider()
-                (exchange.calls.map { it.call.signature() } + reply.suppressed.map { "held back: ${it.signature()}" }).forEach {
-                    Text(it, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+                exchange.calls.forEach { Text(it.call.signature(), style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace) }
+                reply.suppressed.forEachIndexed { i, call ->
+                    Text("held back: ${call.signature()}", style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+                    // What Ferb itself made of it, with its own date ("Sat 31 Oct, 09:00").
+                    exchange.heldBack.getOrNull(i)?.let {
+                        Text("Ferb would: $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+            // Needle 3's own notes, folded away: their dates are its guesses ("'next Saturday' -> 2026-10-27"),
+            // which Ferb doesn't use; Ferb works dates out itself, as the lines above show.
+            if (reply.reasoning.isNotBlank()) {
+                var notes by remember { mutableStateOf(false) }
+                TextButton(onClick = { notes = !notes }, contentPadding = PaddingValues(0.dp)) {
+                    Text(if (notes) "Hide model notes" else MODEL_NOTES, style = MaterialTheme.typography.labelMedium)
+                }
+                if (notes) {
+                    Text("Needle 3's own words. Its dates aren't used: Ferb works dates out itself.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(reply.reasoning, style = MaterialTheme.typography.bodySmall, fontStyle = FontStyle.Italic,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             reply.error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
@@ -872,6 +887,8 @@ internal fun VoiceField(voice: AssistantViewModel.Voice, onFinish: () -> Unit, o
 /** The recording's two buttons, by what they say to TalkBack (and the UI tests). */
 internal const val CANCEL = "Cancel"
 internal const val FINISH = "Stop and send"
+/** The details' folded Needle 3 reasoning. */
+internal const val MODEL_NOTES = "Model notes"
 /** The ring round ✓ while it's about to send by itself. */
 internal const val SENDING = "Sending when you stop speaking"
 

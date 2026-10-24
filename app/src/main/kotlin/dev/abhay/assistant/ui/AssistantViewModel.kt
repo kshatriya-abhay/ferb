@@ -111,6 +111,12 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         val jev: JevReply? = null,
         /** The steps the request took, as they ran ("Voice: Gemini Nano → Rewrite: Gemini Nano → Needle 3 (0.81)"). */
         val path: List<Step> = emptyList(),
+        /**
+         * For each call Needle 3 held back ([NeedleReply.suppressed]), what Ferb would have done,
+         * with its own resolved time ("Remind you: “Fill the form” · Sat 31 Oct, 09:00"); null where
+         * it couldn't plan one. Needle 3's reasoning has dates of its own, which Ferb doesn't use.
+         */
+        val heldBack: List<String?> = emptyList(),
     )
 
     data class UiState(
@@ -273,7 +279,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
                 fallbacks = audioFallbacks + answer.fallbacks,
                 turnOn = if (shown.calls.isEmpty() && shown.error == null && !answer.nothingAsked) ToolRouter.off(text, configs).map { it.name } else emptyList(),
                 jev = answer.jev,
-                path = answer.path)
+                path = answer.path,
+                heldBack = shown.suppressed.map { call -> (prepare(call, text) as? Prepared.Ready)?.summary })
             _state.update { it.copy(history = it.history + exchange, pending = null, asking = null) }
             if (verdict.decision == Decision.Run) run(exchange.id)
         } catch (e: CancellationException) {
