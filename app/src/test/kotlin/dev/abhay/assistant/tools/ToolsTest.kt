@@ -143,6 +143,10 @@ class ToolsTest {
         // Resuming is play, whatever Needle 3 said; pausing stays pause.
         fun media(action: String, request: String) = summary(MediaControl.prepare(MediaControl.fromRequest(mapOf("action" to action), request), PrepareEnv(apps)))
         assertThat(media("pause", "Resume the music")).isEqualTo("Media: play")
+        assertThat(media("pause", "resume")).isEqualTo("Media: play")
+        assertThat(media("pause", "Resume")).isEqualTo("Media: play")
+        // An action outside the enum is refused, never taken as pause.
+        assertThat(reason(MediaControl.prepare(MediaControl.fromRequest(mapOf("action" to "resume"), "resume"), PrepareEnv(apps)))).isNotNull()
         assertThat(media("pause", "unpause the song")).isEqualTo("Media: play")
         assertThat(media("pause", "please carry on with the playlist")).isEqualTo("Media: play")
         assertThat(media("pause", "pause the music")).isEqualTo("Media: pause")
