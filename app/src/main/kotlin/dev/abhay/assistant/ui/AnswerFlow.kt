@@ -1,5 +1,6 @@
 package dev.abhay.assistant.ui
 
+import dev.abhay.assistant.engine.Decision
 import dev.abhay.assistant.engine.NeedleReply
 import dev.abhay.assistant.link.JevPick
 import dev.abhay.assistant.link.JevReply
@@ -11,6 +12,8 @@ import dev.abhay.assistant.pipeline.Fallback
 import dev.abhay.assistant.pipeline.Pipeline
 import dev.abhay.assistant.pipeline.RewriteStep
 import dev.abhay.assistant.pipeline.ToolStep
+import dev.abhay.assistant.tools.DateResolver
+import dev.abhay.assistant.tools.SaidNumbers
 import dev.abhay.assistant.tools.TimeArgs
 import dev.abhay.assistant.tools.Tool
 import dev.abhay.assistant.tools.ToolConfig
@@ -63,6 +66,14 @@ data class Answer(
  * they are; the tool selection to none), and a failed Gemini Nano rewrite to the words as they are;
  * [Answer.fallbacks] says so. Every step is recorded as it runs ([Step]).
  */
+/** Hindi number words, as numbers (dedh is one and a half: 1 and 30). */
+private val HINDI_NUMBERS = mapOf(
+    "ek" to listOf(1), "do" to listOf(2), "teen" to listOf(3), "chaar" to listOf(4), "char" to listOf(4), "paanch" to listOf(5),
+    "chhe" to listOf(6), "chhah" to listOf(6), "saat" to listOf(7), "aath" to listOf(8), "nau" to listOf(9), "das" to listOf(10),
+    "gyarah" to listOf(11), "barah" to listOf(12), "pandrah" to listOf(15), "bees" to listOf(20), "tees" to listOf(30),
+    "chalis" to listOf(40), "pachaas" to listOf(50), "dedh" to listOf(1, 30), "dhai" to listOf(2, 30), "aadha" to listOf(30), "aadhe" to listOf(30),
+)
+
 class AnswerFlow(
     private val link: LinkCalls,
     private val needle: suspend (request: String, tools: List<Tool>) -> NeedleReply,
@@ -181,15 +192,35 @@ class AnswerFlow(
         if (enabled.isNotEmpty()) path += needleStep(reply)
         val texts = listOf(text, said).distinct()
         val shown = reply.copy(calls = reply.calls.map { call -> call.copy(arguments = TimeArgs.apply(call.name, call.arguments, texts, now())) })
+        // A number the rewrite brought in that the request never said ("wake me up early" as "6
+        // am"): its calls ask first, as a value the request doesn't say does.
+        val verdict = Verdict.of(shown, configs, text).let { v ->
+            if (command != null && shown.calls.isNotEmpty() && v.decision == Decision.Run && invents(command, said)) v.copy(decision = Decision.Confirm, ungrounded = true) else v
+        }
         return Answer(
             shown = shown,
-            verdict = Verdict.of(shown, configs, text),
+            verdict = verdict,
             checked = needleTools.map { it.name },
             path = path,
             command = command.differentFrom(said),
             fallbacks = fallbacks,
             jev = jev,
         )
+    }
+
+    /** Whether [command] has a number [said] doesn't: digits, or English or Hindi number words (saade 5 is 5:30). */
+    internal fun invents(command: String, said: String): Boolean {
+        val words = said.lowercase()
+        val hindi = Regex("""[a-z]+""").findAll(words).flatMap { HINDI_NUMBERS[it.value].orEmpty() }.joinToString(" ")
+        // "a" and "an" count as 1 for a said length ("an hour"), but a command has them everywhere ("Set an alarm").
+        val numbers = command.replace(Regex("""(?i)\b(a|an)\b(?!\s+(hour|minute|min|second|sec|day|week|half|quarter)s?\b)"""), " ")
+        // Arithmetic the words imply: quarter to 8 is 7:45, three quarters 45 minutes or 75 percent, 0600 is 6:00.
+        val implied = buildList {
+            Regex("""quarter to (\d{1,2}|[a-z]+)""").findAll(words).forEach { m -> (m.groupValues[1].toIntOrNull() ?: SaidNumbers.WORDS[m.groupValues[1]])?.let { add(it - 1); add(45) } }
+            if ("quarter" in words) addAll(listOf(25, 45, 75))
+            Regex("""\b(\d{2})(\d{2})\b""").findAll(words).forEach { m -> add(m.groupValues[1].toInt()); add(m.groupValues[2].toInt()) }
+        }.joinToString(" ")
+        return !SaidNumbers.grounded(numbers, "$said ${DateResolver.normalise(said)} $hindi $implied")
     }
 
     private fun String?.differentFrom(said: String) = this?.takeUnless { it.equals(said.trim(), ignoreCase = true) }

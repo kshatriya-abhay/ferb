@@ -104,6 +104,23 @@ class AnswerFlowTest {
     }
 
     @Test
+    fun aNumberTheRewriteMadeUpAsksFirst() {
+        // Said in Hindi, the rewrite's 7:15 is the request's: it runs.
+        assertThat(answer("subah sava saat baje utha dena", pipeline = steps(RewriteStep.Gemini)).verdict.decision).isEqualTo(Decision.Run)
+        // No time said: the rewrite's 7:15 is made up, so the alarm asks first.
+        val early = answer("wake me up early tomorrow", pipeline = steps(RewriteStep.Gemini))
+        assertThat(early.verdict.decision).isEqualTo(Decision.Confirm)
+        assertThat(early.verdict.ungrounded).isTrue()
+        val flow = AnswerFlow(FakeLink(), needle(), geminiSays(null))
+        assertThat(flow.invents("Set an alarm for 5:30", "saade paanch baje ka alarm")).isFalse()
+        assertThat(flow.invents("Set a timer for 1 hour 30 minutes", "dedh ghante ka timer")).isFalse()
+        assertThat(flow.invents("Set a timer for 10 minutes", "das minute ka timer")).isFalse()
+        assertThat(flow.invents("Remind me at 9 to call mum", "remind me to call mum")).isTrue()
+        assertThat(flow.invents("Set a timer for an hour", "ek ghante ka timer")).isFalse()
+        assertThat(flow.invents("Set a timer for an hour", "timer lagao")).isTrue()
+    }
+
+    @Test
     fun noneAsksNeedle3Nothing() {
         val got = answer("what's the capital of Peru", pipeline = steps(RewriteStep.Gemini), gemini = geminiSays(null))
         assertThat(got.nothingAsked).isTrue()
