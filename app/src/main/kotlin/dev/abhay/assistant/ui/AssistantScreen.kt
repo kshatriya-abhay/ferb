@@ -870,7 +870,7 @@ internal fun VoiceField(voice: AssistantViewModel.Voice, onFinish: () -> Unit, o
         }
         Spacer(Modifier.width(8.dp))
         val recording = voice is AssistantViewModel.Voice.Recording
-        // Silent after speech: a ring round ✓ fills over the 2 s before it's sent by itself.
+        // Silent after speech: a ring round ✓ fills over the silence before it's sent by itself.
         val sending = (voice as? AssistantViewModel.Voice.Recording)?.sendingIn
         Box(contentAlignment = Alignment.Center) {
             if (sending != null) CircularWavyProgressIndicator(progress = { sending }, Modifier.size(IconButtonDefaults.mediumContainerSize().width + 8.dp).semantics { contentDescription = SENDING })

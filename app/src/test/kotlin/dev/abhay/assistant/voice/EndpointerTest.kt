@@ -7,7 +7,7 @@ import kotlin.math.sin
 import kotlin.random.Random
 import org.junit.Test
 
-/** Auto-send: speech, then 2 s of silence, ends a request; no speech in 8 s gives up; a pause, a click don't. */
+/** Auto-send: speech, then 1 s of silence, ends a request; no speech in 8 s gives up; a shorter pause, a click don't. */
 class EndpointerTest {
     private val rate = 16_000
     private val random = Random(7)
@@ -45,17 +45,17 @@ class EndpointerTest {
     }
 
     @Test
-    fun speechThenTwoSecondsOfSilenceEnds() {
+    fun speechThenASecondOfSilenceEnds() {
         val decisions = run(noise(500), speech(1_200), noise(2_500))
         val end = decisions.first { it.second != Decision.Continue }
         assertThat(end.second).isEqualTo(Decision.End)
-        // About 2 s after the speech stopped (at 1.7 s).
-        assertThat(end.first).isIn(com.google.common.collect.Range.closed(3_600L, 3_900L))
+        // About 1 s after the speech stopped (at 1.7 s).
+        assertThat(end.first).isIn(com.google.common.collect.Range.closed(2_600L, 2_900L))
     }
 
     @Test
-    fun aPauseShorterThanTwoSecondsKeepsListening() {
-        val decisions = run(noise(500), speech(1_000), noise(1_500), speech(1_000), noise(1_000))
+    fun aPauseShorterThanASecondKeepsListening() {
+        val decisions = run(noise(500), speech(1_000), noise(700), speech(1_000), noise(600))
         assertThat(decisions.map { it.second }.toSet()).containsExactly(Decision.Continue)
     }
 
@@ -73,11 +73,11 @@ class EndpointerTest {
         assertThat(endpoint.sending(1_000)).isNull()
         endpoint.speech(500)
         endpoint.speech(1_400) // a newer partial result
-        assertThat(endpoint.decide(3_300)).isEqualTo(Decision.Continue)
-        assertThat(endpoint.decide(3_400)).isEqualTo(Decision.End)
-        // ✓'s progress: nothing in a short pause, then filling over the 2 s.
+        assertThat(endpoint.decide(2_300)).isEqualTo(Decision.Continue)
+        assertThat(endpoint.decide(2_400)).isEqualTo(Decision.End)
+        // ✓'s progress: nothing in a short pause, then filling over the second.
         assertThat(endpoint.sending(1_500)).isNull()
-        assertThat(endpoint.sending(2_400)).isWithin(0.01f).of(0.5f)
+        assertThat(endpoint.sending(1_900)).isWithin(0.01f).of(0.5f)
         assertThat(endpoint.sending(9_000)).isEqualTo(1f)
         assertThat(Endpoint().decide(8_000)).isEqualTo(Decision.NoSpeech)
     }

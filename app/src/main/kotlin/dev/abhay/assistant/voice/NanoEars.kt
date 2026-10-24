@@ -48,7 +48,7 @@ class NanoEars {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val downloads = mutableMapOf<String, Job>()
 
-    /** Where the setup stands for the language last checked ([refresh]). */
+    /** Where the setup stands, as last checked ([refresh]). */
     private val _setup = MutableStateFlow(GeminiSetup())
     val setup: StateFlow<GeminiSetup> = _setup.asStateFlow()
 
@@ -90,12 +90,12 @@ class NanoEars {
         FeatureStatus.UNAVAILABLE
     }
 
-    /** checkStatus() for hearing [language]. */
+    /** checkStatus() for hearing, in [NanoSpeech.LOCALE]. */
     suspend fun status(): Int =
         status { listener(NanoSpeech.LOCALE).checkStatus() }.also { Log.i(TAG, "${NanoSpeech.LOCALE}: checkStatus ${NanoChoice.name(it)}") }
 
     /**
-     * Checks both parts for [language]; a part already downloading keeps its progress, and one
+     * Checks both parts; a part already downloading keeps its progress, and one
      * Android is fetching on its own is followed, so its progress shows.
      */
     suspend fun refresh() {

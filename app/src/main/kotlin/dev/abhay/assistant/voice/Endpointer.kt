@@ -36,7 +36,8 @@ class Endpoint(val silenceMs: Long = SILENCE_MS, val noSpeechMs: Long = NO_SPEEC
     }
 
     companion object {
-        const val SILENCE_MS = 2_000L
+        /** 1 s (2026-10-25, from 2 s): natural mid-sentence pauses run 0.6-0.9 s, and Gemini Nano's partials lag the speech; the voice bench tunes it. */
+        const val SILENCE_MS = 1_000L
         const val NO_SPEECH_MS = 8_000L
         const val SHOW_AFTER_MS = 300L
     }

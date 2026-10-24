@@ -145,7 +145,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
          */
         data class Recording(
             val startedAt: Long, val onPhone: Boolean = false, val live: Boolean = false, val heard: String = "",
-            /** Silent after speech: how far through the 2 s before it's sent by itself (0–1), for ✓'s ring; null otherwise. */
+            /** Silent after speech: how far through the silence before it's sent by itself (0–1), for ✓'s ring; null otherwise. */
             val sendingIn: Float? = null,
         ) : Voice
         /** What Gemini Nano heard, waiting to be sent (✓ sends it at once; this is for a retry). */
@@ -321,7 +321,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     private fun startPhoneRecording() {
         val startedAt = SystemClock.elapsedRealtime()
         _state.update { it.copy(voice = Voice.Recording(startedAt, onPhone = true), notice = null) }
-        // Auto-send: speech, then 2 s of silence, sends it; no speech in 8 s stops it, sending nothing.
+        // Auto-send: speech, then 1 s of silence ([Endpoint.SILENCE_MS]), sends it; no speech in 8 s stops it, sending nothing.
         val vad = EnergyVad()
         var decided = false
         val job = viewModelScope.async {
@@ -379,7 +379,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         else s.copy(voice = r.copy(sendingIn = sending))
     }
 
-    /** The endpointer's call: 2 s of silence after speech sends it, as ✓ would; no speech, nothing. */
+    /** The endpointer's call: a second of silence after speech sends it, as ✓ would; no speech, nothing. */
     private fun autoStop(decision: Endpoint.Decision) {
         if (_state.value.voice !is Voice.Recording) return
         when (decision) {
@@ -418,7 +418,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             val listening = SystemClock.elapsedRealtime()
             var firstWords = -1L
             var failed = false
-            // Auto-send: a new partial result is speech; 2 s without one after speech sends it, none in 8 s stops it.
+            // Auto-send: a new partial result is speech; a second without one after speech sends it, none in 8 s stops it.
             val endpoint = Endpoint()
             var shown = ""
             fun heard(text: String) {
