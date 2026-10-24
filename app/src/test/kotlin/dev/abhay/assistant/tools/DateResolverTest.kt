@@ -155,6 +155,35 @@ class DateResolverTest {
         assertThat(at("kal raat 12 baje yaad dilana")).isEqualTo(on(11, 6, 0))
     }
 
+    /** The user's alarm rules (2026-10-25): a bare hour, with a day or for today. */
+    @Test
+    fun alarmRules() {
+        fun alarm(text: String, h: Int, m: Int = 0) = at(text, Kind.Alarm, clock = LocalDateTime.of(2026, 11, 4, h, m))
+        // For today: the 06:00–18:00 half if still ahead, else the other half today, else tomorrow.
+        assertThat(alarm("alarm at 7", 5)).isEqualTo(on(11, 4, 7))
+        assertThat(alarm("alarm at 7", 8)).isEqualTo(on(11, 4, 19))
+        assertThat(alarm("alarm at 7", 20)).isEqualTo(on(11, 5, 7))
+        assertThat(alarm("alarm at 5", 3)).isEqualTo(on(11, 4, 17))
+        assertThat(alarm("alarm at 5", 18)).isEqualTo(on(11, 5, 5))
+        assertThat(alarm("alarm for 5:45", 3)).isEqualTo(on(11, 4, 17, 45))
+        assertThat(alarm("set an alarm for 2", 10)).isEqualTo(on(11, 4, 14))
+        assertThat(alarm("set an alarm for 2", 15)).isEqualTo(on(11, 5, 14))
+        assertThat(alarm("alarm at 7 today", 8)).isEqualTo(on(11, 4, 19))
+        // With a day: 5–6:xx am, 7–11 am, 12 noon, 1–4 pm.
+        assertThat(alarm("alarm 6:30 tomorrow", 23, 50)).isEqualTo(on(11, 5, 6, 30))
+        assertThat(alarm("alarm at 5 tomorrow", 10)).isEqualTo(on(11, 5, 5))
+        assertThat(alarm("alarm at 4 tomorrow", 10)).isEqualTo(on(11, 5, 16))
+        assertThat(alarm("alarm at 12 on friday", 10)).isEqualTo(on(11, 6, 12))
+        assertThat(alarm("alarm at 9 on friday", 10)).isEqualTo(on(11, 6, 9))
+        // Said otherwise, as said: am or pm, a part of the day, a waking word.
+        assertThat(alarm("alarm for 5:45 am", 3)).isEqualTo(on(11, 4, 5, 45))
+        assertThat(alarm("wake me at 5:45", 3)).isEqualTo(on(11, 4, 5, 45))
+        assertThat(alarm("alarm at 6 in the evening tomorrow", 10)).isEqualTo(on(11, 5, 18))
+        // Reminders keep their own rule: kal 6 baje is 6 pm.
+        assertThat(at("kal 6 baje yaad dilana")).isEqualTo(on(11, 5, 18))
+        assertThat(at("kal 6 baje ka alarm", Kind.Alarm)).isEqualTo(on(11, 5, 6))
+    }
+
     @Test
     fun agendaDays() {
         assertThat(at("what's on tomorrow", Kind.Agenda)).isEqualTo(Resolved.Day(LocalDate.of(2026, 11, 5)))

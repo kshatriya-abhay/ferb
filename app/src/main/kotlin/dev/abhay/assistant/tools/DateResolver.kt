@@ -79,12 +79,15 @@ object DateResolver {
         // A weekday said on that weekday: today while its time is ahead, else a week on ("this" and
         // bare ones; "next" is a week on already).
         if (day != null) {
+            // An alarm's bare hour today: the user's alarm rule ([alarmToday]).
+            if (kind == Kind.Alarm && said != null && said.bare && said.at != null && day.date == today && day.later == null) return Resolved.At(alarmToday(said.at, now))
             // A bare hour today: whichever half of the clock is still ahead ("at 7 today" at 8 am is 7 pm).
             if (said != null && said.bare && day.date == today && day.later == null) {
                 val ahead = candidates(said).map { today.atTime(it) }.filter { it.isAfter(now) }.minOrNull()
                 return ahead?.let { Resolved.At(it) } ?: Resolved.Ask("That time today has passed")
             }
-            val time = said?.let { clock(it, day.date != today || day.later != null) } ?: day.tonight.takeIf { it }?.let { Part.Night.default }
+            val otherDay = day.date != today || day.later != null
+            val time = said?.let { if (kind == Kind.Alarm && otherDay) alarmClock(it) else clock(it, otherDay) } ?: day.tonight.takeIf { it }?.let { Part.Night.default }
             if (time == null) {
                 // No time: a later day at 09:00; today, ask.
                 if (day.date == today && day.later == null) return Resolved.Ask("What time today?")
@@ -106,6 +109,7 @@ object DateResolver {
             val at = today.atTime(clock(s, false))
             return if (at.isAfter(now)) Resolved.At(at) else Resolved.Ask("That time today has passed")
         }
+        if (kind == Kind.Alarm && s.bare && s.at != null) return Resolved.At(alarmToday(s.at, now))
         val candidates = candidates(s).map { today.atTime(it) }.flatMap { listOf(it, it.plusDays(1)) }.filter { it.isAfter(now) }
         return candidates.minOrNull()?.let { Resolved.At(it) } ?: Resolved.Ask("When?")
     }
@@ -336,6 +340,36 @@ object DateResolver {
         val at = s.at ?: return s.part!!.default
         if (!s.bare) return at
         return if (otherDay) (if (at.hour in 1..6) at.plusHours(12) else at) else at
+    }
+
+    /**
+     * The user's alarm rules (2026-10-25), for a bare hour only (no am or pm, part of the day or
+     * waking word). With a day given (tomorrow, a weekday, a date): 5–6:xx is am, 7–11 am, 12 noon,
+     * 1–4 pm ("alarm 6:30 tomorrow" is 06:30).
+     */
+    private fun alarmClock(s: SaidTime): LocalTime {
+        val at = s.at ?: return s.part!!.default
+        if (!s.bare) return at
+        return if (at.hour in 1..4) at.plusHours(12) else at
+    }
+
+    /**
+     * An alarm for today (no day, or "today") at a bare hour: the half of the clock inside
+     * 06:00–18:00 if it's still ahead; else the other half if it's still ahead today; else tomorrow,
+     * by the day-given rule ([alarmClock]). Never a time already past: "alarm at 7" is 07:00 at
+     * 05:00, 19:00 at 08:00, and tomorrow 07:00 at 20:00; "alarm at 5" at 03:00 is 17:00.
+     */
+    private fun alarmToday(at: LocalTime, now: LocalDateTime): LocalDateTime {
+        val today = now.toLocalDate()
+        val am = today.atTime(at.hour % 12, at.minute)
+        val pm = am.plusHours(12)
+        val day = { t: LocalDateTime -> t.toLocalTime() >= LocalTime.of(6, 0) && t.toLocalTime() < LocalTime.of(18, 0) }
+        val (inside, other) = if (day(am)) am to pm else pm to am
+        return when {
+            inside.isAfter(now) -> inside
+            other.isAfter(now) && other.toLocalDate() == today -> other
+            else -> today.plusDays(1).atTime(alarmClock(SaidTime(at, true, null)))
+        }
     }
 
     /** A bare hour without a day: either half of the clock; anything else as said. */
