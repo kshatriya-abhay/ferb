@@ -7,7 +7,6 @@ import dev.abhay.assistant.tools.ContactBook
 import dev.abhay.assistant.tools.InstalledApps
 import dev.abhay.assistant.tools.ToolSettings
 import dev.abhay.assistant.link.FerbLink
-import dev.abhay.assistant.link.LinkSettings
 import dev.abhay.assistant.notes.SafNotes
 import dev.abhay.assistant.reminders.FileReminderStore
 import dev.abhay.assistant.reminders.ReminderAlarms
@@ -22,10 +21,10 @@ class AssistantApp : Application() {
     val contacts by lazy { ContactBook.from(this) }
     val calendar by lazy { CalendarBook.from(this) }
     val link by lazy { FerbLink(this) }
-    val linkSettings by lazy { LinkSettings(this) }
     val onboarding by lazy { Onboarding.from(this) }
     val notes by lazy { SafNotes(this) }
-    val voice by lazy { dev.abhay.assistant.voice.VoiceSettings(this) }
+    /** How Ferb understands a request: audio processing, rewrite, tool selection (Settings). */
+    val pipeline by lazy { dev.abhay.assistant.pipeline.PipelineSettings(this) }
     /** Gemini Nano's speech recognition (POC), when picked in Settings. */
     val nanoEars by lazy { dev.abhay.assistant.voice.NanoEars() }
     val reminders by lazy { ReminderBook(FileReminderStore(java.io.File(filesDir, "reminders.json"))) { java.time.LocalDateTime.now() } }

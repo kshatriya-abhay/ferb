@@ -64,7 +64,6 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.abhay.assistant.R
 import dev.abhay.assistant.link.FerbLink
-import dev.abhay.assistant.link.LinkMode
 import dev.abhay.assistant.link.LinkStatus
 import dev.abhay.assistant.link.describe
 import kotlinx.coroutines.Dispatchers
@@ -72,15 +71,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** Each way to use Ferb Link, in words: its name and what it does. */
-private fun LinkMode.title() = when (this) {
-    LinkMode.Off -> "Off"
-    LinkMode.Option -> "Choose in the chat"
-}
-
-private fun LinkMode.description() = when (this) {
-    LinkMode.Off -> "Phone only"
-    LinkMode.Option -> "Pick Phone or Computer under the chat box"
-}
 
 /** Ferb Link's status now, refreshed whenever the screen comes back (e.g. from Ferb Link or installing it). */
 @Composable
@@ -115,26 +105,23 @@ internal fun rememberVoiceAvailable(link: FerbLink, active: Boolean): Boolean {
 }
 
 /**
- * The settings home's Ferb Link row: the way it's used, or, until it's set up, an invitation to
- * set it up (the page then has the checklist).
+ * The settings home's Ferb Link row: whether it's connected, or, until it's set up, an invitation
+ * to set it up (the page then has the checklist). Which steps use it is under How Ferb understands you.
  */
 @Composable
 fun LinkRow(settings: SettingsViewModel, onOpen: () -> Unit, shapes: ListItemShapes) {
-    val mode by settings.linkMode.collectAsStateWithLifecycle()
     val status = rememberLinkStatus(settings.link)
     val installed = status != LinkStatus.NotInstalled
     SegmentedListItem(
         onClick = onOpen,
         shapes = shapes,
-        leadingContent = { IconBadge(R.drawable.ic_link, active = installed && mode != LinkMode.Off) },
+        leadingContent = { IconBadge(R.drawable.ic_link, active = status is LinkStatus.Ready) },
         supportingContent = {
             Text(
                 when {
                     !installed -> "A bigger model on your computer. Tap to set up"
                     status == LinkStatus.NotSetUp -> "Not connected yet. Tap to set up"
-                    mode == LinkMode.Off -> "Off. Use a bigger model on your computer"
-                    status is LinkStatus.Ready -> mode.title()
-                    else -> "${mode.title()} · ${describe(status)}"
+                    else -> describe(status)
                 },
             )
         },
@@ -145,7 +132,7 @@ fun LinkRow(settings: SettingsViewModel, onOpen: () -> Unit, shapes: ListItemSha
 /** What Ferb Link is, above its checklist while it isn't working yet. */
 @Composable
 private fun AboutLink() {
-    Text("Ferb Link lets Ferb use a bigger model on a computer of your own, for more requests, Hinglish and voice. Ferb stays offline: Ferb Link holds the internet access.",
+    Text("Ferb Link lets Ferb use a bigger model on a computer of your own, to hear you and rewrite your requests, and Jev to pick tools. Ferb stays offline: Ferb Link holds the internet access.",
         Modifier.padding(horizontal = 16.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
@@ -184,12 +171,11 @@ private fun SetupChecklist(steps: List<SetupStep>, onOpenFerbLink: (() -> Unit)?
 
 /**
  * Ferb Link's page: a card with whether the computer answers (checked when the page opens, again
- * with refresh) and a way into Ferb Link, then how Ferb uses it. Saved at once.
+ * with refresh) and a way into Ferb Link.
  */
 @Composable
 fun LinkScreen(settings: SettingsViewModel, onBack: () -> Unit) {
     val context = LocalContext.current
-    val mode by settings.linkMode.collectAsStateWithLifecycle()
     val status = rememberLinkStatus(settings.link)
     val installed = status != LinkStatus.NotInstalled
     val scope = rememberCoroutineScope()
@@ -224,58 +210,20 @@ fun LinkScreen(settings: SettingsViewModel, onBack: () -> Unit) {
                 )
             }
 
-            SectionTitle("Use Ferb Link")
-            Group(LinkMode.entries.map { option ->
-                { shapes ->
-                    val enabled = installed || option == LinkMode.Off
-                    SegmentedListItem(
-                        selected = option == mode,
-                        onClick = { settings.setLinkMode(option) },
-                        shapes = shapes,
-                        enabled = enabled,
-                        supportingContent = { Text(option.description()) },
-                        leadingContent = { RadioButton(selected = option == mode, onClick = null, enabled = enabled) },
-                    ) { Text(option.title()) }
-                }
-            })
-            if (mode != LinkMode.Off) JevSetting(settings, status)
             Text(
-                "Requests your computer answers leave this phone over Tailscale.",
+                "Pick which steps use your computer in Settings \u2192 $UNDERSTANDING.",
+                Modifier.padding(horizontal = 32.dp, vertical = 12.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "What a step sends to your computer leaves this phone over Tailscale.",
                 Modifier.padding(horizontal = 32.dp, vertical = 12.dp),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
-}
-
-/**
- * "Use Jev to select the tool" ([dev.abhay.assistant.link.LinkPolicy.select]): every request goes
- * to Jev first, which picks the tool for whichever model answers. Off until turned on, and only
- * while Jev is on in Ferb Link, which holds its key and spending limit. The text says plainly
- * that every request's text leaves for TypeSafe, not only some.
- */
-@Composable
-private fun JevSetting(settings: SettingsViewModel, status: LinkStatus) {
-    val on by settings.jev.collectAsStateWithLifecycle()
-    val ready = status as? LinkStatus.Ready
-    val available = ready?.jev == true
-    SectionTitle("Jev")
-    Group(listOf { shapes ->
-        SegmentedListItem(
-            onClick = { settings.setJev(!on) },
-            shapes = shapes,
-            enabled = available,
-            supportingContent = {
-                Text(when {
-                    ready?.jevCapped == true -> "Jev reached its spending limit: raise it in Ferb Link"
-                    !available -> "Turn on Jev in Ferb Link first"
-                    else -> "The text of every request, and your tools' names, go to TypeSafe (US), which picks the tool."
-                })
-            },
-            trailingContent = { Switch(checked = on && available, onCheckedChange = null, enabled = available) },
-        ) { Text("Use Jev to select the tool") }
-    })
 }
 
 /**

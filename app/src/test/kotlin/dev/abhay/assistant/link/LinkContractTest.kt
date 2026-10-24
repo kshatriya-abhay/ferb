@@ -46,8 +46,9 @@ class LinkContractTest {
     @Test
     fun theFixturesAreHereAndKnown() {
         assertThat(cases).isNotEmpty()
-        val methods = listOf("status", "check", "complete", "transcribe", "wake", "decide", "rewrite")
-        cases.filter { !it.result.has("throws") }.forEach { assertThat(it.method).isIn(methods) }
+        // Ferb no longer asks for Gemma's tool calls ("complete", removed 2026-10-24); its fixtures stay Ferb Link's.
+        val methods = listOf("status", "check", "transcribe", "wake", "decide", "rewrite")
+        cases.filter { !it.result.has("throws") && it.method != "complete" }.forEach { assertThat(it.method).isIn(methods) }
         methods.forEach { assertThat(of(it)).isNotEmpty() }
     }
 
@@ -56,7 +57,7 @@ class LinkContractTest {
         // Every key Ferb puts in a call's extras is one Ferb Link's examples take (some take more,
         // optional ones Ferb doesn't send, such as facts).
         val sent = mapOf(
-            "complete" to setOf(LinkContract.EXTRA_REQUEST, LinkContract.EXTRA_TOOLS, LinkContract.EXTRA_TIMEOUT_MS, LinkContract.EXTRA_TIME_FORMAT),
+            "rewrite" to setOf(LinkContract.EXTRA_REQUEST, LinkContract.EXTRA_INSTRUCTIONS, LinkContract.EXTRA_MAX_TOKENS, LinkContract.EXTRA_TIMEOUT_MS),
             "transcribe" to setOf(LinkContract.EXTRA_AUDIO, LinkContract.EXTRA_AUDIO_MIME, LinkContract.EXTRA_TIMEOUT_MS),
             "decide" to setOf(LinkContract.EXTRA_REQUEST, LinkContract.EXTRA_TOOLS, LinkContract.EXTRA_TIMEOUT_MS),
         )
@@ -149,33 +150,25 @@ class LinkContractTest {
     }
 
     @Test
-    fun aTimedCompleteCarriesEachCallsTimeAndAsks() {
-        val timed = of("complete").filter { it.extras.optInt("time_format") == 1 }
-        assertThat(timed).isNotEmpty()
-        val now = java.time.LocalDateTime.parse("2026-10-19T08:25").atZone(java.time.ZoneId.of("Asia/Kolkata"))
-        timed.forEach { case ->
-            val reply = FerbLink.replyOf(values(case.result))
-            val wire = case.result.getJSONObject("reply")
-            if (!wire.optBoolean("success", true)) { assertShort(reply.error); return@forEach }
-            val calls = wire.optJSONArray("function_calls") ?: org.json.JSONArray()
-            assertThat(reply.calls).hasSize(calls.length())
-            reply.calls.forEachIndexed { i, call ->
-                val o = calls.getJSONObject(i)
-                // Ferb Link's asks, or a trimmed value, make the call ask; a "when" reaches TimeArgs.
-                val asks = o.optJSONArray("asks")?.length() ?: 0
-                if (asks > 0 || o.optBoolean("trimmed")) assertThat(call.arguments[dev.abhay.assistant.tools.TimeArgs.ASK]).isNotNull()
-                else assertThat(call.arguments[dev.abhay.assistant.tools.TimeArgs.ASK]).isNull()
-                if (!o.isNull("when")) {
-                    assertThat(dev.abhay.assistant.tools.TimeExpr.parse(call.arguments["when"])).isNotNull()
-                    // And Ferb resolves it, against the request as typed.
-                    dev.abhay.assistant.tools.TimeArgs.apply(call.name, call.arguments, listOf(case.extras.getString("request")), now)
-                }
-            }
+    fun anInstructedRewriteIsReadAsGeminiNanosIs() {
+        // Ferb's own prompt on the computer: its raw answer, read by Ferb's own rules.
+        val instructed = of("rewrite").filter { it.extras.has(LinkContract.EXTRA_INSTRUCTIONS) }
+        assertThat(instructed).isNotEmpty()
+        val replies = instructed.associate { it.name to FerbLink.rewriteOf(values(it.result)) }
+        val one = replies.getValue("rewrite-gemini")
+        assertThat(one.instructed).isTrue()
+        assertThat(dev.abhay.assistant.voice.GeminiRewrite.parse("open the nfc settings", one.raw!!).command).isEqualTo("Open NFC settings")
+        val none = replies.getValue("rewrite-gemini-none")
+        assertThat(dev.abhay.assistant.voice.GeminiRewrite.parse("the alarm woke the baby", none.raw!!).command).isNull()
+        // Failures say so, and still echo the prompt: a missing echo always means an older Ferb Link.
+        listOf("rewrite-gemini-bad_reply", "rewrite-gemini-bad_request").forEach {
+            assertShort(replies.getValue(it).error)
+            assertThat(replies.getValue(it).instructed).isTrue()
         }
-        // The fixtures cover an alarm, "in", a repeat, an ask, a trimmed value and no call.
-        val kinds = timed.flatMap { c -> c.result.getJSONObject("reply").optJSONArray("function_calls")?.let { a -> (0 until a.length()).map { a.getJSONObject(it) } }.orEmpty() }
-        assertThat(kinds.mapNotNull { it.optJSONObject("when")?.optString("kind") }.toSet()).containsAtLeast("at", "in", "every")
-        assertThat(kinds.any { it.optBoolean("trimmed") }).isTrue()
+        // An older Ferb Link answers with its own prompt, without the echo or raw: the step falls back.
+        val old = replies.getValue("rewrite-gemini-old")
+        assertThat(old.instructed).isFalse()
+        assertThat(old.raw).isNull()
     }
 
     @Test
@@ -186,31 +179,6 @@ class LinkContractTest {
             else {
                 assertShort(found.error)
                 assertThat(found.errorDetail).isNotNull()
-            }
-        }
-    }
-
-    @Test
-    fun completeRepliesAreCallsOrShortErrors() {
-        of("complete").forEach { case ->
-            val reply = FerbLink.replyOf(values(case.result))
-            assertThat(reply.fromLaptop).isTrue()
-            val wire = case.result.optJSONObject("reply")
-            if (case.result.optInt("version", -1) != LinkContract.VERSION) {
-                assertThat(reply.error).isNotNull()
-            } else if (wire == null || wire.optBoolean("success", true)) {
-                assertThat(reply.error).isNull()
-                val calls = wire?.optJSONArray("function_calls")
-                assertThat(reply.calls.map { it.name }).isEqualTo((0 until (calls?.length() ?: 0)).map { calls!!.getJSONObject(it).getString("name") })
-                assertThat(reply.model).isNotNull()
-            } else if (wire.has("error_detail")) {
-                // A few words for the chat, the reason at length for Details.
-                assertShort(reply.error)
-                assertThat(reply.errorDetail).isNotEmpty()
-            } else {
-                // An older Ferb Link: only a sentence, which the chat and Details both show.
-                assertThat(reply.error).isNotEmpty()
-                assertThat(reply.errorDetail).isNull()
             }
         }
     }

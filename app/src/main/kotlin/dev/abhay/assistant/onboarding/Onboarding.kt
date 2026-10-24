@@ -19,10 +19,9 @@ enum class Tip(val text: String) {
     Undo("Changed your mind? The buttons on a result undo it, or turn it off."),
     MoreTools("Five tools are on at first. Turn on calls, messages, the calendar and more in Settings → Tools."),
     Keywords("Requests with these words go to this tool. Tap a word to change it."),
-    Answerer("Pick who answers: this phone, or your computer through Ferb Link."),
-    OnPhone("Your computer couldn't answer, so your phone did. Tap the reply for why."),
-    Mic("Tap the mic, tap again to stop, then send. On this phone, speak English; with Computer picked, Hindi too."),
-    Heard("What your computer heard. The line above is what Ferb did with it."),
+    Fallback("A step couldn't be used this time, so Ferb went on without it. Tap the reply for why."),
+    Mic("Tap the mic and speak, then \u2713 to send or \u2715 to cancel. Whistle on this phone hears English."),
+    Heard("What Ferb heard. The line above is what it understood."),
     SuggestLink("Want Ferb to understand more? Ferb Link uses a bigger model on a computer of your own.");
 
     companion object {

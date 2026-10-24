@@ -6,9 +6,12 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 import dev.abhay.assistant.voice.GeminiLanguage
 import dev.abhay.assistant.voice.GeminiSetup
-import dev.abhay.assistant.voice.PhoneEar
+import dev.abhay.assistant.voice.Part
+import dev.abhay.assistant.pipeline.AudioStep
+import dev.abhay.assistant.pipeline.Pipeline
+import dev.abhay.assistant.pipeline.RewriteStep
+import dev.abhay.assistant.pipeline.ToolStep
 import dev.abhay.assistant.AssistantApp
-import dev.abhay.assistant.link.LinkMode
 import dev.abhay.assistant.tools.ToolConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,35 +26,33 @@ import kotlinx.coroutines.flow.update
 class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     private val settings = (app as AssistantApp).toolSettings
 
-    /** Ferb Link (Settings → Ferb Link): saved at once, apart from the tools' draft. */
+    /** Ferb Link (Settings → Ferb Link), for its page and for the steps that use it. */
     val link = (app as AssistantApp).link
-    private val linkSettings = (app as AssistantApp).linkSettings
-    val linkMode: StateFlow<LinkMode> = linkSettings.mode
-    fun setLinkMode(mode: LinkMode) = linkSettings.setMode(mode)
-    /** "Use Jev to select the tool" (Settings → Ferb Link), saved at once. */
-    val jev: StateFlow<Boolean> = linkSettings.jev
-    fun setJev(on: Boolean) = linkSettings.setJev(on)
-    /** "Use voice to text on-device", saved at once. */
-    private val voice = (app as AssistantApp).voice
-    val whistle: StateFlow<Boolean> = voice.whistle
-    fun setWhistle(on: Boolean) = voice.setWhistle(on)
-    /** Who writes it down: Whistle or Gemini Nano (POC), and the language Gemini Nano expects. */
-    val ear: StateFlow<PhoneEar> = voice.ear
-    fun setEar(ear: PhoneEar) = voice.setEar(ear)
-    val language: StateFlow<GeminiLanguage> = voice.language
+    /** How Ferb understands you (Settings): each step as chosen, and the steps in use. Saved at once. */
+    private val steps = (app as AssistantApp).pipeline
+    val pipeline: StateFlow<Pipeline> = steps.pipeline
+    fun setAudio(step: AudioStep) = steps.setAudio(step)
+    fun setRewrite(step: RewriteStep) = steps.setRewrite(step)
+    fun setTools(step: ToolStep) = steps.setTools(step)
+    /** The language Gemini Nano expects. */
+    val language: StateFlow<GeminiLanguage> = steps.language
     fun setLanguage(language: GeminiLanguage) {
-        voice.setLanguage(language)
+        steps.setLanguage(language)
         checkGemini()
     }
     /** Gemini Nano's setup (Settings → Gemini Nano): what's on the phone, and download progress. */
     private val nano = (app as AssistantApp).nanoEars
     val gemini: StateFlow<GeminiSetup> = nano.setup
     fun checkGemini() {
-        viewModelScope.launch { nano.refresh(voice.language.value) }
+        viewModelScope.launch {
+            nano.refresh(steps.language.value)
+            val setup = nano.setup.value
+            steps.geminiChecked(speech = setup.speech == Part.Ready, rewrite = setup.rewrite == Part.Ready)
+        }
     }
-    fun setUpGemini() = nano.setUp(voice.language.value)
-    fun setUpGeminiSpeech() = nano.setUpSpeech(voice.language.value)
-    fun setUpGeminiRewrite() = nano.setUpRewrite(voice.language.value)
+    fun setUpGemini() = nano.setUp(steps.language.value)
+    fun setUpGeminiSpeech() = nano.setUpSpeech(steps.language.value)
+    fun setUpGeminiRewrite() = nano.setUpRewrite(steps.language.value)
 
     val saved: StateFlow<Map<String, ToolConfig>> = settings.configs
 

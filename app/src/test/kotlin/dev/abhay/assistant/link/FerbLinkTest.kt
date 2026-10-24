@@ -59,27 +59,6 @@ class FerbLinkTest {
     }
 
     @Test
-    fun theComputerAnswersFirstOnlyWhenPickedInTheChatBox() {
-        assertThat(LinkPolicy.laptopFirst(LinkMode.Option, Answerer.Link)).isTrue()
-        assertThat(LinkPolicy.laptopFirst(LinkMode.Option, Answerer.Needle)).isFalse()
-        assertThat(LinkPolicy.laptopFirst(LinkMode.Off, Answerer.Link)).isFalse()
-    }
-
-    @Test
-    fun theComputersAnswerRunsWhenTheUsualChecksPass() {
-        val request = "wake me up at 6:45"
-        val laptop = FerbLink.parse(laptopAlarm)
-        assertThat(LinkPolicy.verdict(laptop, configs, request).decision).isEqualTo(Decision.Run)
-        // Whatever its first-token probability: there's no bar.
-        assertThat(LinkPolicy.verdict(laptop.copy(confidence = 0.01), configs, request).decision).isEqualTo(Decision.Run)
-        // A tool set to always ask still asks.
-        val asking = configs + (SetAlarm.name to ToolConfig.defaults(SetAlarm).copy(alwaysConfirm = true))
-        assertThat(LinkPolicy.verdict(laptop, asking, request).decision).isEqualTo(Decision.Confirm)
-        // So does a value the request doesn't say.
-        assertThat(LinkPolicy.verdict(laptop, configs, "wake me up early").decision).isEqualTo(Decision.Confirm)
-    }
-
-    @Test
     fun aTranscriptHasWhatWasHeardAndTheEnglishCommand() {
         val heard = Transcript.parse("""{"heard":"subah 5 baje ka alarm laga do","text":"Set an alarm for 5 am","model":"gemma-4-e2b","ms":640}""")
         assertThat(heard.heard).isEqualTo("subah 5 baje ka alarm laga do")

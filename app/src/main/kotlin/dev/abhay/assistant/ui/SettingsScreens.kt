@@ -110,7 +110,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.abhay.assistant.R
-import dev.abhay.assistant.link.LinkMode
 import dev.abhay.assistant.tools.CalendarBook
 import dev.abhay.assistant.tools.CalendarInfo
 import dev.abhay.assistant.tools.Keywords
@@ -120,19 +119,21 @@ import dev.abhay.assistant.tools.ToolOption
 import dev.abhay.assistant.tools.ToolSettings
 import dev.abhay.assistant.tools.Tools
 import dev.abhay.assistant.voice.GeminiLanguage
+import dev.abhay.assistant.pipeline.AudioStep
+import dev.abhay.assistant.pipeline.RewriteStep
+import dev.abhay.assistant.pipeline.ToolStep
 import dev.abhay.assistant.voice.Part
-import dev.abhay.assistant.voice.PhoneEar
-import dev.abhay.assistant.voice.VoiceSettings
 import kotlinx.coroutines.launch
 import java.util.Locale
 import org.json.JSONObject
 import kotlin.math.roundToInt
 
-/** The settings home: the tools (a page of their own), Ferb Link (likewise), voice on the phone, and the model, which runs on the phone. */
+/** The settings home: the tools and Ferb Link (pages of their own), how Ferb understands you (its steps), the tips, and privacy. */
 @Composable
 fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenLink: () -> Unit, onOpenGemini: () -> Unit = {}, onOpenBench: () -> Unit = {}, onBack: () -> Unit) {
     val saved by settings.saved.collectAsStateWithLifecycle()
-    val linkMode by settings.linkMode.collectAsStateWithLifecycle()
+    val pipeline by settings.pipeline.collectAsStateWithLifecycle()
+    val usesComputer = pipeline.audio == AudioStep.Link || pipeline.rewrite == RewriteStep.Link || pipeline.tools == ToolStep.Link
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer, topBar = { TopBar("Settings", onBack = onBack, scroll = bar) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(vertical = 8.dp),
@@ -149,53 +150,8 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
                 },
                 { shapes -> LinkRow(settings, onOpen = onOpenLink, shapes = shapes) },
             ))
-            // Voice: on, Whistle or Gemini Nano writes spoken requests down on the phone; off, neither loads.
-            val onDevice by settings.whistle.collectAsStateWithLifecycle()
-            val ear by settings.ear.collectAsStateWithLifecycle()
-            val gemini by settings.gemini.collectAsStateWithLifecycle()
-            LaunchedEffect(Unit) { settings.checkGemini() }
-            SectionTitle("Voice")
-            Group(listOf(
-                { shapes ->
-                    SegmentedListItem(
-                        onClick = { settings.setWhistle(!onDevice) },
-                        shapes = shapes,
-                        leadingContent = { IconBadge(R.drawable.ic_mic, active = onDevice) },
-                        supportingContent = { Text(VoiceSettings.DESCRIPTION) },
-                        trailingContent = { Switch(checked = onDevice, onCheckedChange = null) },
-                    ) { Text(VoiceSettings.TITLE) }
-                },
-                { shapes ->
-                    SegmentedListItem(
-                        selected = ear == PhoneEar.Whistle,
-                        onClick = { settings.setEar(PhoneEar.Whistle) },
-                        shapes = shapes,
-                        enabled = onDevice,
-                        leadingContent = { RadioButton(selected = ear == PhoneEar.Whistle, onClick = null, enabled = onDevice) },
-                        supportingContent = { Text(PhoneEar.Whistle.hint) },
-                    ) { Text(PhoneEar.Whistle.title) }
-                },
-                { shapes ->
-                    // M3's split list item: the row only selects Gemini Nano, as Whistle's does; past
-                    // a divider, its own settings button (48 dp, its own ripple) opens its page.
-                    SegmentedListItem(
-                        selected = ear == PhoneEar.Gemini,
-                        onClick = { settings.setEar(PhoneEar.Gemini) },
-                        shapes = shapes,
-                        enabled = onDevice,
-                        leadingContent = { RadioButton(selected = ear == PhoneEar.Gemini, onClick = null, enabled = onDevice) },
-                        supportingContent = { Text("${PhoneEar.Gemini.hint} \u00b7 ${gemini.summary()}") },
-                        trailingContent = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                VerticalDivider(Modifier.height(32.dp).padding(end = 4.dp))
-                                IconButton(onClick = onOpenGemini, enabled = onDevice, modifier = Modifier.size(48.dp)) {
-                                    Icon(painterResource(R.drawable.ic_tune), contentDescription = PhoneEar.GEMINI_SETTINGS)
-                                }
-                            }
-                        },
-                    ) { Text(PhoneEar.Gemini.title) }
-                },
-            ))
+            // How Ferb understands you: audio processing, prompt rewrite and tool selection, in order.
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { UnderstandingSection(settings, onOpenGemini) }
             // Debug builds only: the phone bench (Needle 3 and Gemini Nano on tool-check's requests).
             if (dev.abhay.assistant.DebugBench.AVAILABLE) Group(listOf { shapes ->
                 SegmentedListItem(
@@ -219,8 +175,8 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
                     shapes = shapes,
                     leadingContent = { IconBadge(R.drawable.ic_lock) },
                     supportingContent = {
-                        Text(if (linkMode == LinkMode.Off) "Needle 3 runs on this phone. The app has no internet access."
-                            else "Needle 3 runs on this phone, and the app has no internet access. Ferb Link sends some requests to your computer.")
+                        Text(if (!usesComputer) "Needle 3 runs on this phone. The app has no internet access."
+                            else "Needle 3 runs on this phone, and the app has no internet access. Ferb Link takes some steps to your computer.")
                     },
                 ) { Text("Private by design") }
             })

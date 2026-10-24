@@ -20,16 +20,17 @@ class ChatTipsTest {
         calls = calls.toList(), suppressed = emptyList(), reasoning = "", confidence = 0.9, ungrounded = emptyList(),
         negation = false, prefillTps = 0.0, decodeTps = 0.0, peakRamMb = 0.0, error = null,
     )
-    private fun exchange(id: Long, vararg calls: CallState, heard: String? = null, laptopError: String? = null) = Exchange(
+    private fun exchange(id: Long, vararg calls: CallState, heard: String? = null, fellBack: Boolean = false, nothingAsked: Boolean = false) = Exchange(
         id, "request $id", reply(*calls.map { it.call }.toTypedArray()), Decision.Run, 0.5, false, false, false,
-        emptyList(), calls.toList(), 100, heard = heard, laptopError = laptopError,
+        emptyList(), calls.toList(), 100, heard = heard, nothingAsked = nothingAsked,
+        fallbacks = if (fellBack) listOf(dev.abhay.assistant.pipeline.Fallback("Rewrite", "Gemini Nano", "Ferb Link: timed out")) else emptyList(),
     )
     private val ready = Prepared.Ready("Turn on the flashlight") { Outcome.Done("On") }
     private val waiting = CallState(torch, ready, Status.Waiting)
     private val withUndo = CallState(torch, ready, Status.Finished(Outcome.Done("On", actions = listOf(FollowUp("Turn off") { Outcome.Done("Off") }))))
 
-    private fun tips(history: List<Exchange>, start: Boolean = false, toggle: Boolean = false, mic: Boolean = false) =
-        chatTips(history, start, toggle, mic)
+    private fun tips(history: List<Exchange>, start: Boolean = false, mic: Boolean = false) =
+        chatTips(history, start, mic)
 
     @Test
     fun theStartScreenSuggestsTryingAnExample() {
@@ -57,20 +58,27 @@ class ChatTipsTest {
     }
 
     @Test
-    fun ferbLinkTipsOnlyWithFerbLink() {
-        assertThat(tips(emptyList()).map { it.tip }).containsNoneOf(Tip.Answerer, Tip.Mic, Tip.OnPhone, Tip.Heard)
-        val history = listOf(exchange(1, withUndo, heard = "torch on karo"), exchange(2, withUndo, laptopError = "timed out"))
-        val places = tips(history, toggle = true, mic = true)
-        assertThat(places).containsAtLeast(TipPlace(Tip.Answerer, null), TipPlace(Tip.Mic, null), TipPlace(Tip.OnPhone, 2), TipPlace(Tip.Heard, 1))
+    fun voiceAndFallbackTipsOnlyWhenTheirThingShows() {
+        assertThat(tips(emptyList()).map { it.tip }).containsNoneOf(Tip.Mic, Tip.Fallback, Tip.Heard)
+        val history = listOf(exchange(1, withUndo, heard = "torch on karo"), exchange(2, withUndo, fellBack = true))
+        val places = tips(history, mic = true)
+        assertThat(places).containsAtLeast(TipPlace(Tip.Mic, null), TipPlace(Tip.Fallback, 2), TipPlace(Tip.Heard, 1))
+    }
+
+    @Test
+    fun nothingAskedIsNotStruggling() {
+        // NONE from the rewrite is an answer, not Needle 3 failing: no Ferb Link suggestion for it.
+        val none = (1L..3L).map { exchange(it, nothingAsked = true) }
+        assertThat(chatTips(none, false, false, linkOff = true).map { it.tip }).doesNotContain(Tip.SuggestLink)
     }
 
     @Test
     fun ferbLinkIsSuggestedAfterAFewRepliesWithNoToolWhileItsOff() {
         val noTool = (1L..3L).map { exchange(it) }
-        assertThat(chatTips(noTool, false, false, false, linkOff = true).map { it.tip }).contains(Tip.SuggestLink)
+        assertThat(chatTips(noTool, false, false, linkOff = true).map { it.tip }).contains(Tip.SuggestLink)
         // Not while Ferb Link is in use, nor before a few such replies, nor after replies that worked.
-        assertThat(chatTips(noTool, false, false, false, linkOff = false).map { it.tip }).doesNotContain(Tip.SuggestLink)
-        assertThat(chatTips(noTool.take(2), false, false, false, linkOff = true).map { it.tip }).doesNotContain(Tip.SuggestLink)
-        assertThat(chatTips((1L..5L).map { exchange(it, withUndo) }, false, false, false, linkOff = true).map { it.tip }).doesNotContain(Tip.SuggestLink)
+        assertThat(chatTips(noTool, false, false, linkOff = false).map { it.tip }).doesNotContain(Tip.SuggestLink)
+        assertThat(chatTips(noTool.take(2), false, false, linkOff = true).map { it.tip }).doesNotContain(Tip.SuggestLink)
+        assertThat(chatTips((1L..5L).map { exchange(it, withUndo) }, false, false, linkOff = true).map { it.tip }).doesNotContain(Tip.SuggestLink)
     }
 }

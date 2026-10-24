@@ -5,28 +5,6 @@ import org.json.JSONObject
 import java.util.Locale
 
 /**
- * Who writes down a spoken request on the phone (Settings → Voice), with "Use voice to text
- * on-device" on. Whistle is the default; Gemini Nano is a proof of concept (branch
- * poc/gemini-nano): ML Kit GenAI Speech Recognition in Advanced mode, then the Prompt API writes
- * what was heard as a plain English command for Needle 3, as Computer mode does.
- */
-enum class PhoneEar(val id: String, val title: String, val hint: String) {
-    Whistle("whistle", "Whistle", "On-device, English only"),
-    Gemini("gemini", "Gemini Nano", "On-device");
-
-    companion object {
-        /** The Gemini Nano row's settings button, which opens its page (the row itself only selects it). */
-        const val GEMINI_SETTINGS = "Gemini Nano settings"
-
-        /** "nano-en" and "nano-hi" were the first POC build's two Gemini choices. */
-        fun of(id: String?) = when (id) {
-            "gemini", "nano-en", "nano-hi" -> Gemini
-            else -> Whistle
-        }
-    }
-}
-
-/**
  * The language Gemini Nano expects. One model hears both: set to English it still wrote Hindi
  * down, in Devanagari (2026-10-24), and both locales report the same AICore feature
  * (nano-v4-full, "Speech Recognition Continuous Streaming"). Japanese wasn't heard.
@@ -160,7 +138,7 @@ class LiveTranscript {
 data class Rewritten(val said: String, val command: String?)
 
 /**
- * Gemini Nano before Needle 3 (Computer mode's step, on the phone): every request, typed or
+ * Gemini Nano before Needle 3 (the prompt rewrite step, on the phone; Gemma 4 on the computer uses it too): every request, typed or
  * heard, English, Hinglish or Hindi, becomes one plain English command, or NONE. Needle 3's
  * weakest spot was knowing when to call nothing (75 of 137 right on the phone bench, 2026-10-24),
  * so NONE is Gemini Nano's to say. The phone bench measures this same prompt (tool-check/phone.py);

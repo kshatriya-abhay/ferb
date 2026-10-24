@@ -1,1 +1,1 @@
-0f969f6 2026-10-19 complete with time_format 1: the timed call in the provider (enforced JSON, prompt t4), with when, asks and trimmed on each call
+64124ce 2026-10-24 rewrite with instructions: the caller's own prompt (Ferb's GeminiRewrite) on Gemma

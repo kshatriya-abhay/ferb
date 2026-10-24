@@ -1,29 +1,12 @@
 package dev.abhay.assistant.link
 
-import dev.abhay.assistant.engine.NeedleReply
-import dev.abhay.assistant.tools.ToolConfig
 import dev.abhay.assistant.tools.Tools
-import dev.abhay.assistant.tools.Verdict
 import java.util.Locale
 
-/** When Ferb asks Ferb Link, and when the computer's answer runs. */
+/** Jev's pick (the tool selection step, through Ferb Link): when it counts, and what it means. */
 object LinkPolicy {
-    /** Whether the computer answers first: in [LinkMode.Option] with Ferb Link picked in the chat box. */
-    fun laptopFirst(mode: LinkMode, answerer: Answerer) = mode == LinkMode.Option && answerer == Answerer.Link
-
     /**
-     * The computer's answer runs without asking unless the usual checks say to ask: the tool is set
-     * to always ask, the request doesn't mention the tool, or a value isn't the request's. Its
-     * model has no calibrated confidence (no stand-in was safe in Ferb's bench), so there's no bar.
-     * Calls, messages and new events ask by default; most other tools have Undo or are harmless
-     * (an alarm can't be undone from here). Until 2026-10-12 it also had to agree with Needle 3,
-     * which made nearly every Hinglish answer ask, as Needle 3 doesn't understand Hinglish.
-     */
-    fun verdict(laptop: NeedleReply, configs: Map<String, ToolConfig>, request: String): Verdict =
-        Verdict.of(laptop, configs, request, bar = 0.0)
-
-    /**
-     * "Use Jev to select the tool": Jev's pick counts from here, a tool or "none". In Ferb's bench
+     * The tool selection step (Jev): Jev's pick counts from here, a tool or "none". In Ferb's bench
      * (2026-10-16, 460 English requests, Jev's tool given alone to the answering model), right
      * answers / wrong runs: Phone 360 / 19 to 426 / 6 (at Needle 3's own bar for the tool, as
      * always), Computer 418 / 21 to 434 / 10 (and the since removed "When Needle 3 is unsure" 409 / 33 to 434 / 12);

@@ -7,16 +7,7 @@ import org.junit.Test
 /** Gemini Nano as the phone's voice (POC): the settings, its setup, its fallback, the live text and the rewrite. */
 class NanoVoiceTest {
     @Test
-    fun whistleIsTheDefaultAndTheFirstBuildsChoicesBecomeGemini() {
-        assertThat(PhoneEar.of(null)).isEqualTo(PhoneEar.Whistle)
-        assertThat(PhoneEar.of("gone")).isEqualTo(PhoneEar.Whistle)
-        assertThat(PhoneEar.of("gemini")).isEqualTo(PhoneEar.Gemini)
-        assertThat(PhoneEar.of("nano-en")).isEqualTo(PhoneEar.Gemini)
-        assertThat(PhoneEar.of("nano-hi")).isEqualTo(PhoneEar.Gemini)
-        assertThat(PhoneEar.Whistle.hint).isEqualTo("On-device, English only")
-        assertThat(PhoneEar.Gemini.hint).isEqualTo("On-device")
-        // Its row only selects it; this button, past a divider, opens its page.
-        assertThat(PhoneEar.GEMINI_SETTINGS).isEqualTo("Gemini Nano settings")
+    fun geminiNanosLanguageDefaultsToEnglish() {
         assertThat(GeminiLanguage.of(null)).isEqualTo(GeminiLanguage.English)
         assertThat(GeminiLanguage.of("hi-IN").locale.toLanguageTag()).isEqualTo("hi-IN")
     }

@@ -2,9 +2,9 @@
 
 *A private assistant for Android that does things, on the phone.*
 
-Type a request, such as "set a timer for 10 minutes" or "turn on the flashlight", and Ferb does it: it sets the timer, switches on the torch, opens the app or settings page. A small tool-calling model, [Needle 3](https://huggingface.co/Cactus-Compute/needle3) (35 MB), runs on the phone inside the app. Or tap the mic and say it, in English: [Whistle](https://huggingface.co/Cactus-Compute/whistle) (17 MB) transcribes it on the phone too.
+Type a request, such as "set a timer for 10 minutes" or "turn on the flashlight", and Ferb does it: it sets the timer, switches on the torch, opens the app or settings page. A small tool-calling model, [Needle 3](https://huggingface.co/Cactus-Compute/needle3) (35 MB), runs on the phone inside the app. Or tap the mic and say it: on a Pixel 10 or 11, Gemini Nano hears English and Hindi on the phone (through Android's AICore) and rewrites what you say as one plain English command for Needle 3; elsewhere, [Whistle](https://huggingface.co/Cactus-Compute/whistle) (17 MB) transcribes English on the phone.
 
-**Private by design:** Ferb has no internet permission, so nothing you type leaves your phone. The one exception is opt-in: Ferb Link, below, which sends requests to a computer of your own.
+**Private by design:** Ferb has no internet permission, so nothing you type leaves your phone. The one exception is opt-in: Ferb Link, below, which takes the steps you choose to a computer of your own.
 
 Ferb doesn't chat or answer questions; it runs tools on your phone, and says so when none fits.
 
@@ -31,6 +31,10 @@ Each reply shows what Ferb did, with buttons such as **Turn off**, **Undo** or *
 ### Turn on more tools
 
 Five tools are on at first: **Alarms, Timers, Open apps, Settings pages** and **Flashlight**. The others are off until you turn them on in **Settings → Tools**; Ferb asks for an Android permission when a tool needs one (contacts for Calls and Messages, the calendar for Agenda and Calendar), and uses it on the phone only. Each tool's page also has its keywords, whether it always asks first, and how sure Needle 3 must be before it runs without asking.
+
+### Choose how Ferb understands you
+
+**Settings → How Ferb understands you** has the steps before Needle 3 picks the action: **Audio processing** (Off, Whistle, Gemini Nano, or Ferb Link), **Prompt rewrite** (Off, Gemini Nano, or Ferb Link: "Helps with other languages and improves accuracy") and **Tool selection** (Off, or Jev through Ferb Link: "Improves accuracy by narrowing the tool choice"). Ferb picks Gemini Nano for the first two where your phone has it. If a step fails for a request, Ferb goes on without it and says so on the reply. Gemini Nano's page (its settings button) shows its download progress and the language it expects.
 
 ### Make Ferb your phone's assistant
 
@@ -64,7 +68,7 @@ How each one works, and when Ferb asks first: [docs/how-it-works.md](docs/how-it
 
 ## Ferb Link (optional)
 
-**[Ferb Link](https://github.com/kshatriya-abhay/ferb-link)** is a companion app for a bigger model on a computer of your own (one with a GPU, such as a gaming laptop, reached over Tailscale). It holds the internet access Ferb doesn't have. With it, you can pick **Computer** under Ferb's chat box, and Ferb understands more phrasings and Hinglish, typed or spoken: with Computer picked, the computer transcribes what you say. Ferb Link answers only a Ferb signed with the same key, so get both the same way: both from Releases, or both built on the same computer. Set it up with [Ferb Link's quick start](https://github.com/kshatriya-abhay/ferb-link#quick-start).
+**[Ferb Link](https://github.com/kshatriya-abhay/ferb-link)** is a companion app for a bigger model on a computer of your own (one with a GPU, such as a gaming laptop, reached over Tailscale). It holds the internet access Ferb doesn't have. With it, any of the steps above can use your computer: Gemma 4 there can hear you and rewrite your requests (Hindi and Hinglish too), and Jev can pick the tool. Needle 3 on the phone still makes the call. Ferb Link answers only a Ferb signed with the same key, so get both the same way: both from Releases, or both built on the same computer. Set it up with [Ferb Link's quick start](https://github.com/kshatriya-abhay/ferb-link#quick-start).
 
 ## Build from source
 
@@ -97,10 +101,10 @@ Working on Ferb itself (tests, tuning the tools, comparing models): [docs/develo
 | Project | Licence | Used for |
 |---|---|---|
 | [Needle 3](https://huggingface.co/Cactus-Compute/needle3) by Cactus Compute | Apache-2.0 | The tool-calling model, bundled |
-| [Whistle](https://huggingface.co/Cactus-Compute/whistle) by Cactus Compute | Apache-2.0 | Speech to text on the phone (Phone-mode voice, English), bundled |
+| [Whistle](https://huggingface.co/Cactus-Compute/whistle) by Cactus Compute | Apache-2.0 | Speech to text on the phone (audio processing: Whistle, English), bundled |
 | [Needle engine](https://github.com/cactus-compute/needle) by Cactus Compute | Apache-2.0 | Runs Needle 3 and Whistle (`libneedle.a`, linked prebuilt; Linux build for `tool-check`) |
-| [ML Kit GenAI Speech Recognition](https://developers.google.com/ml-kit/genai/speech-recognition/android) by Google (`genai-speech-recognition`) | [ML Kit Terms](https://developers.google.com/ml-kit/terms) | Gemini Nano speech to text through AICore (Phone-mode voice, English or Hindi; a proof of concept on Pixel 10 and 11). Its network permissions are removed from Ferb |
-| [ML Kit GenAI Prompt API](https://developers.google.com/ml-kit/genai/prompt/android) by Google (`genai-prompt`), with Gemini Nano | [ML Kit Terms](https://developers.google.com/ml-kit/terms) | Writes what Gemini Nano heard as an English command for Needle 3, through AICore (the same proof of concept) |
+| [ML Kit GenAI Speech Recognition](https://developers.google.com/ml-kit/genai/speech-recognition/android) by Google (`genai-speech-recognition`) | [ML Kit Terms](https://developers.google.com/ml-kit/terms) | Gemini Nano speech to text through AICore (audio processing: English and Hindi, on Pixel 10 and 11). Its network permissions are removed from Ferb |
+| [ML Kit GenAI Prompt API](https://developers.google.com/ml-kit/genai/prompt/android) by Google (`genai-prompt`), with Gemini Nano | [ML Kit Terms](https://developers.google.com/ml-kit/terms) | The prompt rewrite with Gemini Nano, through AICore: each request as one English command for Needle 3, or none |
 | Local Models Demo (the author's own app) | — | Whistle's transcribe bridge and PCM recorder, adapted |
 | [AndroidX](https://developer.android.com/jetpack/androidx) (Compose, Material 3, Lifecycle) | Apache-2.0 | UI |
 | [Material Components for Android](https://github.com/material-components/material-components-android) | Apache-2.0 | The Material 3 window theme behind Compose |

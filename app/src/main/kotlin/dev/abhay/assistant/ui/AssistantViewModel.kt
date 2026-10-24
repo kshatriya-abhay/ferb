@@ -12,12 +12,16 @@ import dev.abhay.assistant.engine.AssistantEngine
 import dev.abhay.assistant.engine.Decision
 import dev.abhay.assistant.engine.NeedleReply
 import dev.abhay.assistant.engine.ToolCall
-import dev.abhay.assistant.link.Answerer
 import dev.abhay.assistant.link.JevReply
-import dev.abhay.assistant.link.LinkMode
-import dev.abhay.assistant.link.LinkPolicy
 import dev.abhay.assistant.link.LinkStatus
-import dev.abhay.assistant.link.Recorder
+import dev.abhay.assistant.link.brief
+import dev.abhay.assistant.pipeline.AudioStep
+import dev.abhay.assistant.pipeline.Fallback
+import dev.abhay.assistant.pipeline.Pipeline
+import dev.abhay.assistant.pipeline.RewriteStep
+import dev.abhay.assistant.pipeline.ToolStep
+import dev.abhay.assistant.voice.AacEncoder
+import dev.abhay.assistant.voice.Part
 import dev.abhay.assistant.link.Transcript
 import dev.abhay.assistant.tools.CallRunner
 import dev.abhay.assistant.tools.Choice
@@ -36,7 +40,6 @@ import dev.abhay.assistant.voice.LiveTranscript
 import dev.abhay.assistant.voice.NanoChoice
 import dev.abhay.assistant.voice.NanoEars
 import dev.abhay.assistant.voice.PcmRecorder
-import dev.abhay.assistant.voice.PhoneEar
 import dev.abhay.assistant.voice.PhoneVoice
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Deferred
@@ -91,22 +94,20 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         val routed: List<String>,
         val calls: List<CallState>,
         val wallMs: Long,
-        /** Why the computer's answer isn't shown, when Ferb asked it and it failed (Needle 3 answered): in a few words, and at length. */
-        val laptopError: String? = null,
-        val laptopErrorDetail: String? = null,
         /** For a spoken request: the words heard, when they differ from [request] (its English command). */
         val heard: String? = null,
+        /** For a typed request: what the rewrite made of it, when that differs ("Understood as"). */
+        val understood: String? = null,
+        /** The rewrite said nothing is asked of the phone (NONE). */
+        val nothingAsked: Boolean = false,
+        /** The steps that couldn't be used for this request, and what was used instead. */
+        val fallbacks: List<Fallback> = emptyList(),
         /** When no tool did it: the tools that are off but that the request mentions, offered to turn on. */
         val turnOn: List<String> = emptyList(),
         /** Jev's reply, when it selected the tool ([LinkPolicy.select]); its pick, or why it failed, shows in the details. */
         val jev: JevReply? = null,
-        /** Why Jev's pick wasn't used, when it was asked (or is at its spending limit): in a few words, and at length. */
-        val jevNote: String? = null,
-        val jevNoteDetail: String? = null,
-        /** The steps the request took, as they ran ("Typed → Jev (Alarm, 0.93) → Needle 3 (0.81)"). */
+        /** The steps the request took, as they ran ("Voice: Gemini Nano → Rewrite: Gemini Nano → Needle 3 (0.81)"). */
         val path: List<Step> = emptyList(),
-        /** For a rewritten request: its commands ("Understood as"), each with its steps. */
-        val commands: List<CommandPath> = emptyList(),
     )
 
     data class UiState(
@@ -131,32 +132,23 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
 
     sealed interface Voice {
         /**
-         * [onPhone]: for Whistle on the phone, else for the computer through Ferb Link. [live]:
-         * Gemini Nano hears it as it's said, streaming its text into the chat box (POC).
+         * [onPhone]: recorded as PCM on the phone (for Whistle, or for the computer through Ferb
+         * Link); [live]: Gemini Nano hears it as it's said, its words shown as they come.
          */
         data class Recording(val startedAt: Long, val onPhone: Boolean = false, val live: GeminiLanguage? = null, val heard: String = "") : Voice
-        /** What Gemini Nano heard, waiting for Send (or ✕), which writes it in English for Needle 3. */
+        /** What Gemini Nano heard, waiting to be sent (✓ sends it at once; this is for a retry). */
         data class Heard(val text: String, val ms: Long) : Voice
-        /** [audio] is [Recorder.MIME] for the computer, [pcm] 16 kHz float for Whistle; [ms] long. */
+        /** [pcm]: 16 kHz float, [ms] long; heard by the audio step when sent. [audio]: unused, kept for the tests' shape. */
         class Recorded(val audio: ByteArray?, val ms: Long, val pcm: FloatArray? = null) : Voice
     }
 
     private val assistant = app as AssistantApp
     val engine: StateFlow<AssistantEngine.State> = assistant.engine.state
     val enabledTools: StateFlow<List<String>> = assistant.toolSettings.enabled
-    /** How Ferb Link is used (Settings → Ferb Link), and who answers when the chat box offers a choice. */
-    val linkMode: StateFlow<LinkMode> = assistant.linkSettings.mode
-    val answerer: StateFlow<Answerer> = assistant.linkSettings.answerer
-    /** "Use Jev to select the tool" (Settings → Ferb Link). */
-    val jev: StateFlow<Boolean> = assistant.linkSettings.jev
-    /** "Voice on this phone (Whistle)" (Settings). */
-    val whistle: StateFlow<Boolean> = assistant.voice.whistle
-    fun setAnswerer(answerer: Answerer) {
-        // A recording is for the one who was picked when it started.
-        if (answerer != this.answerer.value) discardRecording()
-        assistant.linkSettings.setAnswerer(answerer)
-        if (answerer == Answerer.Link) wakeComputer()
-    }
+    /** How Ferb understands a request (Settings → How Ferb understands you). */
+    val pipeline: StateFlow<Pipeline> = assistant.pipeline.pipeline
+    /** Whether a step uses the computer, so typing or speaking wakes its model ([wakeComputer]). */
+    val usesComputer get() = pipeline.value.let { it.audio == AudioStep.Link || it.rewrite == RewriteStep.Link || it.tools == ToolStep.Link }
     val link get() = assistant.link
     val notes get() = assistant.notes
     val reminders get() = assistant.reminders
@@ -199,7 +191,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
 
     /**
      * Has Ferb Link load the computer's model if it's asleep or unloaded, when a request is likely:
-     * the chat box tapped with the computer picked, or the computer just picked. A cold load took
+     * the chat box tapped, or recording started, while a step uses the computer. A cold load took
      * 2–28 s, longer than the 10 s Ferb waits for an answer; started on the tap, most of it hides
      * behind the typing. A loaded model costs Ferb Link two small requests, so at most once a minute.
      */
@@ -220,6 +212,13 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             enabledTools.collect { names -> if (engine.value !is AssistantEngine.State.Ready) applyTools(names) }
         }
+        // What Gemini Nano can do here, for the steps not chosen yet (their defaults). Ferb is in
+        // front now, which AICore needs.
+        viewModelScope.launch {
+            assistant.nanoEars.refresh(assistant.pipeline.language.value)
+            val setup = assistant.nanoEars.setup.value
+            assistant.pipeline.geminiChecked(speech = setup.speech == Part.Ready, rewrite = setup.rewrite == Part.Ready)
+        }
     }
 
     fun retry() {
@@ -239,66 +238,70 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         val request = text.trim()
         if (request.isEmpty() || _state.value.busy || engine.value !is AssistantEngine.State.Ready) return
         _state.update { it.copy(busy = true, input = "", notice = null, pending = request) }
-        viewModelScope.launch { answer(request, heard = null) }
+        viewModelScope.launch { answer(request, heardBy = null) }
     }
 
-    /** Answers [request] (typed, or the English command of a spoken one, [heard] as said) and runs what it can. */
-    private suspend fun answer(request: String, heard: String?, phoneVoice: List<String>? = null) {
+    /**
+     * Answers [said] (typed, or a spoken request as heard by [heardBy]) through the rewrite and the
+     * tool selection, then Needle 3 ([AnswerFlow]), and runs what it can. [audioFallbacks]: the
+     * hearing step that couldn't be used this time, for the details.
+     */
+    private suspend fun answer(said: String, heardBy: List<Step>?, audioFallbacks: List<Fallback> = emptyList()) {
         try {
             val started = SystemClock.elapsedRealtime()
             val enabled = enabledTools.value.mapNotNull(Tools::byName)
             val configs = assistant.toolSettings.configs.value
-            val answer = flow.answer(request, heard, enabled, configs, assistant.linkSettings.mode.value,
-                assistant.linkSettings.answerer.value, assistant.linkSettings.jev.value, phoneVoice)
+            val answer = flow.answer(said, enabled, configs, pipeline.value, heardBy,
+                geminiUsable = assistant.nanoEars.setup.value.rewrite == Part.Ready)
             val shown = answer.shown
             val verdict = answer.verdict
-            val calls = shown.calls.mapIndexed { i, call -> CallState(call, prepare(call, answer.callTexts[i]), Status.Waiting) }
-            val exchange = Exchange(nextId++, request, shown, verdict.decision, verdict.runAt, verdict.alwaysConfirm, verdict.unmentioned, verdict.ungrounded,
+            val text = answer.command ?: said
+            val calls = shown.calls.map { call -> CallState(call, prepare(call, text), Status.Waiting) }
+            val spoken = heardBy != null
+            val exchange = Exchange(nextId++, if (spoken) text else said, shown, verdict.decision, verdict.runAt, verdict.alwaysConfirm, verdict.unmentioned, verdict.ungrounded,
                 answer.checked, calls, SystemClock.elapsedRealtime() - started,
-                laptopError = answer.laptopError,
-                laptopErrorDetail = answer.laptopErrorDetail,
-                heard = heard,
-                turnOn = if (shown.calls.isEmpty() && shown.error == null) ToolRouter.off(request, configs).map { it.name } else emptyList(),
-                jev = answer.jev, jevNote = answer.jevNote, jevNoteDetail = answer.jevNoteDetail,
-                path = answer.path, commands = answer.commands)
+                heard = said.takeIf { spoken && answer.command != null },
+                understood = answer.command.takeIf { !spoken },
+                nothingAsked = answer.nothingAsked,
+                fallbacks = audioFallbacks + answer.fallbacks,
+                turnOn = if (shown.calls.isEmpty() && shown.error == null && !answer.nothingAsked) ToolRouter.off(text, configs).map { it.name } else emptyList(),
+                jev = answer.jev,
+                path = answer.path)
             _state.update { it.copy(history = it.history + exchange, pending = null, asking = null) }
             if (verdict.decision == Decision.Run) run(exchange.id)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            _state.update { it.copy(notice = e.message ?: e.toString(), input = request) }
+            _state.update { it.copy(notice = e.message ?: e.toString(), input = if (heardBy == null) said else it.input) }
         } finally {
             _state.update { it.copy(busy = false, pending = null, asking = null) }
         }
     }
 
-    private val flow = AnswerFlow(assistant.link, needle = ::ask, asking = { text -> _state.update { it.copy(asking = text) } })
+    private val flow = AnswerFlow(assistant.link, needle = ::ask, gemini = { assistant.nanoEars.rewrite(it) },
+        asking = { text -> _state.update { it.copy(asking = text) } })
 
-    private val recorder by lazy { Recorder(app) }
     private val pcmRecorder = PcmRecorder()
     /** The phone recording under way, which ends with its clip. */
     private var pcmRecording: Deferred<FloatArray?>? = null
 
     /**
-     * Starts recording a spoken request (the microphone permission is granted): [onPhone] for
-     * Whistle; otherwise for the computer, and Ferb Link wakes its model meanwhile.
+     * Starts recording a spoken request (the microphone permission is granted), for the audio step:
+     * Gemini Nano hears it live; Whistle, or the computer through Ferb Link, from a PCM recording.
      */
-    fun startRecording(onPhone: Boolean = false) {
-        if (_state.value.busy || recorder.recording || pcmRecorder.recording || pcmRecording != null || nanoJob != null) return
+    fun startRecording() {
+        if (_state.value.busy || pcmRecorder.recording || pcmRecording != null || nanoJob != null) return
         sendWhenStopped = false
-        if (onPhone) {
-            // Off: Whistle never loads (the mic is hidden then, so this is only a guard).
-            if (!assistant.voice.whistle.value) return
-            return if (assistant.voice.ear.value == PhoneEar.Gemini) startNano(assistant.voice.language.value) else startPhoneRecording()
+        when (pipeline.value.audio) {
+            // Off: there's no mic, so this is only a guard.
+            AudioStep.Off -> return
+            AudioStep.Gemini -> startNano(assistant.pipeline.language.value)
+            AudioStep.Whistle -> startPhoneRecording()
+            AudioStep.Link -> {
+                startPhoneRecording()
+                wakeComputer()
+            }
         }
-        try {
-            recorder.start(onLimit = ::stopRecording)
-        } catch (e: Exception) {
-            _state.update { it.copy(notice = "The microphone can't be used: ${e.message ?: e}") }
-            return
-        }
-        _state.update { it.copy(voice = Voice.Recording(SystemClock.elapsedRealtime()), notice = null) }
-        viewModelScope.launch { assistant.link.wake() }
     }
 
     @SuppressLint("MissingPermission") // the screen asks for the microphone before starting
@@ -307,7 +310,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         _state.update { it.copy(voice = Voice.Recording(startedAt, onPhone = true), notice = null) }
         val job = viewModelScope.async {
             try {
-                // At 30 s (Whistle's most) it stops by itself and waits for Send, as when stopped.
+                // At 30 s (Whistle's most, and Ferb Link's) it stops by itself and waits for Send.
                 pcmRecorder.record()
             } catch (e: CancellationException) {
                 throw e
@@ -325,19 +328,18 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             _state.update {
                 if (it.voice !is Voice.Recording) it
                 else it.copy(voice = Voice.Recorded(null, ms, pcm).takeIf { pcm.isNotEmpty() },
-                    notice = if (pcm.isEmpty()) "Nothing recorded: tap the mic, speak, then tap it again" else null)
+                    notice = if (pcm.isEmpty()) "Nothing recorded: tap the mic, speak, then tap ✓" else null)
             }
             sendIfAsked()
         }
     }
 
-    /** Gemini Nano listening (POC): it ends with what was heard, waiting for Send. */
+    /** Gemini Nano listening: it ends with what was heard, sent at once by ✓. */
     private var nanoJob: kotlinx.coroutines.Job? = null
 
     /**
-     * Gemini Nano hears the request (POC), what it hears so far showing in the box's place; once
-     * stopped, it waits for Send ([sendGemini]). When it isn't set up or can't hear on this phone,
-     * Whistle hears this one.
+     * Gemini Nano hears the request, what it hears so far showing in the box's place. When its
+     * checkStatus() says it can't (not set up, or unavailable here), Whistle hears this one.
      */
     private fun startNano(language: GeminiLanguage) {
         if (nanoJob != null) return
@@ -398,34 +400,11 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /**
-     * What Gemini Nano heard, written as one plain English command for Needle 3 (the bench's
-     * prompt, [dev.abhay.assistant.voice.GeminiRewrite]), then answered like a typed request, with
-     * what was heard shown. NONE (nothing for the phone to do) answers without Needle 3. When the
-     * rewrite fails, the words stay, to send again.
-     */
+    /** What Gemini Nano heard, answered like a typed request through the rest of the steps. */
     private fun sendGemini(clip: Voice.Heard) {
         if (_state.value.busy || engine.value !is AssistantEngine.State.Ready) return
-        _state.update { it.copy(busy = true, voice = null, notice = null, pending = clip.text, asking = "Gemini Nano is writing it in English\u2026") }
-        viewModelScope.launch {
-            val rewritten = try {
-                assistant.nanoEars.rewrite(clip.text)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(NanoEars.TAG, "rewrite failed", e)
-                _state.update { it.copy(busy = false, pending = null, asking = null, voice = clip,
-                    notice = "Gemini Nano couldn't write it in English: ${e.message ?: e}") }
-                return@launch
-            }
-            val command = rewritten.command
-            if (command == null) {
-                _state.update { it.copy(busy = false, pending = null, asking = null, notice = "Nothing for the phone to do in \u201c${clip.text}\u201d") }
-                return@launch
-            }
-            _state.update { it.copy(pending = command, asking = null) }
-            answer(command, heard = clip.text.takeUnless { it.equals(command, ignoreCase = true) }, phoneVoice = listOf("Gemini Nano", "Gemini Nano (English)"))
-        }
+        _state.update { it.copy(busy = true, voice = null, notice = null, pending = clip.text, asking = null) }
+        viewModelScope.launch { answer(clip.text, heardBy = listOf(Step("Voice: Gemini Nano"))) }
     }
 
     /** The tick (✓) was tapped: the recording is sent as soon as it's stopped. */
@@ -458,14 +437,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             }
             return
         }
-        if (recording.onPhone) return pcmRecorder.stop()
-        val ms = SystemClock.elapsedRealtime() - recording.startedAt
-        val audio = recorder.stop()
-        _state.update {
-            it.copy(voice = audio?.let { a -> Voice.Recorded(a, ms) },
-                notice = if (audio == null) "Nothing recorded: tap the mic, speak, then tap it again" else null)
-        }
-        sendIfAsked()
+        pcmRecorder.stop()
     }
 
     /** ✕: discards the recording (or what was heard); nothing is sent. */
@@ -473,69 +445,87 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         sendWhenStopped = false
         nanoJob?.cancel()
         nanoJob = null
-        recorder.cancel()
         pcmRecording?.cancel()
         pcmRecording = null
         _state.update { it.copy(voice = null) }
     }
 
-    /**
-     * Sends the recording to the computer through Ferb Link, then answers its English command like a
-     * typed request. When the computer fails, the recording is kept, to send again.
-     */
+    /** A PCM recording, heard by the audio step: the computer (Whistle if it can't), or Whistle. */
     private fun sendVoice() {
         val clip = _state.value.voice as? Voice.Recorded ?: return
         if (_state.value.busy || engine.value !is AssistantEngine.State.Ready) return
-        clip.pcm?.let { return sendPhoneVoice(clip, it) }
-        val audio = clip.audio ?: return
+        val pcm = clip.pcm ?: return _state.update { it.copy(voice = null) }
+        PhoneVoice.silent(pcm)?.let { failed -> return _state.update { it.copy(voice = null, notice = failed.notice) } }
+        if (pipeline.value.audio == AudioStep.Link) sendLinkVoice(clip, pcm) else sendPhoneVoice(clip, pcm)
+    }
+
+    /**
+     * The computer hears it (Gemma 4 through Ferb Link), sent as AAC. What it heard goes on to the
+     * rewrite as said; with the rewrite off, its own English command does (Ferb Link writes both).
+     * If the computer can't hear it, Whistle hears the same recording, and the details say so.
+     */
+    private fun sendLinkVoice(clip: Voice.Recorded, pcm: FloatArray) {
         _state.update { it.copy(busy = true, voice = null, notice = null, pending = voiceLabel(clip.ms), asking = "Your computer is listening…") }
         viewModelScope.launch {
-            val waking = (assistant.link.status() as? LinkStatus.Ready)?.asleep == true
-            if (waking) _state.update { it.copy(asking = "Waking your computer\u2026") }
-            when (val next = VoiceOutcome.of(assistant.link.transcribe(audio, Recorder.MIME, waking))) {
-                is VoiceOutcome.Failed ->
-                    _state.update { it.copy(busy = false, pending = null, asking = null, voice = clip.takeIf { next.keepClip }, notice = next.notice) }
-                is VoiceOutcome.Answer -> {
-                    _state.update { it.copy(pending = next.request, asking = null) }
-                    answer(next.request, heard = next.heard)
+            val why: String = when (val status = assistant.link.status()) {
+                is LinkStatus.Ready -> {
+                    if (status.asleep) _state.update { it.copy(asking = "Waking your computer…") }
+                    val audio = try {
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { AacEncoder.encode(pcm, PcmRecorder.SAMPLE_RATE, app.cacheDir) }
+                    } catch (e: Exception) {
+                        null
+                    }
+                    if (audio == null) "the recording couldn't be encoded"
+                    else when (val next = VoiceOutcome.of(assistant.link.transcribe(audio, AacEncoder.MIME, status.asleep))) {
+                        is VoiceOutcome.Answer -> {
+                            val said = if (pipeline.value.rewrite == RewriteStep.Off) next.request else next.heard ?: next.request
+                            _state.update { it.copy(pending = said, asking = null) }
+                            return@launch answer(said, heardBy = listOf(Step("Voice: Ferb Link")))
+                        }
+                        is VoiceOutcome.Failed -> if (!next.keepClip) {
+                            // No words: not the computer's failure, so no Whistle either.
+                            return@launch _state.update { it.copy(busy = false, pending = null, asking = null, notice = next.notice) }
+                        } else next.notice.removePrefix("Your computer couldn't hear it: ")
+                    }
                 }
+                else -> brief(status)
             }
+            _state.update { it.copy(asking = "Transcribing…", transcribing = true) }
+            whistle(clip, pcm, listOf(Fallback("Audio", "Whistle", "Ferb Link: $why")))
         }
     }
 
     /**
      * Whistle transcribes the recording on the phone, in English, then its text is answered like a
-     * typed request ("Voice → Whistle → …"). A clip without speech never reaches the model.
+     * typed request ("Voice: Whistle → …"). A clip without speech never reaches the model.
      */
     private fun sendPhoneVoice(clip: Voice.Recorded, pcm: FloatArray) {
-        // Turned off after recording: dropped, so Whistle isn't loaded.
-        if (!assistant.voice.whistle.value) return _state.update { it.copy(voice = null, notice = "Voice on this phone is off (Settings)") }
-        PhoneVoice.silent(pcm)?.let { failed -> return _state.update { it.copy(voice = null, notice = failed.notice) } }
-        _state.update { it.copy(busy = true, voice = null, notice = null, pending = voiceLabel(clip.ms), asking = "Transcribing\u2026", transcribing = true) }
-        viewModelScope.launch {
-            val heard = try {
-                Result.success(assistant.engine.transcribe(pcm))
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
-            heard.getOrNull()?.let { Log.i(TAG, "Whistle: ${it.audioMs} ms of audio in ${it.ms} ms (load ${assistant.engine.whistleLoaded} ms)") }
-            _state.update { it.copy(transcribing = false) }
-            when (val next = PhoneVoice.of(heard)) {
-                is PhoneVoice.Failed ->
-                    _state.update { it.copy(busy = false, pending = null, asking = null, voice = clip.takeIf { next.keepClip }, notice = next.notice) }
-                is PhoneVoice.Request -> {
-                    _state.update { it.copy(pending = next.text, asking = null) }
-                    answer(next.text, heard = null, phoneVoice = listOf("Whistle"))
-                }
+        _state.update { it.copy(busy = true, voice = null, notice = null, pending = voiceLabel(clip.ms), asking = "Transcribing…", transcribing = true) }
+        viewModelScope.launch { whistle(clip, pcm, emptyList()) }
+    }
+
+    private suspend fun whistle(clip: Voice.Recorded, pcm: FloatArray, fallbacks: List<Fallback>) {
+        val heard = try {
+            Result.success(assistant.engine.transcribe(pcm))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+        heard.getOrNull()?.let { Log.i(TAG, "Whistle: ${it.audioMs} ms of audio in ${it.ms} ms (load ${assistant.engine.whistleLoaded} ms)") }
+        _state.update { it.copy(transcribing = false) }
+        when (val next = PhoneVoice.of(heard)) {
+            is PhoneVoice.Failed ->
+                _state.update { it.copy(busy = false, pending = null, asking = null, voice = clip.takeIf { next.keepClip }, notice = next.notice) }
+            is PhoneVoice.Request -> {
+                _state.update { it.copy(pending = next.text, asking = null) }
+                answer(next.text, heardBy = listOf(Step(if (fallbacks.isEmpty()) "Voice: Whistle" else "Voice: Whistle instead")), audioFallbacks = fallbacks)
             }
         }
     }
 
     override fun onCleared() {
         nanoJob?.cancel()
-        recorder.cancel()
         pcmRecorder.stop()
     }
 

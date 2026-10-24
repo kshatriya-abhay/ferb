@@ -12,7 +12,7 @@ import kotlinx.coroutines.withContext
 /**
  * Records a spoken request for Whistle on the phone: mono float PCM at 16 kHz, exactly what it
  * takes, up to [MAX_SAMPLES] (its 30 s per pass). Stops on [stop], on cancellation, or at the cap.
- * Adapted from Local Models Demo's recorder. Computer mode records Opus instead ([dev.abhay.assistant.link.Recorder]).
+ * Adapted from Local Models Demo's recorder. For the computer (audio processing through Ferb Link) the same PCM is sent as AAC ([AacEncoder]).
  */
 class PcmRecorder {
     @Volatile private var stopRequested = false

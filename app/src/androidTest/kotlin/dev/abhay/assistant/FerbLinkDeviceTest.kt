@@ -5,23 +5,19 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.common.truth.Truth.assertThat
 import dev.abhay.assistant.link.LinkStatus
-import dev.abhay.assistant.tools.AddReminder
-import dev.abhay.assistant.tools.SetAlarm
-import dev.abhay.assistant.tools.TimeArgs
-import dev.abhay.assistant.tools.Tools
+import dev.abhay.assistant.voice.GeminiRewrite
 import dev.abhay.assistant.ui.VoiceOutcome
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.time.ZonedDateTime
 import kotlinx.coroutines.runBlocking
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Ferb against the installed Ferb Link, through its provider (no UI): status, check, complete, and
- * transcribe with a silent clip. Needs Ferb Link installed and set up; complete and transcribe also
+ * Ferb against the installed Ferb Link, through its provider (no UI): status, check, rewrite, and
+ * transcribe with a silent clip. Needs Ferb Link installed and set up; rewrite and transcribe also
  * need the computer reachable, and are skipped (logged) when it isn't.
  */
 @RunWith(AndroidJUnit4::class)
@@ -42,11 +38,12 @@ class FerbLinkDeviceTest {
         assertThat(check).isNotNull()
         assumeTrue("the computer answers: ${check?.error} / ${check?.errorDetail}", check!!.reachable)
 
-        val reply = app.link.complete("set an alarm for 7 am", Tools.json(listOf(SetAlarm)))
-        Log.i(TAG, "complete: ${reply.calls.map { it.signature() }} ${reply.error} ${reply.ms} ms")
+        // The rewrite step on the computer: Ferb's own prompt, read by Ferb's own rules.
+        val reply = app.link.rewrite("kal subah 7 baje utha dena", GeminiRewrite.PROMPT, GeminiRewrite.MAX_TOKENS)
+        Log.i(TAG, "rewrite: raw='${reply.raw}' instructed=${reply.instructed} ${reply.error} ${reply.ms} ms")
         assertThat(reply.error).isNull()
-        assertThat(reply.fromLaptop).isTrue()
-        assertThat(reply.calls.map { it.name }).containsExactly("set_alarm")
+        assertThat(reply.instructed).isTrue()
+        assertThat(GeminiRewrite.parse("kal subah 7 baje utha dena", reply.raw!!).command?.lowercase()).contains("7")
 
         val silence = app.link.transcribe(silentWav(2), "audio/wav")
         Log.i(TAG, "transcribe (silence): heard='${silence.heard}' text='${silence.text}' error=${silence.error}")
@@ -54,24 +51,16 @@ class FerbLinkDeviceTest {
         assertThat((VoiceOutcome.of(silence) as VoiceOutcome.Failed).keepClip).isFalse() // "No words heard"
     }
 
-    /**
-     * The timed call (`time_format` 1, the path Computer mode takes when Jev picks a timed tool),
-     * without Jev: its time structure reaches Ferb and Ferb's resolver takes it.
-     */
+    /** Ferb's AAC recording (the audio step on the computer) is one Ferb Link takes: silence comes back as "no words". */
     @Test
-    fun theTimedCallCarriesATimeStructure() = runBlocking {
+    fun anAacRecordingIsHeard() = runBlocking {
         assumeTrue("Ferb Link ready", app.link.status() is LinkStatus.Ready)
         assumeTrue("the computer answers", app.link.check()?.reachable == true)
-        val request = "remind me tomorrow at 9 am to water the plants"
-        val reply = app.link.complete(request, Tools.json(listOf(AddReminder)), timeFormat = true)
-        Log.i(TAG, "timed complete: ${reply.calls.map { it.signature() }} ${reply.error} ${reply.ms} ms")
-        assertThat(reply.error).isNull()
-        val call = reply.calls.single()
-        assertThat(call.name).isEqualTo(AddReminder.name)
-        assertThat(call.arguments).containsKey("when")
-        val applied = TimeArgs.apply(call.name, call.arguments, listOf(request), ZonedDateTime.now())
-        Log.i(TAG, "timed applied: $applied")
-        assertThat(applied[TimeArgs.RESOLVED]).isEqualTo(true)
+        val aac = dev.abhay.assistant.voice.AacEncoder.encode(FloatArray(16_000 * 2), 16_000, app.cacheDir)
+        assertThat(aac.size).isLessThan(64 * 1024)
+        val heard = app.link.transcribe(aac, dev.abhay.assistant.voice.AacEncoder.MIME)
+        Log.i(TAG, "transcribe (AAC silence): ${aac.size} bytes, heard='${heard.heard}' error=${heard.error}")
+        assertThat(heard.error).isNull()
     }
 
     /**

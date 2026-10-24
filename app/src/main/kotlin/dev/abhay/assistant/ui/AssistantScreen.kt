@@ -126,9 +126,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.abhay.assistant.R
 import dev.abhay.assistant.engine.AssistantEngine
 import dev.abhay.assistant.engine.Decision
-import dev.abhay.assistant.link.Answerer
 import dev.abhay.assistant.link.LinkPolicy
-import dev.abhay.assistant.link.LinkMode
 import dev.abhay.assistant.link.LinkStatus
 import dev.abhay.assistant.notes.NoteStore
 import dev.abhay.assistant.onboarding.Tip
@@ -143,6 +141,9 @@ import java.util.Locale
 import kotlinx.coroutines.delay
 import dev.abhay.assistant.tools.LevelWatch
 import dev.abhay.assistant.voice.Mic
+import dev.abhay.assistant.pipeline.AudioStep
+import dev.abhay.assistant.pipeline.RewriteStep
+import dev.abhay.assistant.pipeline.ToolStep
 import androidx.compose.runtime.rememberUpdatedState
 
 /**
@@ -159,27 +160,19 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
     val engine by viewModel.engine.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val enabled by viewModel.enabledTools.collectAsStateWithLifecycle()
-    val linkMode by viewModel.linkMode.collectAsStateWithLifecycle()
-    val answerer by viewModel.answerer.collectAsStateWithLifecycle()
+    val pipeline by viewModel.pipeline.collectAsStateWithLifecycle()
     var details by remember { mutableStateOf<AssistantViewModel.Exchange?>(null) }
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(state.notice) { state.notice?.let { snackbar.showSnackbar(it) } }
     val onboarding by viewModel.onboarding.state.collectAsStateWithLifecycle()
-    val offered = answerer.takeIf { linkMode == LinkMode.Option }
-    // "Use Jev to select the tool" is on, and Ferb Link has Jev on: shown under the box.
-    val jevOn by viewModel.jev.collectAsStateWithLifecycle()
     val linkStatus = rememberLinkStatus(viewModel.link)
-    val usingJev = jevOn && linkMode != LinkMode.Off && (linkStatus as? LinkStatus.Ready)?.jev == true
-    // Voice: the computer hears it when it's picked in the chat box and takes audio (any language);
-    // otherwise Whistle, on the phone (English).
-    val computerHears = rememberVoiceAvailable(viewModel.link, active = offered == Answerer.Link)
-    val whistleOn by viewModel.whistle.collectAsStateWithLifecycle()
-    // With Whistle off (Settings), the mic shows only when the computer hears it.
-    val micAvailable = Mic.shows(computerHears, whistleOn)
+    val usesComputer = pipeline.audio == AudioStep.Link || pipeline.rewrite == RewriteStep.Link || pipeline.tools == ToolStep.Link
+    // The mic, unless audio processing is off (Settings → How Ferb understands you).
+    val micAvailable = Mic.shows(pipeline.audio)
     // The one tip to show, if any, among those whose thing is on screen.
     val startScreen = engine is AssistantEngine.State.Ready && state.history.isEmpty() && state.pending == null
-    val places = chatTips(state.history, startScreen, answererShown = offered != null,
-        micShown = state.voice == null && micAvailable, linkOff = linkMode == LinkMode.Off)
+    val places = chatTips(state.history, startScreen, micShown = state.voice == null && micAvailable,
+        linkOff = linkStatus == LinkStatus.NotInstalled || linkStatus == LinkStatus.NotSetUp)
     val tip = Tip.next(places.map { it.tip }, onboarding.seen)?.let { t -> places.first { it.tip == t } }
     val seen = viewModel.onboarding::seen
     val context = LocalContext.current
@@ -213,7 +206,7 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.app_name)) },
-                subtitle = { Text(subtitle(engine, linkMode, answerer)) },
+                subtitle = { Text(subtitle(engine, usesComputer)) },
                 actions = {
                     // Notes, once there's a folder for them.
                     if (viewModel.notes.ready) IconButton(onClick = onOpenNotes) { Icon(painterResource(R.drawable.ic_note), contentDescription = "Notes") }
@@ -269,17 +262,17 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
             // A tip about the box, the toggle or the mic, above them.
             tip?.takeIf { it.exchange == null && it.tip != Tip.TryOne }?.let {
                 TipCard(it.tip, onDismiss = { seen(it.tip) }, Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                    text = if (it.tip == Tip.Mic) Mic.tip(whistleOn) else it.tip.text,
+                    text = if (it.tip == Tip.Mic) Mic.tip(pipeline.audio) else it.tip.text,
                     action = ("Set up" to onOpenLink).takeIf { _ -> it.tip == Tip.SuggestLink })
             }
-            // With the computer picked, keep Ferb Link's process up, so a request doesn't wait for it to start.
-            DisposableEffect(offered == Answerer.Link) {
-                val holding = offered == Answerer.Link
+            // While a step uses the computer, keep Ferb Link's process up, so a request doesn't wait for it to start.
+            DisposableEffect(usesComputer) {
+                val holding = usesComputer
                 if (holding) viewModel.link.hold()
                 onDispose { if (holding) viewModel.link.release() }
             }
             val askMic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-                if (granted) viewModel.startRecording(onPhone = !computerHears)
+                if (granted) viewModel.startRecording()
                 else {
                     // Refused: typing still works. Once Android won't ask again, the mic opens Ferb's settings page.
                     if ((context as? Activity)?.shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO) == false) refused = refused + Manifest.permission.RECORD_AUDIO
@@ -287,14 +280,13 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
                 }
             }
             InputBar(state, ready = engine is AssistantEngine.State.Ready, focus = assists, onChange = viewModel::onInputChange, onSend = { viewModel.send() },
-                // With the computer picked, a tap on the box wakes its model while the request is typed.
-                onFocus = { if (offered == Answerer.Link) viewModel.wakeComputer() },
-                answerer = offered, usingJev = usingJev, onAnswerer = { seen(Tip.Answerer); viewModel.setAnswerer(it) },
+                // While a step uses the computer, a tap on the box wakes its model while the request is typed.
+                onFocus = { if (usesComputer) viewModel.wakeComputer() },
                 mic = micAvailable,
                 onMic = {
                     seen(Tip.Mic)
                     when {
-                        context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED -> viewModel.startRecording(onPhone = !computerHears)
+                        context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED -> viewModel.startRecording()
                         Manifest.permission.RECORD_AUDIO in refused ->
                             context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
                         else -> askMic.launch(Manifest.permission.RECORD_AUDIO)
@@ -307,13 +299,10 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
     details?.let { DetailsSheet(it, onDismiss = { details = null }) }
 }
 
-private fun subtitle(engine: AssistantEngine.State, link: LinkMode, answerer: Answerer) = when (engine) {
+private fun subtitle(engine: AssistantEngine.State, usesComputer: Boolean) = when (engine) {
     AssistantEngine.State.Loading -> "Getting ready…"
     is AssistantEngine.State.Failed -> "Couldn't start"
-    is AssistantEngine.State.Ready -> when {
-        link == LinkMode.Option && answerer == Answerer.Link -> "Your computer, through Ferb Link"
-        else -> "On this phone · offline"
-    }
+    is AssistantEngine.State.Ready -> if (usesComputer) "On this phone · your computer helps" else "On this phone · offline"
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -403,7 +392,7 @@ private fun History(
         }
         items(state.history.asReversed(), key = { it.id }) { exchange ->
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                RequestBubble(exchange.request, exchange.heard)
+                RequestBubble(exchange.request, exchange.heard, exchange.understood)
                 ReplyBubble(
                     exchange,
                     onRun = { onTipSeen(Tip.AskFirst); viewModel.run(exchange.id) },
@@ -422,9 +411,12 @@ private fun History(
     }
 }
 
-/** A request on the right; for a spoken one, [heard] (what was said) under its English command. */
+/**
+ * A request on the right: for a spoken one, [heard] (what was said) under the command it became;
+ * for a typed one, what the rewrite [understood] it as, when that differs.
+ */
 @Composable
-private fun RequestBubble(text: String, heard: String? = null) {
+private fun RequestBubble(text: String, heard: String? = null, understood: String? = null) {
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
         Surface(
             color = MaterialTheme.colorScheme.primary,
@@ -436,6 +428,10 @@ private fun RequestBubble(text: String, heard: String? = null) {
                 Text(text, style = MaterialTheme.typography.bodyLarge)
                 heard?.let {
                     Text("Heard: \u201c$it\u201d", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f))
+                }
+                understood?.let {
+                    Text("Understood as \u201c$it\u201d", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f))
                 }
             }
@@ -501,6 +497,7 @@ private fun ReplyBubble(
             when {
                 reply.error != null -> Text("Something went wrong. Try again.", style = MaterialTheme.typography.bodyLarge)
                 offered != null -> Text("${offered.title} is off.", style = MaterialTheme.typography.bodyLarge)
+                exchange.nothingAsked -> Text(NOTHING_ASKED, style = MaterialTheme.typography.bodyLarge)
                 exchange.calls.isEmpty() -> Text("I can't do that yet.", style = MaterialTheme.typography.bodyLarge)
                 asking && !choosing -> Text("Shall I do this?", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -524,21 +521,17 @@ private fun ReplyBubble(
     }
 }
 
+/** What the rewrite answers when nothing is asked of the phone (NONE). */
+internal const val NOTHING_ASKED = "Nothing for me to do on the phone there."
+
 /**
- * Where an answer came from, when Ferb Link was involved, as an icon and a few words: the computer
- * and how long it took, or this phone and why the computer didn't answer. The model and the
- * reasons at length are in the details. Nothing for Needle 3's usual answers.
+ * A step that couldn't be used for this request, as an icon and a few words ("Rewrite · Gemini
+ * Nano instead"); why, at length, is in the details. Nothing when every step ran as set.
  */
 private fun source(exchange: AssistantViewModel.Exchange): Pair<Int, String>? {
-    val reply = exchange.reply
-    val base = when {
-        reply.fromLaptop -> R.drawable.ic_computer to (reply.ms?.let { String.format(Locale.US, "%.1f s", it / 1000.0) } ?: "Computer")
-        exchange.laptopError != null -> R.drawable.ic_phone to "On phone \u00b7 ${exchange.laptopError.replaceFirstChar { it.lowercase() }}"
-        else -> null
-    }
-    // Why Jev's pick wasn't used ("Jev wasn't sure"), after the rest.
-    val note = exchange.jevNote ?: return base
-    return base?.let { it.first to "${it.second} \u00b7 $note" } ?: ((if (reply.fromLaptop) R.drawable.ic_computer else R.drawable.ic_phone) to note)
+    val first = exchange.fallbacks.firstOrNull() ?: return null
+    val more = if (exchange.fallbacks.size > 1) " +${exchange.fallbacks.size - 1}" else ""
+    return R.drawable.ic_phone to "${first.step} \u00b7 ${first.used} instead$more"
 }
 
 /** The Android permissions a call couldn't do without, if that's why it can't run or didn't work. */
@@ -694,15 +687,9 @@ private fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () ->
             if (exchange.path.isNotEmpty()) {
                 Text(Step.chain(exchange.path), style = MaterialTheme.typography.bodyMedium)
             }
-            // A rewritten request: what Ferb understood, and each command's own steps when there are several.
-            if (exchange.heard == null && exchange.commands.isNotEmpty()) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Understood as", style = MaterialTheme.typography.labelLarge)
-                    exchange.commands.forEach { command ->
-                        Text(if (exchange.commands.size == 1) "\u201c${command.text}\u201d" else "\u201c${command.text}\u201d: ${Step.chain(command.steps)}",
-                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
+            // A typed request the rewrite changed: what Ferb understood.
+            exchange.understood?.let {
+                Text("Understood as \u201c$it\u201d", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             reply.confidence?.let { confidence ->
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -748,11 +735,12 @@ private fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () ->
                 }
             }
             reply.error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
-            (LinkPolicy.jevLine(exchange.jev) ?: exchange.jevNoteDetail)?.let {
+            LinkPolicy.jevLine(exchange.jev)?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            (exchange.laptopErrorDetail ?: exchange.laptopError)?.let {
-                Text("Your computer didn't answer: ${it.replaceFirstChar { c -> c.lowercase() }}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            // The steps that couldn't be used this time, and what was used instead.
+            exchange.fallbacks.forEach {
+                Text(it.line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Text(
                 if (reply.fromLaptop) String.format(Locale.US, "%d ms in all · %s took %d ms on your computer", exchange.wallMs, reply.model ?: "the model", reply.ms ?: 0L)
@@ -764,33 +752,9 @@ private fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () ->
     }
 }
 
-/** The icon for who answers: this phone (Needle 3) or the computer (Ferb Link). */
-private val Answerer.icon get() = if (this == Answerer.Needle) R.drawable.ic_phone else R.drawable.ic_computer
-
-/** The chat box's choice of who answers, as connected toggle buttons: Phone (Needle 3) or Computer (Ferb Link). */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun AnswererToggle(chosen: Answerer, usingJev: Boolean, onChoose: (Answerer) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {
-        Answerer.entries.forEachIndexed { i, answerer ->
-            ToggleButton(
-                checked = answerer == chosen,
-                onCheckedChange = { onChoose(answerer) },
-                shapes = if (i == 0) ButtonGroupDefaults.connectedLeadingButtonShapes() else ButtonGroupDefaults.connectedTrailingButtonShapes(),
-                modifier = Modifier.semantics { role = Role.RadioButton },
-            ) {
-                Icon(painterResource(answerer.icon), contentDescription = null, Modifier.size(ButtonDefaults.IconSize))
-                Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                Text(answerer.label(usingJev))
-            }
-        }
-    }
-}
-
 /**
  * A rounded input with the mic and the send button inside it (a loading indicator while Needle 3
- * thinks) and, when Ferb Link is offered as an option, the choice of who answers under it. A
- * recording takes the box's place.
+ * thinks). A recording takes the box's place.
  */
 @Composable
 private fun InputBar(
@@ -801,11 +765,6 @@ private fun InputBar(
     onChange: (String) -> Unit,
     onSend: () -> Unit,
     onFocus: () -> Unit = {},
-    /** Who answers, when Ferb Link is offered as an option (Settings → Ferb Link); null: no choice to show. */
-    answerer: Answerer? = null,
-    /** Whether Jev selects the tool (Settings → Ferb Link), shown next to the choice. */
-    usingJev: Boolean = false,
-    onAnswerer: (Answerer) -> Unit = {},
     /** Whether to show the mic ([Mic.shows]). */
     mic: Boolean = true,
     onMic: () -> Unit = {},
@@ -829,27 +788,6 @@ private fun InputBar(
             if (kind == VoiceKind.None || clip == null) InputField(state, ready, onChange, onSend, onMic.takeIf { mic }, onFocus, focus)
             else VoiceField(clip, onFinish, onDiscard, onSend)
         }
-        // Who answers, in a row of its own under the box, so the box keeps its width for the request.
-        // Always enabled, so the choice stays readable: a request on its way has read it already,
-        // and picking Phone drops a recording.
-        val jevLine = Answerer.usingJevLine(usingJev, answerer)
-        if (answerer != null || jevLine) {
-            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                answerer?.let { AnswererToggle(it, usingJev, onChoose = onAnswerer) }
-                Spacer(Modifier.weight(1f))
-                if (jevLine) UsingJev()
-            }
-        }
-    }
-}
-
-/** "Using Jev": requests go to Jev first, which picks the tool (Settings → Ferb Link). */
-@Composable
-private fun UsingJev() {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.semantics(mergeDescendants = true) {}) {
-        Icon(painterResource(R.drawable.ic_cloud), contentDescription = null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.size(6.dp))
-        Text("Using Jev", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
