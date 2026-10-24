@@ -22,7 +22,8 @@ class PipelineSettings(context: Context) {
             val saved = Pipeline.migrate(Pipeline.Old(
                 voiceOn = voice.getBoolean("whistle", true),
                 ear = voice.getString("ear", null),
-                linkChosen = link.getString("mode", null) in setOf("option", "fallback") && link.getString("answerer", null) == "link",
+                linkMode = link.getString("mode", null),
+                answerer = link.getString("answerer", null),
                 jev = link.getBoolean("jev_selects", false),
             ))
             prefs.edit().apply {

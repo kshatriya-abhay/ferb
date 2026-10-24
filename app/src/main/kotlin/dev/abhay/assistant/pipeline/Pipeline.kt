@@ -63,25 +63,39 @@ data class Pipeline(val audio: AudioStep, val rewrite: RewriteStep, val tools: T
         )
 
         /**
-         * Once, from the settings before the steps (2026-10-24): "Voice on this phone" off is audio
-         * off; Gemini Nano picked to hear is Gemini Nano; Computer picked in the chat (Ferb Link's
-         * "Choose in chat") is Ferb Link for audio and the rewrite, as Gemma heard and rewrote
-         * there; "Use Jev to select the tool" on is Jev. Anything else is left to the defaults.
+         * Once, from the settings before the steps (2026-10-24): Computer picked in the chat (Ferb
+         * Link's "Choose in chat") is Ferb Link for audio and the rewrite, as Gemma heard and
+         * rewrote there, even with "Voice on this phone" off (the mic showed for Computer then);
+         * otherwise voice off is audio off, and Gemini Nano picked to hear is Gemini Nano. "Use Jev
+         * to select the tool" is Jev only while Ferb Link was on (it was used only then), so no
+         * request leaves the phone that didn't before. Anything else is left to the defaults.
          */
         fun migrate(old: Old): Saved = Saved(
             audio = when {
-                !old.voiceOn -> AudioStep.Off
                 old.linkChosen -> AudioStep.Link
+                !old.voiceOn -> AudioStep.Off
                 old.ear == "gemini" || old.ear == "nano-en" || old.ear == "nano-hi" -> AudioStep.Gemini
                 else -> null
             },
             rewrite = if (old.linkChosen) RewriteStep.Link else null,
-            tools = if (old.jev) ToolStep.Link else null,
+            tools = if (old.jev && old.linkOn) ToolStep.Link else null,
         )
     }
 
-    /** The settings before the steps, as saved. */
-    data class Old(val voiceOn: Boolean = true, val ear: String? = null, val linkChosen: Boolean = false, val jev: Boolean = false)
+    /**
+     * The settings before the steps, as saved: Ferb Link's [linkMode] ("off", "option", or the
+     * removed "fallback", which became "option" with Phone picked) and [answerer] ("needle", "link").
+     */
+    data class Old(
+        val voiceOn: Boolean = true,
+        val ear: String? = null,
+        val linkMode: String? = null,
+        val answerer: String? = null,
+        val jev: Boolean = false,
+    ) {
+        val linkOn get() = linkMode == "option" || linkMode == "fallback"
+        val linkChosen get() = linkMode == "option" && answerer == "link"
+    }
 }
 
 /**

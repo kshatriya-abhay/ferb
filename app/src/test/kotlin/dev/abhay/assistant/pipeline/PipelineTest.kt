@@ -26,10 +26,17 @@ class PipelineTest {
         assertThat(Pipeline.migrate(Pipeline.Old(ear = "nano-hi"))).isEqualTo(Saved(audio = AudioStep.Gemini))
         assertThat(Pipeline.migrate(Pipeline.Old(ear = "whistle"))).isEqualTo(Saved())
         // Computer picked in the chat: Gemma heard and rewrote there.
-        assertThat(Pipeline.migrate(Pipeline.Old(linkChosen = true, jev = true)))
-            .isEqualTo(Saved(AudioStep.Link, RewriteStep.Link, ToolStep.Link))
-        // Voice off wins over Computer picked.
-        assertThat(Pipeline.migrate(Pipeline.Old(voiceOn = false, linkChosen = true)).audio).isEqualTo(AudioStep.Off)
+        val computer = Pipeline.Old(linkMode = "option", answerer = "link")
+        assertThat(Pipeline.migrate(computer.copy(jev = true))).isEqualTo(Saved(AudioStep.Link, RewriteStep.Link, ToolStep.Link))
+        // With voice on this phone off the mic still showed for Computer, and Gemma heard.
+        assertThat(Pipeline.migrate(computer.copy(voiceOn = false)).audio).isEqualTo(AudioStep.Link)
+        // Phone picked: Jev as it was, the rest the defaults.
+        assertThat(Pipeline.migrate(Pipeline.Old(linkMode = "option", answerer = "needle", jev = true))).isEqualTo(Saved(tools = ToolStep.Link))
+        // Ferb Link off: Jev wasn't used, so it isn't now (requests stay on the phone).
+        assertThat(Pipeline.migrate(Pipeline.Old(linkMode = "off", answerer = "link", jev = true))).isEqualTo(Saved())
+        assertThat(Pipeline.migrate(Pipeline.Old(jev = true))).isEqualTo(Saved())
+        // The removed "When Needle 3 is unsure" meant Phone picked, whatever the answerer said.
+        assertThat(Pipeline.migrate(Pipeline.Old(linkMode = "fallback", answerer = "link", jev = true))).isEqualTo(Saved(tools = ToolStep.Link))
     }
 
     @Test
