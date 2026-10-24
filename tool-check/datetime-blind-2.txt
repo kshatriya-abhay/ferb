@@ -1,0 +1,169 @@
+# Dates and times, BLIND set 2: frozen. Nobody tunes a prompt, rule or resolver on it; it is only scored.
+# Written 2026-10-25 by the ferb-link session, which has not seen DateResolver, times.txt, the rows of
+# datetime.txt and datetime-v2.txt, or which datetime-blind.txt rows were missed; its wording is new. The expected values were worked out from the rules below, independently of Ferb's code.
+#
+# Format (as datetime.txt): now | tool | expected | request   (split on " | " at most 3 times)
+# - now: "YYYY-MM-DDTHH:MM Ddd", local time; the date is authoritative, Ddd is a check.
+# - tool: add_reminder, set_alarm, set_timer, add_event or show_agenda.
+# - expected: a moment "YYYY-MM-DDTHH:MM"; a repeat "YYYY-MM-DDTHH:MM rule" (the first occurrence
+#   after now; daily, weekdays, weekly, monthly); a day "YYYY-MM-DD" for show_agenda; a length
+#   "+PTnHnMnS" for set_timer (non-zero parts only); or "ask" when Ferb should ask, not guess.
+# - request: as a person would type or say it: English, Hinglish in Latin letters, Hindi in Devanagari.
+#
+# Rules (the user's decisions):
+# - A weekday, bare or with this/coming/next (agle), is the upcoming one: today only if its time is
+#   still ahead, otherwise next week. "next <weekday>" said on that weekday is +7; said on another
+#   day it is the coming one ("next Saturday" on a Wednesday is 3 days on).
+# - A weekday, date, "tomorrow" or "in N days" with no time is 09:00. "Today" with no time asks.
+# - Parts of the day with no hour: morning/subah 09:00, afternoon/dopahar 14:00, evening/shaam 18:00,
+#   night/raat and tonight 20:00. With an hour: subah is am; dopahar, shaam and raat are pm (raat 12
+#   is midnight).
+# - Alarms always need a time; an alarm without one asks.
+# - Alarms with a bare hour (no am/pm, part of the day or wake word) follow the user's alarm rules:
+#   with a day given (tomorrow, kal, a weekday, a date), 5-11 are am, 12 is noon, 1-4 are pm;
+#   with no day (or "today"), the candidate inside 06:00-18:00 if still ahead, else the other half
+#   if still ahead today, else tomorrow by the day-given rule. Never a time already past today.
+# - Wake words (wake, get up, utha, uthana, jaga) make the hour am.
+# - Other bare hours (reminders, events): with a day said, 7-11 are am, 12 is noon,
+#   1-6 are pm; with no day, it is the next time that hour comes round (am or pm, today or tomorrow).
+# - A clock time or part of the day with no day that has passed today rolls to tomorrow; a time said for today
+#   (aaj/today/tonight) that has passed asks.
+# - kal is always tomorrow, even just after midnight; parso is +2, narso is +3.
+# - "in N minutes/hours" counts exactly from now; sava +15, saade +30, paune -15, dedh 1.5.
+# - noon is 12:00; midnight is 00:00 at the start of the next day.
+# - Dates are day-first (en-IN): 5/1 is 5 January. A date with no year or month rolls forward to its
+#   next occurrence ("the 5th" on the 20th is next month's; "25 Dec" on 26 Dec is next year's).
+#   A date that is explicitly past (with a year) or doesn't exist (30 Feb, 31 April) asks.
+# - An event's time is its start. Meetings, appointments (doctor, dentist, physio), classes, gym,
+#   interviews, parties and meals with someone are events; "remind me" / "yaad dilana", including
+#   daily medicine, are reminders.
+# - Repeats: "every day", roz, har roz (daily); "every weekday", har weekday, Monday to Friday
+#   (weekdays); every <weekday>, har <weekday> (weekly); every month on the Nth, har mahine N tareekh
+#   (monthly). The expected value is the first occurrence after now.
+
+# English
+2027-01-11T07:40 Mon | set_alarm | 2027-01-11T17:00 | can u set an alarm for 5
+2027-01-11T07:40 Mon | set_alarm | 2027-01-12T06:15 | need an alarm at 6:15 tmrw
+2027-01-11T07:40 Mon | add_event | 2027-01-12T14:30 | eye checkup on tuesday 2:30
+2027-01-11T07:40 Mon | add_reminder | 2027-01-14T18:00 | remind me thursday at 6 to pick up the dry cleaning
+2027-01-11T07:40 Mon | add_event | 2027-01-15T13:00 | lunch with Kavya on friday at 1
+2027-01-11T07:40 Mon | add_reminder | 2027-01-11T09:00 daily | remind me to take my vitamin D every morning
+2027-01-11T07:40 Mon | add_event | 2027-01-12T07:00 | gym tomorrow 7
+2027-01-11T07:40 Mon | add_event | 2027-01-18T09:00 | doctor appointment on 18 jan
+2027-01-11T07:40 Mon | add_reminder | ask | remind me on 3 feb 2026 to pay the advance tax
+2027-01-11T23:15 Mon | set_alarm | 2027-01-12T09:00 | alarm for 9
+2027-01-11T23:15 Mon | set_alarm | 2027-01-12T16:00 | set an alarm for 4 tomorrow
+2027-01-11T23:15 Mon | set_alarm | 2027-01-12T12:00 | alarm at 12
+2027-01-11T23:15 Mon | add_reminder | 2027-01-12T07:00 | remind me at 7 to call the AC repair guy
+2027-01-13T03:00 Wed | set_alarm | 2027-01-13T17:45 | alarm for 5:45
+2027-01-13T03:00 Wed | set_alarm | 2027-01-13T05:45 | wake me at 5:45
+2027-01-15T12:30 Fri | set_alarm | 2027-01-15T15:30 | alarm 3:30
+2027-01-15T12:30 Fri | set_alarm | 2027-01-15T23:00 | set alarm for 11 today
+2027-01-15T12:30 Fri | add_event | 2027-01-18T10:30 | team meeting monday 10:30
+2027-01-15T12:30 Fri | add_event | 2027-01-22T09:00 | parent teacher meet on the 22nd
+2027-01-15T12:30 Fri | add_reminder | 2027-01-15T17:00 weekly | every friday at 5 remind me to submit my timesheet
+2027-01-15T12:30 Fri | add_reminder | 2027-02-05T09:00 monthly | remind me on the 5th of every month to pay the SIP
+2027-01-15T12:30 Fri | set_timer | +PT3M | 3 min timer for the eggs
+2027-01-15T12:30 Fri | set_timer | +PT1H15M | timer for 1 hour 15 mins
+2027-01-15T12:30 Fri | show_agenda | 2027-01-21 | show me thursday's meetings
+2027-01-31T20:00 Sun | add_reminder | 2027-02-01T09:00 | remind me tomorrow morning to renew the fastag
+2027-01-31T20:00 Sun | set_alarm | 2027-02-01T06:00 | alarm for 6 am on monday
+2027-01-31T20:00 Sun | add_event | 2027-02-06T20:00 | dinner with the Kapoors on saturday 8 pm
+2027-01-31T20:00 Sun | add_reminder | 2027-02-14T09:00 | remind me on feb 14 to book a table
+2027-02-26T18:30 Fri | add_reminder | 2027-03-01T09:00 | remind me on 1st march to change the water filter
+2027-02-26T18:30 Fri | add_reminder | 2027-03-01T07:30 weekdays | every weekday at 7:30 remind me to leave for office
+2027-02-26T18:30 Fri | set_alarm | 2027-02-27T07:00 | set alarm 7 saturday
+2027-02-26T18:30 Fri | set_alarm | 2027-02-28T14:00 | alarm 2 on sunday
+2027-02-26T18:30 Fri | add_reminder | ask | remind me on 30 february to pay the society dues
+2027-03-03T09:10 Wed | add_event | 2027-03-03T16:00 | physio appointment at 4
+2027-03-03T09:10 Wed | add_reminder | 2027-03-03T14:00 | remind me at 2 to send the photos to Anil
+2027-03-03T09:10 Wed | add_reminder | 2027-03-04T18:00 | remind me tomorrow at 6 to get the cake for Ira
+2027-03-03T09:10 Wed | set_alarm | 2027-03-04T06:00 | alarm tomorrow at 6
+2027-03-03T09:10 Wed | add_reminder | 2027-03-04T07:00 daily | remind me to take the thyroid tablet daily at 7 am
+2027-03-03T09:10 Wed | add_event | 2027-03-03T15:00 | client call wednesday 3pm
+2027-03-03T09:10 Wed | show_agenda | 2027-03-10 | what's on the 10th
+2027-03-03T09:10 Wed | add_reminder | ask | remind me on 12 jan 2027 about the warranty claim
+2027-03-03T09:10 Wed | add_reminder | 2028-01-12T09:00 | remind me on 12 jan about the warranty
+2027-03-03T09:10 Wed | set_timer | +PT40S | set timer 40 seconds
+2027-03-31T23:55 Wed | add_reminder | 2027-04-01T00:05 | remind me in 10 min to lock the car
+2027-03-31T23:55 Wed | set_alarm | 2027-04-01T08:00 | alarm for 8 tomorrow
+2027-03-31T23:55 Wed | add_reminder | 2027-04-01T09:00 | remind me on the 1st to pay the cook
+2027-03-31T23:55 Wed | add_event | 2027-04-05T09:00 | lunch with Faiz on monday
+2027-04-03T10:00 Sat | add_reminder | 2027-04-03T11:00 weekly | remind me every saturday at 11 to call nani
+2027-04-03T10:00 Sat | add_reminder | 2027-04-15T09:00 monthly | on every 15th remind me to put money in the RD account
+2027-04-03T10:00 Sat | set_alarm | 2027-04-03T16:00 | alarm at 4
+2027-04-03T10:00 Sat | add_event | 2027-04-03T18:00 | gym at 6
+2027-04-03T10:00 Sat | show_agenda | 2027-04-04 | what does my sunday look like
+2027-04-03T10:00 Sat | add_reminder | 2027-04-04T09:00 | remind me next sunday to clean the fish tank
+2027-04-03T10:00 Sat | add_reminder | 2027-04-08T09:00 | remind me in 5 days to pack for the Goa trip
+
+# Hinglish (Latin letters)
+2027-01-12T21:00 Tue | set_alarm | 2027-01-13T05:00 | kl subha 5 baje ka alarm
+2027-01-12T21:00 Tue | set_alarm | 2027-01-13T06:00 | 6 baje ka alarm set kar do kal ke liye
+2027-01-12T21:00 Tue | add_reminder | 2027-01-13T18:00 | kal 6 baje yaad dilana ki bijli wala aayega
+2027-01-12T21:00 Tue | set_alarm | 2027-01-13T08:00 | alarm laga do 8 baje
+2027-01-12T21:00 Tue | add_reminder | 2027-01-13T08:00 daily | har roz subah 8 baje BP ki goli yaad dilana
+2027-01-12T21:00 Tue | add_reminder | 2027-01-19T19:00 weekly | har mangal ko shaam 7 baje yoga class yaad dilana
+2027-01-12T21:00 Tue | add_reminder | 2027-02-10T09:00 monthly | har mahine 10 tareekh ko school bus ki fees yaad dilana
+2027-01-12T21:00 Tue | add_event | 2027-01-14T11:00 | parson doctor ke paas jana hai 11 baje
+2027-01-12T21:00 Tue | add_event | 2027-01-15T17:00 | shukrvar ko dentist 5 baje
+2027-01-12T21:00 Tue | add_event | 2027-01-16T13:00 | sanivar ko Ankit ke saath lunch 1 baje
+2027-01-12T21:00 Tue | add_reminder | 2027-01-13T18:00 | sham ko yad dilana ki doodh lena hai
+2027-01-12T21:00 Tue | set_timer | +PT2M | 2 minute ka timer laga
+2027-01-12T21:00 Tue | set_timer | +PT2H30M | dhai ghante ka timer
+2027-01-12T21:00 Tue | add_reminder | 2027-01-12T22:00 | 1 ghante mein yaad dilana ki pressure cooker band karna hai
+2027-01-14T06:20 Thu | set_alarm | 2027-01-14T07:00 | alarm 7 baje
+2027-01-14T06:20 Thu | set_alarm | 2027-01-14T16:00 | 4 baje ka alarm
+2027-01-14T06:20 Thu | add_reminder | 2027-01-14T13:00 | dopahar 1 baje yaad dilana ki khana order karna hai
+2027-01-14T06:20 Thu | add_event | 2027-01-14T17:00 | aaj shaam 5 baje meeting hai client ke saath
+2027-01-14T06:20 Thu | add_event | 2027-01-14T09:00 | guruvar ko gym
+2027-01-14T06:20 Thu | show_agenda | 2027-01-15 | kal kya hai mere calendar mein
+2027-01-14T06:20 Thu | add_reminder | 2027-01-20T09:00 | agle budhvar ko yaad dilana ki aadhaar update karna hai
+2027-01-14T06:20 Thu | add_reminder | 2027-01-14T07:45 weekdays | har weekday subah 7:45 bus ka yaad dilana
+2027-01-14T06:20 Thu | add_reminder | 2027-01-17T09:00 weekly | har itvaar ko gaadi dhone ka yaad dilana
+2027-02-27T23:40 Sat | set_alarm | 2027-02-28T09:00 | kal subah 9 baje ka alarm
+2027-02-27T23:40 Sat | set_alarm | 2027-03-01T15:00 | somvaar 3 baje ka alarm
+2027-02-27T23:40 Sat | add_reminder | 2027-03-01T09:00 | 1 march ko yaad dilana ki bike ki PUC karwani hai
+2027-02-27T23:40 Sat | add_reminder | ask | 15 jan 2026 ko yaad dilana ki LIC ka premium bharna hai
+2027-02-27T23:40 Sat | add_reminder | 2027-02-28T01:00 | raat 1 baje yaad dilana ki match dekhna hai
+2027-02-27T23:40 Sat | set_timer | +PT20M | 20 min ka timer chalu karo
+2027-03-05T13:00 Fri | set_alarm | 2027-03-05T14:00 | 2 baje ka alarm laga do
+2027-03-05T13:00 Fri | set_alarm | 2027-03-06T12:00 | 12 baje ka alarm
+2027-03-05T13:00 Fri | add_reminder | 2027-03-05T17:00 | 5 baje yaad dilana ki bank ka kaam hai
+2027-03-05T13:00 Fri | add_event | 2027-03-06T10:00 | kal subah 10 baje interview hai
+2027-03-05T13:00 Fri | add_event | 2027-03-08T18:00 | narson shaam ko party hai Simran ke ghar
+2027-03-05T13:00 Fri | add_reminder | 2027-04-01T09:00 monthly | har mahine ki 1 tareekh ko internet ka recharge yaad dilana
+2027-03-05T13:00 Fri | add_reminder | 2027-03-05T22:00 daily | roz raat 10 baje aankh mein drops daalne ki yaad dilana
+2027-03-05T13:00 Fri | show_agenda | 2027-03-08 | somvar ka schedule dikhao
+2027-03-05T13:00 Fri | add_reminder | 2027-03-05T20:00 | aaj raat yaad dilana ki kal ka tiffin ka saaman nikaalna hai
+2027-03-05T13:00 Fri | add_reminder | 2027-03-07T11:00 | parso subah 11 baje yaad dilana ki bank locker ka kaam hai
+2027-03-05T13:00 Fri | add_event | 2027-03-10T16:00 | budhvar 4 baje bacche ka vaccination appointment
+2027-03-05T13:00 Fri | set_alarm | 2027-03-06T06:45 | subah 6:45 ka alarm
+
+# Hindi (Devanagari)
+2027-02-08T08:30 Mon | set_alarm | 2027-02-09T05:00 | कल 5 बजे का अलार्म लगा देना
+2027-02-08T08:30 Mon | add_reminder | 2027-02-09T17:00 | कल 5 बजे याद दिलाना कि दूधवाले को पैसे देने हैं
+2027-02-08T08:30 Mon | set_alarm | 2027-02-08T15:00 | 3 बजे का अलार्म लगाओ
+2027-02-08T08:30 Mon | add_event | 2027-02-10T11:00 | बुधवार को डॉक्टर के पास 11 बजे जाना है
+2027-02-08T08:30 Mon | add_event | 2027-02-13T13:00 | शनिवार को मामा जी के घर खाना है 1 बजे
+2027-02-08T08:30 Mon | add_event | 2027-02-11T07:00 | गुरुवार सुबह 7 बजे योगा क्लास
+2027-02-08T08:30 Mon | add_reminder | 2027-02-09T07:00 daily | हर रोज़ सुबह 7 बजे शुगर की दवा याद दिलाना
+2027-02-08T08:30 Mon | add_reminder | 2027-02-14T10:00 weekly | हर रविवार सुबह 10 बजे मंदिर जाने की याद दिलाना
+2027-02-08T08:30 Mon | add_reminder | 2027-03-07T09:00 monthly | हर महीने 7 तारीख को SIP की याद दिलाना
+2027-02-08T08:30 Mon | add_reminder | 2027-02-09T08:00 weekdays | हर सोमवार से शुक्रवार सुबह 8 बजे याद दिलाना कि लंच बॉक्स पैक करना है
+2027-02-08T08:30 Mon | set_timer | +PT15M | 15 मिनट का टाइमर लगा दो
+2027-02-08T08:30 Mon | set_timer | +PT2M30S | ढाई मिनट का टाइमर
+2027-02-08T08:30 Mon | add_reminder | 2027-02-08T09:15 | पौन घंटे बाद याद दिलाना कि चाय बनानी है
+2027-02-08T08:30 Mon | show_agenda | 2027-02-10 | परसों मेरा क्या प्लान है
+2027-02-08T08:30 Mon | add_reminder | ask | 20 मार्च 2026 को याद दिलाना कि रिटर्न भरना है
+2027-02-08T08:30 Mon | add_reminder | 2027-02-14T09:00 | 14 फरवरी को याद दिलाना कि फूल खरीदने हैं
+2027-02-08T22:30 Mon | set_alarm | 2027-02-09T07:00 | 7 बजे का अलार्म
+2027-02-08T22:30 Mon | set_alarm | 2027-02-09T05:30 | सुबह साढ़े 5 बजे उठा देना
+2027-02-08T22:30 Mon | add_reminder | 2027-02-09T14:00 | कल दोपहर 2 बजे याद दिलाना कि कूरियर भेजना है
+2027-02-08T22:30 Mon | add_reminder | 2027-02-08T23:00 | आज रात 11 बजे याद दिलाना कि पानी की मोटर बंद करनी है
+2027-02-08T22:30 Mon | add_event | 2027-02-11T09:00 | नरसों सुबह 9 बजे मीटिंग है
+2027-02-08T22:30 Mon | add_reminder | 2027-02-09T09:00 | अगले मंगलवार को याद दिलाना कि बाल कटवाने हैं
+2027-02-08T22:30 Mon | add_reminder | 2027-02-08T23:30 | 1 घंटे बाद याद दिलाना कि छत का दरवाज़ा बंद करना है
+2027-02-08T22:30 Mon | add_reminder | ask | 31 फरवरी को याद दिलाना कि फीस भरनी है
+2027-02-08T22:30 Mon | show_agenda | 2027-02-12 | शुक्रवार को क्या है
+2027-02-08T22:30 Mon | set_alarm | 2027-02-08T23:00 | 11 बजे का अलार्म लगा दो
