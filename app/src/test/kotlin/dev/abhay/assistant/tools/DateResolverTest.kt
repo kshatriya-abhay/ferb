@@ -155,31 +155,36 @@ class DateResolverTest {
         assertThat(at("kal raat 12 baje yaad dilana")).isEqualTo(on(11, 6, 0))
     }
 
-    /** The user's alarm rules (2026-10-25): a bare hour, with a day or for today. */
+    /** The user's rules (2026-10-25): a bare hour for today is the nearest ahead outside 00:00-04:59; alarms with a day 5-11 am, 1-4 pm. */
     @Test
-    fun alarmRules() {
+    fun bareHours2() {
         fun alarm(text: String, h: Int, m: Int = 0) = at(text, Kind.Alarm, clock = LocalDateTime.of(2026, 11, 4, h, m))
-        // For today: the 06:00–18:00 half if still ahead, else the other half today, else tomorrow.
+        fun remind(text: String, h: Int, m: Int = 0) = at(text, Kind.Reminder, clock = LocalDateTime.of(2026, 11, 4, h, m))
+        // For today: the nearest half still ahead, never 00:00-04:59 unless said.
+        assertThat(alarm("alarm for 5:45", 3)).isEqualTo(on(11, 4, 5, 45))
         assertThat(alarm("alarm at 7", 5)).isEqualTo(on(11, 4, 7))
         assertThat(alarm("alarm at 7", 8)).isEqualTo(on(11, 4, 19))
         assertThat(alarm("alarm at 7", 20)).isEqualTo(on(11, 5, 7))
-        assertThat(alarm("alarm at 5", 3)).isEqualTo(on(11, 4, 17))
-        assertThat(alarm("alarm at 5", 18)).isEqualTo(on(11, 5, 5))
-        assertThat(alarm("alarm for 5:45", 3)).isEqualTo(on(11, 4, 17, 45))
-        assertThat(alarm("set an alarm for 2", 10)).isEqualTo(on(11, 4, 14))
-        assertThat(alarm("set an alarm for 2", 15)).isEqualTo(on(11, 5, 14))
-        assertThat(alarm("alarm at 7 today", 8)).isEqualTo(on(11, 4, 19))
-        // With a day: 5–6:xx am, 7–11 am, 12 noon, 1–4 pm.
+        assertThat(alarm("alarm at 2", 10)).isEqualTo(on(11, 4, 14))
+        assertThat(alarm("alarm at 2", 15)).isEqualTo(on(11, 5, 14))
+        assertThat(remind("remind me at 12 to eat", 13)).isEqualTo(on(11, 5, 12))
+        assertThat(remind("remind me at 3 to call", 23)).isEqualTo(on(11, 5, 15))
+        assertThat(at("add a call today at 1", Kind.Event, clock = LocalDateTime.of(2026, 11, 4, 10, 0))).isEqualTo(on(11, 4, 13))
+        // Said explicitly, the small hours are fine: 2 am, raat 2 baje, 02:30.
+        assertThat(alarm("alarm at 2 am", 22)).isEqualTo(on(11, 5, 2))
+        assertThat(alarm("raat 2 baje ka alarm", 22)).isEqualTo(on(11, 5, 2))
+        assertThat(alarm("alarm at 02:30", 22)).isEqualTo(on(11, 5, 2, 30))
+        assertThat(alarm("alarm at 14:00", 10)).isEqualTo(on(11, 4, 14))
+        // With a day: alarms 5-11 am, 12 noon, 1-4 pm.
         assertThat(alarm("alarm 6:30 tomorrow", 23, 50)).isEqualTo(on(11, 5, 6, 30))
         assertThat(alarm("alarm at 5 tomorrow", 10)).isEqualTo(on(11, 5, 5))
         assertThat(alarm("alarm at 4 tomorrow", 10)).isEqualTo(on(11, 5, 16))
         assertThat(alarm("alarm at 12 on friday", 10)).isEqualTo(on(11, 6, 12))
-        assertThat(alarm("alarm at 9 on friday", 10)).isEqualTo(on(11, 6, 9))
         // Said otherwise, as said: am or pm, a part of the day, a waking word.
-        assertThat(alarm("alarm for 5:45 am", 3)).isEqualTo(on(11, 4, 5, 45))
+        assertThat(alarm("alarm for 5:45 pm", 3)).isEqualTo(on(11, 4, 17, 45))
         assertThat(alarm("wake me at 5:45", 3)).isEqualTo(on(11, 4, 5, 45))
         assertThat(alarm("alarm at 6 in the evening tomorrow", 10)).isEqualTo(on(11, 5, 18))
-        // Reminders keep their own rule: kal 6 baje is 6 pm.
+        // Reminders keep their day rule: kal 6 baje is 6 pm; the alarm is 6 am.
         assertThat(at("kal 6 baje yaad dilana")).isEqualTo(on(11, 5, 18))
         assertThat(at("kal 6 baje ka alarm", Kind.Alarm)).isEqualTo(on(11, 5, 6))
     }

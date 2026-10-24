@@ -10,14 +10,14 @@ existing sets are frozen with the rules in their own headers; don't change them.
   night/raat and tonight 20:00. With an hour: subah is am; dopahar, shaam and raat are pm (raat
   12 is midnight; raat 1–4 is am).
 - Wake words (wake, get up, utha, uthana, jaga) make the hour am.
-- A bare hour (no am/pm, part of the day or wake word):
-  - reminders and events: with a day said, 7–11 am, 12 noon, 1–6 pm; with no day, the next time
-    that hour comes round;
-  - **alarms** (the user's rule): with a day given (tomorrow, a weekday, a date), 5–6:xx am, 7–11
-    am, 12 noon, 1–4 pm ("alarm 6:30 tomorrow" is 06:30). For today (no day, or "today"), the
-    half of the clock inside 06:00–18:00 if it's still ahead; else the other half if it's still
-    ahead today; else tomorrow by the day-given rule. Never a time already past ("alarm at 7" is
-    07:00 at 05:00, 19:00 at 08:00, tomorrow 07:00 at 20:00; "alarm at 5" at 03:00 is 17:00).
+- A bare hour (no am/pm, part of the day, wake word or 24-hour form like 02:00 or 14:00):
+  - for today, or with no day (alarms, reminders and events alike, the user's rule): the nearest of
+    its am and pm that's still ahead, today or tomorrow, never in 00:00–04:59 unless said ("2 am",
+    "raat 2 baje", "02:30"). "alarm for 5:45" at 03:00 is 05:45; "alarm at 7" at 08:00 is 19:00,
+    at 20:00 tomorrow 07:00; "at 2" at 15:00 is tomorrow 14:00; "remind me at 12" at 13:00 is
+    tomorrow noon;
+  - with a day said: alarms 5–11 am, 12 noon, 1–4 pm ("alarm 6:30 tomorrow" is 06:30); reminders
+    and events 7–11 am, 12 noon, 1–6 pm ("kal 6 baje yaad dilana" is 18:00).
 - A clock time with no day that has passed today rolls to tomorrow; a time said for today that has
   passed asks. A part of the day with no day that has passed rolls to tomorrow.
 - Alarms always need a time.

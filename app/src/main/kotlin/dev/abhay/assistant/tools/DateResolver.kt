@@ -79,11 +79,9 @@ object DateResolver {
         // A weekday said on that weekday: today while its time is ahead, else a week on ("this" and
         // bare ones; "next" is a week on already).
         if (day != null) {
-            // An alarm's bare hour today: the user's alarm rule ([alarmToday]).
-            if (kind == Kind.Alarm && said != null && said.bare && said.at != null && day.date == today && day.later == null) return Resolved.At(alarmToday(said.at, now))
-            // A bare hour today: whichever half of the clock is still ahead ("at 7 today" at 8 am is 7 pm).
-            if (said != null && said.bare && day.date == today && day.later == null) {
-                val ahead = candidates(said).map { today.atTime(it) }.filter { it.isAfter(now) }.minOrNull()
+            // A bare hour today: the nearest half of the clock still ahead today, outside 00:00-04:59 ([nearest]).
+            if (said != null && said.bare && said.at != null && day.date == today && day.later == null) {
+                val ahead = nearest(said.at, now)?.takeIf { it.toLocalDate() == today }
                 return ahead?.let { Resolved.At(it) } ?: Resolved.Ask("That time today has passed")
             }
             val otherDay = day.date != today || day.later != null
@@ -109,7 +107,7 @@ object DateResolver {
             val at = today.atTime(clock(s, false))
             return if (at.isAfter(now)) Resolved.At(at) else Resolved.Ask("That time today has passed")
         }
-        if (kind == Kind.Alarm && s.bare && s.at != null) return Resolved.At(alarmToday(s.at, now))
+        if (s.bare && s.at != null) return nearest(s.at, now)?.let { Resolved.At(it) } ?: Resolved.Ask("When?")
         val candidates = candidates(s).map { today.atTime(it) }.flatMap { listOf(it, it.plusDays(1)) }.filter { it.isAfter(now) }
         return candidates.minOrNull()?.let { Resolved.At(it) } ?: Resolved.Ask("When?")
     }
@@ -311,7 +309,9 @@ object DateResolver {
         }
         Regex("""\b(\d{1,2})[:.](\d{2})\b""").find(t)?.let { m ->
             val h = m.groupValues[1].toInt()
-            return withPart(h, m.groupValues[2].toInt(), if (h > 12) true else null, part, thisPart)
+            // 24-hour forms say which half: 14:00 pm, and 02:30 with its leading zero am.
+            val pm = if (h > 12) true else if (m.groupValues[1].length == 2 && m.groupValues[1].startsWith("0")) false else null
+            return withPart(h, m.groupValues[2].toInt(), pm, part, thisPart)
         }
         // "at 7", "7 o'clock", "7 baje", "for 8" (an alarm), "at seven".
         Regex("""\b(?:at|for|by) $hourWord\b(?! (?:minute|min|hour|second|day|week)s?\b)(?![/:.]\d)""").find(t)?.let { m -> num(m.groupValues[1])?.let { return withPart(it, 0, null, part, thisPart) } }
@@ -344,8 +344,8 @@ object DateResolver {
 
     /**
      * The user's alarm rules (2026-10-25), for a bare hour only (no am or pm, part of the day or
-     * waking word). With a day given (tomorrow, a weekday, a date): 5–6:xx is am, 7–11 am, 12 noon,
-     * 1–4 pm ("alarm 6:30 tomorrow" is 06:30).
+     * waking word). With a day given (tomorrow, a weekday, a date): 5–11 am, 12 noon, 1–4 pm
+     * ("alarm 6:30 tomorrow" is 06:30). For today, or no day, [nearest].
      */
     private fun alarmClock(s: SaidTime): LocalTime {
         val at = s.at ?: return s.part!!.default
@@ -354,22 +354,16 @@ object DateResolver {
     }
 
     /**
-     * An alarm for today (no day, or "today") at a bare hour: the half of the clock inside
-     * 06:00–18:00 if it's still ahead; else the other half if it's still ahead today; else tomorrow,
-     * by the day-given rule ([alarmClock]). Never a time already past: "alarm at 7" is 07:00 at
-     * 05:00, 19:00 at 08:00, and tomorrow 07:00 at 20:00; "alarm at 5" at 03:00 is 17:00.
+     * A bare hour with no day given, or for today (the user's rule, 2026-10-25, for alarms,
+     * reminders and events alike): the nearest of its am and pm that's still ahead, today or
+     * tomorrow, never in 00:00-04:59 (that needs saying: "2 am", "raat 2 baje", "02:30").
+     * "alarm for 5:45" at 03:00 is 05:45; "alarm at 7" at 08:00 is 19:00, at 20:00 tomorrow 07:00;
+     * "at 2" at 15:00 is tomorrow 14:00; "remind me at 12" at 13:00 is tomorrow noon.
      */
-    private fun alarmToday(at: LocalTime, now: LocalDateTime): LocalDateTime {
-        val today = now.toLocalDate()
-        val am = today.atTime(at.hour % 12, at.minute)
-        val pm = am.plusHours(12)
-        val day = { t: LocalDateTime -> t.toLocalTime() >= LocalTime.of(6, 0) && t.toLocalTime() < LocalTime.of(18, 0) }
-        val (inside, other) = if (day(am)) am to pm else pm to am
-        return when {
-            inside.isAfter(now) -> inside
-            other.isAfter(now) && other.toLocalDate() == today -> other
-            else -> today.plusDays(1).atTime(alarmClock(SaidTime(at, true, null)))
-        }
+    private fun nearest(at: LocalTime, now: LocalDateTime): LocalDateTime? {
+        val am = LocalTime.of(at.hour % 12, at.minute)
+        return listOf(0L, 1L).flatMap { d -> listOf(am, am.plusHours(12)).map { now.toLocalDate().plusDays(d).atTime(it) } }
+            .filter { it.isAfter(now) && it.hour !in 0..4 }.minOrNull()
     }
 
     /** A bare hour without a day: either half of the clock; anything else as said. */
