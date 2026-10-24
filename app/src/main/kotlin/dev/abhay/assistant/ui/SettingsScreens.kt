@@ -176,13 +176,11 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
                     ) { Text(PhoneEar.Whistle.title) }
                 },
                 { shapes ->
-                    // Picked before it's set up: its page opens, to set it up.
+                    // M3's split list item: the row only selects Gemini Nano, as Whistle's does; past
+                    // a divider, its own settings button (48 dp, its own ripple) opens its page.
                     SegmentedListItem(
                         selected = ear == PhoneEar.Gemini,
-                        onClick = {
-                            settings.setEar(PhoneEar.Gemini)
-                            if (!gemini.ready) onOpenGemini()
-                        },
+                        onClick = { settings.setEar(PhoneEar.Gemini) },
                         shapes = shapes,
                         enabled = onDevice,
                         leadingContent = { RadioButton(selected = ear == PhoneEar.Gemini, onClick = null, enabled = onDevice) },
@@ -190,8 +188,8 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
                         trailingContent = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 VerticalDivider(Modifier.height(32.dp).padding(end = 4.dp))
-                                IconButton(onClick = onOpenGemini, enabled = onDevice) {
-                                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Gemini Nano settings")
+                                IconButton(onClick = onOpenGemini, enabled = onDevice, modifier = Modifier.size(48.dp)) {
+                                    Icon(painterResource(R.drawable.ic_tune), contentDescription = PhoneEar.GEMINI_SETTINGS)
                                 }
                             }
                         },

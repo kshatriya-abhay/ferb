@@ -15,6 +15,8 @@ class NanoVoiceTest {
         assertThat(PhoneEar.of("nano-hi")).isEqualTo(PhoneEar.Gemini)
         assertThat(PhoneEar.Whistle.hint).isEqualTo("On-device, English only")
         assertThat(PhoneEar.Gemini.hint).isEqualTo("On-device")
+        // Its row only selects it; this button, past a divider, opens its page.
+        assertThat(PhoneEar.GEMINI_SETTINGS).isEqualTo("Gemini Nano settings")
         assertThat(GeminiLanguage.of(null)).isEqualTo(GeminiLanguage.English)
         assertThat(GeminiLanguage.of("hi-IN").locale.toLanguageTag()).isEqualTo("hi-IN")
     }

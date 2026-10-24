@@ -15,6 +15,9 @@ enum class PhoneEar(val id: String, val title: String, val hint: String) {
     Gemini("gemini", "Gemini Nano", "On-device");
 
     companion object {
+        /** The Gemini Nano row's settings button, which opens its page (the row itself only selects it). */
+        const val GEMINI_SETTINGS = "Gemini Nano settings"
+
         /** "nano-en" and "nano-hi" were the first POC build's two Gemini choices. */
         fun of(id: String?) = when (id) {
             "gemini", "nano-en", "nano-hi" -> Gemini
