@@ -15,6 +15,8 @@ rewrite prompt's held-out lines (rewrite-heldout.txt), routed and scored as the 
     phone.py compare M ... Needle 3 alone and each rewrite, side by side on every set
     phone.py dates-prep    the date lines (datetime-v2.txt, each with its "now") pushed as files/bench/dates.jsonl
     phone.py blind-prep    the blind set's lines, the same way, as files/bench/dates-blind.jsonl
+    phone.py readers SET R.jsonl OUT  the date bench app (:datebench, ML Kit and TextClassifier) on SET's words as
+                           said and R's rewrites (from dates-out): pushes its inputs, runs it (no screen), pulls to OUT
     phone.py dates-out     after Settings -> Bench -> "Dates" and pull: the passes as build/datetime/ inputs
                            (dates.py needle FILE for the rewrites, DateTimeEval for the slots), with Gemini's latency
 
@@ -289,6 +291,26 @@ def dates_out():
         p90 = ms[int(len(ms) * 0.9)] if ms else None
         print(f"{name}: {len(rows)} lines, {sum('error' in r for r in rows)} errors; Gemini ms median {ms[len(ms) // 2] if ms else '-'}, 90th {p90}")
 
+BENCH = "dev.abhay.datebench"
+
+def readers(set_name, r_file, out_dir):
+    rows = []
+    for raw in open(os.path.join(HERE, set_name)):
+        if not raw.strip() or raw.startswith("#"): continue
+        now, tool, expected, request = [x.strip() for x in raw.split("|", 3)]
+        rows.append({"i": len(rows), "now": now.split()[0], "text": request, "source": "said"})
+    rewritten = {json.loads(l)["i"]: json.loads(l).get("command") for l in open(r_file) if l.strip()}
+    rows += [{"i": r["i"], "now": r["now"], "text": rewritten[r["i"]], "source": "R"} for r in list(rows) if rewritten.get(r["i"])]
+    data = "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows).encode()
+    subprocess.run(["adb", "exec-in", "run-as", BENCH, "sh", "-c", "cat > files/inputs.jsonl"], input=data, check=True)
+    print(f"{len(rows)} inputs pushed")
+    subprocess.run(["adb", "shell", "am", "instrument", "-w", "-e", "class", f"{BENCH}.DateBenchTest", f"{BENCH}.test/androidx.test.runner.AndroidJUnitRunner"], check=True)
+    os.makedirs(out_dir, exist_ok=True)
+    for name in ["reader-mlkit.jsonl", "reader-tc.jsonl"]:
+        with open(os.path.join(out_dir, name), "wb") as f:
+            subprocess.run(["adb", "exec-out", "run-as", BENCH, "cat", f"files/{name}"], stdout=f, check=False)
+        print(name, sum(1 for l in open(os.path.join(out_dir, name)) if l.strip()))
+
 if __name__ == "__main__":
     command = sys.argv[1] if len(sys.argv) > 1 else ""
     if command == "prep": prep()
@@ -303,4 +325,5 @@ if __name__ == "__main__":
     elif command == "dates-prep": dates_prep()
     elif command == "blind-prep": dates_prep("datetime-blind.txt", "dates-blind.jsonl")
     elif command == "dates-out": dates_out()
+    elif command == "readers": readers(sys.argv[2], sys.argv[3], sys.argv[4])
     else: sys.exit(__doc__)

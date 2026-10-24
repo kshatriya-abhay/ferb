@@ -16,3 +16,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "OnDeviceAssistant"
 include(":app")
+// The date bench app (ML Kit, TextClassifier): a separate app, never part of Ferb.
+include(":datebench")

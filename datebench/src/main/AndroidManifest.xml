@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The date bench: INTERNET for ML Kit's model download only. Not Ferb, and never shipped. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <application android:label="Date bench" />
+</manifest>
