@@ -134,6 +134,24 @@ class DateResolverTest {
         assertThat(at("remind me on Monday 6 November to book tickets")).isEqualTo(on(11, 6, 9))
     }
 
+    /** A1 (before the blind set): Devanagari, narso, dedh and dhai, baad, an event's span, raat 12. */
+    @Test
+    fun a1() {
+        assertThat(at("कल सुबह सात बजे याद दिलाना")).isEqualTo(on(11, 5, 7))
+        assertThat(at("परसों शाम ६ बजे याद दिलाना")).isEqualTo(on(11, 6, 18))
+        assertThat(at("अगले शुक्रवार याद दिलाना")).isEqualTo(on(11, 6, 9))
+        assertThat(at("साढ़े पाँच बजे उठा देना", Kind.Alarm)).isEqualTo(on(11, 5, 5, 30))
+        assertThat(at("दस मिनट में याद दिलाना")).isEqualTo(on(11, 4, 10, 10))
+        assertThat(at("narso yaad dilana")).isEqualTo(on(11, 7, 9))
+        assertThat(at("narso shaam 4 baje yaad dilana")).isEqualTo(on(11, 7, 16))
+        assertThat(at("dedh ghante baad yaad dilana")).isEqualTo(on(11, 4, 11, 30))
+        assertThat(at("20 minute baad yaad dilana")).isEqualTo(on(11, 4, 10, 20))
+        assertThat(at("kal dhai baje meeting", Kind.Event)).isEqualTo(on(11, 5, 14, 30))
+        assertThat(at("dinner tomorrow from 7 to 9 pm", Kind.Event)).isEqualTo(on(11, 5, 19))
+        assertThat(at("raat 12 baje yaad dilana")).isEqualTo(on(11, 5, 0))
+        assertThat(at("kal raat 12 baje yaad dilana")).isEqualTo(on(11, 6, 0))
+    }
+
     @Test
     fun agendaDays() {
         assertThat(at("what's on tomorrow", Kind.Agenda)).isEqualTo(Resolved.Day(LocalDate.of(2026, 11, 5)))

@@ -118,7 +118,7 @@ object DateResolver {
         Regex("""\bsom\s?vaa?r\b""") to "monday", Regex("""\bmangal\s?vaa?r\b""") to "tuesday", Regex("""\bbudh\s?vaa?r\b""") to "wednesday",
         Regex("""\b(guru|brihaspati)\s?vaa?r\b""") to "thursday", Regex("""\bshukra\s?vaa?r\b""") to "friday",
         Regex("""\bshani\s?vaa?r\b""") to "saturday", Regex("""\b(ravi|it)\s?vaa?r\b""") to "sunday",
-        Regex("""\bparso[n]?\b""") to "day after tomorrow", Regex("""\bkal\b""") to "tomorrow", Regex("""\baaj\b""") to "today",
+        Regex("""\bnarso[n]?\b""") to "in 3 days", Regex("""\bparso[n]?\b""") to "day after tomorrow", Regex("""\bkal\b""") to "tomorrow", Regex("""\baaj\b""") to "today",
         Regex("""\bsubah|\bsubha\b""") to "morning", Regex("""\bdopahar\b""") to "afternoon", Regex("""\bshaam|\bsham\b""") to "evening",
         Regex("""\braat\b""") to "night",
         Regex("""\bhar (?=(mon|tues|wednes|thurs|fri|satur|sun)day)""") to "every ",
@@ -132,9 +132,45 @@ object DateResolver {
         "ten" to 10, "eleven" to 11, "twelve" to 12,
     )
 
+    /**
+     * Hindi in Devanagari as the same words in Latin letters (A1, 2026-10-24, before the blind set
+     * was read), so the rules below read both: कल is kal, साढ़े पाँच बजे saade paanch baje.
+     */
+    private val DEVANAGARI = listOf(
+        "नरसों" to "narso", "नरसो" to "narso", "परसों" to "parso", "परसो" to "parso", "कल" to "kal", "आज" to "aaj",
+        "अगले" to "agle", "अगला" to "agle", "अगली" to "agle", "सुबह" to "subah", "सवेरे" to "subah", "दोपहर" to "dopahar",
+        "शाम" to "shaam", "रात" to "raat", "आधी रात" to "midnight", "बजे" to "baje", "बज" to "baje", "साढ़े" to "saade", "साढे" to "saade",
+        "सवा" to "sava", "पौने" to "paune", "डेढ़" to "dedh", "डेढ" to "dedh", "ढाई" to "dhai", "आधे" to "aadhe", "आधा" to "aadhe",
+        "मिनट" to "minute", "घंटे" to "ghante", "घंटा" to "ghante", "घण्टे" to "ghante", "दिन" to "din", "सेकंड" to "second",
+        "में" to "mein", "मे" to "mein", "बाद" to "baad", "हर" to "har", "रोज़" to "roz", "रोज" to "roz", "हफ्ते" to "week", "हफ़्ते" to "week",
+        "याद" to "yaad", "दिलाना" to "dilana", "दिला" to "dila", "दिलाओ" to "dilao", "उठाना" to "uthana", "उठा" to "utha", "जगाना" to "jagana", "जगा" to "jaga",
+        "अलार्म" to "alarm", "टाइमर" to "timer", "को" to "ko", "का" to "ka", "की" to "ki", "के" to "ke",
+        "सोमवार" to "somvaar", "मंगलवार" to "mangalvaar", "बुधवार" to "budhvaar", "गुरुवार" to "guruvaar", "बृहस्पतिवार" to "guruvaar",
+        "शुक्रवार" to "shukravaar", "शनिवार" to "shanivaar", "रविवार" to "ravivaar", "इतवार" to "ravivaar",
+        "एक" to "ek", "दो" to "do", "तीन" to "teen", "चार" to "chaar", "पाँच" to "paanch", "पांच" to "paanch", "छह" to "chhe", "छः" to "chhe",
+        "सात" to "saat", "आठ" to "aath", "नौ" to "nau", "दस" to "das", "ग्यारह" to "gyarah", "बारह" to "barah",
+        "पंद्रह" to "15", "बीस" to "20", "तीस" to "30", "पैंतालीस" to "45",
+    ).sortedByDescending { it.first.length }
+
+    /** Devanagari words and digits in Latin letters, whole words only. */
+    private fun latin(text: String): String {
+        if (text.none { it in '\u0900'..'\u097F' }) return text
+        var t = text.map { c -> if (c in '०'..'९') '0' + (c - '०') else c }.joinToString("")
+        for ((hi, en) in DEVANAGARI) t = t.replace(Regex("""(?<![\u0900-\u097F])${Regex.escape(hi)}(?![\u0900-\u097F])"""), en)
+        return t
+    }
+
     /** Lower case, Hindi day and time words in English, "saade paanch baje" as "5:30". */
     internal fun normalise(text: String): String {
-        var t = " " + text.lowercase().replace(Regex("""[,!?]"""), " ") + " "
+        var t = " " + latin(text).lowercase().replace(Regex("""[,!?।]"""), " ") + " "
+        // An event's span is its start: "6 to 8 pm" is 6 pm (A1).
+        t = t.replace(Regex("""\b(\d{1,2})(?::(\d{2}))?\s*(?:to|-|se|till|until)\s*\d{1,2}(?::\d{2})?\s*(am|pm)\b""")) {
+            "${it.groupValues[1]}:${it.groupValues[2].ifEmpty { "00" }} ${it.groupValues[3]}"
+        }
+        // dedh and dhai (A1): with baje a clock time, with a length 1.5 and 2.5 of it.
+        t = t.replace(Regex("""\bdedh\s+baje\b"""), "1:30").replace(Regex("""\bdhai\s+baje\b"""), "2:30")
+            .replace(Regex("""\bdedh\s+(ghanta|ghante)\b"""), "90 minute").replace(Regex("""\bdhai\s+(ghanta|ghante)\b"""), "150 minute")
+            .replace(Regex("""\bdedh\s+minute\b"""), "90 second").replace(Regex("""\bdhai\s+minute\b"""), "150 second")
         // Hindi amounts with an hour: saade (+30), sava (+15), paune (-15).
         val hours = (HINDI_NUMBERS.keys + ENGLISH_NUMBERS.keys).joinToString("|") + """|\d{1,2}"""
         fun hour(w: String) = w.toIntOrNull() ?: HINDI_NUMBERS[w] ?: ENGLISH_NUMBERS.getValue(w)
@@ -144,9 +180,9 @@ object DateResolver {
         // "saat baje": the number words with baje.
         t = t.replace(Regex("""\b(${HINDI_NUMBERS.keys.joinToString("|")})\s+baje\b""")) { "${HINDI_NUMBERS.getValue(it.groupValues[1])} baje" }
         // Lengths: "10 minute mein", "do ghante mein", "3 din mein" as "in 10 minutes".
-        t = t.replace(Regex("""\b(\d+|${HINDI_NUMBERS.keys.joinToString("|")}|aadhe) (minute|minat|ghante|ghanta|din) (?:mein|me|main)\b""")) {
+        t = t.replace(Regex("""\b(\d+|${HINDI_NUMBERS.keys.joinToString("|")}|aadhe) (minute|minat|ghante|ghanta|din|second) (?:mein|me|main|baad)\b""")) {
             val n = it.groupValues[1].let { w -> if (w == "aadhe") "half an" else (w.toIntOrNull() ?: HINDI_NUMBERS.getValue(w)).toString() }
-            val unit = when (it.groupValues[2]) { "din" -> "days"; "ghante", "ghanta" -> "hours"; else -> "minutes" }
+            val unit = when (it.groupValues[2]) { "din" -> "days"; "ghante", "ghanta" -> "hours"; "second" -> "seconds"; else -> "minutes" }
             "in $n ${if (n == "half an") unit.dropLast(1) else unit}"
         }
         for ((pattern, english) in HINDI) t = t.replace(pattern, english)
@@ -283,6 +319,8 @@ object DateResolver {
 
     private fun withPart(hour: Int, minute: Int, pm: Boolean?, part: Part?, thisPart: Boolean): SaidTime? {
         if (hour !in 0..23 || minute !in 0..59) return null
+        // raat 12, 12 at night: midnight, the start of the next day (A1).
+        if (pm == null && part == Part.Night && hour == 12 && minute == 0) return SaidTime(LocalTime.MIDNIGHT, false, null, midnight = true)
         val isPm = pm ?: part?.let { p -> if (p == Part.Night) !(hour == 12 || hour in 1..4) else p.pm }
         if (isPm == null || hour > 12 || hour == 0) return SaidTime(LocalTime.of(hour % 24, minute), bare = isPm == null && hour in 1..12, part = part, thisPart = thisPart)
         val h = when {
