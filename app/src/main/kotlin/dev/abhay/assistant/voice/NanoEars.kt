@@ -3,6 +3,7 @@ package dev.abhay.assistant.voice
 import android.os.SystemClock
 import dev.abhay.assistant.Private
 import android.util.Log
+import kotlinx.coroutines.sync.withLock
 import com.google.mlkit.genai.common.DownloadStatus
 import com.google.mlkit.genai.common.FeatureStatus
 import com.google.mlkit.genai.common.GenAiException
@@ -52,19 +53,24 @@ class NanoEars {
     val setup: StateFlow<GeminiSetup> = _setup.asStateFlow()
 
     @Synchronized
-    private fun listener(locale: Locale): SpeechRecognizer = listeners.getOrPut(locale) {
+    // Called from the main thread and from the downloads' background ones: one client per locale.
+    private fun listener(locale: Locale): SpeechRecognizer = synchronized(listeners) { listeners.getOrPut(locale) {
         SpeechRecognition.getClient(speechRecognizerOptions {
             this.locale = locale
             preferredMode = SpeechRecognizerOptions.Mode.MODE_ADVANCED
         })
-    }
+    } }
 
     /** The rewriting model: FAST (the smaller one, quicker to answer) unless only FULL is there. */
-    private var writer: GenerativeModel? = null
+    @Volatile private var writer: GenerativeModel? = null
     private var writerName = "FAST"
 
-    private suspend fun writer(): GenerativeModel {
-        writer?.let { return it }
+    private val writerLock = kotlinx.coroutines.sync.Mutex()
+
+    /** Made once: two screens (and the downloads) asking at the same time share one client, none leaked. */
+    private suspend fun writer(): GenerativeModel = writer ?: writerLock.withLock { writer ?: newWriter() }
+
+    private suspend fun newWriter(): GenerativeModel {
         fun model(preference: Int) = Generation.getClient(generationConfig {
             modelConfig = modelConfig { releaseStage = ModelReleaseStage.STABLE; this.preference = preference }
         })
