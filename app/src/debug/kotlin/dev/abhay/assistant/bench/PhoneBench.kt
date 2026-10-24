@@ -35,18 +35,37 @@ class PhoneBench(private val app: AssistantApp) {
      * tool-check/phone.py routes and gives Needle 3 (run with [input] set to its file). The
      * rewrite's file is named by the prompt's version, so a new prompt starts afresh.
      */
-    enum class Model(val file: String) {
-        Needle3("needle3"), Rewrite("rewrites-${GeminiRewrite.VERSION}-gemini-full");
+    enum class Model(
+        val file: String,
+        val input: String = REQUESTS,
+        /** Gemini Nano's system prompt for an item; null for Needle 3. */
+        val prompt: ((Item) -> String)? = null,
+        val maxTokens: Int = GeminiRewrite.MAX_TOKENS,
+        /** Whether the answer is a rewritten command (else kept raw, as the slots' JSON is). */
+        val command: Boolean = true,
+    ) {
+        Needle3("needle3"),
+        Rewrite("rewrites-${GeminiRewrite.VERSION}-gemini-full", prompt = { GeminiRewrite.PROMPT }),
+        // The date and time lines (tool-check/datetime-v2.txt, pushed as dates.jsonl, each with its "now").
+        DatesRewrite("dates-rewrites-${GeminiRewrite.VERSION}", DATES, prompt = { GeminiRewrite.PROMPT }),
+        DatesCalendar("dates-calendar", DATES, prompt = { DatePrompts.calendarPrompt(it.now!!) }, maxTokens = GeminiRewrite.MAX_TOKENS + 20),
+        DatesSlots("dates-slots", DATES, prompt = { DatePrompts.SLOTS }, maxTokens = DatePrompts.SLOTS_MAX_TOKENS, command = false);
+
+        companion object {
+            val dates = listOf(DatesRewrite, DatesCalendar, DatesSlots)
+        }
     }
 
-    data class Item(val id: String, val request: String, val tools: List<String>)
+    /** [now]: the clock the request is said at, for the date lines. */
+    data class Item(val id: String, val request: String, val tools: List<String>, val now: java.time.LocalDateTime? = null)
 
     val dir = File(app.filesDir, "bench")
 
     fun items(input: String = REQUESTS): List<Item> = File(dir, input).takeIf { it.exists() }?.readLines().orEmpty().filter { it.isNotBlank() }.map {
         val o = JSONObject(it)
         val tools = o.getJSONArray("tools")
-        Item(o.getString("id"), o.getString("request"), (0 until tools.length()).map(tools::getString))
+        Item(o.getString("id"), o.getString("request"), (0 until tools.length()).map(tools::getString),
+            o.optString("now").takeIf { it.isNotEmpty() }?.let(java.time.LocalDateTime::parse))
     }
 
     private fun out(model: Model, output: String? = null) = File(dir, "${output ?: model.file}.jsonl")
@@ -56,7 +75,7 @@ class PhoneBench(private val app: AssistantApp) {
         .filter { it.isNotBlank() }.mapNotNull { runCatching { JSONObject(it).getString("id") }.getOrNull() }.toSet()
 
     /** Answers what's left (at most [limit]), calling [progress] with (done, total) after each; stops on a blocking error. */
-    suspend fun run(model: Model, limit: Int = Int.MAX_VALUE, input: String = REQUESTS, output: String? = null,
+    suspend fun run(model: Model, limit: Int = Int.MAX_VALUE, input: String = model.input, output: String? = null,
                     progress: (Int, Int, String?) -> Unit = { _, _, _ -> }): String = withContext(Dispatchers.Default) {
         val items = items(input)
         require(items.isNotEmpty()) { "no requests: push files/bench/$input first (tool-check/phone.py)" }
@@ -72,9 +91,10 @@ class PhoneBench(private val app: AssistantApp) {
                 try {
                     if (gemini == null) line.put("raw", needle(item))
                     else {
-                        val raw = paced(line) { gemini.generateContent(NanoEars.rewriteRequest(item.request)) }.candidates.firstOrNull()?.text.orEmpty()
+                        val prompt = model.prompt!!(item)
+                        val raw = paced(line) { gemini.generateContent(NanoEars.rewriteRequest(item.request, prompt, model.maxTokens)) }.candidates.firstOrNull()?.text.orEmpty()
                         line.put("raw", raw)
-                        line.put("command", GeminiRewrite.parse(item.request, raw).command ?: JSONObject.NULL)
+                        if (model.command) line.put("command", GeminiRewrite.parse(item.request, raw).command ?: JSONObject.NULL)
                     }
                 } catch (e: CancellationException) {
                     throw e
@@ -148,6 +168,7 @@ class PhoneBench(private val app: AssistantApp) {
     companion object {
         const val TAG = "FerbBench"
         const val REQUESTS = "requests.jsonl"
+        const val DATES = "dates.jsonl"
         /** At most about 2 requests a second to AICore. */
         const val GAP_MS = 500L
     }

@@ -96,7 +96,8 @@ object DebugBench {
         var counts by remember { mutableStateOf("") }
         LaunchedEffect(isRunning, said) {
             val total = bench.items().size
-            counts = "$total requests loaded\n" + PhoneBench.Model.entries.joinToString("\n") { "${it.file}: ${bench.done(it).size} answered" }
+            val dates = bench.items(PhoneBench.DATES).size
+            counts = "$total requests, $dates date lines loaded\n" + PhoneBench.Model.entries.joinToString("\n") { "${it.file}: ${bench.done(it).size} answered" }
         }
         // The phone sleeps after 120 s otherwise, and Gemini Nano stops with Ferb out of front.
         val view = LocalView.current
@@ -119,6 +120,8 @@ object DebugBench {
                 } else {
                     // Gemini Nano rewrites every request with the shipped prompt; Needle 3 runs on them later, with no screen (phone.py).
                     Button(onClick = { start(app, PhoneBench.Model.Rewrite) }) { Text("Rewrite all requests with Gemini Nano") }
+                    // Dates and times (2026-10-24): today's rewrite, with a calendar (B), and as time JSON (C), one after the other.
+                    Button(onClick = { start(app, *PhoneBench.Model.dates.toTypedArray()) }) { Text("Dates: Gemini Nano's three passes") }
                 }
             }
         }

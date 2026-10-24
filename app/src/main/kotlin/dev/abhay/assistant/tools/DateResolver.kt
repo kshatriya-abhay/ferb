@@ -197,16 +197,8 @@ object DateResolver {
         if (Regex("""\btomorrow\b""").containsMatchIn(t)) return SaidDay(today.plusDays(1))
         if (Regex("""\btonight\b""").containsMatchIn(t)) return SaidDay(today, tonight = true)
         if (Regex("""\btoday\b""").containsMatchIn(t)) return SaidDay(today)
-        Regex("""\b(?:(this|next|coming) )?(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b""").find(t)?.let { m ->
-            if (Regex("""\bevery ${m.groupValues[2]}""").containsMatchIn(t)) return SaidDay(today.with(TemporalAdjusters.nextOrSame(WEEKDAYS.getValue(m.groupValues[2]))), WEEKDAYS.getValue(m.groupValues[2]))
-            val weekday = WEEKDAYS.getValue(m.groupValues[2])
-            return if (m.groupValues[1] == "next") SaidDay(today.with(TemporalAdjusters.next(weekday)), weekday)
-            else {
-                val coming = today.with(TemporalAdjusters.nextOrSame(weekday))
-                SaidDay(coming, weekday, later = coming.plusWeeks(1).takeIf { coming == today })
-            }
-        }
-        // "Nov 5", "5 November", "the 3rd", "5/11" (day/month), "2026-10-31".
+        // A date said wins over a weekday with it ("on Saturday 31 October", as a rewrite with the
+        // calendar says it): "Nov 5", "5 November", "5/11" (day/month), "2026-10-31".
         Regex("""\b(\d{4})-(\d{2})-(\d{2})\b""").find(t)?.let { return SaidDay(LocalDate.of(it.groupValues[1].toInt(), it.groupValues[2].toInt(), it.groupValues[3].toInt())) }
         fun ahead(month: Int, dayOfMonth: Int): LocalDate? {
             val thisYear = runCatching { LocalDate.of(today.year, month, dayOfMonth) }.getOrNull() ?: return null
@@ -224,6 +216,15 @@ object DateResolver {
             val y = m.groupValues[3].takeIf { it.isNotEmpty() }?.toInt()?.let { if (it < 100) 2000 + it else it }
             val date = if (y != null) runCatching { LocalDate.of(y, mo, d) }.getOrNull() else ahead(mo, d)
             date?.let { return SaidDay(it) }
+        }
+        Regex("""\b(?:(this|next|coming) )?(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b""").find(t)?.let { m ->
+            if (Regex("""\bevery ${m.groupValues[2]}""").containsMatchIn(t)) return SaidDay(today.with(TemporalAdjusters.nextOrSame(WEEKDAYS.getValue(m.groupValues[2]))), WEEKDAYS.getValue(m.groupValues[2]))
+            val weekday = WEEKDAYS.getValue(m.groupValues[2])
+            return if (m.groupValues[1] == "next") SaidDay(today.with(TemporalAdjusters.next(weekday)), weekday)
+            else {
+                val coming = today.with(TemporalAdjusters.nextOrSame(weekday))
+                SaidDay(coming, weekday, later = coming.plusWeeks(1).takeIf { coming == today })
+            }
         }
         Regex("""\bthe (\d{1,2})(?:st|nd|rd|th)\b""").find(t)?.let { m ->
             val d = m.groupValues[1].toInt()

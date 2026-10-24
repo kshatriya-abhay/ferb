@@ -121,6 +121,13 @@ class DateResolverTest {
         assertThat(at("alarm at 9", Kind.Alarm)).isEqualTo(on(11, 4, 21))
     }
 
+    /** A rewrite with the calendar says both; the date wins, even when they disagree. */
+    @Test
+    fun aDateWinsOverItsWeekday() {
+        assertThat(at("remind me on Friday 13 November at 10 to book tickets")).isEqualTo(on(11, 13, 10))
+        assertThat(at("remind me on Monday 6 November to book tickets")).isEqualTo(on(11, 6, 9))
+    }
+
     @Test
     fun agendaDays() {
         assertThat(at("what's on tomorrow", Kind.Agenda)).isEqualTo(Resolved.Day(LocalDate.of(2026, 11, 5)))

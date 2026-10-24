@@ -13,6 +13,9 @@ rewrite prompt's held-out lines (rewrite-heldout.txt), routed and scored as the 
     phone.py needle M      Needle 3 on M's rewrites, with no screen (lock first)
     phone.py pipeline M    score rewrite -> Needle 3 against Needle 3 alone, with what the rewrite helped and hurt
     phone.py compare M ... Needle 3 alone and each rewrite, side by side on every set
+    phone.py dates-prep    the date lines (datetime-v2.txt, each with its "now") pushed as files/bench/dates.jsonl
+    phone.py dates-out     after Settings -> Bench -> "Dates" and pull: the passes as build/datetime/ inputs
+                           (dates.py needle FILE for the rewrites, DateTimeEval for the slots), with Gemini's latency
 
 Gemini Nano making the tool call itself (the schema call) and its scoring are on poc/gemini-nano-direct.
 """
@@ -251,6 +254,39 @@ def laptop():
         open(os.path.join(OUT, f"score-laptop-{model}.txt"), "w").write(scored)
         print(model, "(laptop):", next(l for l in scored.splitlines() if "right (tool" in l))
 
+DATES_SET = "datetime-v2.txt"
+DATE_PASSES = ["dates-rewrites-v2", "dates-calendar", "dates-slots"]
+
+def dates_prep():
+    rows = []
+    for raw in open(os.path.join(HERE, DATES_SET)):
+        if not raw.strip() or raw.startswith("#"): continue
+        now, tool, expected, request = [x.strip() for x in raw.split("|", 3)]
+        rows.append({"id": str(len(rows)), "request": request, "tools": [], "now": now.split()[0]})
+    os.makedirs(OUT, exist_ok=True)
+    with open(os.path.join(OUT, "dates.jsonl"), "w") as f:
+        for r in rows: f.write(json.dumps(r, ensure_ascii=False) + "\n")
+    print(f"{len(rows)} date lines")
+    push("dates.jsonl")
+
+def dates_out():
+    dest = os.path.join(REPO, "build", "datetime")
+    os.makedirs(dest, exist_ok=True)
+    for name in DATE_PASSES:
+        path = os.path.join(OUT, f"{name}.jsonl")
+        if not os.path.exists(path): print(f"{name}: not pulled"); continue
+        rows = [json.loads(l) for l in open(path) if l.strip()]
+        ms = sorted(r["ms"] for r in rows if "error" not in r and "ms" in r)
+        with open(os.path.join(dest, f"{name}.jsonl"), "w") as f:
+            for r in rows:
+                out = {"i": int(r["id"]), "raw": r.get("raw"), "ms": r.get("ms")}
+                # NONE: no call (null); an error: the app falls back to the request as typed.
+                if "command" in r: out["command"] = r["command"]
+                if "error" in r: out["error"] = r["error"]; out["command"] = r["request"]
+                f.write(json.dumps(out, ensure_ascii=False) + "\n")
+        p90 = ms[int(len(ms) * 0.9)] if ms else None
+        print(f"{name}: {len(rows)} lines, {sum('error' in r for r in rows)} errors; Gemini ms median {ms[len(ms) // 2] if ms else '-'}, 90th {p90}")
+
 if __name__ == "__main__":
     command = sys.argv[1] if len(sys.argv) > 1 else ""
     if command == "prep": prep()
@@ -262,4 +298,6 @@ if __name__ == "__main__":
     elif command == "compare": compare(sys.argv[2:])
     elif command == "score": score(sys.argv[2])
     elif command == "laptop": laptop()
+    elif command == "dates-prep": dates_prep()
+    elif command == "dates-out": dates_out()
     else: sys.exit(__doc__)

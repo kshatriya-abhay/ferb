@@ -4,6 +4,7 @@ import dev.abhay.assistant.reminders.Repeat
 import dev.abhay.assistant.reminders.ReminderTime
 import dev.abhay.assistant.tools.DateResolver
 import dev.abhay.assistant.tools.Durations
+import dev.abhay.assistant.tools.TimeExpr
 import dev.abhay.assistant.tools.TimeOfDay
 import dev.abhay.assistant.tools.ToolRouter
 import dev.abhay.assistant.tools.ToolSettings
@@ -94,6 +95,67 @@ class DateTimeEval {
         return DateResolver.format(DateResolver.resolve(text, kind, line.now))
     }
 
+    /**
+     * C: Gemini Nano's "time" v1 JSON said back as plain words, which [DateResolver] reads by the
+     * set's rules (so C and A differ only in who read the request); a timer takes its length.
+     * JSON that doesn't parse, or "none", asks.
+     */
+    private fun approachC(tool: String, raw: String?, now: LocalDateTime): String {
+        val json = raw?.let { Regex("""\{[\s\S]*\}""").find(it)?.value } ?: return "ask"
+        val expr = TimeExpr.parse(json) ?: return "ask"
+        if (tool == "set_timer") return when (expr) {
+            is TimeExpr.Lasting -> length(expr.length.total.seconds.toInt())
+            is TimeExpr.In -> length(expr.length.total.seconds.toInt())
+            else -> "ask"
+        }
+        val kind = when (tool) {
+            "add_reminder" -> DateResolver.Kind.Reminder
+            "set_alarm" -> DateResolver.Kind.Alarm
+            "add_event" -> DateResolver.Kind.Event
+            "show_agenda" -> DateResolver.Kind.Agenda
+            else -> return "ask"
+        }
+        return DateResolver.format(DateResolver.resolve(words(expr), kind, now))
+    }
+
+    private val MONTH_NAMES = listOf("january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december")
+
+    private fun words(expr: TimeExpr): String = when (expr) {
+        is TimeExpr.At -> listOfNotNull(expr.day?.let { day(it, expr.time?.part) }, expr.time?.let(::clock)).joinToString(" ")
+        is TimeExpr.In, is TimeExpr.Lasting -> {
+            val l = (expr as? TimeExpr.In)?.length ?: (expr as TimeExpr.Lasting).length
+            if (l.days > 0) "in ${l.days} days"
+            else "in " + listOfNotNull(l.hours.takeIf { it > 0 }?.let { "$it hours" }, (l.minutes + (l.seconds + 30) / 60).takeIf { it > 0 }?.let { "$it minutes" }).joinToString(" ")
+        }
+        is TimeExpr.Every -> {
+            val every = when (expr.period) {
+                "day" -> "every day"
+                "weekdays" -> "every weekday"
+                "month" -> "every month"
+                else -> if (expr.on.isEmpty()) "every week" else "every " + expr.on.joinToString(" and ") { it.name.lowercase() }
+            }
+            listOfNotNull(every, expr.time?.let(::clock)).joinToString(" ")
+        }
+    }
+
+    private fun day(d: TimeExpr.Day, part: String?): String = when (d) {
+        is TimeExpr.Day.Relative -> when (d.days) { 0 -> if (part == "night") "tonight" else "today"; 1 -> "tomorrow"; 2 -> "day after tomorrow"; else -> "in ${d.days} days" }
+        is TimeExpr.Day.Weekday -> (if (d.next) "next " else "") + d.weekday.name.lowercase()
+        is TimeExpr.Day.Date -> when {
+            d.month == null -> "the ${d.day}th"
+            d.year != null -> "${d.day}/${d.month}/${d.year}"
+            else -> "${d.day} ${MONTH_NAMES[d.month - 1]}"
+        }
+    }
+
+    private fun clock(c: TimeExpr.Clock): String? {
+        val part = c.part?.let { if (it == "night") "at night" else "in the $it" }
+        val hour = c.hour ?: return part
+        if (hour == 12 && (c.minute ?: 0) == 0 && c.meridiem == "am") return "at midnight"
+        val at = "at $hour:${"%02d".format(c.minute ?: 0)}" + (c.meridiem?.let { " $it" } ?: "")
+        return listOfNotNull(at, part).joinToString(" ")
+    }
+
     private fun length(seconds: Int): String {
         val h = seconds / 3600; val m = seconds % 3600 / 60; val s = seconds % 60
         return "+PT" + (if (h > 0) "${h}H" else "") + (if (m > 0) "${m}M" else "") + (if (s > 0) "${s}S" else "")
@@ -105,16 +167,21 @@ class DateTimeEval {
     fun score() {
         assumeTrue("FERB_EVAL=1 to run the date and time eval", System.getenv("FERB_EVAL") == "1")
         val source = File(System.getenv("FERB_EVAL_NEEDLE") ?: File(repo, "build/datetime/needle-typed.jsonl").path)
-        val name = source.nameWithoutExtension.removePrefix("needle-")
+        // C: Gemini Nano's time JSON for each line (phone.py dates-out), resolved by Ferb's rules.
+        val slots = System.getenv("FERB_EVAL_SLOTS")?.let(::File)?.readLines()?.filter { it.isNotBlank() }?.associate { l ->
+            val o = JSONObject(l)
+            o.getInt("i") to o.optString("raw").takeIf { o.has("raw") && !o.isNull("raw") }
+        }
+        val name = source.nameWithoutExtension.removePrefix("needle-") + if (slots != null) "-slots" else ""
         val lines = lines()
         val answers = answers(source)
         val report = StringBuilder("# Dates and times, Needle 3 on \"$name\" text (${lines.size} lines)\n")
-        data class Row(val line: Line, val a: Answer, val base: String, val a2: String)
+        data class Row(val line: Line, val a: Answer, val base: String, val a2: String, val c: String? = null)
         val rows = lines.map { line ->
             val a = answers.getValue(line.i)
             // The words the resolvers read: what Needle 3 was given (the request, or its rewrite).
             val text = a.text ?: line.request
-            Row(line, a, baseline(line, a, text), approachA(line, a, text))
+            Row(line, a, baseline(line, a, text), approachA(line, a, text), slots?.let { approachC(line.tool, slots[line.i], line.now) })
         }
         fun pct(n: Int, of: Int) = if (of == 0) "-" else "$n/$of (${n * 100 / of}%)"
         fun block(title: String, set: List<Row>) {
@@ -122,7 +189,8 @@ class DateTimeEval {
             val toolAny = set.count { it.a.tool == it.line.tool }
             report.append("\n## $title (${set.size})\n")
             report.append("tool: ${pct(toolRun, set.size)} called; ${pct(toolAny, set.size)} incl. held back\n")
-            for ((label, pick) in listOf("baseline" to { r: Row -> r.base }, "A" to { r: Row -> r.a2 })) {
+            for ((label, pick) in listOf("baseline" to { r: Row -> r.base }, "A" to { r: Row -> r.a2 }) +
+                listOfNotNull(slots?.let { "C" to { r: Row -> r.c!! } })) {
                 val right = set.count { pick(it) == it.line.expected }
                 val asks = set.filter { it.line.expected == "ask" }
                 val wrongAsk = set.count { it.line.expected != "ask" && pick(it) == "ask" }
@@ -147,6 +215,9 @@ class DateTimeEval {
             "E: A, and held back runs when the router routes only that timed tool" to { r ->
                 if (r.a.tool != null && (!r.a.heldBack || routedAlone(r))) resolvedFor(r) else null
             },
+        ) + if (slots == null) emptyList() else listOf<Pair<String, (Row) -> String?>>(
+            "C, Needle's bar" to { r -> if (r.a.tool != null && !r.a.heldBack) approachC(r.a.tool, slots[r.line.i], r.line.now) else null },
+            "E with C's time" to { r -> if (r.a.tool != null && (!r.a.heldBack || routedAlone(r))) approachC(r.a.tool, slots[r.line.i], r.line.now) else null },
         )
         report.append("\n## Decisions: run right / run wrong / asked (when it should ask: asked)\n")
         for ((label, gate) in gates) {
