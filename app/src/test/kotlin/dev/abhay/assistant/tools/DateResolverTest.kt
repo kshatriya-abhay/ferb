@@ -61,6 +61,10 @@ class DateResolverTest {
         assertThat(at("remind me on the 2nd to renew")).isEqualTo(on(12, 2, 9))
         // d/m, and across the year end.
         assertThat(at("remind me on 3/1 to renew")).isEqualTo(on(1, 3, 9, year = 2027))
+        assertThat(at("remind me on 2026-11-20 at 8 pm to renew")).isEqualTo(on(11, 20, 20))
+        // A date that doesn't exist asks; it doesn't throw.
+        assertThat(at("remind me on 2026-02-30 at 9 to renew")).isInstanceOf(Resolved.Ask::class.java)
+        assertThat(at("remind me on 31/11 to renew")).isInstanceOf(Resolved.Ask::class.java)
     }
 
     @Test

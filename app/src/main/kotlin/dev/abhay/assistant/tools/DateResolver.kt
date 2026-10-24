@@ -50,6 +50,8 @@ object DateResolver {
         }
 
         val day = day(t, today)
+        // A date said that doesn't exist (2026-02-30, 31/11): ask, never another day.
+        if (day?.noSuchDate == true) return Resolved.Ask("That date doesn't exist")
         // Waking words make a bare hour the morning's ("wake me up at 8"; v2 of the set, 2026-10-24).
         val said = time(t)?.let { s -> if (s.bare && s.at != null && WAKE.containsMatchIn(t)) SaidTime(LocalTime.of(s.at.hour % 12, s.at.minute), false, s.part, s.midnight, s.thisPart) else s }
 
@@ -181,7 +183,7 @@ object DateResolver {
      * A day said: [date], and [later], the day it means instead when it's today and its time has
      * passed ("Saturday" on a Saturday afternoon is next week's; "the 30th" on the 30th, next month's).
      */
-    private class SaidDay(val date: LocalDate, val weekday: DayOfWeek? = null, val later: LocalDate? = null, val tonight: Boolean = false)
+    private class SaidDay(val date: LocalDate, val weekday: DayOfWeek? = null, val later: LocalDate? = null, val tonight: Boolean = false, val noSuchDate: Boolean = false)
 
     private val WEEKDAYS = mapOf(
         "monday" to DayOfWeek.MONDAY, "tuesday" to DayOfWeek.TUESDAY, "wednesday" to DayOfWeek.WEDNESDAY, "thursday" to DayOfWeek.THURSDAY,
@@ -199,23 +201,27 @@ object DateResolver {
         if (Regex("""\btoday\b""").containsMatchIn(t)) return SaidDay(today)
         // A date said wins over a weekday with it ("on Saturday 31 October", as a rewrite with the
         // calendar says it): "Nov 5", "5 November", "5/11" (day/month), "2026-10-31".
-        Regex("""\b(\d{4})-(\d{2})-(\d{2})\b""").find(t)?.let { return SaidDay(LocalDate.of(it.groupValues[1].toInt(), it.groupValues[2].toInt(), it.groupValues[3].toInt())) }
+        Regex("""\b(\d{4})-(\d{2})-(\d{2})\b""").find(t)?.let { m ->
+            // A date that doesn't exist (2026-02-30) is no day, as for the other forms.
+            return runCatching { LocalDate.of(m.groupValues[1].toInt(), m.groupValues[2].toInt(), m.groupValues[3].toInt()) }.getOrNull()
+                ?.let { SaidDay(it) } ?: SaidDay(today, noSuchDate = true)
+        }
         fun ahead(month: Int, dayOfMonth: Int): LocalDate? {
             val thisYear = runCatching { LocalDate.of(today.year, month, dayOfMonth) }.getOrNull() ?: return null
             return if (thisYear.isBefore(today)) thisYear.plusYears(1) else thisYear
         }
         Regex("""\b$MONTH (\d{1,2})(?:st|nd|rd|th)?\b""").find(t)?.let { m ->
-            ahead(MONTHS.indexOf(m.groupValues[1].take(3)) + 1, m.groupValues[2].toInt())?.let { return SaidDay(it) }
+            return ahead(MONTHS.indexOf(m.groupValues[1].take(3)) + 1, m.groupValues[2].toInt())?.let { SaidDay(it) } ?: SaidDay(today, noSuchDate = true)
         }
         Regex("""\b(\d{1,2})(?:st|nd|rd|th)?(?: of)? $MONTH\b""").find(t)?.let { m ->
-            ahead(MONTHS.indexOf(m.groupValues[2].take(3)) + 1, m.groupValues[1].toInt())?.let { return SaidDay(it) }
+            return ahead(MONTHS.indexOf(m.groupValues[2].take(3)) + 1, m.groupValues[1].toInt())?.let { SaidDay(it) } ?: SaidDay(today, noSuchDate = true)
         }
         Regex("""\b(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?\b""").find(t)?.let { m ->
             val d = m.groupValues[1].toInt()
             val mo = m.groupValues[2].toInt()
             val y = m.groupValues[3].takeIf { it.isNotEmpty() }?.toInt()?.let { if (it < 100) 2000 + it else it }
             val date = if (y != null) runCatching { LocalDate.of(y, mo, d) }.getOrNull() else ahead(mo, d)
-            date?.let { return SaidDay(it) }
+            return date?.let { SaidDay(it) } ?: SaidDay(today, noSuchDate = true)
         }
         Regex("""\b(?:(this|next|coming) )?(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b""").find(t)?.let { m ->
             if (Regex("""\bevery ${m.groupValues[2]}""").containsMatchIn(t)) return SaidDay(today.with(TemporalAdjusters.nextOrSame(WEEKDAYS.getValue(m.groupValues[2]))), WEEKDAYS.getValue(m.groupValues[2]))
