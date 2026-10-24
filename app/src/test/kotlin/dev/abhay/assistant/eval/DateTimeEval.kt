@@ -29,7 +29,7 @@ class DateTimeEval {
 
     private val repo = File("..").canonicalFile
 
-    private fun lines() = File(repo, "tool-check/datetime.txt").readLines().filter { it.isNotBlank() && !it.startsWith("#") }.mapIndexed { i, raw ->
+    private fun lines() = File(repo, "tool-check/" + (System.getenv("FERB_EVAL_SET") ?: "datetime.txt")).readLines().filter { it.isNotBlank() && !it.startsWith("#") }.mapIndexed { i, raw ->
         val (now, tool, expected, request) = raw.split("|", limit = 4).map { it.trim() }
         Line(i, LocalDateTime.parse(now.substringBefore(' ')), tool, expected, request)
     }

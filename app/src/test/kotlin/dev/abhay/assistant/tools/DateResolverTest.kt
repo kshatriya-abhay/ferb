@@ -110,6 +110,17 @@ class DateResolverTest {
         assertThat(at("meeting on wednesday at 9", Kind.Event)).isEqualTo(on(11, 11, 9))
     }
 
+    /** Waking words: a bare hour is the morning's (set v2); a part of the day still decides. */
+    @Test
+    fun wakingWords() {
+        assertThat(at("wake me at 9", Kind.Alarm)).isEqualTo(on(11, 5, 9))
+        assertThat(at("I have to get up at quarter to 6 on friday", Kind.Alarm)).isEqualTo(on(11, 6, 5, 45))
+        assertThat(at("parso 4 baje jaga dena", Kind.Alarm)).isEqualTo(on(11, 6, 4))
+        assertThat(at("shaam 5 baje utha dena", Kind.Alarm)).isEqualTo(on(11, 4, 17))
+        // No waking word: the frozen rule.
+        assertThat(at("alarm at 9", Kind.Alarm)).isEqualTo(on(11, 4, 21))
+    }
+
     @Test
     fun agendaDays() {
         assertThat(at("what's on tomorrow", Kind.Agenda)).isEqualTo(Resolved.Day(LocalDate.of(2026, 11, 5)))

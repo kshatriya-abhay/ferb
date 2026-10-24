@@ -1,6 +1,9 @@
 """Dates and times (tool-check/datetime.txt): Needle 3's answers on the desktop, for the Kotlin scorer.
 
-    dates.py needle [typed|FILE.jsonl]
+    [DATES_SET=datetime-v2.txt] dates.py needle [typed|FILE.jsonl]
+
+DATES_SET picks the set in tool-check/ (datetime.txt by default); another set's answers are named
+with its suffix (needle-typed-v2.jsonl).
 
 Each line goes to Needle 3 with the date facts of its own "now" (as the app gives the engine) and
 the tools its words route to (route.py's routing). "typed": the request as written; FILE.jsonl:
@@ -14,11 +17,14 @@ REPO = os.path.dirname(HERE)
 BUILD = os.path.join(REPO, "app", "build", "tool-check")
 OUT = os.path.join(REPO, "build", "datetime")
 TOOL_CHECK = os.path.join(REPO, "build", "tool-check", "tool_check")
+SET = os.environ.get("DATES_SET", "datetime.txt")
+SUFFIX = os.path.splitext(SET)[0].removeprefix("datetime").replace("-", "", 1)
+SUFFIX = f"-{SUFFIX}" if SUFFIX else ""
 MODEL = os.path.join(REPO, "app", "src", "main", "assets", "needle3.cact")
 
 def lines():
     rows = []
-    for raw in open(os.path.join(HERE, "datetime.txt")):
+    for raw in open(os.path.join(HERE, SET)):
         if not raw.strip() or raw.startswith("#"): continue
         now, tool, expected, request = [x.strip() for x in raw.split("|", 3)]
         rows.append({"i": len(rows), "now": now.split()[0], "tool": tool, "expected": expected, "request": request})
@@ -58,7 +64,7 @@ def needle(source):
             got = dict(l.split("\t", 1) for l in out.splitlines() if "\t" in l)
             for i, text in items: answers[i] = (text, got[text])
     os.makedirs(OUT, exist_ok=True)
-    path = os.path.join(OUT, f"needle-{name}.jsonl")
+    path = os.path.join(OUT, f"needle-{name}{SUFFIX}.jsonl")
     with open(path, "w") as f:
         for r in rows:
             text, raw = answers.get(r["i"], (texts.get(r["i"]), None))

@@ -50,7 +50,8 @@ object DateResolver {
         }
 
         val day = day(t, today)
-        val said = time(t)
+        // Waking words make a bare hour the morning's ("wake me up at 8"; v2 of the set, 2026-10-24).
+        val said = time(t)?.let { s -> if (s.bare && s.at != null && WAKE.containsMatchIn(t)) SaidTime(LocalTime.of(s.at.hour % 12, s.at.minute), false, s.part, s.midnight, s.thisPart) else s }
 
         if (kind == Kind.Agenda) {
             return Resolved.Day(day?.date ?: today)
@@ -186,6 +187,7 @@ object DateResolver {
         "monday" to DayOfWeek.MONDAY, "tuesday" to DayOfWeek.TUESDAY, "wednesday" to DayOfWeek.WEDNESDAY, "thursday" to DayOfWeek.THURSDAY,
         "friday" to DayOfWeek.FRIDAY, "saturday" to DayOfWeek.SATURDAY, "sunday" to DayOfWeek.SUNDAY,
     )
+    private val WAKE = Regex("""\b(wake|waking|get up|getting up|utha|uthana|utha dena|jaga|jagana|jaga dena)\b""")
     private val WEEKDAY = Regex("""\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b""")
     private val MONTHS = listOf("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
     private const val MONTH = """(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sept|sep|october|oct|november|nov|december|dec)"""
