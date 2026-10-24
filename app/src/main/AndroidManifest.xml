@@ -66,16 +66,27 @@
         android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
         android:theme="@style/Theme.Assistant">
+        <!-- The front door (the launcher icon, and what Android saved as the assistant when the role
+             was granted before the sheet): no display, its own task out of Recents; it hands the
+             assist trigger to AssistActivity and anything else to ChatActivity at once. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTop"
-            android:windowSoftInputMode="adjustResize">
+            android:theme="@android:style/Theme.NoDisplay"
+            android:taskAffinity="dev.abhay.assistant.route"
+            android:excludeFromRecents="true"
+            android:noHistory="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- The chat, in Ferb's own task. -->
+        <activity
+            android:name=".ChatActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize" />
         <!-- The phone's assistant: an exported activity for ACTION_ASSIST is enough for
              Android's assistant role (RoleManager's AssistantRoleBehavior also accepts a
              VoiceInteractionService, not needed yet). Picked by the user in Settings → Apps →

@@ -83,17 +83,4 @@ class FerbLinkTest {
         assertThat(FerbLink.timeout(FerbLink.TIMEOUT_MS, waking = true)).isEqualTo(60_000)
         assertThat(FerbLink.timeout(FerbLink.TRANSCRIBE_TIMEOUT_MS, waking = true)).isEqualTo(60_000)
     }
-
-    @Test
-    fun aTimedReplyCarriesItsTimeAndAsks() {
-        val reply = FerbLink.parse("""{"success":true,"source":"laptop","function_calls":[
-            {"name":"set_alarm","arguments":{"time":"7:15"},"when":{"v":1,"kind":"at","day":{"relative":2},"time":{"hour":7,"minute":15}},"asks":["parso is not the day after tomorrow"],"trimmed":false},
-            {"name":"open_app","arguments":{"app_name":"Maps"},"when":null,"asks":[],"trimmed":true},
-            {"name":"set_timer","arguments":{"duration":"10 minutes"}}]}""")
-        assertThat((reply.calls[0].arguments["when"] as org.json.JSONObject).getString("kind")).isEqualTo("at")
-        assertThat(reply.calls[0].arguments[dev.abhay.assistant.tools.TimeArgs.ASK]).isEqualTo("parso is not the day after tomorrow")
-        assertThat(reply.calls[1].arguments[dev.abhay.assistant.tools.TimeArgs.ASK]).isEqualTo("a value from your computer was cut short")
-        // A plain reply, or an older Ferb Link's: the calls as they were.
-        assertThat(reply.calls[2].arguments).isEqualTo(mapOf("duration" to "10 minutes"))
-    }
 }

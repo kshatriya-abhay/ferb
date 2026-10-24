@@ -12,7 +12,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.core.app.NotificationCompat
 import dev.abhay.assistant.AssistantApp
-import dev.abhay.assistant.MainActivity
+import dev.abhay.assistant.ChatActivity
 import dev.abhay.assistant.R
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -109,7 +109,7 @@ class ReminderReceiver : BroadcastReceiver() {
             val manager = context.getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(NotificationChannel(ReminderAlarms.CHANNEL, "Reminders", NotificationManager.IMPORTANCE_HIGH))
             // Tapped: Ferb's Reminders tab.
-            val target = MainActivity.openReminders(context)
+            val target = ChatActivity.openReminders(context)
             val open = PendingIntent.getActivity(context, reminder.id.hashCode(), target, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
             val notification = NotificationCompat.Builder(context, ReminderAlarms.CHANNEL)
                 .setSmallIcon(R.drawable.ic_reminder)

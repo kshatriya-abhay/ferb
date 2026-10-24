@@ -25,7 +25,7 @@ import dev.abhay.assistant.ui.AssistantViewModel
  * bottom sheet ([AssistSheet]). Android's assistant role takes an exported activity for
  * ACTION_ASSIST; its screen-context extras aren't read, and no permission is added. Its own task,
  * out of Recents, so the sheet closes back to the app it opened over; the full chat opens in
- * Ferb's own task ([MainActivity]) with the same conversation.
+ * Ferb's own task ([ChatActivity]) with the same conversation.
  */
 class AssistActivity : ComponentActivity() {
     /** Each assist invocation, so the sheet listens again (or focuses its box). */
@@ -50,7 +50,7 @@ class AssistActivity : ComponentActivity() {
                     viewModel,
                     opened = opened.intValue,
                     onOpenChat = {
-                        startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
+                        startActivity(Intent(this, ChatActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
                         // This screen's request may still be on its way: it finishes once that's answered
                         // (the chat shows it meanwhile, from the same conversation), not before.
                         lifecycleScope.launch {

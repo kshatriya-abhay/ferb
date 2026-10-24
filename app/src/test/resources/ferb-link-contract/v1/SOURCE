@@ -1,1 +1,1 @@
-64124ce 2026-10-24 rewrite with instructions: the caller's own prompt (Ferb's GeminiRewrite) on Gemma
+f765b52 2026-10-24 Drop the timed call and the code dates: Ferb no longer has the computer call tools

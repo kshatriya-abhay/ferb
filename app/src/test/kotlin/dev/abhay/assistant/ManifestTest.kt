@@ -35,6 +35,31 @@ class ManifestTest {
     }
 
     @Test
+    fun theFrontDoorRoutesWithoutShowingOrBringingTheChatForward() {
+        fun activity(name: String) = elements("activity").single { it.getAttributeNS(android, "name") == name }
+        // .MainActivity is what Android saved as the assistant on older grants: it must stay, exported, and show nothing.
+        val door = activity(".MainActivity")
+        assertThat(door.getAttributeNS(android, "exported")).isEqualTo("true")
+        assertThat(door.getAttributeNS(android, "theme")).isEqualTo("@android:style/Theme.NoDisplay")
+        // Its own task, out of Recents: the assist trigger doesn't bring the chat's task forward.
+        assertThat(door.getAttributeNS(android, "taskAffinity")).isNotEmpty()
+        assertThat(door.getAttributeNS(android, "taskAffinity")).isNotEqualTo(activity(".AssistActivity").getAttributeNS(android, "taskAffinity"))
+        assertThat(door.getAttributeNS(android, "excludeFromRecents")).isEqualTo("true")
+        assertThat(door.getAttributeNS(android, "noHistory")).isEqualTo("true")
+        val actions = door.getElementsByTagName("action").let { a -> (0 until a.length).map { (a.item(it) as Element).getAttributeNS(android, "name") } }
+        assertThat(actions).contains("android.intent.action.MAIN")
+        // The chat itself is reached only through it, or from Ferb's own intents.
+        assertThat(activity(".ChatActivity").getAttributeNS(android, "exported")).isEqualTo("false")
+    }
+
+    @Test
+    fun theAssistTriggerGoesToTheSheetAndAllElseToTheChat() {
+        assertThat(Routing.of("android.intent.action.ASSIST")).isEqualTo(Routing.Sheet)
+        assertThat(Routing.of("android.intent.action.MAIN")).isEqualTo(Routing.Chat)
+        assertThat(Routing.of(null)).isEqualTo(Routing.Chat)
+    }
+
+    @Test
     fun obsidianIsVisibleForNotes() {
         val queries = elements("queries").single().getElementsByTagName("data").let { d -> (0 until d.length).map { (d.item(it) as Element).getAttributeNS(android, "scheme") } }
         assertThat(queries).contains("obsidian")

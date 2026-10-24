@@ -62,12 +62,6 @@ object LinkContract {
     /** `rewrite`: the caller's own system prompt (at most 16000 characters), and the answer's most tokens (1–256, 40 by default). */
     const val EXTRA_INSTRUCTIONS = "instructions"
     const val EXTRA_MAX_TOKENS = "max_tokens"
-    /**
-     * For `complete`: 1 asks for each call's time as structure ("time" v1) in its `when`, through a
-     * schema-constrained call instead of native tool calls, with `trimmed` and `asks` per call
-     * (Plan - Dates and times through Gemma). An older Ferb Link ignores it and answers natively.
-     */
-    const val EXTRA_TIME_FORMAT = "time_format"
     /** For `transcribe`: the recording (byte[], at most 30 s and about 512 KB) and its type. */
     const val EXTRA_AUDIO = "audio"
     const val EXTRA_AUDIO_MIME = "audio_mime"
@@ -393,28 +387,9 @@ class FerbLink(private val context: Context) : LinkCalls {
          */
         fun parse(json: String): NeedleReply = try {
             val reply = NeedleReply.parse(json)
-            reply.copy(confidence = reply.first ?: reply.confidence, source = reply.source ?: SOURCE, calls = timedCalls(json, reply.calls))
+            reply.copy(confidence = reply.first ?: reply.confidence, source = reply.source ?: SOURCE)
         } catch (e: Exception) {
             failed("unexpected answer", "Ferb Link's reply couldn't be read: ${e.message}")
-        }
-
-        /**
-         * A timed reply's per-call extras ([LinkContract.EXTRA_TIME_FORMAT]) in the calls' arguments:
-         * `when` for [TimeArgs], and Ferb Link's `asks` or a `trimmed` argument as a reason to ask.
-         */
-        private fun timedCalls(json: String, calls: List<ToolCall>): List<ToolCall> {
-            val raw = JSONObject(json).optJSONArray("function_calls") ?: return calls
-            return calls.mapIndexed { i, call ->
-                val o = raw.optJSONObject(i) ?: return@mapIndexed call
-                val extra = mutableMapOf<String, Any?>()
-                o.optJSONObject("when")?.let { extra["when"] = it }
-                val asks = o.optJSONArray("asks")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty()
-                when {
-                    asks.isNotEmpty() -> extra[TimeArgs.ASK] = asks.first()
-                    o.optBoolean("trimmed") -> extra[TimeArgs.ASK] = "a value from your computer was cut short"
-                }
-                if (extra.isEmpty()) call else call.copy(arguments = call.arguments + extra)
-            }
         }
 
         const val SOURCE = "laptop"
@@ -428,9 +403,6 @@ class FerbLink(private val context: Context) : LinkCalls {
          * load from a cold disk (10–30 s) times out; Needle 3 answers that one, and the next is fast.
          */
         const val TIMEOUT_MS = 10_000
-
-        /** For the timed call ([LinkContract.EXTRA_TIME_FORMAT]): 1.3 s median and 1.5 s at the 90th on the bench (2026-10-19). */
-        const val TIMED_TIMEOUT_MS = 6_000
 
         /**
          * How long Ferb waits for a transcription: Gemma 4 E2B took 0.5–1 s for up to 11 s of
