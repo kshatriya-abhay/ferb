@@ -2,6 +2,11 @@ package dev.abhay.assistant.ui
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
+import dev.abhay.assistant.voice.GeminiLanguage
+import dev.abhay.assistant.voice.GeminiSetup
+import dev.abhay.assistant.voice.PhoneEar
 import dev.abhay.assistant.AssistantApp
 import dev.abhay.assistant.link.LinkMode
 import dev.abhay.assistant.tools.ToolConfig
@@ -26,10 +31,28 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     /** "Use Jev to select the tool" (Settings → Ferb Link), saved at once. */
     val jev: StateFlow<Boolean> = linkSettings.jev
     fun setJev(on: Boolean) = linkSettings.setJev(on)
-    /** "Voice on this phone (Whistle)", saved at once. */
+    /** "Use voice to text on-device", saved at once. */
     private val voice = (app as AssistantApp).voice
     val whistle: StateFlow<Boolean> = voice.whistle
     fun setWhistle(on: Boolean) = voice.setWhistle(on)
+    /** Who writes it down: Whistle or Gemini Nano (POC), and the language Gemini Nano expects. */
+    val ear: StateFlow<PhoneEar> = voice.ear
+    fun setEar(ear: PhoneEar) = voice.setEar(ear)
+    val language: StateFlow<GeminiLanguage> = voice.language
+    fun setLanguage(language: GeminiLanguage) {
+        voice.setLanguage(language)
+        checkGemini()
+    }
+    /** Gemini Nano's setup (Settings → Gemini Nano): what's on the phone, and download progress. */
+    private val nano = (app as AssistantApp).nanoEars
+    val gemini: StateFlow<GeminiSetup> = nano.setup
+    fun checkGemini() {
+        viewModelScope.launch { nano.refresh(voice.language.value) }
+    }
+    fun setUpGemini() = nano.setUp(voice.language.value)
+    fun setUpGeminiSpeech() = nano.setUpSpeech(voice.language.value)
+    fun setUpGeminiRewrite() = nano.setUpRewrite(voice.language.value)
+
     val saved: StateFlow<Map<String, ToolConfig>> = settings.configs
 
     /** The one-time tips (a tool's page has one), and "Show tips again". */

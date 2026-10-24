@@ -26,7 +26,7 @@ class MicTest {
     }
 
     @Test fun theSettingSaysComputerModeCanStillListen() {
-        assertThat(VoiceSettings.TITLE).isEqualTo("Voice on this phone (Whistle)")
+        assertThat(VoiceSettings.TITLE).isEqualTo("Use voice to text on-device")
         assertThat(VoiceSettings.DESCRIPTION).contains("Computer mode can still listen.")
     }
 

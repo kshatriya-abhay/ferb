@@ -30,7 +30,13 @@ import dev.abhay.assistant.tools.Tool
 import dev.abhay.assistant.tools.ToolRouter
 import dev.abhay.assistant.tools.Tools
 import dev.abhay.assistant.tools.Verdict
+import com.google.mlkit.genai.speechrecognition.SpeechRecognizerResponse
+import dev.abhay.assistant.voice.GeminiLanguage
+import dev.abhay.assistant.voice.LiveTranscript
+import dev.abhay.assistant.voice.NanoChoice
+import dev.abhay.assistant.voice.NanoEars
 import dev.abhay.assistant.voice.PcmRecorder
+import dev.abhay.assistant.voice.PhoneEar
 import dev.abhay.assistant.voice.PhoneVoice
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Deferred
@@ -123,8 +129,13 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     )
 
     sealed interface Voice {
-        /** [onPhone]: for Whistle on the phone, else for the computer through Ferb Link. */
-        data class Recording(val startedAt: Long, val onPhone: Boolean = false) : Voice
+        /**
+         * [onPhone]: for Whistle on the phone, else for the computer through Ferb Link. [live]:
+         * Gemini Nano hears it as it's said, streaming its text into the chat box (POC).
+         */
+        data class Recording(val startedAt: Long, val onPhone: Boolean = false, val live: GeminiLanguage? = null, val heard: String = "") : Voice
+        /** What Gemini Nano heard, waiting for Send (or ✕), which writes it in English for Needle 3. */
+        data class Heard(val text: String, val ms: Long) : Voice
         /** [audio] is [Recorder.MIME] for the computer, [pcm] 16 kHz float for Whistle; [ms] long. */
         class Recorded(val audio: ByteArray?, val ms: Long, val pcm: FloatArray? = null) : Voice
     }
@@ -223,6 +234,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
 
     fun send(text: String = _state.value.input) {
         if (_state.value.voice is Voice.Recorded) return sendVoice()
+        (_state.value.voice as? Voice.Heard)?.let { return sendGemini(it) }
         val request = text.trim()
         if (request.isEmpty() || _state.value.busy || engine.value !is AssistantEngine.State.Ready) return
         _state.update { it.copy(busy = true, input = "", notice = null, pending = request) }
@@ -230,13 +242,13 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     /** Answers [request] (typed, or the English command of a spoken one, [heard] as said) and runs what it can. */
-    private suspend fun answer(request: String, heard: String?, whistle: Boolean = false) {
+    private suspend fun answer(request: String, heard: String?, phoneVoice: List<String>? = null) {
         try {
             val started = SystemClock.elapsedRealtime()
             val enabled = enabledTools.value.mapNotNull(Tools::byName)
             val configs = assistant.toolSettings.configs.value
             val answer = flow.answer(request, heard, enabled, configs, assistant.linkSettings.mode.value,
-                assistant.linkSettings.answerer.value, assistant.linkSettings.jev.value, whistle)
+                assistant.linkSettings.answerer.value, assistant.linkSettings.jev.value, phoneVoice)
             val shown = answer.shown
             val verdict = answer.verdict
             val calls = shown.calls.mapIndexed { i, call -> CallState(call, prepare(call, answer.callTexts[i]), Status.Waiting) }
@@ -271,11 +283,11 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
      * Whistle; otherwise for the computer, and Ferb Link wakes its model meanwhile.
      */
     fun startRecording(onPhone: Boolean = false) {
-        if (_state.value.busy || recorder.recording || pcmRecorder.recording || pcmRecording != null) return
+        if (_state.value.busy || recorder.recording || pcmRecorder.recording || pcmRecording != null || nanoJob != null) return
         if (onPhone) {
             // Off: Whistle never loads (the mic is hidden then, so this is only a guard).
             if (!assistant.voice.whistle.value) return
-            return startPhoneRecording()
+            return if (assistant.voice.ear.value == PhoneEar.Gemini) startNano(assistant.voice.language.value) else startPhoneRecording()
         }
         try {
             recorder.start(onLimit = ::stopRecording)
@@ -316,9 +328,111 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Gemini Nano listening (POC): it ends with what was heard, waiting for Send. */
+    private var nanoJob: kotlinx.coroutines.Job? = null
+
+    /**
+     * Gemini Nano hears the request (POC), what it hears so far showing in the box's place; once
+     * stopped, it waits for Send ([sendGemini]). When it isn't set up or can't hear on this phone,
+     * Whistle hears this one.
+     */
+    private fun startNano(language: GeminiLanguage) {
+        if (nanoJob != null) return
+        val startedAt = SystemClock.elapsedRealtime()
+        _state.update { it.copy(voice = Voice.Recording(startedAt, onPhone = true, live = language), notice = null) }
+        fun live(heard: String) = _state.update { s -> (s.voice as? Voice.Recording)?.takeIf { it.live != null }?.let { s.copy(voice = it.copy(heard = heard)) } ?: s }
+        nanoJob = viewModelScope.launch {
+            val nano = assistant.nanoEars
+            val choice = NanoChoice.of(nano.status(language))
+            if (choice is NanoChoice.Whistle) {
+                nanoJob = null
+                Log.i(NanoEars.TAG, "${language.locale}: Whistle instead (${choice.notice})")
+                startPhoneRecording()
+                _state.update { it.copy(notice = choice.notice) }
+                return@launch
+            }
+            val transcript = LiveTranscript()
+            val listening = SystemClock.elapsedRealtime()
+            var firstWords = -1L
+            var failed = false
+            try {
+                nano.listen(language).collect { response ->
+                    when (response) {
+                        is SpeechRecognizerResponse.PartialTextResponse -> {
+                            if (firstWords < 0) firstWords = SystemClock.elapsedRealtime() - listening
+                            live(transcript.partial(response.text))
+                        }
+                        is SpeechRecognizerResponse.FinalTextResponse -> {
+                            if (firstWords < 0) firstWords = SystemClock.elapsedRealtime() - listening
+                            live(transcript.final(response.text))
+                        }
+                        is SpeechRecognizerResponse.ErrorResponse -> throw response.e
+                        else -> {}
+                    }
+                }
+                Log.i(NanoEars.TAG, "${language.locale}: status check ${listening - startedAt} ms, first words after $firstWords ms, " +
+                    "${SystemClock.elapsedRealtime() - listening} ms listening; heard \"${transcript.heard}\"")
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                failed = true
+                Log.w(NanoEars.TAG, "${language.locale}: recognition failed", e)
+                _state.update { it.copy(notice = "Gemini Nano couldn't hear it: ${e.message ?: e}") }
+            } finally {
+                nanoJob = null
+                val heard = transcript.heard
+                val ms = SystemClock.elapsedRealtime() - startedAt
+                _state.update {
+                    if ((it.voice as? Voice.Recording)?.live == null) it
+                    else if (heard.isBlank()) it.copy(voice = null, notice = if (failed) it.notice else PhoneVoice.NO_WORDS)
+                    else it.copy(voice = Voice.Heard(heard, ms))
+                }
+            }
+        }
+    }
+
+    /**
+     * What Gemini Nano heard, written as one plain English command for Needle 3 (the bench's
+     * prompt, [dev.abhay.assistant.voice.GeminiRewrite]), then answered like a typed request, with
+     * what was heard shown. NONE (nothing for the phone to do) answers without Needle 3. When the
+     * rewrite fails, the words stay, to send again.
+     */
+    private fun sendGemini(clip: Voice.Heard) {
+        if (_state.value.busy || engine.value !is AssistantEngine.State.Ready) return
+        _state.update { it.copy(busy = true, voice = null, notice = null, pending = clip.text, asking = "Gemini Nano is writing it in English\u2026") }
+        viewModelScope.launch {
+            val rewritten = try {
+                assistant.nanoEars.rewrite(clip.text)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(NanoEars.TAG, "rewrite failed", e)
+                _state.update { it.copy(busy = false, pending = null, asking = null, voice = clip,
+                    notice = "Gemini Nano couldn't write it in English: ${e.message ?: e}") }
+                return@launch
+            }
+            val command = rewritten.command
+            if (command == null) {
+                _state.update { it.copy(busy = false, pending = null, asking = null, notice = "Nothing for the phone to do in \u201c${clip.text}\u201d") }
+                return@launch
+            }
+            _state.update { it.copy(pending = command, asking = null) }
+            answer(command, heard = clip.text.takeUnless { it.equals(command, ignoreCase = true) }, phoneVoice = listOf("Gemini Nano", "Gemini Nano (English)"))
+        }
+    }
+
     /** Stops recording; the recording waits for Send (or [discardRecording]). */
     fun stopRecording() {
         val recording = _state.value.voice as? Voice.Recording ?: return
+        recording.live?.let { language ->
+            val job = nanoJob ?: return _state.update { it.copy(voice = null) }
+            // ML Kit sends the last words, then ends; if it doesn't within 3 s, it's cut short.
+            viewModelScope.launch {
+                runCatching { assistant.nanoEars.stop(language) }.onFailure { Log.w(NanoEars.TAG, "stopRecognition failed", it) }
+                if (kotlinx.coroutines.withTimeoutOrNull(3_000) { job.join() } == null) job.cancel()
+            }
+            return
+        }
         if (recording.onPhone) return pcmRecorder.stop()
         val ms = SystemClock.elapsedRealtime() - recording.startedAt
         val audio = recorder.stop()
@@ -329,6 +443,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     fun discardRecording() {
+        nanoJob?.cancel()
+        nanoJob = null
         recorder.cancel()
         pcmRecording?.cancel()
         pcmRecording = null
@@ -383,13 +499,14 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
                     _state.update { it.copy(busy = false, pending = null, asking = null, voice = clip.takeIf { next.keepClip }, notice = next.notice) }
                 is PhoneVoice.Request -> {
                     _state.update { it.copy(pending = next.text, asking = null) }
-                    answer(next.text, heard = null, whistle = true)
+                    answer(next.text, heard = null, phoneVoice = listOf("Whistle"))
                 }
             }
         }
     }
 
     override fun onCleared() {
+        nanoJob?.cancel()
         recorder.cancel()
         pcmRecorder.stop()
     }

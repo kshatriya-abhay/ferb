@@ -58,8 +58,9 @@ class AnswerFlowTest {
     }
 
     private fun answer(link: FakeLink, request: String, mode: LinkMode, answerer: Answerer = Answerer.Needle, jev: Boolean = false,
-                       heard: String? = null, needle: suspend (String, List<Tool>) -> NeedleReply = needle(), whistle: Boolean = false) = runBlocking {
-        AnswerFlow(link, needle).answer(request, heard, enabled, configs, mode, answerer, jev, whistle)
+                       heard: String? = null, needle: suspend (String, List<Tool>) -> NeedleReply = needle(), whistle: Boolean = false,
+                       phoneVoice: List<String>? = null) = runBlocking {
+        AnswerFlow(link, needle).answer(request, heard, enabled, configs, mode, answerer, jev, phoneVoice ?: listOf("Whistle").takeIf { whistle })
     }
 
     private fun Answer.chain() = Step.chain(path)
@@ -80,6 +81,14 @@ class AnswerFlowTest {
         val link = FakeLink(picks = mapOf("wake me up at 7:15" to jev(SetAlarm.name, 0.93)))
         val jevd = answer(link, "wake me up at 7:15", LinkMode.Option, jev = true, whistle = true)
         assertThat(jevd.chain()).isEqualTo("Voice \u2192 Whistle \u2192 Jev (Alarms, 0.93) \u2192 Needle 3 (0.81)")
+    }
+
+    @Test
+    fun geminiNanoVoiceShowsItsStepsAndWhatWasHeard() {
+        val got = answer(FakeLink(), "wake me up at 7:15", LinkMode.Off, heard = "subah 7:15 baje utha dena",
+            phoneVoice = listOf("Gemini Nano", "Gemini Nano (English)"))
+        assertThat(got.chain()).isEqualTo("Voice \u2192 Gemini Nano \u2192 Gemini Nano (English) \u2192 Needle 3 (0.81)")
+        assertThat(got.verdict.decision).isEqualTo(Decision.Run)
     }
 
     @Test

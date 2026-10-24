@@ -62,6 +62,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.material.components)
+    implementation(libs.mlkit.genai.speech)
+    implementation(libs.mlkit.genai.prompt)
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
