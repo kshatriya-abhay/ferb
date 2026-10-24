@@ -13,6 +13,7 @@ Routing is route.py's (each tool's cues; none mentioned: every tool). Needle 3 a
 app's engine; Gemini Nano gets Computer mode's schema call (timed, t4; see the app's debug
 bench/SchemaCall.kt), and its "when" becomes the time arguments as schema.py reads them. Gemini
 Nano has no confidence score: its calls count as 1.00, so only "right" compares with Needle 3's.
+LENIENT=1 also reads the whole call objects out of answers that aren't valid JSON (score-MODEL-lenient.txt).
 """
 import json, os, re, statistics, subprocess, sys
 
@@ -88,6 +89,40 @@ def needle():
 from schema import alarm_time, seconds
 
 LEAKED = re.compile(r"\}\}|```")
+MALFORMED = []
+
+def complete_calls(raw):
+    """LENIENT=1: the whole call objects in broken JSON, in order (Gemini Nano often writes one,
+    then runs on repeating it until max tokens): what an enforced schema would likely have kept."""
+    decoder, calls, i = json.JSONDecoder(), [], 0
+    while (i := raw.find("{", i)) >= 0:
+        try:
+            value, end = decoder.raw_decode(raw, i)
+        except json.JSONDecodeError:
+            i += 1
+            continue
+        if isinstance(value, dict) and "tool" in value:
+            calls.append(value)
+            i = end
+        else:
+            i += 1
+    if calls: return calls
+    # No whole call object (a brace left out: {"tool": "set_timer", "arguments": {...}]}): each
+    # "tool": name with the arguments object after it, and a "when" object if one follows.
+    for m in re.finditer(r'"tool"\s*:\s*"(\w+)"\s*,\s*"arguments"\s*:\s*', raw):
+        try:
+            args, end = decoder.raw_decode(raw, m.end())
+        except json.JSONDecodeError:
+            continue
+        when = None
+        w = re.match(r'\s*,\s*"when"\s*:\s*', raw[end:])
+        if w:
+            try:
+                when, _ = decoder.raw_decode(raw, end + w.end())
+            except json.JSONDecodeError:
+                pass
+        calls.append({"tool": m[1], "arguments": args, "when": when})
+    return calls
 
 def gemini_calls(raw):
     """[{name, arguments}] from the schema call's JSON, or None if it doesn't parse."""
@@ -96,12 +131,20 @@ def gemini_calls(raw):
     try:
         answer = json.loads(raw[start:end + 1])
     except json.JSONDecodeError:
-        return None
+        if not os.environ.get("LENIENT"): return None
+        answer = {"calls": complete_calls(raw)}
     calls = []
     for call in answer.get("calls") or []:
         if not isinstance(call, dict) or not call.get("tool"): continue
+        # Gemini Nano sometimes nests the call in "tool" ({"tool": {"name", "arguments"}}): the API
+        # can't enforce the schema as llama.cpp did. Read leniently, and counted (MALFORMED).
+        if isinstance(call["tool"], dict):
+            MALFORMED.append(call)
+            call = {"tool": call["tool"].get("name"), "arguments": call["tool"].get("arguments"), "when": call.get("when")}
+            if not isinstance(call["tool"], str): continue
+        if not isinstance(call["tool"], str): continue
         args = {k: (v[:LEAKED.search(v).start()].rstrip() if isinstance(v, str) and LEAKED.search(v) else v)
-                for k, v in (call.get("arguments") or {}).items()}
+                for k, v in (call.get("arguments") if isinstance(call.get("arguments"), dict) else {}).items()}
         w = call.get("when") if isinstance(call.get("when"), dict) else None
         if w and call["tool"] == "set_alarm" and alarm_time(w): args["time"] = alarm_time(w)
         if w and call["tool"] == "set_timer" and seconds(w): args["duration"] = f"{seconds(w)} seconds"
@@ -156,10 +199,11 @@ def score(model):
     if unread:
         report.append(f"answers that didn't parse as JSON (scored as no call): {len(unread)}, e.g. {unread[0]['raw'][:160]!r}")
     if model != "needle3":
+        report.append(f"calls nested in \"tool\" (read leniently): {len(MALFORMED)}")
         shown = [r for r in rows if "schema" in r]
         report.append(f"schema in the prompt: {sum(r['schema'] for r in shown)} of {len(shown)} (left out where it made the request too long)")
     text = "\n".join(report)
-    path = os.path.join(OUT, f"score-{model}.txt")
+    path = os.path.join(OUT, f"score-{model}{'-lenient' if os.environ.get('LENIENT') else ''}.txt")
     open(path, "w").write(text + "\n")
     print(text)
     print(f"\n(saved in {os.path.relpath(path, REPO)})")
