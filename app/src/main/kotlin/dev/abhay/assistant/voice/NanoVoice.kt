@@ -211,8 +211,12 @@ tell meera the door is open -> Send a text to meera: the door is open
 what is the capital of japan -> NONE
 the alarm woke the baby -> NONE"""
 
-    /** The prompt the app uses: v1 until v2 beats it on the held-out set (tool-check/rewrite-heldout.txt). */
-    const val PROMPT = PROMPT_V1
+    /**
+     * The prompt the app (and the phone bench) uses: v2, which beat v1 on the held-out set
+     * (tool-check/rewrite-heldout.txt: 70 of 78 against 60, Needle 3 alone 61; 2026-10-24).
+     */
+    const val PROMPT = PROMPT_V2
+    const val VERSION = "v2"
 
     /** Room for one short command; NONE takes a token or two. */
     const val MAX_TOKENS = 40

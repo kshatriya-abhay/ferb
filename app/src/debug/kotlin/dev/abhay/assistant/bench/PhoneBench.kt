@@ -8,23 +8,21 @@ import com.google.mlkit.genai.prompt.Generation
 import com.google.mlkit.genai.prompt.GenerativeModel
 import com.google.mlkit.genai.prompt.ModelPreference
 import com.google.mlkit.genai.prompt.ModelReleaseStage
-import com.google.mlkit.genai.prompt.SystemInstruction
-import com.google.mlkit.genai.prompt.TextPart
-import com.google.mlkit.genai.prompt.generateContentRequest
 import com.google.mlkit.genai.prompt.generationConfig
 import com.google.mlkit.genai.prompt.modelConfig
 import dev.abhay.assistant.AssistantApp
 import dev.abhay.assistant.tools.Tools
+import dev.abhay.assistant.voice.GeminiRewrite
+import dev.abhay.assistant.voice.NanoEars
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Debug builds only: the phone bench, text only. Reads `files/bench/requests.jsonl` (pushed from
+ * Debug builds only: the phone bench, text only: Needle 3, and Gemini Nano's rewrite before it. Reads `files/bench/requests.jsonl` (pushed from
  * the laptop by tool-check/phone.py, each line {"id", "request", "tools"}, the tools already routed
  * as the laptop bench routes them) and writes each model's raw answers to `files/bench/<model>.jsonl`,
  * one line per request ({"id", "request", "raw", "ms"}, or "error"), which phone.py scores with the
@@ -32,18 +30,13 @@ import org.json.JSONObject
  */
 class PhoneBench(private val app: AssistantApp) {
     /**
-     * Needle 3; Gemini Nano's schema call (FULL, FAST; superseded); and Gemini Nano's rewrite
-     * before Needle 3 (the app's GeminiRewrite prompt), whose output tool-check/phone.py routes
-     * and gives Needle 3 (run with [input] set to its file).
+     * Needle 3, and Gemini Nano's rewrite before it with the prompt the app ships
+     * ([GeminiRewrite.PROMPT], FULL; FAST gave the same answers on this phone), whose output
+     * tool-check/phone.py routes and gives Needle 3 (run with [input] set to its file). The
+     * rewrite's file is named by the prompt's version, so a new prompt starts afresh.
      */
     enum class Model(val file: String) {
-        Needle3("needle3"), GeminiFull("gemini-full"), GeminiFast("gemini-fast"),
-        RewriteFull("rewrites-gemini-full"), RewriteFast("rewrites-gemini-fast"),
-        /** The v2 rewrite prompt (FULL only: FAST gave the same answers on this phone). */
-        RewriteV2Full("rewrites-v2-gemini-full");
-
-        val rewrites get() = this == RewriteFull || this == RewriteFast || this == RewriteV2Full
-        val prompt get() = if (this == RewriteV2Full) dev.abhay.assistant.voice.GeminiRewrite.PROMPT_V2 else dev.abhay.assistant.voice.GeminiRewrite.PROMPT_V1
+        Needle3("needle3"), Rewrite("rewrites-${GeminiRewrite.VERSION}-gemini-full");
     }
 
     data class Item(val id: String, val request: String, val tools: List<String>)
@@ -77,14 +70,11 @@ class PhoneBench(private val app: AssistantApp) {
                 val line = JSONObject().put("id", item.id).put("request", item.request)
                 val started = SystemClock.elapsedRealtime()
                 try {
-                    when {
-                        gemini == null -> line.put("raw", needle(item))
-                        model.rewrites -> {
-                            val raw = paced(line) { gemini.generateContent(dev.abhay.assistant.voice.NanoEars.rewriteRequest(item.request, model.prompt)) }.candidates.firstOrNull()?.text.orEmpty()
-                            line.put("raw", raw)
-                            line.put("command", dev.abhay.assistant.voice.GeminiRewrite.parse(item.request, raw).command ?: JSONObject.NULL)
-                        }
-                        else -> line.put("raw", ask(gemini, item, line))
+                    if (gemini == null) line.put("raw", needle(item))
+                    else {
+                        val raw = paced(line) { gemini.generateContent(NanoEars.rewriteRequest(item.request)) }.candidates.firstOrNull()?.text.orEmpty()
+                        line.put("raw", raw)
+                        line.put("command", GeminiRewrite.parse(item.request, raw).command ?: JSONObject.NULL)
                     }
                 } catch (e: CancellationException) {
                     throw e
@@ -120,8 +110,7 @@ class PhoneBench(private val app: AssistantApp) {
     }
 
     private suspend fun gemini(model: Model): GenerativeModel {
-        val preference = if (model == Model.GeminiFast || model == Model.RewriteFast) ModelPreference.FAST else ModelPreference.FULL
-        val client = Generation.getClient(generationConfig { modelConfig = modelConfig { releaseStage = ModelReleaseStage.STABLE; this.preference = preference } })
+        val client = Generation.getClient(generationConfig { modelConfig = modelConfig { releaseStage = ModelReleaseStage.STABLE; preference = ModelPreference.FULL } })
         val status = client.checkStatus()
         check(status == FeatureStatus.AVAILABLE) { "Gemini Nano ${model.file} isn't available (checkStatus $status)" }
         client.warmup()
@@ -156,48 +145,10 @@ class PhoneBench(private val app: AssistantApp) {
         error("unreachable")
     }
 
-    /**
-     * Computer mode's schema call (timed, t4) as the system instruction, the request as typed.
-     * The API can't enforce the answer's JSON schema, so it goes in the prompt as text, unless
-     * that makes the request too long for the model (noted as "schema": false).
-     */
-    private suspend fun ask(model: GenerativeModel, item: Item, line: JSONObject): String {
-        val tools = JSONArray(Tools.json(item.tools.mapNotNull(Tools::byName)))
-        val base = SchemaCall.prompt(tools, rewrite = false, timed = true, version = "t4") + "\nNow: $NOW."
-        val schema = JSONObject(SchemaCall.format(tools, rewrite = false, timed = true, version = "t4"))
-            .getJSONObject("json_schema").getJSONObject("schema").toString()
-        val withSchema = "$base\n\nThe answer's JSON schema:\n$schema"
-        fun request(system: String) = generateContentRequest(SystemInstruction(system), TextPart(item.request)) {
-            temperature = 0f
-            topK = 1
-            maxOutputTokens = 600
-        }
-        var system = withSchema
-        val limit = tokenLimit
-        if (limit != null) {
-            val tokens = runCatching { model.countTokens(request(withSchema)).totalTokens }.getOrNull()
-            if (tokens != null) line.put("tokens", tokens)
-            if (tokens != null && tokens > limit - 600) system = base
-        }
-        line.put("schema", system === withSchema)
-        var attempt = 0
-        while (true) {
-            try {
-                return model.generateContent(request(system)).candidates.firstOrNull()?.text.orEmpty()
-            } catch (e: GenAiException) {
-                // BUSY: AICore is serving another app; wait and try again, three times.
-                if (e.errorCode != GenAiException.ErrorCode.BUSY || ++attempt > 3) throw e
-                delay(2_000L * attempt)
-            }
-        }
-    }
-
     companion object {
         const val TAG = "FerbBench"
         const val REQUESTS = "requests.jsonl"
         /** At most about 2 requests a second to AICore. */
         const val GAP_MS = 500L
-        /** schema.py's NOW, so dates read as in the laptop's schema-call runs. */
-        const val NOW = "2026-10-16T09:00 (Friday)"
     }
 }

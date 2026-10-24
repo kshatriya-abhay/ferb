@@ -109,7 +109,7 @@ object DebugBench {
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } })
         }) { padding ->
             Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Text only: each request goes straight to the model, with its routed tools. Keep Ferb open while it runs; the screen stays on.",
+                Text("Text only: Gemini Nano rewrites each request, as the app does, for Needle 3. Keep Ferb open while it runs; the screen stays on.",
                     style = MaterialTheme.typography.bodyMedium)
                 Text(counts, style = MaterialTheme.typography.bodyMedium)
                 said?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
@@ -117,10 +117,8 @@ object DebugBench {
                     LinearProgressIndicator(progress = { progress }, Modifier.fillMaxWidth())
                     OutlinedButton(onClick = ::stop) { Text("Stop") }
                 } else {
-                    // The rewrite prompts: v2 on every request, then v1 on what it hasn't seen (the held-out lines); Needle 3 later, with no screen.
-                    Button(onClick = { start(app, PhoneBench.Model.RewriteV2Full, PhoneBench.Model.RewriteFull) }) { Text("Rewrite: v2 on all, then v1 on the new lines") }
-                    OutlinedButton(onClick = { start(app, PhoneBench.Model.RewriteFull, PhoneBench.Model.RewriteFast) }) { Text("Rewrite all: v1, FULL then FAST") }
-                    OutlinedButton(onClick = { start(app, PhoneBench.Model.RewriteFull, limit = 10) }) { Text("Trial: 10 rewrites, FULL") }
+                    // Gemini Nano rewrites every request with the shipped prompt; Needle 3 runs on them later, with no screen (phone.py).
+                    Button(onClick = { start(app, PhoneBench.Model.Rewrite) }) { Text("Rewrite all requests with Gemini Nano") }
                 }
             }
         }

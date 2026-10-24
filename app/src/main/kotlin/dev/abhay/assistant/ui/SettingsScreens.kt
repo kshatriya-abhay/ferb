@@ -228,8 +228,6 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
     }
 }
 
-private const val CHECKING = "Checking\u2026"
-
 /**
  * Gemini Nano (POC): the language it expects, whether each part is on the phone (hearing, and
  * writing what was heard in English for Needle 3), and Set up, which downloads what's missing
@@ -283,25 +281,6 @@ fun GeminiScreen(settings: SettingsViewModel, onBack: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            // Debug builds only: one Prompt API request, for FAST and FULL's status and latency.
-            if (dev.abhay.assistant.NanoPromptCheck.AVAILABLE) {
-                var result by remember { mutableStateOf<String?>(null) }
-                val scope = rememberCoroutineScope()
-                Spacer(Modifier.height(16.dp))
-                Group(listOf { shapes ->
-                    SegmentedListItem(
-                        onClick = {
-                            if (result != CHECKING) {
-                                result = CHECKING
-                                scope.launch { result = dev.abhay.assistant.NanoPromptCheck.run() }
-                            }
-                        },
-                        shapes = shapes,
-                        leadingContent = { IconBadge(R.drawable.ic_lightbulb) },
-                        supportingContent = { Text(result ?: "Tap to check FAST and FULL and time one request") },
-                    ) { Text(dev.abhay.assistant.NanoPromptCheck.TITLE) }
-                })
-            }
         }
     }
 }

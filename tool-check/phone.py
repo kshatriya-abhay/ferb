@@ -1,22 +1,20 @@
-"""The phone bench (text only): Needle 3 and Gemini Nano on the Pixel, on `mise run bench`'s
-requests (requests.txt + suite.txt), routed and scored the same way, so their numbers line up
-with the laptop's (summary-all-routed.txt).
+"""The phone bench (text only): Needle 3 on the Pixel, alone and after Gemini Nano's rewrite (the
+app's GeminiRewrite prompt), on `mise run bench`'s requests (requests.txt + suite.txt) and the
+rewrite prompt's held-out lines (rewrite-heldout.txt), routed and scored as the laptop's bench is
+(route.py, score.py), so the numbers line up with summary-all-routed.txt.
 
-    phone.py prep        write build/phone-bench/requests.jsonl: each request with its routed tools
-    phone.py push        copy it into Ferb's files/bench/ (debug build; adb)
-    phone.py needle      Needle 3's pass with no screen (PhoneBenchTest); take /tmp/ferb-validate.lock first
-    phone.py pull        copy every model's answers back
-    phone.py score MODEL score needle3, gemini-full or gemini-fast with score.py (and the @hi lines apart)
-    phone.py laptop      the laptop's saved Needle 3 and Gemma 4 E2B answers on the same overlap, to compare
-    phone.py rewritten M Gemini Nano's rewrites (M: gemini-full or gemini-fast) routed and pushed for Needle 3 (after pull)
-    phone.py needle M    Needle 3 on M's rewrites, with no screen (lock first)
-    phone.py pipeline M  score rewrite -> Needle 3 against Needle 3 direct, with what the rewrite helped and hurt
+    phone.py prep          write build/phone-bench/requests.jsonl: each request with its routed tools
+    phone.py push          copy it into Ferb's files/bench/ (debug build; adb)
+    phone.py needle        Needle 3's pass with no screen (PhoneBenchTest); take /tmp/ferb-validate.lock first
+    phone.py pull          copy every answers file back
+    phone.py score needle3 score Needle 3 alone with score.py
+    phone.py laptop        the laptop's saved Needle 3 and Gemma 4 E2B answers on the 2026-10-11 overlap
+    phone.py rewritten M   Gemini Nano's rewrites (M, e.g. v2-gemini-full, from Settings → Bench) routed and pushed for Needle 3
+    phone.py needle M      Needle 3 on M's rewrites, with no screen (lock first)
+    phone.py pipeline M    score rewrite -> Needle 3 against Needle 3 alone, with what the rewrite helped and hurt
+    phone.py compare M ... Needle 3 alone and each rewrite, side by side on every set
 
-Routing is route.py's (each tool's cues; none mentioned: every tool). Needle 3 answers through the
-app's engine; Gemini Nano gets Computer mode's schema call (timed, t4; see the app's debug
-bench/SchemaCall.kt), and its "when" becomes the time arguments as schema.py reads them. Gemini
-Nano has no confidence score: its calls count as 1.00, so only "right" compares with Needle 3's.
-LENIENT=1 also reads the whole call objects out of answers that aren't valid JSON (score-MODEL-lenient.txt).
+Gemini Nano making the tool call itself (the schema call) and its scoring are on poc/gemini-nano-direct.
 """
 import json, os, re, statistics, subprocess, sys
 
@@ -93,8 +91,9 @@ def rewritten(model):
     push(name)
 
 def pull():
-    for model in ("needle3", "gemini-full", "gemini-fast", "rewrites-gemini-full", "rewrites-gemini-fast", "needle3-on-gemini-full", "needle3-on-gemini-fast",
-                  "rewrites-v2-gemini-full", "needle3-on-v2-gemini-full"):
+    """Every answers file the bench wrote (files/bench/*.jsonl but the requests)."""
+    listed = subprocess.run(["adb", "exec-out", "run-as", PACKAGE, "sh", "-c", "cd files/bench && ls *.jsonl"], capture_output=True, text=True).stdout.split()
+    for model in (f[:-len(".jsonl")] for f in listed if not f.startswith("requests")):
         path = os.path.join(OUT, f"{model}.jsonl")
         with open(path, "wb") as f:
             subprocess.run(["adb", "exec-out", "run-as", PACKAGE, "sh", "-c", f"cat files/bench/{model}.jsonl 2>/dev/null"], stdout=f, check=False)
@@ -107,91 +106,21 @@ def needle(on=None):
     subprocess.run(["adb", "shell", "am", "instrument", "-w", "-e", "class", f"{PACKAGE}.PhoneBenchTest", *extra,
                     f"{PACKAGE}.test/androidx.test.runner.AndroidJUnitRunner"], check=True)
 
-# --- Gemini Nano's answer, read as Ferb Link's SchemaCall.reply reads it, then as schema.py scores it. ---
-from schema import alarm_time, seconds
-
-LEAKED = re.compile(r"\}\}|```")
-MALFORMED = []
-
-def complete_calls(raw):
-    """LENIENT=1: the whole call objects in broken JSON, in order (Gemini Nano often writes one,
-    then runs on repeating it until max tokens): what an enforced schema would likely have kept."""
-    decoder, calls, i = json.JSONDecoder(), [], 0
-    while (i := raw.find("{", i)) >= 0:
-        try:
-            value, end = decoder.raw_decode(raw, i)
-        except json.JSONDecodeError:
-            i += 1
-            continue
-        if isinstance(value, dict) and "tool" in value:
-            calls.append(value)
-            i = end
-        else:
-            i += 1
-    if calls: return calls
-    # No whole call object (a brace left out: {"tool": "set_timer", "arguments": {...}]}): each
-    # "tool": name with the arguments object after it, and a "when" object if one follows.
-    for m in re.finditer(r'"tool"\s*:\s*"(\w+)"\s*,\s*"arguments"\s*:\s*', raw):
-        try:
-            args, end = decoder.raw_decode(raw, m.end())
-        except json.JSONDecodeError:
-            continue
-        when = None
-        w = re.match(r'\s*,\s*"when"\s*:\s*', raw[end:])
-        if w:
-            try:
-                when, _ = decoder.raw_decode(raw, end + w.end())
-            except json.JSONDecodeError:
-                pass
-        calls.append({"tool": m[1], "arguments": args, "when": when})
-    return calls
-
-def gemini_calls(raw):
-    """[{name, arguments}] from the schema call's JSON, or None if it doesn't parse."""
-    start, end = raw.find("{"), raw.rfind("}")
-    if start < 0 or end <= start: return None
-    try:
-        answer = json.loads(raw[start:end + 1])
-    except json.JSONDecodeError:
-        if not os.environ.get("LENIENT"): return None
-        answer = {"calls": complete_calls(raw)}
-    calls = []
-    for call in answer.get("calls") or []:
-        if not isinstance(call, dict) or not call.get("tool"): continue
-        # Gemini Nano sometimes nests the call in "tool" ({"tool": {"name", "arguments"}}): the API
-        # can't enforce the schema as llama.cpp did. Read leniently, and counted (MALFORMED).
-        if isinstance(call["tool"], dict):
-            MALFORMED.append(call)
-            call = {"tool": call["tool"].get("name"), "arguments": call["tool"].get("arguments"), "when": call.get("when")}
-            if not isinstance(call["tool"], str): continue
-        if not isinstance(call["tool"], str): continue
-        args = {k: (v[:LEAKED.search(v).start()].rstrip() if isinstance(v, str) and LEAKED.search(v) else v)
-                for k, v in (call.get("arguments") if isinstance(call.get("arguments"), dict) else {}).items()}
-        w = call.get("when") if isinstance(call.get("when"), dict) else None
-        if w and call["tool"] == "set_alarm" and alarm_time(w): args["time"] = alarm_time(w)
-        if w and call["tool"] == "set_timer" and seconds(w): args["duration"] = f"{seconds(w)} seconds"
-        calls.append({"name": call["tool"], "arguments": args})
-    return calls
-
 def answers(model):
     rows = [json.loads(l) for l in open(os.path.join(OUT, f"{model}.jsonl")) if l.strip()]
-    out, unread, errors = {}, [], []
+    out, errors = {}, []
     for r in rows:
         if "error" in r:
             errors.append(r)
             out[r["request"]] = json.dumps({"function_calls": [], "confidence": 0.0, "ms": r.get("ms")})
-        elif model == "needle3":
+        else:
             reply = json.loads(r["raw"])
             reply["ms"] = r.get("ms")
             out[r["request"]] = json.dumps(reply)
-        else:
-            calls = gemini_calls(r["raw"])
-            if calls is None: unread.append(r)
-            out[r["request"]] = json.dumps({"function_calls": calls or [], "confidence": 1.0, "ms": r.get("ms")})
-    return rows, out, unread, errors
+    return rows, out, errors
 
 def score(model):
-    rows, out, unread, errors = answers(model)
+    rows, out, errors = answers(model)
     tools = os.path.join(BUILD, "all.json")
     report = []
     for name, path in (("without @hi", "requests-no-hi.txt"), ("the 2026-10-11 overlap", "requests-overlap.txt"), ("@hi", "requests-hi.txt")):
@@ -218,14 +147,8 @@ def score(model):
         report.append(f"latency on the phone, ms: median {statistics.median(ms):.0f}, 90th percentile {ms[int(len(ms) * 0.9)]}, n={len(ms)}")
     if errors:
         report.append(f"errors: {len(errors)}, e.g. " + "; ".join(sorted({e['error'][:80] for e in errors})[:3]))
-    if unread:
-        report.append(f"answers that didn't parse as JSON (scored as no call): {len(unread)}, e.g. {unread[0]['raw'][:160]!r}")
-    if model != "needle3":
-        report.append(f"calls nested in \"tool\" (read leniently): {len(MALFORMED)}")
-        shown = [r for r in rows if "schema" in r]
-        report.append(f"schema in the prompt: {sum(r['schema'] for r in shown)} of {len(shown)} (left out where it made the request too long)")
     text = "\n".join(report)
-    path = os.path.join(OUT, f"score-{model}{'-lenient' if os.environ.get('LENIENT') else ''}.txt")
+    path = os.path.join(OUT, f"score-{model}.txt")
     open(path, "w").write(text + "\n")
     print(text)
     print(f"\n(saved in {os.path.relpath(path, REPO)})")
