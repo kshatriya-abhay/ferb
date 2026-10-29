@@ -2,10 +2,6 @@
 java = "temurin-21"   # JDK for Gradle/AGP
 gradle = "9.8.0"      # only used to bootstrap the wrapper; builds use ./gradlew
 
-[settings]
-# Tasks use bash features (pipefail, arrays); Ubuntu's sh is dash, as on CI.
-unix_default_inline_shell_args = "bash -c"
-
 [env]
 # Android Studio's SDK on Linux unless ANDROID_HOME says otherwise (macOS: ~/Library/Android/sdk).
 ANDROID_HOME = "{{ get_env(name='ANDROID_HOME', default=env.HOME ~ '/Android/Sdk') }}"
@@ -20,6 +16,8 @@ run = "echo \"sdk.dir=$ANDROID_HOME\" > local.properties"
 
 [tasks.fetch]
 description = "Download the Needle engine and the Needle 3 and Whistle models the app bundles (pinned, SHA-256 checked)"
+# bash, not sh: Ubuntu's sh (dash, as on CI) has no pipefail
+shell = "bash -c"
 run = '''
 set -euo pipefail
 NEEDLE=https://huggingface.co/Cactus-Compute/needle3/resolve/c7c415a3d1b3d929014bc6e866d51ebb971f7089
@@ -41,6 +39,8 @@ echo "All files present and verified."
 [tasks.tool-check-engine]
 description = "Fetch Cactus's Linux build of the Needle engine and build tool-check's runner (for tool-check and bench)"
 hide = true
+# bash, not sh: Ubuntu's sh (dash, as on CI) has no pipefail
+shell = "bash -c"
 run = """
 set -euo pipefail
 NEEDLE=https://huggingface.co/Cactus-Compute/needle3/resolve/c7c415a3d1b3d929014bc6e866d51ebb971f7089
@@ -68,6 +68,8 @@ arg "[set]" help="Which tools: all (default) or default" default="all"
 arg "[mode]" help="routed (as the app does) or unrouted (every tool for every request)" default="routed"
 '''
 depends = ["tool-check-engine"]
+# bash, not sh: Ubuntu's sh (dash, as on CI) has no pipefail
+shell = "bash -c"
 run = """
 set -euo pipefail
 DIR=build/bench
@@ -149,6 +151,8 @@ arg "[set]" help="Which tools: all (default) or default (the ones on by default)
 arg "[mode]" help="routed: only the tools a request mentions, as the app does; fallback: also every tool when those give no call; unrouted: every tool for every request" default="routed"
 '''
 depends = ["tool-check-engine"]
+# bash, not sh: Ubuntu's sh (dash, as on CI) has no pipefail
+shell = "bash -c"
 run = """
 set -euo pipefail
 DIR=build/tool-check
@@ -191,6 +195,8 @@ run = "./gradlew --no-daemon testDebugUnitTest"
 
 [tasks."link:contract-check"]
 description = "Check Ferb's copy of Ferb Link's contract fixtures against ../ferb-link (or $FERB_LINK); skipped without it"
+# bash, not sh: Ubuntu's sh (dash, as on CI) has no pipefail
+shell = "bash -c"
 run = """
 set -euo pipefail
 SRC="${FERB_LINK:-../ferb-link}/contract/v1"
@@ -201,6 +207,8 @@ if diff -r -q -x SOURCE "$SRC" "$DST"; then echo "Ferb's copy matches $SRC"; els
 
 [tasks."link:contract-sync"]
 description = "Copy Ferb Link's contract fixtures from ../ferb-link (or $FERB_LINK) into Ferb's tests, with the commit they came from"
+# bash, not sh: Ubuntu's sh (dash, as on CI) has no pipefail
+shell = "bash -c"
 run = """
 set -euo pipefail
 ROOT="${FERB_LINK:-../ferb-link}"
@@ -232,6 +240,8 @@ run = "adb shell am start -n dev.abhay.assistant/.MainActivity"
 description = "Build the debug APK and send it to a device with Taildrop: mise run send-over-tailscale <device>"
 usage = 'arg "<device>" help="The Tailscale device to send to, e.g. my-phone"'
 depends = ["build"]
+# bash, not sh: Ubuntu's sh (dash, as on CI) has no pipefail
+shell = "bash -c"
 run = """
 set -euo pipefail
 # Always the same name. Tailscale on Android never overwrites: a repeat send arrives as
