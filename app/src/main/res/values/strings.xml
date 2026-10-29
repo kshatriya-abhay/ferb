@@ -110,4 +110,7 @@
     <string name="onboarding_done">Done</string>
     <string name="onboarding_open_default_apps">Open default apps</string>
     <string name="ui_hide_model_notes">Hide model notes</string>
+    <string name="ui_licences">Open-source licences</string>
+    <string name="settings_private_phone">On this phone, with no internet.</string>
+    <string name="settings_private_computer">On this phone, with no internet, and your computer.</string>
 </resources>

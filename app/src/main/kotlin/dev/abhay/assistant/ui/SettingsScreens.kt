@@ -130,7 +130,7 @@ import kotlin.math.roundToInt
 
 /** The settings home: the tools and Ferb Link (pages of their own), how Ferb understands you (its steps), the tips, and privacy. */
 @Composable
-fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenLink: () -> Unit, onOpenAdvanced: () -> Unit = {}, onOpenBench: () -> Unit = {}, onBack: () -> Unit) {
+fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenLink: () -> Unit, onOpenAdvanced: () -> Unit = {}, onOpenBench: () -> Unit = {}, onOpenLicences: () -> Unit = {}, onBack: () -> Unit) {
     val saved by settings.saved.collectAsStateWithLifecycle()
     val pipeline by settings.pipeline.collectAsStateWithLifecycle()
     val usesComputer = pipeline.audio == AudioStep.Link || pipeline.rewrite == RewriteStep.Link || pipeline.tools == ToolStep.Link
@@ -180,15 +180,25 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
                     ) { Text(stringResource(R.string.settings_show_tips_again)) }
                 },
             ))
-            Group(listOf { shapes ->
-                SegmentedListItem(
-                    shapes = shapes,
-                    leadingContent = { IconBadge(R.drawable.ic_lock) },
-                    supportingContent = {
-                        Text(if (!usesComputer) "On this phone, with no internet." else "On this phone, with no internet, and your computer.")
-                    },
-                ) { Text(stringResource(R.string.settings_private_by_design)) }
-            })
+            Group(listOf(
+                { shapes ->
+                    SegmentedListItem(
+                        shapes = shapes,
+                        leadingContent = { IconBadge(R.drawable.ic_lock) },
+                        supportingContent = {
+                            Text(stringResource(if (!usesComputer) R.string.settings_private_phone else R.string.settings_private_computer))
+                        },
+                    ) { Text(stringResource(R.string.settings_private_by_design)) }
+                },
+                { shapes ->
+                    SegmentedListItem(
+                        onClick = onOpenLicences,
+                        shapes = shapes,
+                        leadingContent = { IconBadge(R.drawable.ic_tune) },
+                        trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
+                    ) { Text(stringResource(R.string.ui_licences)) }
+                },
+            ))
         }
     }
 }
