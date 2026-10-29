@@ -96,6 +96,10 @@ The app is signed with your computer's debug key (`~/.android/debug.keystore`, c
 
 Working on Ferb itself (tests, tuning the tools, comparing models): [docs/development.md](docs/development.md).
 
+## Privacy
+
+Ferb has no internet access, analytics or accounts. What stays on the phone and what can leave it: [PRIVACY.md](PRIVACY.md), and Settings → Privacy in the app.
+
 ## Credits
 
 | Project | Licence | Used for |

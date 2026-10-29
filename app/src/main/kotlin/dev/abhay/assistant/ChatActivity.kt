@@ -7,6 +7,7 @@ import dev.abhay.assistant.ui.NotesTab
 import dev.abhay.assistant.ui.NewReminderScreen
 import dev.abhay.assistant.ui.AdvancedScreen
 import dev.abhay.assistant.ui.LicencesScreen
+import dev.abhay.assistant.ui.PrivacyScreen
 import dev.abhay.assistant.ui.GeminiScreen
 import dev.abhay.assistant.ui.NavStack
 import androidx.compose.animation.AnimatedContent
@@ -133,8 +134,9 @@ class ChatActivity : ComponentActivity() {
                             // The page beneath becomes the Reminders tab, so Save or Back lands there.
                             onNewReminder = { stack = stack.dropLast(1) + REMINDERS + NEW_REMINDER })
                         screen == NEW_REMINDER -> NewReminderScreen(viewModel, onDone = back)
-                        screen == "settings" -> SettingsScreen(settings, onOpenTools = { open("tools") }, onOpenLink = { open("link") }, onOpenAdvanced = { open("advanced") }, onOpenBench = { open("bench") }, onOpenLicences = { open("licences") }, onBack = back)
+                        screen == "settings" -> SettingsScreen(settings, onOpenTools = { open("tools") }, onOpenLink = { open("link") }, onOpenAdvanced = { open("advanced") }, onOpenBench = { open("bench") }, onOpenLicences = { open("licences") }, onOpenPrivacy = { open("privacy") }, onBack = back)
                         screen == "licences" -> LicencesScreen(onBack = back)
+                        screen == "privacy" -> PrivacyScreen(onBack = back)
                         screen == "advanced" -> AdvancedScreen(settings, onOpenGemini = { open("gemini") }, onBack = back)
                         screen == "gemini" -> GeminiScreen(settings, onBack = back)
                         screen == "bench" -> DebugBench.Screen(onBack = back)

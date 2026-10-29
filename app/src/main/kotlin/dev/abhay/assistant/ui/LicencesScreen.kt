@@ -75,3 +75,23 @@ fun LicencesScreen(onBack: () -> Unit) {
         }
     }
 }
+
+/** Settings → Privacy: what stays on the phone, what can leave it, and removing it (PRIVACY.md, shorter). */
+@Composable
+fun PrivacyScreen(onBack: () -> Unit) {
+    val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        topBar = { TopBar(stringResource(R.string.ui_privacy), onBack = onBack, scroll = bar) }) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 32.dp, vertical = 8.dp)) {
+            Text(stringResource(R.string.privacy_intro), style = MaterialTheme.typography.bodyLarge)
+            listOf(
+                R.string.privacy_phone_title to R.string.privacy_phone_body,
+                R.string.privacy_leaves_title to R.string.privacy_leaves_body,
+                R.string.privacy_remove_title to R.string.privacy_remove_body,
+            ).forEach { (title, body) ->
+                Text(stringResource(title), Modifier.padding(top = 24.dp, bottom = 8.dp), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(body), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}

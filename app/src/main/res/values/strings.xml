@@ -54,7 +54,6 @@
     <string name="settings_run_setup_again">Run setup again</string>
     <string name="settings_the_setup_pages_and_tips">The setup pages and tips</string>
     <string name="settings_show_tips_again">Show tips again</string>
-    <string name="settings_private_by_design">Private by design</string>
     <string name="settings_gemini_nano">Gemini Nano</string>
     <string name="settings_check_again">Check again</string>
     <string name="settings_downloading">Downloading…</string>
@@ -113,4 +112,12 @@
     <string name="ui_licences">Open-source licences</string>
     <string name="settings_private_phone">On this phone, with no internet.</string>
     <string name="settings_private_computer">On this phone, with no internet, and your computer.</string>
+    <string name="privacy_intro">Ferb has no internet access, analytics, ads or accounts.</string>
+    <string name="privacy_phone_title">What stays on your phone</string>
+    <string name="privacy_phone_body">Needle 3 and Whistle run on the phone, and so does Gemini Nano, in Android\'s AICore. Your settings and reminders stay in Ferb. Notes go to the folder you pick. The chat lasts only while Ferb is open, and recordings aren\'t kept. Contacts and the calendar are read on the phone, only for the tools you turn on.</string>
+    <string name="privacy_leaves_title">What can leave your phone</string>
+    <string name="privacy_leaves_body">Android downloads and updates Gemini Nano; Google\'s terms for it apply. With Ferb Link, your requests can go to your own computer over Tailscale. With Jev (Settings → Advanced, off unless you turn it on), each request\'s text and your tools\' names go to TypeSafe, in the US.</string>
+    <string name="privacy_remove_title">Removing your data</string>
+    <string name="privacy_remove_body">Uninstalling Ferb removes what it keeps. Notes in your folder stay: they\'re your files.</string>
+    <string name="ui_privacy">Privacy</string>
 </resources>
