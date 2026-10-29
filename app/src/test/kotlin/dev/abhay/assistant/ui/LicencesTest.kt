@@ -18,6 +18,6 @@ class LicencesTest {
 
     @Test
     fun apacheTextIsBundled() {
-        assertThat(File("src/main/assets/$APACHE_ASSET").readText()).isEqualTo(File("../LICENSE").readText())
+        assertThat(File("src/main/res/raw/apache_2_0.txt").readText()).isEqualTo(File("../LICENSE").readText())
     }
 }

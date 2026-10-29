@@ -27,13 +27,12 @@ import dev.abhay.assistant.R
 
 /**
  * What Ferb ships with, and under which licence ([LICENCES]): the README's Credits, less what's
- * only used on the computer. Apache-2.0's text is bundled ([APACHE_ASSET]), as Ferb has no
+ * only used on the computer. Apache-2.0's text is bundled (res/raw/apache_2_0.txt), as Ferb has no
  * internet; other terms open in the browser.
  */
 internal data class Licence(val name: String, val by: String, val licence: String, val url: String? = null)
 
 internal const val APACHE = "Apache-2.0"
-internal const val APACHE_ASSET = "licences/apache-2.0.txt"
 private const val MLKIT_TERMS = "https://developers.google.com/ml-kit/terms"
 
 internal val LICENCES = listOf(
@@ -54,7 +53,7 @@ internal val LICENCES = listOf(
 fun LicencesScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     var shown by remember { mutableStateOf<String?>(null) }
-    val apache = remember { runCatching { context.assets.open(APACHE_ASSET).bufferedReader().use { it.readText() } }.getOrDefault("") }
+    val apache = remember { runCatching { context.resources.openRawResource(R.raw.apache_2_0).bufferedReader().use { it.readText() } }.getOrDefault("") }
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = { TopBar(stringResource(R.string.ui_licences), onBack = onBack, scroll = bar) }) { padding ->
