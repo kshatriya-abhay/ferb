@@ -2,6 +2,10 @@
 java = "temurin-21"   # JDK for Gradle/AGP
 gradle = "9.8.0"      # only used to bootstrap the wrapper; builds use ./gradlew
 
+[settings]
+# Tasks use bash features (pipefail, arrays); Ubuntu's sh is dash, as on CI.
+unix_default_inline_shell_args = "bash -c"
+
 [env]
 # Android Studio's SDK on Linux unless ANDROID_HOME says otherwise (macOS: ~/Library/Android/sdk).
 ANDROID_HOME = "{{ get_env(name='ANDROID_HOME', default=env.HOME ~ '/Android/Sdk') }}"
