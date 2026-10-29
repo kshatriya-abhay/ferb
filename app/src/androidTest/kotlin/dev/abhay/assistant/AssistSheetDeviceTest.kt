@@ -64,4 +64,22 @@ class AssistSheetDeviceTest {
             assertThat(scenario.state).isEqualTo(Lifecycle.State.DESTROYED)
         }
     }
+
+    /**
+     * The sheet recording, then out of sight (another screen in front): its recording goes, so no
+     * mic is left on behind the chat (the review fix of 2026-10-24). Whistle hears it, so the
+     * phone's own recorder is the one that must stop; nothing is sent.
+     */
+    @Test
+    fun aRecordingGoesWhenTheSheetIsOutOfSight() {
+        app.pipeline.setAudio(AudioStep.Whistle)
+        val intent = Intent(Intent.ACTION_ASSIST).setClass(app, AssistActivity::class.java)
+        ActivityScenario.launch<AssistActivity>(intent).use { scenario ->
+            // Opened as the assistant, it starts listening at once.
+            compose.waitUntil(5_000) { app.chat.value.voice is dev.abhay.assistant.ui.AssistantViewModel.Voice.Recording }
+            scenario.moveToState(Lifecycle.State.CREATED)
+            compose.waitUntil(5_000) { app.chat.value.voice == null }
+            assertThat(app.chat.value.busy).isFalse()
+        }
+    }
 }
