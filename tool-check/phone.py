@@ -17,6 +17,7 @@ rewrite prompt's held-out lines (rewrite-heldout.txt), routed and scored as the 
     phone.py blind-prep    the blind set's lines, the same way, as files/bench/dates-blind.jsonl
     phone.py readers SET R.jsonl OUT  the date bench app (:datebench, ML Kit and TextClassifier) on SET's words as
                            said and R's rewrites (from dates-out): pushes its inputs, runs it (no screen), pulls to OUT
+    phone.py voice-pull    the voice bench's entries and recordings (Settings -> Bench -> Voice bench) into build/voice/
     phone.py dates-out     after Settings -> Bench -> "Dates" and pull: the passes as build/datetime/ inputs
                            (dates.py needle FILE for the rewrites, DateTimeEval for the slots), with Gemini's latency
 
@@ -311,6 +312,19 @@ def readers(set_name, r_file, out_dir):
             subprocess.run(["adb", "exec-out", "run-as", BENCH, "cat", f"files/{name}"], stdout=f, check=False)
         print(name, sum(1 for l in open(os.path.join(out_dir, name)) if l.strip()))
 
+def voice_pull():
+    """The voice bench's entries and recordings (Settings -> Bench -> Voice bench) into build/voice/."""
+    dest = os.path.join(REPO, "build", "voice")
+    os.makedirs(os.path.join(dest, "clips"), exist_ok=True)
+    for name in ["entries.jsonl", "whistle.jsonl"]:
+        with open(os.path.join(dest, name), "wb") as f:
+            subprocess.run(["adb", "exec-out", "run-as", PACKAGE, "sh", "-c", f"cat files/bench/voice-study/{name} 2>/dev/null"], stdout=f, check=False)
+    ids = [json.loads(l)["id"] for l in open(os.path.join(dest, "entries.jsonl")) if l.strip()]
+    for i in ids:
+        with open(os.path.join(dest, "clips", f"{i}.wav"), "wb") as f:
+            subprocess.run(["adb", "exec-out", "run-as", PACKAGE, "cat", f"files/bench/voice-study/{i}.wav"], stdout=f, check=False)
+    print(f"{len(ids)} entries and clips -> build/voice/")
+
 if __name__ == "__main__":
     command = sys.argv[1] if len(sys.argv) > 1 else ""
     if command == "prep": prep()
@@ -326,5 +340,6 @@ if __name__ == "__main__":
     elif command == "blind-prep": dates_prep("datetime-blind.txt", "dates-blind.jsonl")
     elif command == "blind2-prep": dates_prep("datetime-blind-2.txt", "dates-blind-2.jsonl")
     elif command == "dates-out": dates_out()
+    elif command == "voice-pull": voice_pull()
     elif command == "readers": readers(sys.argv[2], sys.argv[3], sys.argv[4])
     else: sys.exit(__doc__)

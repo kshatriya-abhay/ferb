@@ -55,4 +55,43 @@ class PhoneBenchTest {
             org.junit.Assert.assertFalse(result, result.contains("stopped") || result.contains("failed"))
         }
     }
+
+    /**
+     * The voice bench's recordings through Whistle (no screen needed), to set beside what Gemini
+     * Nano heard: files/bench/voice-study/whistle.jsonl {"id", "text", "ms"}. Skipped with no entries.
+     */
+    @Test
+    fun voiceWhistle() {
+        val bench = dev.abhay.assistant.bench.VoiceBench(app)
+        val entries = bench.entries()
+        assumeTrue("no voice bench entries", entries.isNotEmpty())
+        val out = java.io.File(bench.dir, "whistle.jsonl")
+        out.delete()
+        runBlocking {
+            for (e in entries) {
+                val wav = java.io.File(bench.dir, e.getString("id") + ".wav").takeIf { it.exists() } ?: continue
+                val bytes = dev.abhay.assistant.bench.VoiceBench.readPcm16(wav)
+                val pcm = FloatArray(bytes.size / 2) { i -> ((bytes[2 * i].toInt() and 0xff) or (bytes[2 * i + 1].toInt() shl 8)).toShort() / 32768f }
+                val heard = app.engine.transcribe(pcm)
+                out.appendText(org.json.JSONObject().put("id", e.getString("id")).put("text", heard.text).put("ms", heard.ms).toString() + "\n")
+            }
+        }
+    }
+
+    /** The voice bench's path on a second of quiet noise, Ferb in front (-e smoke 1): it saves, hears (nothing) and doesn't throw. */
+    @Test
+    fun voiceBenchSmoke() {
+        assumeTrue("-e smoke 1", InstrumentationRegistry.getArguments().getString("smoke") == "1")
+        androidx.test.core.app.ActivityScenario.launch(ChatActivity::class.java).use {
+            repeat(100) { if (app.foreground.inFront.value) return@repeat; Thread.sleep(100) }
+            Thread.sleep(1_000)
+            val bench = dev.abhay.assistant.bench.VoiceBench(app)
+            val noise = FloatArray(16_000) { ((it * 7919) % 100 - 50) / 20_000f }
+            val e = runBlocking { bench.process("smoke test", noise) }
+            Log.i(dev.abhay.assistant.bench.VoiceBench::class.java.simpleName, "smoke: $e")
+            org.junit.Assert.assertTrue(java.io.File(bench.dir, e.getString("id") + ".wav").exists())
+            bench.delete(e.getString("id"))
+            org.junit.Assert.assertTrue(e.toString(), !e.has("speech_error"))
+        }
+    }
 }

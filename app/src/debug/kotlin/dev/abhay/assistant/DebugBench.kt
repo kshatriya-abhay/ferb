@@ -94,6 +94,7 @@ object DebugBench {
         val said by status.collectAsStateWithLifecycle()
         val progress by fraction.collectAsStateWithLifecycle()
         var counts by remember { mutableStateOf("") }
+        var recordingVoice by remember { mutableStateOf(false) }
         LaunchedEffect(isRunning, said) {
             val total = bench.items().size
             val dates = bench.items(PhoneBench.DATES).size
@@ -115,6 +116,10 @@ object DebugBench {
                     style = MaterialTheme.typography.bodyMedium)
                 Text(counts, style = MaterialTheme.typography.bodyMedium)
                 said?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
+                if (recordingVoice) {
+                    dev.abhay.assistant.bench.VoiceBenchScreen(app, onDone = { recordingVoice = false })
+                    return@Column
+                }
                 if (isRunning) {
                     LinearProgressIndicator(progress = { progress }, Modifier.fillMaxWidth())
                     OutlinedButton(onClick = ::stop) { Text("Stop") }
@@ -125,6 +130,8 @@ object DebugBench {
                     Button(onClick = { start(app, *PhoneBench.Model.dates.toTypedArray()) }) { Text("Dates: Gemini Nano's three passes") }
                     // The blind round: prompt R on the blind set and datetime-v2, then v2 on the blind set.
                     Button(onClick = { start(app, *PhoneBench.Model.blind.toTypedArray()) }) { Text("Blind dates: prompt R") }
+                    // The voice bench (2026-10-29): how Gemini Nano hears and rewrites, card by card, in the user's own words.
+                    Button(onClick = { recordingVoice = true }) { Text("Voice bench") }
                 }
             }
         }
