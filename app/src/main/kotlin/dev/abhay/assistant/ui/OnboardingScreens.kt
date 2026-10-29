@@ -65,7 +65,7 @@ internal object PageText {
     const val NEXT = "Next"
     const val BACK = "Back"
     const val DONE = "Done"
-    const val SET_UP_GEMINI = "Set up Gemini Nano"
+    const val SET_UP_GEMINI = dev.abhay.assistant.ui.SET_UP_GEMINI
     const val OPEN_DEFAULT_APPS = "Open default apps"
 }
 
@@ -148,15 +148,6 @@ private fun PageHeader(title: String, body: String) {
     Column(Modifier.padding(horizontal = 32.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(title, style = MaterialTheme.typography.headlineSmall)
         Text(body, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-/** Gemini Nano still to download: the button that starts it (progress then shows on the option). */
-@Composable
-private fun GeminiSetUp(setup: GeminiSetup, onSetUp: () -> Unit) {
-    if (listOf(setup.speech, setup.rewrite).none { it == Part.NeedsDownload || it is Part.Failed }) return
-    Box(Modifier.fillMaxWidth().padding(horizontal = 32.dp)) {
-        TextButton(onClick = onSetUp, enabled = !setup.downloading) { Text(PageText.SET_UP_GEMINI) }
     }
 }
 

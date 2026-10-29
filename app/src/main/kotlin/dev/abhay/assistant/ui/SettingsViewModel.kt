@@ -45,7 +45,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             nano.refresh()
             val setup = nano.setup.value
-            steps.geminiChecked(speech = setup.speech == Part.Ready, rewrite = setup.rewrite == Part.Ready)
+            steps.geminiChecked(speech = setup.speech == Part.Ready, rewrite = setup.rewrite == Part.Ready, here = setup.speech != Part.Unavailable)
         }
     }
     fun setUpGemini() = nano.setUp()

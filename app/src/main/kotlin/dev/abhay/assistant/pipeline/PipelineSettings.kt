@@ -68,10 +68,13 @@ class PipelineSettings(context: Context, private val linkState: () -> Pair<Boole
         _pipeline.value = Pipeline.resolve(_saved.value, _abilities.value)
     }
 
-    /** AICore's answer (each part available now, or not). Ferb Link's state is read again too. */
-    fun geminiChecked(speech: Boolean, rewrite: Boolean) {
+    /**
+     * AICore's answer (each part ready now, or not; [here]: whether it can run on this phone at
+     * all). Ferb Link's state is read again too.
+     */
+    fun geminiChecked(speech: Boolean, rewrite: Boolean, here: Boolean = true) {
         val (link, audio) = linkState()
-        _abilities.value = _abilities.value.copy(geminiSpeech = speech, geminiRewrite = rewrite, link = link, linkAudio = audio)
+        _abilities.value = _abilities.value.copy(geminiSpeech = speech, geminiRewrite = rewrite, link = link, linkAudio = audio, geminiHere = here)
         update()
     }
 

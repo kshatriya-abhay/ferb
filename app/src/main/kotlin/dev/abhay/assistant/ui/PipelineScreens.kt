@@ -91,7 +91,8 @@ internal fun <T : Any> StepOptions(
     /** Gemini Nano's settings button (not in onboarding, which has no page for it). */
     geminiButton: Boolean = true,
 ) {
-    Group(options.map { option ->
+    // One that can't ever work here isn't offered, unless it's the one in use.
+    Group(options.filter { !available.hidden(it.value) || it.value == selected }.map { option ->
         { shapes ->
             val reason = available.reason(option.value)
             val enabled = reason == null || option.value == selected
@@ -186,8 +187,9 @@ internal fun TalkSection(settings: SettingsViewModel, onOpenAdvanced: () -> Unit
     SectionTitle(Talk.TITLE)
     val selected = chosen.talk ?: if (chosen.custom) null else Talk.default(can)
     TalkOptions(selected, can, settings::setTalk)
-    if (selected == null) Text(CUSTOM_STEPS, Modifier.padding(horizontal = 32.dp),
-        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    val gemini by settings.gemini.collectAsStateWithLifecycle()
+    GeminiSetUp(gemini, settings::setUpGemini)
+    if (selected == null) Note(CUSTOM_STEPS)
     Group(listOf { shapes ->
         SegmentedListItem(
             onClick = onOpenAdvanced,
@@ -199,6 +201,16 @@ internal fun TalkSection(settings: SettingsViewModel, onOpenAdvanced: () -> Unit
     })
 }
 
+/** Gemini Nano still to download: the button that starts it (progress then shows on the choice). */
+@Composable
+internal fun GeminiSetUp(setup: GeminiSetup, onSetUp: () -> Unit) {
+    if (listOf(setup.speech, setup.rewrite).none { it == Part.NeedsDownload || it is Part.Failed }) return
+    androidx.compose.foundation.layout.Box(Modifier.padding(horizontal = 32.dp)) {
+        androidx.compose.material3.TextButton(onClick = onSetUp, enabled = !setup.downloading) { Text(SET_UP_GEMINI) }
+    }
+}
+
+internal const val SET_UP_GEMINI = "Set up Gemini Nano"
 internal const val ADVANCED = "Advanced"
 internal const val CUSTOM_STEPS = "Using your Advanced settings. Pick one above to go back."
 
@@ -226,14 +238,24 @@ internal fun UnderstandingSection(settings: SettingsViewModel, onOpenGemini: () 
     LaunchedEffect(Unit) { settings.checkGemini() }
     val available = rememberAvailability(settings.link, gemini)
     SectionTitle(UNDERSTANDING)
-    Text("Needle 3, on this phone, always picks the action. These steps help it understand you.",
-        Modifier.padding(horizontal = 32.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Note("Needle 3, on this phone, always picks the action. These steps help it understand you.")
+    // What isn't offered here, and why, in a line each.
+    if (available.linkReason == Availability.LINK_NOT_INSTALLED) Note(Availability.LINK_NOT_INSTALLED)
+    if (available.geminiSpeech == false && available.geminiRewrite == false) Note("Gemini Nano: ${Availability.GEMINI_UNAVAILABLE.lowercase()}")
     StepTitle(AudioStep.TITLE, AudioStep.HINT)
     StepOptions(AudioOptions, pipeline.audio, settings::setAudio, available, gemini, onOpenGemini)
     StepTitle(RewriteStep.TITLE, RewriteStep.HINT)
     StepOptions(RewriteOptions, pipeline.rewrite, settings::setRewrite, available, gemini, onOpenGemini)
-    StepTitle(ToolStep.TITLE, ToolStep.HINT)
-    StepOptions(ToolOptions, pipeline.tools, settings::setTools, available, gemini, onOpenGemini)
+    // Tool selection has only Jev besides off: without Ferb Link there's nothing to choose.
+    if (!available.hidden(ToolStep.Link) || pipeline.tools != ToolStep.Off) {
+        StepTitle(ToolStep.TITLE, ToolStep.HINT)
+        StepOptions(ToolOptions, pipeline.tools, settings::setTools, available, gemini, onOpenGemini)
+    }
 }
+
+/** A short line under a section title. */
+@Composable
+private fun Note(text: String) = Text(text, Modifier.padding(horizontal = 32.dp),
+    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
 internal const val UNDERSTANDING = "How Ferb understands you"

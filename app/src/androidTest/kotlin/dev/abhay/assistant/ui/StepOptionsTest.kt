@@ -18,7 +18,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** A step's options in Settings (Compose, on the phone): the one in use, Ferb Link greyed with why, Gemini Nano's settings button. */
+/** A step's options in Settings (Compose, on the phone): the one in use, Ferb Link greyed with why, Gemini Nano's settings button, and those that can't ever work here left out. */
 @RunWith(AndroidJUnit4::class)
 class StepOptionsTest {
     @get:Rule val compose = createComposeRule()
@@ -42,5 +42,18 @@ class StepOptionsTest {
         // Gemini Nano's own button opens its page; the row only picks it.
         compose.onNodeWithContentDescription(GEMINI_SETTINGS).performClick()
         assertThat(opened).isEqualTo(1)
+    }
+
+    @Test
+    fun optionsThatCantEverWorkHereArentOffered() {
+        compose.setContent {
+            StepOptions(AudioOptions, AudioStep.Whistle, {},
+                Availability(linkReason = Availability.LINK_NOT_INSTALLED, geminiSpeech = false, geminiRewrite = false),
+                GeminiSetup(Part.Unavailable, Part.Unavailable), onOpenGemini = {})
+        }
+        compose.onNode(hasText(AudioStep.Link.title)).assertDoesNotExist()
+        compose.onNode(hasText(AudioStep.Gemini.title)).assertDoesNotExist()
+        compose.onNode(hasText(AudioStep.Whistle.title)).assertIsSelected()
+        compose.onNode(hasText(AudioStep.Off.title)).assertExists()
     }
 }

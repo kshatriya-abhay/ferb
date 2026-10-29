@@ -76,8 +76,9 @@ enum class Talk(val id: String, val title: String, val hint: String) {
 
     /** Why this choice can't be picked now, or null when it can. */
     fun reason(can: Abilities): String? = when {
-        this == Hindi && can.geminiSpeech != true && !can.linkAudio && can.geminiSpeech != null -> HINDI_NEEDS
-        else -> null
+        this != Hindi || can.geminiSpeech == true || can.linkAudio || can.geminiSpeech == null -> null
+        !can.geminiHere -> HINDI_NEEDS_LINK
+        else -> HINDI_NEEDS
     }
 
     /** Where requests are understood, for the choice's second line. */
@@ -95,6 +96,8 @@ enum class Talk(val id: String, val title: String, val hint: String) {
         fun of(id: String?) = entries.firstOrNull { it.id == id }
         const val TITLE = "Talk to Ferb in"
         const val HINDI_NEEDS = "Needs Gemini Nano on this phone, or Ferb Link connected to your computer"
+        /** Gemini Nano can't run on this phone at all. */
+        const val HINDI_NEEDS_LINK = "Needs Ferb Link connected to your computer"
 
         /** Before anything is chosen: English + Hindi when something here hears it, else English. */
         fun default(can: Abilities) = if (can.geminiSpeech == true || can.linkAudio) Hindi else English
@@ -102,14 +105,16 @@ enum class Talk(val id: String, val title: String, val hint: String) {
 }
 
 /**
- * What this phone can use now: Gemini Nano's speech and rewrite (null until AICore has answered),
- * and Ferb Link ([link]: installed, paired and on; [linkAudio]: and the computer's model hears).
+ * What this phone can use now: Gemini Nano's speech and rewrite, ready (null until AICore has
+ * answered; [geminiHere] false when AICore can't run it on this phone at all, not even after a
+ * download), and Ferb Link ([link]: installed, paired and on; [linkAudio]: and the computer hears).
  */
 data class Abilities(
     val geminiSpeech: Boolean? = null,
     val geminiRewrite: Boolean? = null,
     val link: Boolean = false,
     val linkAudio: Boolean = false,
+    val geminiHere: Boolean = true,
 ) {
     internal val phoneRewrite get() = if (geminiRewrite == true) RewriteStep.Gemini else RewriteStep.Off
     internal val bestRewrite get() = when {
@@ -208,6 +213,17 @@ data class Availability(
     /** Why Jev can't pick (off in Ferb Link, or at its spending limit), when Ferb Link is otherwise ready. */
     val jevReason: String? = null,
 ) {
+    /**
+     * Whether [step] can't ever work on this phone as it is, so it isn't offered at all: Ferb
+     * Link's while it isn't installed, Gemini Nano's where AICore can't run it.
+     */
+    fun hidden(step: Any): Boolean = when (step) {
+        AudioStep.Link, RewriteStep.Link, ToolStep.Link -> linkReason == LINK_NOT_INSTALLED
+        AudioStep.Gemini -> geminiSpeech == false
+        RewriteStep.Gemini -> geminiRewrite == false
+        else -> false
+    }
+
     /** Why [step] can't be picked now, or null when it can. */
     fun reason(step: Any): String? = when (step) {
         AudioStep.Link -> linkReason ?: linkAudioReason

@@ -229,7 +229,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             assistant.nanoEars.refresh()
             val setup = assistant.nanoEars.setup.value
-            assistant.pipeline.geminiChecked(speech = setup.speech == Part.Ready, rewrite = setup.rewrite == Part.Ready)
+            assistant.pipeline.geminiChecked(speech = setup.speech == Part.Ready, rewrite = setup.rewrite == Part.Ready, here = setup.speech != Part.Unavailable)
         }
     }
 

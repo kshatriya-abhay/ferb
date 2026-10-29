@@ -40,6 +40,8 @@ class PipelineTest {
         assertThat(Talk.English.reason(bare)).isNull()
         assertThat(Talk.Typing.reason(bare)).isNull()
         assertThat(Talk.Hindi.reason(computer)).isNull()
+        // Gemini Nano can't run on this phone at all: only the computer can hear Hindi.
+        assertThat(Talk.Hindi.reason(bare.copy(geminiHere = false))).isEqualTo(Talk.HINDI_NEEDS_LINK)
         // Paired, but the computer's model doesn't hear: still no Hindi voice.
         assertThat(Talk.Hindi.reason(bare.copy(link = true))).isEqualTo(Talk.HINDI_NEEDS)
         // Not checked yet: not held back.
@@ -98,6 +100,21 @@ class PipelineTest {
         assertThat(noLink.reason(AudioStep.Off)).isNull()
         // Not checked yet: not held back.
         assertThat(Availability().reason(RewriteStep.Gemini)).isNull()
+    }
+
+    @Test
+    fun whatCantEverWorkHereIsntOffered() {
+        val notInstalled = Availability(linkReason = Availability.LINK_NOT_INSTALLED, geminiSpeech = false, geminiRewrite = true)
+        assertThat(notInstalled.hidden(AudioStep.Link)).isTrue()
+        assertThat(notInstalled.hidden(RewriteStep.Link)).isTrue()
+        assertThat(notInstalled.hidden(ToolStep.Link)).isTrue()
+        assertThat(notInstalled.hidden(AudioStep.Gemini)).isTrue()
+        assertThat(notInstalled.hidden(RewriteStep.Gemini)).isFalse()
+        assertThat(notInstalled.hidden(AudioStep.Whistle)).isFalse()
+        // Installed but not paired: offered, greyed with why.
+        assertThat(Availability(linkReason = Availability.LINK_NOT_PAIRED).hidden(AudioStep.Link)).isFalse()
+        // Not checked yet: offered.
+        assertThat(Availability().hidden(AudioStep.Gemini)).isFalse()
     }
 
     @Test
