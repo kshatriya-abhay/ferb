@@ -155,7 +155,7 @@ object DateResolver {
     ).sortedByDescending { it.first.length }
 
     /** Devanagari words and digits in Latin letters, whole words only. */
-    private fun latin(text: String): String {
+    internal fun latin(text: String): String {
         if (text.none { it in '\u0900'..'\u097F' }) return text
         var t = text.map { c -> if (c in '०'..'९') '0' + (c - '०') else c }.joinToString("")
         for ((hi, en) in DEVANAGARI) t = t.replace(Regex("""(?<![\u0900-\u097F])${Regex.escape(hi)}(?![\u0900-\u097F])"""), en)

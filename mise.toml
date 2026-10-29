@@ -208,9 +208,12 @@ echo "Copied $(ls "$DST" | grep -c json) fixtures from $(cat "$DST/SOURCE")"
 """
 
 [tasks.device-test]
-description = "Run the device tests on the connected phone"
+description = "Run the device tests on the connected phone (am instrument; never connectedAndroidTest)"
 depends = ["fetch"]
-run = "./gradlew --no-daemon connectedDebugAndroidTest"
+# Never connected*AndroidTest: it uninstalls the app when it's done, wiping the user's reminders,
+# settings and grants (2026-10-29: it wiped Ferb Link's pairing). device-check.sh installs with
+# -r and runs am instrument against the installed APKs.
+run = "scripts/device-check.sh"
 
 [tasks.install]
 depends = ["fetch"]

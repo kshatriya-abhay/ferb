@@ -24,6 +24,8 @@ object TimeArgs {
     const val REPEAT = "_repeat"
     /** For an alarm on another day than its next ring: when it was wanted (a reminder could do that). */
     const val WANTED = "_wanted"
+    /** An event's length in minutes, from a span said ("6 to 8 pm", "kal 6 se 8 baje", "for 30 minutes"). */
+    const val LENGTH = "_length"
 
     private val CLOCK = DateTimeFormatter.ofPattern("HH:mm", Locale.US)
 

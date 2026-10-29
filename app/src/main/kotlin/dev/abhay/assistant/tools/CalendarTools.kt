@@ -182,7 +182,8 @@ object AddEvent : Tool(
      */
     fun plan(title: String, arguments: Map<String, Any?>, now: LocalDateTime, zone: ZoneId): Planned? {
         // Resolved from the computer's time structure ([TimeArgs]): that, before the words.
-        val resolved = arguments.text(TimeArgs.AT)?.let { LocalDateTime.parse(it) }?.let { When.Said(it.toLocalDate(), it.toLocalTime()) }
+        val resolved = arguments.text(TimeArgs.AT)?.let { LocalDateTime.parse(it) }
+            ?.let { When.Said(it.toLocalDate(), it.toLocalTime(), length = (arguments[TimeArgs.LENGTH] as? Number)?.toInt()) }
             ?: arguments.text(TimeArgs.DAY)?.let { When.Said(LocalDate.parse(it), null) }
         val fromRequest = arguments.text(REQUEST)?.takeIf { arguments[TimeArgs.RESOLVED] != true }?.let { When.read(it, now) }
         val said = resolved ?: fromRequest?.takeUnless { it.isEmpty } ?: arguments.text("when")?.takeIf { arguments[TimeArgs.RESOLVED] != true }

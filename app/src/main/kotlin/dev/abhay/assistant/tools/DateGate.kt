@@ -63,6 +63,22 @@ object DateGate {
     )
     private val UNITS = mapOf("minute" to "minutes", "minat" to "minutes", "ghante" to "hours", "ghanta" to "hours", "second" to "seconds", "sekand" to "seconds")
 
+    /**
+     * An event's length in minutes when [text] says a span ("6 to 8 pm", "from 3 till 5", "kal 6 se
+     * 8 baje", "for 30 minutes"), as [When] reads it; Hindi "se ... tak" read as "to", Devanagari
+     * in Latin letters first. Null when it says none.
+     */
+    fun span(text: String, now: LocalDateTime): Int? {
+        val t = DateResolver.latin(text.replace("से", "se").replace("तक", "tak")).replace(Regex("""(?i)(\d{1,2}(?:[:.]\d{2})?)\s+se\s+(\d{1,2}(?:[:.]\d{2})?)(\s+baje)?(\s+tak)?"""), "from $1 to $2")
+        val said = When.read(t, now)
+        val start = said.time
+        val end = said.end
+        return when {
+            start != null && end != null -> java.time.Duration.between(start, end).toMinutes().let { if (it <= 0) it + 24 * 60 else it }.toInt()
+            else -> said.length
+        }?.takeIf { it in 1..(24 * 60) }
+    }
+
     private val DAY = DateTimeFormatter.ofPattern("EEE d MMM", Locale.US)
     private val CLOCK = DateTimeFormatter.ofPattern("H:mm", Locale.US)
 
@@ -119,6 +135,8 @@ object DateGate {
             is Read.Length -> out[param] = "${pick.seconds} seconds"
             is Read.Ask -> {}
         }
+        // An event's span: its length, from the words as said or the rewrite, put on the agreed start.
+        if (tool == AddEvent.name && pick is Read.At) (span(said, local) ?: command?.let { span(it, local) })?.let { out[TimeArgs.LENGTH] = it }
         if (!agreed) out[TimeArgs.ASK] = when {
             fromSaid is Read.Ask -> "your words don't say when; the rewrite says ${shown(pick)}"
             else -> "your words say ${shown(fromSaid)}, the rewrite ${shown(fromCommand!!)}"
