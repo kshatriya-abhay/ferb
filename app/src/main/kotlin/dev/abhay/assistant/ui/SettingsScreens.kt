@@ -157,7 +157,7 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
                     onClick = onOpenBench,
                     shapes = shapes,
                     leadingContent = { IconBadge(R.drawable.ic_tune) },
-                    supportingContent = { Text("Needle 3 and Gemini Nano on the bench's requests") },
+                    supportingContent = { Text("The bench's requests") },
                     trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
                 ) { Text("Bench (debug)") }
             })
@@ -175,7 +175,7 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
                         onClick = { settings.onboarding.reset() },
                         shapes = shapes,
                         leadingContent = { IconBadge(R.drawable.ic_lightbulb) },
-                        supportingContent = { Text("The setup pages and the tips, as on the first launch") },
+                        supportingContent = { Text("The setup pages and tips") },
                     ) { Text("Show tips again") }
                 },
             ))
@@ -184,8 +184,7 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
                     shapes = shapes,
                     leadingContent = { IconBadge(R.drawable.ic_lock) },
                     supportingContent = {
-                        Text(if (!usesComputer) "Needle 3 runs on this phone. The app has no internet access."
-                            else "Needle 3 runs on this phone, and the app has no internet access. Ferb Link takes some steps to your computer.")
+                        Text(if (!usesComputer) "On this phone, with no internet." else "On this phone, with no internet, and your computer.")
                     },
                 ) { Text("Private by design") }
             })
@@ -208,8 +207,7 @@ fun GeminiScreen(settings: SettingsViewModel, onBack: () -> Unit) {
         topBar = { TopBar("Gemini Nano", subtitle = setup.summary(), onBack = onBack, scroll = bar) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
             Text(
-                "Gemini Nano hears your request on this phone, then writes it as a plain English command for Needle 3, as Computer mode does. " +
-                    "It runs in Android's AICore and needs a one-time download.",
+                "Gemini Nano hears you and tidies your request, on this phone. It needs a one-time download.",
                 Modifier.padding(horizontal = 32.dp, vertical = 8.dp),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -228,7 +226,7 @@ fun GeminiScreen(settings: SettingsViewModel, onBack: () -> Unit) {
                 }
             }
             Text(
-                "Downloads go through Android, not Ferb, which has no internet access. Keep Ferb open until they finish.",
+                "Android downloads it, not Ferb. Keep Ferb open.",
                 Modifier.padding(horizontal = 32.dp, vertical = 4.dp),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -410,7 +408,7 @@ fun ToolConfigScreen(settings: SettingsViewModel, name: String, onOpenKeywords: 
                         onClick = { settings.onboarding.seen(Tip.Keywords); onOpenKeywords() },
                         shapes = shapes,
                         supportingContent = {
-                            Text(config.keywords.joinToString(", ").ifEmpty { "None: asked only when a request names no tool" },
+                            Text(config.keywords.joinToString(", ").ifEmpty { "None: used when no tool is named" },
                                 maxLines = 2, overflow = TextOverflow.Ellipsis)
                         },
                         trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
@@ -487,13 +485,12 @@ fun KeywordsScreen(settings: SettingsViewModel, name: String, onBack: () -> Unit
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(bottom = 96.dp)) {
             item {
-                Text("A request with one of these words or phrases goes to this tool. They match whole words, also with an s " +
-                    "on the end (\"alarm\" finds \"alarms\"). A call from a request without any of them asks first.",
+                Text("Requests with these words go to this tool (\"alarm\" also finds \"alarms\"). Without one, Ferb asks first.",
                     Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (words.isEmpty()) item {
-                Text("No keywords: this tool is only asked when a request has no tool's keywords, and its calls always ask first.",
+                Text("No keywords: used only when no tool matches, and always asks first.",
                     Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
             }
             items(words.size, key = { words[it] }) { index ->
@@ -877,7 +874,7 @@ private fun UnsavedDialog(settings: SettingsViewModel, onDone: () -> Unit, onCan
     AlertDialog(
         onDismissRequest = onCancel,
         title = { Text("Save changes?") },
-        text = { Text("The assistant keeps its current settings until you save.") },
+        text = { Text("Nothing changes until you save.") },
         confirmButton = {
             TextButton(onClick = { settings.save(); onDone() }, enabled = ToolSettings.enabledNames(draft).isNotEmpty()) { Text("Save") }
         },

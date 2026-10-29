@@ -48,7 +48,7 @@ internal fun WelcomeContent() {
         Spacer(Modifier.height(32.dp))
         Text("Ferb does things on your phone", style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
         Spacer(Modifier.height(12.dp))
-        Text("Alarms, timers, apps, settings and the flashlight. Turn on more, such as calls and the calendar, in Settings. Next, choose how you'll talk to it.",
+        Text("Alarms, timers, apps and more. Turn on calls and the calendar in Settings.",
             style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         Spacer(Modifier.height(24.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

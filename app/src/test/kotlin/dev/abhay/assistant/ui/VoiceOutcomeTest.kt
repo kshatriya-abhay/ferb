@@ -20,7 +20,7 @@ class VoiceOutcomeTest {
         // Silence (Ferb Link's SpeechCheck): nothing to keep.
         val silence = VoiceOutcome.of(Transcript.parse("""{"heard":"","text":""}""")) as VoiceOutcome.Failed
         assertThat(silence.keepClip).isFalse()
-        assertThat(silence.notice).startsWith("No words heard")
+        assertThat(silence.notice).startsWith("Nothing heard")
         // The computer failed: the recording stays, to send again; the reason in its short form.
         val failed = VoiceOutcome.of(Transcript.failed("Timed out")) as VoiceOutcome.Failed
         assertThat(failed.keepClip).isTrue()

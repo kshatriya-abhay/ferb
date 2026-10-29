@@ -88,9 +88,9 @@ sealed interface NanoChoice {
             else -> Whistle(UNAVAILABLE)
         }
 
-        const val NOT_SET_UP = "Gemini Nano isn't set up yet (Settings → Gemini Nano): Whistle hears this one"
-        const val DOWNLOADING = "Gemini Nano is still downloading: Whistle hears this one"
-        const val UNAVAILABLE = "Gemini Nano can't hear on this phone: Whistle hears it"
+        const val NOT_SET_UP = "Gemini Nano isn't set up: Whistle heard this"
+        const val DOWNLOADING = "Gemini Nano is downloading: Whistle heard this"
+        const val UNAVAILABLE = "Gemini Nano can't run here: Whistle heard this"
 
         /** For the log. */
         fun name(status: Int): String = when (status) {

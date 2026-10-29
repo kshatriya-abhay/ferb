@@ -14,15 +14,15 @@ import kotlinx.coroutines.flow.update
  */
 enum class Tip(val text: String) {
     TryOne("Tap one, or type your own request below."),
-    Details("Tap a reply to see what Ferb understood, and why it ran or asked."),
-    AskFirst("Ferb asks first when it isn't sure, or when a tool reaches other people. Tap to go ahead, or not."),
-    Undo("Changed your mind? The buttons on a result undo it, or turn it off."),
-    MoreTools("Five tools are on at first. Turn on calls, messages, the calendar and more in Settings → Tools."),
-    Keywords("Requests with these words go to this tool. Tap a word to change it."),
-    Fallback("A step couldn't be used this time, so Ferb went on without it. Tap the reply for why."),
-    Mic("Tap the mic and speak, then \u2713 to send or \u2715 to cancel. Whistle on this phone hears English."),
-    Heard("What Ferb heard. The line above is what it understood."),
-    SuggestLink("Want Ferb to understand more? Ferb Link uses a bigger model on a computer of your own.");
+    Details("Tap a reply to see what Ferb understood."),
+    AskFirst("Ferb asks first when unsure, or before reaching other people."),
+    Undo("Changed your mind? A result's buttons undo it."),
+    MoreTools("Turn on calls, messages and the calendar in Settings → Tools."),
+    Keywords("Requests with these words go to this tool."),
+    Fallback("A step was skipped this time. Tap the reply for why."),
+    Mic("Tap the mic, speak English, then \u2713 to send."),
+    Heard("What Ferb heard; above, what it understood."),
+    SuggestLink("Ferb Link lets a bigger model on your computer help.");
 
     companion object {
         /** The tip to show among those whose thing is on screen ([showing]): the first not [seen] yet, or none. One at a time. */

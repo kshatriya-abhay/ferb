@@ -119,8 +119,8 @@ fun LinkRow(settings: SettingsViewModel, onOpen: () -> Unit, shapes: ListItemSha
         supportingContent = {
             Text(
                 when {
-                    !installed -> "A bigger model on your computer. Tap to set up"
-                    status == LinkStatus.NotSetUp -> "Not connected yet. Tap to set up"
+                    !installed -> "A bigger model on your computer"
+                    status == LinkStatus.NotSetUp -> "Not connected yet"
                     else -> describe(status)
                 },
             )
@@ -132,7 +132,7 @@ fun LinkRow(settings: SettingsViewModel, onOpen: () -> Unit, shapes: ListItemSha
 /** What Ferb Link is, above its checklist while it isn't working yet. */
 @Composable
 private fun AboutLink() {
-    Text("Ferb Link lets Ferb use a bigger model on a computer of your own, to hear you and rewrite your requests, and Jev to pick tools. Ferb stays offline: Ferb Link holds the internet access.",
+    Text("Ferb Link lets a bigger model on your computer hear and tidy your requests. Ferb stays offline.",
         Modifier.padding(horizontal = 16.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
@@ -211,13 +211,13 @@ fun LinkScreen(settings: SettingsViewModel, onBack: () -> Unit) {
             }
 
             Text(
-                "Pick which steps use your computer in Settings \u2192 $UNDERSTANDING.",
+                "Choose what uses your computer in Settings \u2192 Talk to Ferb in.",
                 Modifier.padding(horizontal = 32.dp, vertical = 12.dp),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                "What a step sends to your computer leaves this phone over Tailscale.",
+                "Requests reach your computer over Tailscale.",
                 Modifier.padding(horizontal = 32.dp, vertical = 12.dp),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

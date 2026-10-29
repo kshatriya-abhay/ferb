@@ -47,7 +47,7 @@ internal val AudioOptions = AudioStep.entries.map { StepOption(it, it.title, it.
 internal val RewriteOptions = RewriteStep.entries.map { StepOption(it, it.title, it.hint, gemini = it == RewriteStep.Gemini) }
 internal val ToolOptions = ToolStep.entries.map {
     // Jev's hint says plainly that every request's text leaves for TypeSafe, not only some.
-    StepOption(it, it.title, if (it == ToolStep.Link) "${it.hint}. Every request's text and your tools' names go to TypeSafe (US)" else it.hint)
+    StepOption(it, it.title, if (it == ToolStep.Link) "${it.hint}. Requests go to TypeSafe (US)" else it.hint)
 }
 
 /** What each option needs now ([Availability]): Ferb Link's state, and Gemini Nano's setup. */
@@ -195,7 +195,7 @@ internal fun TalkSection(settings: SettingsViewModel, onOpenAdvanced: () -> Unit
             onClick = onOpenAdvanced,
             shapes = shapes,
             leadingContent = { IconBadge(R.drawable.ic_tune) },
-            supportingContent = { Text("Which model hears, rewrites and picks the tool") },
+            supportingContent = { Text("Each step, one by one") },
             trailingContent = { Icon(androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
         ) { Text(ADVANCED) }
     })
@@ -212,7 +212,7 @@ internal fun GeminiSetUp(setup: GeminiSetup, onSetUp: () -> Unit) {
 
 internal const val SET_UP_GEMINI = "Set up Gemini Nano"
 internal const val ADVANCED = "Advanced"
-internal const val CUSTOM_STEPS = "Using your Advanced settings. Pick one above to go back."
+internal const val CUSTOM_STEPS = "Set in Advanced. Pick one to go back."
 
 /** Settings → Advanced: the three steps, one by one. */
 @Composable
@@ -238,7 +238,7 @@ internal fun UnderstandingSection(settings: SettingsViewModel, onOpenGemini: () 
     LaunchedEffect(Unit) { settings.checkGemini() }
     val available = rememberAvailability(settings.link, gemini)
     SectionTitle(UNDERSTANDING)
-    Note("Needle 3, on this phone, always picks the action. These steps help it understand you.")
+    Note("Needle 3 always picks the action, on this phone.")
     // What isn't offered here, and why, in a line each.
     if (available.linkReason == Availability.LINK_NOT_INSTALLED) Note(Availability.LINK_NOT_INSTALLED)
     if (available.geminiSpeech == false && available.geminiRewrite == false) Note("Gemini Nano: ${Availability.GEMINI_UNAVAILABLE.lowercase()}")

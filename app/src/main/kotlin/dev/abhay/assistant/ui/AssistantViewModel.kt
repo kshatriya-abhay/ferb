@@ -362,7 +362,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             _state.update {
                 if (it.voice !is Voice.Recording) it
                 else it.copy(voice = Voice.Recorded(ms, pcm).takeIf { pcm.isNotEmpty() },
-                    notice = if (pcm.isEmpty()) "Nothing recorded: tap the mic, speak, then tap ✓" else null)
+                    notice = if (pcm.isEmpty()) "Nothing recorded. Try again." else null)
             }
             sendIfAsked()
         }
@@ -772,7 +772,7 @@ internal sealed interface VoiceOutcome {
     companion object {
         fun of(transcript: Transcript): VoiceOutcome = when {
             transcript.error != null -> Failed("Your computer couldn't hear it: ${transcript.error.replaceFirstChar(Char::lowercase)}", keepClip = true)
-            transcript.text.isBlank() -> Failed("No words heard: try again, a little closer", keepClip = false)
+            transcript.text.isBlank() -> Failed("Nothing heard. Try again, closer.", keepClip = false)
             else -> Answer(transcript.text, transcript.heard.takeUnless { it.isBlank() || it.equals(transcript.text, ignoreCase = true) })
         }
     }

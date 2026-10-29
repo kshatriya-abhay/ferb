@@ -56,10 +56,10 @@ import dev.abhay.assistant.voice.Part
 /** Each page in plain words. */
 internal object PageText {
     const val TALK_TITLE = "How will you talk to Ferb?"
-    const val TALK_BODY = "Tap the mic and say what you'd like done. Ferb asks for the microphone the first time."
-    const val TALK_MORE = "More options in Settings → Advanced."
+    const val TALK_BODY = "Tap the mic and say what you'd like done."
+    const val TALK_MORE = "More in Settings → Advanced."
     const val ASSISTANT_TITLE = "Make Ferb your assistant"
-    const val ASSISTANT_BODY = "Then hold the power button to open Ferb from anywhere. Pick Ferb as the digital assistant app. Ferb doesn't read your screen."
+    const val ASSISTANT_BODY = "Hold the power button to open Ferb anywhere. Ferb doesn't read your screen."
     const val START = "Start"
     const val SKIP = "Skip"
     const val NEXT = "Next"

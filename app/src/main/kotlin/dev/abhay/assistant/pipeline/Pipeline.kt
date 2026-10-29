@@ -7,7 +7,7 @@ package dev.abhay.assistant.pipeline
  * request ([fallback]), and the reply's details say so.
  */
 enum class AudioStep(val id: String, val title: String, val hint: String) {
-    Off("off", "Off", "No microphone: type your requests"),
+    Off("off", "Off", "No mic: you type"),
     Whistle("whistle", "Whistle", "On this phone, English only"),
     Gemini("gemini", "Gemini Nano", "On this phone, English and Hindi"),
     Link("link", "Ferb Link (Gemma 4)", "On your computer, English and Hindi");
@@ -18,30 +18,30 @@ enum class AudioStep(val id: String, val title: String, val hint: String) {
     companion object {
         fun of(id: String?) = entries.firstOrNull { it.id == id }
         const val TITLE = "Audio processing"
-        const val HINT = "What turns your voice into text."
+        const val HINT = "Turns your voice into text."
     }
 }
 
 enum class RewriteStep(val id: String, val title: String, val hint: String) {
-    Off("off", "Off", "Your words go to Needle 3 as they are"),
+    Off("off", "Off", "Your words as they are"),
     Gemini("gemini", "Gemini Nano", "On this phone"),
     Link("link", "Ferb Link (Gemma 4)", "On your computer");
 
     companion object {
         fun of(id: String?) = entries.firstOrNull { it.id == id }
         const val TITLE = "Prompt rewrite"
-        const val HINT = "Helps with other languages and improves accuracy."
+        const val HINT = "Helps with Hindi and accuracy."
     }
 }
 
 enum class ToolStep(val id: String, val title: String, val hint: String) {
-    Off("off", "Off", "Needle 3 picks from the tools your request mentions"),
-    Link("link", "Ferb Link (Jev)", "Jev, through your computer, picks the tool first");
+    Off("off", "Off", "Needle 3 picks from the tools named"),
+    Link("link", "Ferb Link (Jev)", "Jev, via your computer, picks first");
 
     companion object {
         fun of(id: String?) = entries.firstOrNull { it.id == id }
         const val TITLE = "Tool selection"
-        const val HINT = "Improves accuracy by narrowing the tool choice."
+        const val HINT = "Narrows the tool choice."
     }
 }
 
@@ -52,7 +52,7 @@ enum class ToolStep(val id: String, val title: String, val hint: String) {
  */
 enum class Talk(val id: String, val title: String, val hint: String) {
     English("english", "English", "Speak in English"),
-    Hindi("hindi", "English + Hindi", "Speak English, Hindi or Hinglish"),
+    Hindi("hindi", "English + Hindi", "Also Hindi and Hinglish"),
     Typing("typing", "Typing only", "No microphone");
 
     /**
@@ -95,9 +95,9 @@ enum class Talk(val id: String, val title: String, val hint: String) {
     companion object {
         fun of(id: String?) = entries.firstOrNull { it.id == id }
         const val TITLE = "Talk to Ferb in"
-        const val HINDI_NEEDS = "Needs Gemini Nano on this phone, or Ferb Link connected to your computer"
+        const val HINDI_NEEDS = "Needs Gemini Nano, or Ferb Link and your computer"
         /** Gemini Nano can't run on this phone at all. */
-        const val HINDI_NEEDS_LINK = "Needs Ferb Link connected to your computer"
+        const val HINDI_NEEDS_LINK = "Needs Ferb Link and your computer"
 
         /** Before anything is chosen: English + Hindi when something here hears it, else English. */
         fun default(can: Abilities) = if (can.geminiSpeech == true || can.linkAudio) Hindi else English
@@ -237,10 +237,10 @@ data class Availability(
     companion object {
         const val GEMINI_UNAVAILABLE = "Not available on this phone"
         const val LINK_NOT_INSTALLED = "Install Ferb Link to use your computer"
-        const val LINK_NOT_PAIRED = "Pair Ferb Link with your computer first"
+        const val LINK_NOT_PAIRED = "Connect Ferb Link to your computer first"
         const val LINK_NO_AUDIO = "Your computer's model doesn't take audio"
         const val JEV_OFF = "Turn on Jev in Ferb Link first"
-        const val JEV_CAPPED = "Jev reached its spending limit: raise it in Ferb Link"
+        const val JEV_CAPPED = "Jev hit its spending limit (Ferb Link)"
     }
 }
 

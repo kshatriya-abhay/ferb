@@ -164,4 +164,4 @@ fun NewReminderScreen(viewModel: AssistantViewModel, onDone: () -> Unit) {
 
 private enum class Picker { Date, Time, Repeat }
 
-const val NEEDS_NOTIFICATIONS = "Ferb needs to show notifications to remind you"
+const val NEEDS_NOTIFICATIONS = "Ferb needs notifications to remind you"

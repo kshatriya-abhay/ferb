@@ -836,8 +836,7 @@ object GetDirections : Tool(
 private const val NO_CONTACTS = "Ferb needs your contacts to find who you mean. They stay on this phone."
 
 /** Why [MakeCall] and [SendText] ask first. */
-private const val WRONG_PERSON = "Ferb may pick the wrong person. Without asking, the best match opens straight away, " +
-    "and you only check it before you press call or send."
+private const val WRONG_PERSON = "Ferb may pick the wrong person. Without asking, the best match opens for you to check."
 
 /** A typed number ("call 98765 43210"), not a name: five digits or more. */
 private fun numberIn(text: String): String? = text.filter { it.isDigit() || it == '+' }.takeIf { it.count(Char::isDigit) >= 5 }

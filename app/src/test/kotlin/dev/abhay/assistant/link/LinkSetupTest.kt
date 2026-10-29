@@ -20,14 +20,14 @@ class LinkSetupTest {
     fun installedButNotPairedOpensFerbLinkToPair() {
         val steps = setupSteps(LinkStatus.NotSetUp, answers = null)
         assertThat(done(steps)).containsExactly("Install Ferb Link")
-        assertThat(steps.first { it.title.startsWith("Pair") }.action).isEqualTo(SetupAction.OpenFerbLink)
+        assertThat(steps.first { it.title.startsWith("Connect") }.action).isEqualTo(SetupAction.OpenFerbLink)
     }
 
     @Test
     fun pairedButSwitchedOffSaysToTurnItOn() {
         val steps = setupSteps(LinkStatus.Off, answers = null)
         assertThat(steps.map { it.title }).contains("Turn on “Answer Ferb's requests”")
-        assertThat(done(steps)).containsAtLeast("Install Ferb Link", "Pair Ferb Link with your computer")
+        assertThat(done(steps)).containsAtLeast("Install Ferb Link", "Connect to your computer")
     }
 
     @Test

@@ -117,7 +117,7 @@ abstract class Tool(
     val confirmByDefault: Boolean = false,
 ) {
     /** For tools that ask first by default ([confirmByDefault]): why that's best, when the user turns it off. */
-    open val whyAsk: String = "Ferb may get it wrong, and it would run without you seeing it first."
+    open val whyAsk: String = "Ferb may get it wrong, and it would run unseen."
 
     /** Android permissions it needs (e.g. to read contacts), asked for when it's turned on. */
     open val permissions: List<String> = emptyList()

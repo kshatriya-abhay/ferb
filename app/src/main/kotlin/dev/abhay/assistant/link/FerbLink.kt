@@ -465,10 +465,10 @@ data class Reachability(val reachable: Boolean, val model: String?, val error: S
 /** [status] in a few words, for the settings page and for notes under answers. */
 fun describe(status: LinkStatus): String = when (status) {
     LinkStatus.NotInstalled -> "Ferb Link isn't installed"
-    is LinkStatus.Mismatch -> "Ferb Link and Ferb don't match (version ${status.version}, Ferb ${LinkContract.VERSION}): update the older one"
-    LinkStatus.NotAllowed -> "Ferb Link answers only a Ferb from the same place: install both from Releases, or build both on one computer"
-    LinkStatus.Off -> "Ferb Link is off: switch on “Answer Ferb's requests” in it"
-    LinkStatus.NotSetUp -> "Ferb Link has no computer set up yet"
+    is LinkStatus.Mismatch -> "Versions differ (${status.version}, Ferb ${LinkContract.VERSION}): update the older app"
+    LinkStatus.NotAllowed -> "Install Ferb and Ferb Link from the same place"
+    LinkStatus.Off -> "Turned off: switch on “Answer Ferb's requests” in Ferb Link"
+    LinkStatus.NotSetUp -> "Not connected to your computer yet"
     is LinkStatus.Ready -> status.model?.let { "Connected \u00b7 $it" } ?: "Connected"
     is LinkStatus.Failed -> "Ferb Link failed: ${status.reason}"
 }

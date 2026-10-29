@@ -132,7 +132,7 @@ object AddEvent : Tool(
     /** Reading too: to list the calendars, and to warn of a clash. */
     override val permissions = listOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR)
 
-    override val whyAsk = "Ferb may read the day or time wrong. Without asking, events are added straight away (Undo is on the result)."
+    override val whyAsk = "Ferb may misread the day or time. Without asking, events are added at once."
 
     val calendarOption = ToolOption.Calendar(key = "calendar", title = "Add events to")
     override val options = listOf(calendarOption)

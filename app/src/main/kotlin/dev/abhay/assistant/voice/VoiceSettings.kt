@@ -16,6 +16,6 @@ object Mic {
         AudioStep.Off -> Tip.Mic.text
     }
 
-    const val GEMINI_TIP = "Tap the mic and speak, English or Hindi; tap \u2713 to send. Heard on this phone by Gemini Nano."
-    const val COMPUTER_TIP = "Tap the mic and speak, English or Hindi; tap \u2713 to send. Heard by your computer, through Ferb Link."
+    const val GEMINI_TIP = "Tap the mic, speak English or Hindi, then \u2713. Gemini Nano hears it."
+    const val COMPUTER_TIP = "Tap the mic, speak English or Hindi, then \u2713. Your computer hears it."
 }

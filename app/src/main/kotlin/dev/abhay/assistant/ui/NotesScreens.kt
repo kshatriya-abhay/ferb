@@ -178,12 +178,12 @@ private fun NotesTab(notes: SafNotes, shown: List<NoteRef>?, warning: String?, o
         }
         when {
             !notes.ready -> Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text("Pick a folder for your notes and lists, such as one in your Obsidian vault. Ferb keeps them there as Markdown files.",
+                Text("Pick a folder for notes and lists, like an Obsidian vault.",
                     style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Button(onClick = onPick) { Text("Pick a notes folder") }
             }
             shown == null -> Loading()
-            shown.isEmpty() -> Empty("No notes from Ferb yet. Ask Ferb to take one, or to make a list.")
+            shown.isEmpty() -> Empty("No notes yet. Ask Ferb to take one.")
             else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = LIST_PADDING, verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
                 itemsIndexed(shown, key = { _, n -> n.id }) { i, note ->
                     SegmentedListItem(

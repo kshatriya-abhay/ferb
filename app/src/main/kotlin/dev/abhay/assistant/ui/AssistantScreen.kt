@@ -276,7 +276,7 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
                 else {
                     // Refused: typing still works. Once Android won't ask again, the mic opens Ferb's settings page.
                     if ((context as? Activity)?.shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO) == false) refused = refused + Manifest.permission.RECORD_AUDIO
-                    viewModel.notify("Ferb needs the microphone to hear you. You can still type.")
+                    viewModel.notify("Ferb needs the microphone. You can still type.")
                 }
             }
             InputBar(state, ready = engine is AssistantEngine.State.Ready, focus = 0, onChange = viewModel::onInputChange, onSend = { viewModel.send() },
@@ -702,10 +702,10 @@ internal fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () -
                     if (exchange.calls.isNotEmpty()) {
                         Text(
                             when {
-                                exchange.alwaysConfirm -> "Asked first: the tool is set to always ask."
-                                exchange.unmentioned -> "Asked first: the request doesn't mention what this tool does."
-                                exchange.ungrounded -> "Asked first: the request doesn't say these numbers."
-                                reply.fromLaptop -> "Ran without asking: your computer's answer passed the usual checks."
+                                exchange.alwaysConfirm -> "Asked first: this tool always asks."
+                                exchange.unmentioned -> "Asked first: the request doesn't name this tool."
+                                exchange.ungrounded -> "Asked first: you didn't say these numbers."
+                                reply.fromLaptop -> "Ran without asking: your computer's answer passed the checks."
                                 exchange.decision == Decision.Run -> String.format(Locale.US, "Ran without asking: needed %.2f.", exchange.runAt)
                                 else -> String.format(Locale.US, "Asked first: runs without asking from %.2f.", exchange.runAt)
                             },
@@ -719,7 +719,7 @@ internal fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () -
             Text(
                 when {
                     titles.isNotEmpty() -> "Checked: ${titles.joinToString()}"
-                    else -> "No tool's words in this request: Needle 3 chose from all tools"
+                    else -> "No tool named: Needle 3 chose from all"
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -743,7 +743,7 @@ internal fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () -
                     Text(if (notes) "Hide model notes" else MODEL_NOTES, style = MaterialTheme.typography.labelMedium)
                 }
                 if (notes) {
-                    Text("Needle 3's own words. Its dates aren't used: Ferb works dates out itself.",
+                    Text("Needle 3's words. Ferb works out dates itself.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(reply.reasoning, style = MaterialTheme.typography.bodySmall, fontStyle = FontStyle.Italic,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
