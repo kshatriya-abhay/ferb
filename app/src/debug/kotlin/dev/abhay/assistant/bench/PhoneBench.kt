@@ -53,7 +53,9 @@ class PhoneBench(private val app: AssistantApp) {
         // The blind round (2026-10-24): prompt R on datetime-v2 and the blind set, and v2 on the blind set.
         DatesR("dates-r", DATES, prompt = { GeminiRewrite.PROMPT_R }, maxTokens = R_MAX_TOKENS),
         BlindR("blind-r", BLIND, prompt = { GeminiRewrite.PROMPT_R }, maxTokens = R_MAX_TOKENS),
-        BlindRewrite("blind-rewrites-v2", BLIND, prompt = { GeminiRewrite.PROMPT_V2 });
+        BlindRewrite("blind-rewrites-v2", BLIND, prompt = { GeminiRewrite.PROMPT_V2 }),
+        // The shipped prompt (R) on the second blind set (2026-10-29): the baseline before the date fixes.
+        Blind2R("blind2-r", BLIND2, prompt = { GeminiRewrite.PROMPT }, maxTokens = GeminiRewrite.MAX_TOKENS);
 
         companion object {
             val dates = listOf(DatesRewrite, DatesCalendar, DatesSlots)
@@ -179,6 +181,7 @@ class PhoneBench(private val app: AssistantApp) {
         const val REQUESTS = "requests.jsonl"
         const val DATES = "dates.jsonl"
         const val BLIND = "dates-blind.jsonl"
+        const val BLIND2 = "dates-blind-2.jsonl"
         /** R says times in words ("in 3 days at 7 pm"): a little more room than v2's. */
         const val R_MAX_TOKENS = 48
         /** At most about 2 requests a second to AICore. */

@@ -29,4 +29,24 @@ class PhoneBenchTest {
         val result = runBlocking { bench.run(PhoneBench.Model.Needle3, input = input, output = output) { done, total, _ -> if (done % 25 == 0) Log.i(PhoneBench.TAG, "needle3 $done/$total") } }
         Log.i(PhoneBench.TAG, result)
     }
+
+    /**
+     * A Gemini Nano pass (-e model Blind2R, a [PhoneBench.Model] name), driven with no taps: the
+     * chat is launched and kept in front with the screen on, as Gemini Nano needs. Skipped unless
+     * the model is named and its lines were pushed.
+     */
+    @Test
+    fun gemini() {
+        val name = InstrumentationRegistry.getArguments().getString("model")
+        assumeTrue("-e model <name> for a Gemini Nano pass", name != null)
+        val model = PhoneBench.Model.valueOf(name!!)
+        val bench = PhoneBench(app)
+        assumeTrue("no lines pushed for ${model.file}", bench.items(model.input).isNotEmpty())
+        androidx.test.core.app.ActivityScenario.launch(ChatActivity::class.java).use { scenario ->
+            scenario.onActivity { it.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
+            val result = runBlocking { bench.run(model) { done, total, error -> if (done % 20 == 0 || error != null) Log.i(PhoneBench.TAG, "${model.file} $done/$total ${error ?: ""}") } }
+            Log.i(PhoneBench.TAG, result)
+            org.junit.Assert.assertFalse(result, result.contains("stopped") || result.contains("failed"))
+        }
+    }
 }

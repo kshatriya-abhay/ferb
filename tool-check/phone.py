@@ -258,7 +258,7 @@ def laptop():
         print(model, "(laptop):", next(l for l in scored.splitlines() if "right (tool" in l))
 
 DATES_SET = "datetime-v2.txt"
-DATE_PASSES = ["dates-rewrites-v2", "dates-calendar", "dates-slots", "dates-r", "blind-r", "blind-rewrites-v2"]
+DATE_PASSES = ["dates-rewrites-v2", "dates-calendar", "dates-slots", "dates-r", "blind-r", "blind-rewrites-v2", "blind2-r"]
 
 def dates_prep(set_name=DATES_SET, out_name="dates.jsonl"):
     """The lines of [set_name] (read by the program, not shown), each with its now, pushed as files/bench/[out_name]."""
@@ -324,6 +324,7 @@ if __name__ == "__main__":
     elif command == "laptop": laptop()
     elif command == "dates-prep": dates_prep()
     elif command == "blind-prep": dates_prep("datetime-blind.txt", "dates-blind.jsonl")
+    elif command == "blind2-prep": dates_prep("datetime-blind-2.txt", "dates-blind-2.jsonl")
     elif command == "dates-out": dates_out()
     elif command == "readers": readers(sys.argv[2], sys.argv[3], sys.argv[4])
     else: sys.exit(__doc__)

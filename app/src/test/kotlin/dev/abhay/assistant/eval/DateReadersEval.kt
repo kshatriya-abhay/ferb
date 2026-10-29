@@ -64,6 +64,16 @@ object DateReaders {
         runCatching { DateResolverA1.format(DateResolverA1.resolve(text, kind, now)) }.getOrDefault("ask")
     }
 
+    /** The app as shipped: [dev.abhay.assistant.tools.DateGate]'s reading (today's DateResolver and its rules). */
+    val APP = Reader { text, tool, now ->
+        when (val r = dev.abhay.assistant.tools.DateGate.read(tool, text, now)) {
+            is dev.abhay.assistant.tools.DateGate.Read.At -> r.at.toString().take(16) + (r.rule?.let { " ${it.key}" } ?: "")
+            is dev.abhay.assistant.tools.DateGate.Read.Day -> r.day.toString()
+            is dev.abhay.assistant.tools.DateGate.Read.Length -> length(r.seconds.toLong())
+            is dev.abhay.assistant.tools.DateGate.Read.Ask -> "ask"
+        }
+    }
+
     /**
      * A moment a parser found, with whether it has a clock time, as Ferb's rules use it: an agenda
      * takes the day; a reminder or event with no time is 09:00 on a later day and asks today; an
@@ -169,7 +179,7 @@ class DateReadersEval {
         }
 
         val device = System.getenv("FERB_EVAL_DEVICE")?.let(::File)
-        val laptop = mapOf("A0" to DateReaders.A0, "A1" to DateReaders.A1, "NDP" to DateReaders.NDP)
+        val laptop = mapOf("A0" to DateReaders.A0, "A1" to DateReaders.A1, "NDP" to DateReaders.NDP, "APP" to DateReaders.APP)
         val devices = listOf("MLKIT", "TC").mapNotNull { n -> device?.let { DateReaders.device(File(it, "reader-${n.lowercase()}.jsonl")) }?.let { n to it } }.toMap()
 
         // Each reader on each text, timed (laptop readers).
@@ -222,7 +232,7 @@ class DateReadersEval {
             score { l -> values[x]?.get(l.i)?.takeIf { it == values[y]?.get(l.i) } }.forEach { (g, s) -> report.append("$x + $y | $g | $s\n") }
         }
         // What went wrong, for the readers and the pair the decision is between (report only).
-        for (k in listOf("A1(said)", "A1(R) + A1(said)")) {
+        for (k in listOf("A1(said)", "A1(R) + A1(said)", "APP(R) + APP(said)")) {
             val parts = k.split(" + ")
             report.append("\n## $k: wrong runs\n")
             for (l in lines) {
