@@ -51,6 +51,8 @@ Before publishing, install the release APK on a phone and run the smoke test bel
 
 ## Testing
 
+CI (`.github/workflows/ci.yml`) runs `mise run test` and `mise run check-offline` on every push to main and every pull request, with no secrets, signing or phone.
+
 Four tiers, cheapest first:
 
 1. **Unit tests** (`mise run test`, every change): the bulk, with no model, server or phone.

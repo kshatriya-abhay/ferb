@@ -1,0 +1,50 @@
+# Ferb's checks on every push and pull request: the unit and contract tests, and that the debug
+# APK can't use the network. No secrets, no signing (releases are signed on the maintainer's
+# computer: docs/development.md), no phone.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      # Java 21 and Gradle, as mise.toml pins them.
+      - uses: jdx/mise-action@v2
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # The NDK and CMake the app's native code builds with (app/build.gradle.kts), and the licences.
+      - name: Android SDK packages
+        run: |
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" "ndk;28.2.13676358" "cmake;3.22.1" > /dev/null
+          mise run bootstrap
+
+      - name: Unit and contract tests
+        run: mise run test
+
+      # Builds the debug APK (fetching the pinned Needle engine and models first) and checks it.
+      - name: No network in the APK
+        run: mise run check-offline
+
+      - name: Test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: app/build/reports/tests/
