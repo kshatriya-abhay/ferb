@@ -7,6 +7,13 @@ import org.junit.Test
 /** Gemini Nano as the phone's voice (POC): the settings, its setup, its fallback, the live text and the rewrite. */
 class NanoVoiceTest {
     @Test
+    fun r2IsRWithTheEventRule() {
+        assertThat(GeminiRewrite.PROMPT_R2).contains("is an event for the calendar")
+        assertThat(GeminiRewrite.PROMPT_R2).contains("badminton saturday 6 baje -> Add badminton")
+        assertThat(GeminiRewrite.PROMPT_R2.length - GeminiRewrite.PROMPT_R.length).isGreaterThan(400)
+    }
+
+    @Test
     fun geminiNanoHearsInOneLocale() {
         // en-US hears English, Hindi (in Devanagari) and Hinglish: there's no language to choose.
         assertThat(NanoSpeech.LOCALE.toLanguageTag()).isEqualTo("en-US")
@@ -94,7 +101,7 @@ class NanoVoiceTest {
             // The request is the last field (requests.txt: tool | request; the date sets: now | tool | expected | request).
             .filter { "|" in it && !it.startsWith("#") }.map { it.substringAfterLast("|").trim().lowercase() }.toSet()
         assertThat(bench).isNotEmpty()
-        for (prompt in listOf(GeminiRewrite.PROMPT_V1, GeminiRewrite.PROMPT_V2, GeminiRewrite.PROMPT_R)) {
+        for (prompt in listOf(GeminiRewrite.PROMPT_V1, GeminiRewrite.PROMPT_V2, GeminiRewrite.PROMPT_R, GeminiRewrite.PROMPT_R2)) {
             val examples = prompt.substringAfter("Examples:\n").lines().map { it.substringBefore(" -> ").trim().lowercase() }
             assertThat(examples).isNotEmpty()
             assertThat(examples.filter { it in bench }).isEmpty()

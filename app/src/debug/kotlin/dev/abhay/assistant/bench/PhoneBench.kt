@@ -55,7 +55,10 @@ class PhoneBench(private val app: AssistantApp) {
         BlindR("blind-r", BLIND, prompt = { GeminiRewrite.PROMPT_R }, maxTokens = R_MAX_TOKENS),
         BlindRewrite("blind-rewrites-v2", BLIND, prompt = { GeminiRewrite.PROMPT_V2 }),
         // The shipped prompt (R) on the second blind set (2026-10-29): the baseline before the date fixes.
-        Blind2R("blind2-r", BLIND2, prompt = { GeminiRewrite.PROMPT }, maxTokens = GeminiRewrite.MAX_TOKENS);
+        Blind2R("blind2-r", BLIND2, prompt = { GeminiRewrite.PROMPT }, maxTokens = GeminiRewrite.MAX_TOKENS),
+        // R2 (the event rule) on blind-2, and on datetime-v2 to check it costs nothing there.
+        Blind2R2("blind2-r2", BLIND2, prompt = { GeminiRewrite.PROMPT_R2 }, maxTokens = GeminiRewrite.MAX_TOKENS),
+        DatesR2("dates-r2", DATES, prompt = { GeminiRewrite.PROMPT_R2 }, maxTokens = GeminiRewrite.MAX_TOKENS);
 
         companion object {
             val dates = listOf(DatesRewrite, DatesCalendar, DatesSlots)

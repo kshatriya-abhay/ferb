@@ -258,7 +258,7 @@ def laptop():
         print(model, "(laptop):", next(l for l in scored.splitlines() if "right (tool" in l))
 
 DATES_SET = "datetime-v2.txt"
-DATE_PASSES = ["dates-rewrites-v2", "dates-calendar", "dates-slots", "dates-r", "blind-r", "blind-rewrites-v2", "blind2-r"]
+DATE_PASSES = ["dates-rewrites-v2", "dates-calendar", "dates-slots", "dates-r", "blind-r", "blind-rewrites-v2", "blind2-r", "blind2-r2", "dates-r2"]
 
 def dates_prep(set_name=DATES_SET, out_name="dates.jsonl"):
     """The lines of [set_name] (read by the program, not shown), each with its now, pushed as files/bench/[out_name]."""

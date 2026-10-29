@@ -44,7 +44,13 @@ class PhoneBenchTest {
         assumeTrue("no lines pushed for ${model.file}", bench.items(model.input).isNotEmpty())
         androidx.test.core.app.ActivityScenario.launch(ChatActivity::class.java).use { scenario ->
             scenario.onActivity { it.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
-            val result = runBlocking { bench.run(model) { done, total, error -> if (done % 20 == 0 || error != null) Log.i(PhoneBench.TAG, "${model.file} $done/$total ${error ?: ""}") } }
+            // Gemini Nano refuses an app not yet in front (ErrorCode 30): wait for it, and try once more if refused.
+            repeat(100) { if (app.foreground.inFront.value) return@repeat; Thread.sleep(100) }
+            Thread.sleep(1_000)
+            fun pass() = runBlocking { bench.run(model) { done, total, error -> if (done % 20 == 0 || error != null) Log.i(PhoneBench.TAG, "${model.file} $done/$total ${error ?: ""}") } }
+            val result = runCatching { pass() }.getOrElse { e ->
+                Log.w(PhoneBench.TAG, "first try: $e"); Thread.sleep(3_000); pass()
+            }
             Log.i(PhoneBench.TAG, result)
             org.junit.Assert.assertFalse(result, result.contains("stopped") || result.contains("failed"))
         }
