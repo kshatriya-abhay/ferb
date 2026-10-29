@@ -22,7 +22,9 @@ object AddReminder : Tool(
     defaultRunFrom = 0.3,
     examples = listOf("Remind me in 20 minutes to check the oven", "Remind me on Friday to pay the rent"),
 ) {
-    override val keywords = listOf("remind me", "reminder", "remind")
+    // Hindi's "yaad dilana" too (2026-10-29): the words as said then name reminders, so a rewrite
+    // that makes an alarm of one asks (DateGate's gate H), and Needle 3 sees the tool.
+    override val keywords = listOf("remind me", "reminder", "remind", "yaad dilana", "yaad dila", "yaad dilao", "yaad dilaana", "yaad karana", "याद दिलाना", "याद दिला", "याद दिलाओ")
     override val permissions = listOf(Manifest.permission.POST_NOTIFICATIONS)
 
     override val schema = """

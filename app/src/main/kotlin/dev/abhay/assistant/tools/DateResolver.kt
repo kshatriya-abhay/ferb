@@ -68,6 +68,11 @@ object DateResolver {
                 Rule.Weekly -> day?.weekday == null || d.dayOfWeek == day.weekday
                 else -> true
             }
+            // Monthly on a day of the month: that day next month when it's passed ("every month on the 1st").
+            if (rule == Rule.Monthly && day != null && day.weekday == null) {
+                while (!first.isAfter(now)) first = first.plusMonths(1)
+                return Resolved.At(first, rule)
+            }
             while (!first.isAfter(now) || !fits(first.toLocalDate())) first = first.plusDays(1)
             return Resolved.At(first, rule)
         }
@@ -89,8 +94,9 @@ object DateResolver {
             if (time == null) {
                 // No time: a later day at 09:00; today, ask.
                 if (day.date == today && day.later == null) return Resolved.Ask("What time today?")
-                val at = day.date.atTime(DEFAULT_TIME)
-                return Resolved.At(if (day.later != null && !at.isAfter(now)) day.later.atTime(DEFAULT_TIME) else at)
+                val at = day.date.atTime(DEFAULT_TIME).let { if (day.later != null && !it.isAfter(now)) day.later.atTime(DEFAULT_TIME) else it }
+                // A day already gone (a date with a past year): ask, never set it in the past.
+                return if (at.isAfter(now)) Resolved.At(at) else Resolved.Ask("That date has passed")
             }
             var at = day.date.atTime(time)
             if (day.later != null && !at.isAfter(now)) at = day.later.atTime(time)
@@ -117,13 +123,16 @@ object DateResolver {
     private val HINDI = listOf(
         Regex("""\bagl[eia]\s+""") to "next ",
         Regex("""\bis\s+(?=(mon|tues|wednes|thurs|fri|satur|sun)day)""") to "this ",
-        Regex("""\bsom\s?vaa?r\b""") to "monday", Regex("""\bmangal\s?vaa?r\b""") to "tuesday", Regex("""\bbudh\s?vaa?r\b""") to "wednesday",
-        Regex("""\b(guru|brihaspati)\s?vaa?r\b""") to "thursday", Regex("""\bshukra\s?vaa?r\b""") to "friday",
-        Regex("""\bshani\s?vaa?r\b""") to "saturday", Regex("""\b(ravi|it)\s?vaa?r\b""") to "sunday",
+        // Weekdays as people spell them in Latin letters (2026-10-29): v or w, a or aa, sh or s.
+        Regex("""\bsoma?\s?[vw]aa?r\b""") to "monday", Regex("""\bmangala?\s?[vw]aa?r\b""") to "tuesday", Regex("""\bbudha?\s?[vw]aa?r\b""") to "wednesday",
+        Regex("""\b(guru|brihaspati)\s?[vw]aa?r\b""") to "thursday", Regex("""\b(sh|s)ukra?\s?[vw]aa?r\b""") to "friday",
+        Regex("""\b(sh|s)ani\s?[vw]aa?r\b""") to "saturday", Regex("""\b(ravi|it|ith|et)\s?[vw]aa?r\b""") to "sunday",
         Regex("""\bnarso[n]?\b""") to "in 3 days", Regex("""\bparso[n]?\b""") to "day after tomorrow", Regex("""\bkal\b""") to "tomorrow", Regex("""\baaj\b""") to "today",
         Regex("""\bsubah|\bsubha\b""") to "morning", Regex("""\bdopahar\b""") to "afternoon", Regex("""\bshaam|\bsham\b""") to "evening",
         Regex("""\braat\b""") to "night",
         Regex("""\bhar (?=(mon|tues|wednes|thurs|fri|satur|sun)day)""") to "every ",
+        // "har weekday", "har mahine", "har din": every.
+        Regex("""\bmahine\b""") to "month", Regex("""\bhar (?=(weekdays?|week|month|din|day)\b)""") to "every ", Regex("""\bevery din\b""") to "every day",
     )
     private val HINDI_NUMBERS = mapOf(
         "ek" to 1, "do" to 2, "teen" to 3, "chaar" to 4, "char" to 4, "paanch" to 5, "panch" to 5, "chhe" to 6, "chhah" to 6, "che" to 6,
@@ -187,6 +196,8 @@ object DateResolver {
             val unit = when (it.groupValues[2]) { "din" -> "days"; "ghante", "ghanta" -> "hours"; "second" -> "seconds"; else -> "minutes" }
             "in $n ${if (n == "half an") unit.dropLast(1) else unit}"
         }
+        // Tomorrow as people type it (2026-10-29): tmrw, tmr, tomorow, tommorrow…
+        t = t.replace(Regex("""\b(tmrw|tmr|tmw|tmrow|2moro|2mrw|tom+or+o?w+)\b"""), "tomorrow")
         for ((pattern, english) in HINDI) t = t.replace(pattern, english)
         return t.replace(Regex("""\s+"""), " ").trim()
     }
@@ -248,11 +259,14 @@ object DateResolver {
             val thisYear = runCatching { LocalDate.of(today.year, month, dayOfMonth) }.getOrNull() ?: return null
             return if (thisYear.isBefore(today)) thisYear.plusYears(1) else thisYear
         }
-        Regex("""\b$MONTH (\d{1,2})(?:st|nd|rd|th)?\b""").find(t)?.let { m ->
-            return ahead(MONTHS.indexOf(m.groupValues[1].take(3)) + 1, m.groupValues[2].toInt())?.let { SaidDay(it) } ?: SaidDay(today, noSuchDate = true)
+        // With a year said, that date exactly: a past one then asks ("10 march 2025").
+        fun dated(month: Int, dayOfMonth: Int, year: String): LocalDate? =
+            if (year.isEmpty()) ahead(month, dayOfMonth) else runCatching { LocalDate.of(year.toInt(), month, dayOfMonth) }.getOrNull()
+        Regex("""\b$MONTH (\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?\b""").find(t)?.let { m ->
+            return dated(MONTHS.indexOf(m.groupValues[1].take(3)) + 1, m.groupValues[2].toInt(), m.groupValues[3])?.let { SaidDay(it) } ?: SaidDay(today, noSuchDate = true)
         }
-        Regex("""\b(\d{1,2})(?:st|nd|rd|th)?(?: of)? $MONTH\b""").find(t)?.let { m ->
-            return ahead(MONTHS.indexOf(m.groupValues[2].take(3)) + 1, m.groupValues[1].toInt())?.let { SaidDay(it) } ?: SaidDay(today, noSuchDate = true)
+        Regex("""\b(\d{1,2})(?:st|nd|rd|th)?(?: of)? $MONTH(?:,?\s+(\d{4}))?\b""").find(t)?.let { m ->
+            return dated(MONTHS.indexOf(m.groupValues[2].take(3)) + 1, m.groupValues[1].toInt(), m.groupValues[3])?.let { SaidDay(it) } ?: SaidDay(today, noSuchDate = true)
         }
         Regex("""\b(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?\b""").find(t)?.let { m ->
             val d = m.groupValues[1].toInt()

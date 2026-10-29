@@ -189,6 +189,28 @@ class DateResolverTest {
         assertThat(at("kal 6 baje ka alarm", Kind.Alarm)).isEqualTo(on(11, 5, 6))
     }
 
+    /** The gaps blind-1 showed (2026-10-29), in new wording. */
+    @Test
+    fun blindOneGaps() {
+        // Monthly on a day of the month: the next such date (today Wednesday 4 Nov, 10:00).
+        assertThat(at("remind me every month on the 4th to pay rent")).isEqualTo(Resolved.At(LocalDateTime.of(2026, 12, 4, 9, 0), Rule.Monthly))
+        assertThat(at("remind me every month on the 20th at 6 pm to back up the phone")).isEqualTo(Resolved.At(LocalDateTime.of(2026, 11, 20, 18, 0), Rule.Monthly))
+        assertThat(at("har mahine 10 tarikh ko yaad dilana")).isInstanceOf(Resolved.At::class.java)
+        // A past year asks; a coming one is that date.
+        assertThat(at("remind me on 8 june 2025 to renew")).isInstanceOf(Resolved.Ask::class.java)
+        assertThat(at("remind me on June 8, 2025 to renew")).isInstanceOf(Resolved.Ask::class.java)
+        assertThat(at("remind me on 8 june 2027 to renew")).isEqualTo(on(6, 8, 9, year = 2027))
+        // Typed tomorrows.
+        assertThat(at("remind me tmrw at 8 am to call")).isEqualTo(on(11, 5, 8))
+        assertThat(at("remind me tommorow at 8 am to call")).isEqualTo(on(11, 5, 8))
+        // Weekdays as spelled in Latin letters.
+        assertThat(at("budhwar ko yaad dilana", clock = LocalDateTime.of(2026, 11, 2, 10, 0))).isEqualTo(on(11, 4, 9))
+        assertThat(at("guruwaar ko yaad dilana")).isEqualTo(on(11, 5, 9))
+        assertThat(at("itwar ko yaad dilana")).isEqualTo(on(11, 8, 9))
+        // har weekday is every weekday.
+        assertThat((at("har weekday subah 8 baje yaad dilana") as Resolved.At).rule).isEqualTo(Rule.Weekdays)
+    }
+
     @Test
     fun agendaDays() {
         assertThat(at("what's on tomorrow", Kind.Agenda)).isEqualTo(Resolved.Day(LocalDate.of(2026, 11, 5)))

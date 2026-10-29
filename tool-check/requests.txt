@@ -134,6 +134,11 @@ control_media action=play | resume
 control_media action=previous | previous track
 control_media action=next | skip this song
 control_media action=pause | stop the music
+# Hindi reminders (2026-10-29: "yaad dilana" named no tool); near misses: remembering isn't a reminder.
+add_reminder | kal subah yaad dilana ki gaadi service karani hai
+add_reminder | shaam ko yaad dila dena doodh lena hai
+none | mujhe yaad hai
+none | tumhari yaad aa rahi hai
 # Resuming is play (2026-10-24: "Resume the music", the rewrite's own wording, was sent as pause).
 control_media action=play | Resume the music
 control_media action=play | continue playing
