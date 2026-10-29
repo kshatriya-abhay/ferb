@@ -1,5 +1,6 @@
 package dev.abhay.assistant.ui
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -195,7 +196,7 @@ internal fun TalkSection(settings: SettingsViewModel, onOpenAdvanced: () -> Unit
             onClick = onOpenAdvanced,
             shapes = shapes,
             leadingContent = { IconBadge(R.drawable.ic_tune) },
-            supportingContent = { Text("Each step, one by one") },
+            supportingContent = { Text(stringResource(R.string.pipeline_each_step_one_by_one)) },
             trailingContent = { Icon(androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
         ) { Text(ADVANCED) }
     })

@@ -2,6 +2,7 @@
 
 package dev.abhay.assistant.ui
 
+import androidx.compose.ui.res.stringResource
 import dev.abhay.assistant.link.setupSteps
 import dev.abhay.assistant.link.SetupStep
 import dev.abhay.assistant.link.SetupAction
@@ -126,13 +127,13 @@ fun LinkRow(settings: SettingsViewModel, onOpen: () -> Unit, shapes: ListItemSha
             )
         },
         trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
-    ) { Text("Ferb Link", color = if (installed) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant) }
+    ) { Text(stringResource(R.string.link_ferb_link), color = if (installed) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant) }
 }
 
 /** What Ferb Link is, above its checklist while it isn't working yet. */
 @Composable
 private fun AboutLink() {
-    Text("Ferb Link lets a bigger model on your computer hear and tidy your requests. Ferb stays offline.",
+    Text(stringResource(R.string.link_ferb_link_lets_a_bigger),
         Modifier.padding(horizontal = 16.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
@@ -151,16 +152,16 @@ private fun SetupChecklist(steps: List<SetupStep>, onOpenFerbLink: (() -> Unit)?
             SegmentedListItem(
                 shapes = shapes,
                 leadingContent = {
-                    if (step.done) Icon(Icons.Default.CheckCircle, contentDescription = "Done", tint = MaterialTheme.colorScheme.primary)
+                    if (step.done) Icon(Icons.Default.CheckCircle, contentDescription = stringResource(R.string.link_done), tint = MaterialTheme.colorScheme.primary)
                     else Text("${i + 1}", Modifier.size(24.dp), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 },
                 supportingContent = { Text(step.detail) },
                 trailingContent = step.action?.let { action ->
                     {
                         when (action) {
-                            SetupAction.Download -> TextButton(onClick = { browse(RELEASES) }) { Text("Get it") }
-                            SetupAction.Guide -> TextButton(onClick = { browse(QUICK_START) }) { Text("How") }
-                            SetupAction.OpenFerbLink -> onOpenFerbLink?.let { TextButton(onClick = it) { Text("Open") } }
+                            SetupAction.Download -> TextButton(onClick = { browse(RELEASES) }) { Text(stringResource(R.string.link_get_it)) }
+                            SetupAction.Guide -> TextButton(onClick = { browse(QUICK_START) }) { Text(stringResource(R.string.link_how)) }
+                            SetupAction.OpenFerbLink -> onOpenFerbLink?.let { TextButton(onClick = it) { Text(stringResource(R.string.link_open)) } }
                         }
                     }
                 },
@@ -193,7 +194,7 @@ fun LinkScreen(settings: SettingsViewModel, onBack: () -> Unit) {
     // Ready only means set up: ask the computer once the page shows, so the card says whether it answers.
     LaunchedEffect(status is LinkStatus.Ready) { if (status is LinkStatus.Ready) check() }
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer, topBar = { TopBar("Ferb Link", onBack = onBack, scroll = bar) }) { padding ->
+    Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer, topBar = { TopBar(stringResource(R.string.link_ferb_link), onBack = onBack, scroll = bar) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(top = 8.dp, bottom = 24.dp)) {
             // Until it works: what it is and the steps, ticking themselves off (once a check has run, when Ferb Link is ready).
             val steps = setupSteps(status, checked?.reachable)
@@ -262,10 +263,10 @@ private fun StatusCard(status: LinkStatus, checked: Reachability?, checking: Boo
             if (ready) {
                 Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
                     if (checking) LoadingIndicator(Modifier.size(36.dp))
-                    else IconButton(onClick = onCheck) { Icon(Icons.Default.Refresh, contentDescription = "Check connection") }
+                    else IconButton(onClick = onCheck) { Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.link_check_connection)) }
                 }
             }
-            onOpen?.let { IconButton(onClick = it) { Icon(painterResource(R.drawable.ic_open_in_new), contentDescription = "Open Ferb Link") } }
+            onOpen?.let { IconButton(onClick = it) { Icon(painterResource(R.drawable.ic_open_in_new), contentDescription = stringResource(R.string.link_open_ferb_link)) } }
         }
     }
 }

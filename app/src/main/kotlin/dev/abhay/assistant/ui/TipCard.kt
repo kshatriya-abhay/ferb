@@ -1,5 +1,6 @@
 package dev.abhay.assistant.ui
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -31,11 +32,11 @@ internal fun TipCard(tip: Tip, onDismiss: () -> Unit, modifier: Modifier = Modif
         modifier = modifier,
     ) {
         Row(Modifier.padding(start = 12.dp, end = 4.dp, top = 2.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(painterResource(R.drawable.ic_lightbulb), contentDescription = "Tip", Modifier.padding(end = 8.dp).size(18.dp))
+            Icon(painterResource(R.drawable.ic_lightbulb), contentDescription = stringResource(R.string.tipcard_tip), Modifier.padding(end = 8.dp).size(18.dp))
             Text(text, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.bodyMedium)
             action?.let { (label, run) -> TextButton(onClick = { onDismiss(); run() }) { Text(label) } }
             IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
-                Icon(Icons.Default.Close, contentDescription = "Dismiss tip", Modifier.size(18.dp))
+                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.tipcard_dismiss_tip), Modifier.size(18.dp))
             }
         }
     }

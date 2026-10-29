@@ -1,5 +1,7 @@
 package dev.abhay.assistant.ui
 
+import dev.abhay.assistant.R
+import androidx.compose.ui.res.stringResource
 import android.app.role.RoleManager
 import android.content.Context
 import android.content.Intent
@@ -154,7 +156,8 @@ private fun PageHeader(title: String, body: String) {
 /** Where the user is among the pages. */
 @Composable
 private fun Dots(pages: List<Page>, page: Page) {
-    Row(Modifier.fillMaxWidth().semantics { contentDescription = "Page ${pages.indexOf(page) + 1} of ${pages.size}" },
+    val where = stringResource(R.string.onboarding_page_s_of_s, pages.indexOf(page) + 1, pages.size)
+    Row(Modifier.fillMaxWidth().semantics { contentDescription = where },
         horizontalArrangement = Arrangement.Center) {
         pages.forEach {
             Box(Modifier.padding(4.dp).size(if (it == page) 10.dp else 8.dp).clip(CircleShape)

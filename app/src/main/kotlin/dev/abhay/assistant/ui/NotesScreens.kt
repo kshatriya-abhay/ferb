@@ -2,6 +2,7 @@
 
 package dev.abhay.assistant.ui
 
+import androidx.compose.ui.res.stringResource
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -143,12 +144,12 @@ fun NotesScreen(viewModel: AssistantViewModel, onOpen: (NoteRef) -> Unit, onBack
                 exit = scaleOut(motion.defaultSpatialSpec()) + fadeOut(motion.defaultEffectsSpec())) {
                 val atTop by remember { derivedStateOf { reminderList.firstVisibleItemIndex == 0 && reminderList.firstVisibleItemScrollOffset == 0 } }
                 ExtendedFloatingActionButton(onClick = onNewReminder, expanded = atTop,
-                    icon = { Icon(painterResource(R.drawable.ic_alarm_add), contentDescription = null) }, text = { Text("New reminder") })
+                    icon = { Icon(painterResource(R.drawable.ic_alarm_add), contentDescription = null) }, text = { Text(stringResource(R.string.newreminder_new_reminder)) })
             }
         },
         topBar = {
             Column {
-                TopBar("Notes", subtitle = notes.folderName(), onBack = onBack, scroll = bar)
+                TopBar(stringResource(R.string.assistant_notes), subtitle = notes.folderName(), onBack = onBack, scroll = bar)
                 // Primary tabs, under the top bar (https://m3.material.io/components/tabs/guidelines);
                 // a tap moves the pager with the theme's spatial spring, as the screens move.
                 PrimaryTabRow(selectedTabIndex = pager.currentPage, containerColor = MaterialTheme.colorScheme.surfaceContainer) {
@@ -178,9 +179,9 @@ private fun NotesTab(notes: SafNotes, shown: List<NoteRef>?, warning: String?, o
         }
         when {
             !notes.ready -> Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text("Pick a folder for notes and lists, like an Obsidian vault.",
+                Text(stringResource(R.string.notes_pick_a_folder_for_notes),
                     style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Button(onClick = onPick) { Text("Pick a notes folder") }
+                Button(onClick = onPick) { Text(stringResource(R.string.notes_pick_a_notes_folder)) }
             }
             shown == null -> Loading()
             shown.isEmpty() -> Empty("No notes yet. Ask Ferb to take one.")
@@ -226,7 +227,7 @@ private fun RemindersTab(viewModel: AssistantViewModel, state: LazyListState, re
         }
     }
     val clearButton: @Composable (Reminder, Boolean) -> Unit = { reminder, isRecent ->
-        IconButton(onClick = { onClear(reminder, isRecent) }) { Icon(Icons.Default.Close, contentDescription = "Clear reminder") }
+        IconButton(onClick = { onClear(reminder, isRecent) }) { Icon(Icons.Default.Close, contentDescription = stringResource(R.string.notes_clear_reminder)) }
     }
     // Room under the last row for the FAB.
     LazyColumn(Modifier.fillMaxSize(), state = state, contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),

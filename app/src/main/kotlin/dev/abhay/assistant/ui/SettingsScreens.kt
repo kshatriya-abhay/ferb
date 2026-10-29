@@ -2,6 +2,7 @@
 
 package dev.abhay.assistant.ui
 
+import androidx.compose.ui.res.stringResource
 import android.Manifest
 import dev.abhay.assistant.notes.Obsidian
 import dev.abhay.assistant.notes.SafNotes
@@ -134,7 +135,7 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
     val pipeline by settings.pipeline.collectAsStateWithLifecycle()
     val usesComputer = pipeline.audio == AudioStep.Link || pipeline.rewrite == RewriteStep.Link || pipeline.tools == ToolStep.Link
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer, topBar = { TopBar("Settings", onBack = onBack, scroll = bar) }) { padding ->
+    Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer, topBar = { TopBar(stringResource(R.string.assistant_settings), onBack = onBack, scroll = bar) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Group(listOf(
@@ -143,9 +144,9 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
                         onClick = onOpenTools,
                         shapes = shapes,
                         leadingContent = { IconBadge(R.drawable.ic_tune) },
-                        supportingContent = { Text("${ToolSettings.enabledNames(saved).size} of ${Tools.all.size} on") },
+                        supportingContent = { Text(stringResource(R.string.settings_s_of_s_on, ToolSettings.enabledNames(saved).size, Tools.all.size)) },
                         trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
-                    ) { Text("Tools") }
+                    ) { Text(stringResource(R.string.settings_tools)) }
                 },
                 { shapes -> LinkRow(settings, onOpen = onOpenLink, shapes = shapes) },
             ))
@@ -157,9 +158,9 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
                     onClick = onOpenBench,
                     shapes = shapes,
                     leadingContent = { IconBadge(R.drawable.ic_tune) },
-                    supportingContent = { Text("The bench's requests") },
+                    supportingContent = { Text(stringResource(R.string.settings_the_bench_s_requests)) },
                     trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
-                ) { Text("Bench (debug)") }
+                ) { Text(stringResource(R.string.settings_bench_debug)) }
             })
             Group(listOf(
                 { shapes ->
@@ -167,16 +168,16 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
                         onClick = { settings.onboarding.rerun() },
                         shapes = shapes,
                         leadingContent = { IconBadge(R.drawable.ic_tune) },
-                        supportingContent = { Text("The first launch's pages") },
-                    ) { Text("Run setup again") }
+                        supportingContent = { Text(stringResource(R.string.settings_the_first_launch_s_pages)) },
+                    ) { Text(stringResource(R.string.settings_run_setup_again)) }
                 },
                 { shapes ->
                     SegmentedListItem(
                         onClick = { settings.onboarding.reset() },
                         shapes = shapes,
                         leadingContent = { IconBadge(R.drawable.ic_lightbulb) },
-                        supportingContent = { Text("The setup pages and tips") },
-                    ) { Text("Show tips again") }
+                        supportingContent = { Text(stringResource(R.string.settings_the_setup_pages_and_tips)) },
+                    ) { Text(stringResource(R.string.settings_show_tips_again)) }
                 },
             ))
             Group(listOf { shapes ->
@@ -186,7 +187,7 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
                     supportingContent = {
                         Text(if (!usesComputer) "On this phone, with no internet." else "On this phone, with no internet, and your computer.")
                     },
-                ) { Text("Private by design") }
+                ) { Text(stringResource(R.string.settings_private_by_design)) }
             })
         }
     }
@@ -204,7 +205,7 @@ fun GeminiScreen(settings: SettingsViewModel, onBack: () -> Unit) {
     LaunchedEffect(Unit) { settings.checkGemini() }
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        topBar = { TopBar("Gemini Nano", subtitle = setup.summary(), onBack = onBack, scroll = bar) }) { padding ->
+        topBar = { TopBar(stringResource(R.string.settings_gemini_nano), subtitle = setup.summary(), onBack = onBack, scroll = bar) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
             Text(
                 "Gemini Nano hears you and tidies your request, on this phone. It needs a one-time download.",
@@ -219,10 +220,10 @@ fun GeminiScreen(settings: SettingsViewModel, onBack: () -> Unit) {
             ))
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp), horizontalArrangement = Arrangement.End) {
                 when {
-                    setup.ready -> OutlinedButton(onClick = settings::checkGemini) { Text("Check again") }
-                    setup.downloading && !setup.needsSetUp -> Button(onClick = {}, enabled = false) { Text("Downloading\u2026") }
-                    setup.parts.any { it == Part.Unavailable } -> OutlinedButton(onClick = settings::checkGemini) { Text("Check again") }
-                    else -> Button(onClick = settings::setUpGemini, enabled = setup.parts.none { it == Part.Checking }) { Text("Set up") }
+                    setup.ready -> OutlinedButton(onClick = settings::checkGemini) { Text(stringResource(R.string.settings_check_again)) }
+                    setup.downloading && !setup.needsSetUp -> Button(onClick = {}, enabled = false) { Text(stringResource(R.string.settings_downloading)) }
+                    setup.parts.any { it == Part.Unavailable } -> OutlinedButton(onClick = settings::checkGemini) { Text(stringResource(R.string.settings_check_again)) }
+                    else -> Button(onClick = settings::setUpGemini, enabled = setup.parts.none { it == Part.Checking }) { Text(stringResource(R.string.settings_set_up)) }
                 }
             }
             Text(
@@ -258,7 +259,7 @@ private fun PartRow(title: String, part: Part, @DrawableRes icon: Int, shapes: L
         }
     }
     val trailing: @Composable () -> Unit = {
-        if (part == Part.NeedsDownload) TextButton(onClick = { dev.abhay.assistant.voice.NanoEars.openAiCoreSettings(context) }) { Text("AICore settings") }
+        if (part == Part.NeedsDownload) TextButton(onClick = { dev.abhay.assistant.voice.NanoEars.openAiCoreSettings(context) }) { Text(stringResource(R.string.settings_aicore_settings)) }
     }
     if (canDownload) SegmentedListItem(onClick = onDownload, shapes = shapes, leadingContent = leading, supportingContent = supporting, trailingContent = trailing) { Text(title) }
     else SegmentedListItem(shapes = shapes, leadingContent = leading, supportingContent = supporting) { Text(title) }
@@ -295,7 +296,7 @@ fun ToolsScreen(settings: SettingsViewModel, onOpenTool: (String) -> Unit, onBac
     Scaffold(
         Modifier.nestedScroll(bar.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        topBar = { TopBar("Tools", subtitle = "$on of ${Tools.all.size} on", onBack = back, scroll = bar) },
+        topBar = { TopBar(stringResource(R.string.settings_tools), subtitle = "$on of ${Tools.all.size} on", onBack = back, scroll = bar) },
         bottomBar = { SaveBar(settings) },
     ) { padding ->
         LazyColumn(
@@ -367,12 +368,12 @@ fun ToolConfigScreen(settings: SettingsViewModel, name: String, onOpenKeywords: 
     if (confirmStopAsking) {
         AlertDialog(
             onDismissRequest = { confirmStopAsking = false },
-            title = { Text("Stop asking first?") },
+            title = { Text(stringResource(R.string.settings_stop_asking_first)) },
             text = {
-                Text("Not recommended for ${tool.title.lowercase()}: ${tool.whyAsk}")
+                Text(stringResource(R.string.settings_not_recommended_for_s_s, tool.title.lowercase(), tool.whyAsk))
             },
-            confirmButton = { TextButton(onClick = { change { it.copy(alwaysConfirm = false) }; confirmStopAsking = false }) { Text("Stop asking") } },
-            dismissButton = { TextButton(onClick = { confirmStopAsking = false }) { Text("Keep asking") } },
+            confirmButton = { TextButton(onClick = { change { it.copy(alwaysConfirm = false) }; confirmStopAsking = false }) { Text(stringResource(R.string.settings_stop_asking)) } },
+            dismissButton = { TextButton(onClick = { confirmStopAsking = false }) { Text(stringResource(R.string.settings_keep_asking)) } },
         )
     }
 
@@ -473,24 +474,24 @@ fun KeywordsScreen(settings: SettingsViewModel, name: String, onBack: () -> Unit
     Scaffold(
         Modifier.nestedScroll(bar.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        topBar = { TopBar("Keywords", subtitle = tool.title, onBack = onBack, scroll = bar) },
+        topBar = { TopBar(stringResource(R.string.settings_keywords), subtitle = tool.title, onBack = onBack, scroll = bar) },
         bottomBar = { SaveBar(settings) },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { editing = -1 },
                 icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text("Add") },
+                text = { Text(stringResource(R.string.settings_add)) },
             )
         },
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(bottom = 96.dp)) {
             item {
-                Text("Requests with these words go to this tool (\"alarm\" also finds \"alarms\"). Without one, Ferb asks first.",
+                Text(stringResource(R.string.settings_requests_with_these_words_go),
                     Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (words.isEmpty()) item {
-                Text("No keywords: used only when no tool matches, and always asks first.",
+                Text(stringResource(R.string.settings_no_keywords_used_only_when),
                     Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
             }
             items(words.size, key = { words[it] }) { index ->
@@ -500,14 +501,14 @@ fun KeywordsScreen(settings: SettingsViewModel, name: String, onBack: () -> Unit
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = ListItemDefaults.SegmentedGap / 2),
                     trailingContent = {
                         IconButton(onClick = { change(words - words[index]) }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete ${words[index]}")
+                            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.settings_delete_s, words[index]))
                         }
                     },
                 ) { Text(words[index]) }
             }
             if (words != tool.keywords) item {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = { change(tool.keywords) }) { Text("Reset to default words") }
+                    TextButton(onClick = { change(tool.keywords) }) { Text(stringResource(R.string.settings_reset_to_default_words)) }
                 }
             }
         }
@@ -548,7 +549,7 @@ private fun KeywordDialog(initial: String, taken: List<String>, onDone: (String)
                 value = text,
                 onValueChange = { text = it },
                 modifier = Modifier.focusRequester(focus),
-                label = { Text("Word or phrase") },
+                label = { Text(stringResource(R.string.settings_word_or_phrase)) },
                 singleLine = true,
                 isError = problem != null,
                 supportingText = { Text(problem ?: "For example \"lamp\" or \"night light\"") },
@@ -557,7 +558,7 @@ private fun KeywordDialog(initial: String, taken: List<String>, onDone: (String)
             )
         },
         confirmButton = { TextButton(onClick = { onDone(word!!) }, enabled = ok) { Text(if (initial.isEmpty()) "Add" else "Save") } },
-        dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.newreminder_cancel)) } },
     )
 }
 
@@ -571,7 +572,7 @@ internal fun TopBar(title: String, subtitle: String? = null, onBack: () -> Unit,
     LargeFlexibleTopAppBar(
         title = { Text(title) },
         subtitle = subtitle?.let { { Text(it) } },
-        navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
+        navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.settings_back)) } },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
             scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -649,7 +650,7 @@ private fun PermissionsCard(tool: Tool) {
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
         ) {
             Row(Modifier.padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Needs ${tool.permissions.joinToString { permissionTitle(it) }.lowercase()}", Modifier.weight(1f),
+                Text(stringResource(R.string.settings_needs_s, tool.permissions.joinToString { permissionTitle(it) }.lowercase()), Modifier.weight(1f),
                     style = MaterialTheme.typography.bodyLarge)
                 Button(onClick = {
                     if (refused) context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
@@ -682,9 +683,9 @@ private fun ConfidenceSetting(config: ToolConfig, default: ToolConfig, shapes: L
     SegmentedListItem(shapes = shapes) { Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Run without asking from", style = MaterialTheme.typography.bodyLarge,
+                Text(stringResource(R.string.settings_run_without_asking_from), style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = dim))
-                Text("Lower means fewer questions", style = MaterialTheme.typography.bodyMedium,
+                Text(stringResource(R.string.settings_lower_means_fewer_questions), style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = dim))
             }
             Surface(shape = CircleShape, color = if (enabled) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest) {
@@ -810,7 +811,7 @@ private fun NotesFolderSetting(notes: SafNotes, enabled: Boolean) {
             enabled = enabled,
             supportingContent = { Text(name ?: "None yet: notes go to your notes app") },
             trailingContent = { Text(if (name == null) "Pick" else "Change", color = MaterialTheme.colorScheme.primary) },
-        ) { Text("Notes folder") }
+        ) { Text(stringResource(R.string.settings_notes_folder)) }
     })
     vault?.let(VaultCheck::warning)?.let {
         Text(it, Modifier.padding(horizontal = 16.dp, vertical = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
@@ -829,7 +830,7 @@ private fun Schema(tool: Tool) {
             trailingContent = {
                 Icon(if (shown) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, contentDescription = null)
             },
-        ) { Text("What Needle 3 sees") }
+        ) { Text(stringResource(R.string.settings_what_needle_3_sees)) }
     })
     AnimatedVisibility(shown, enter = expandVertically(), exit = shrinkVertically()) {
         Card(
@@ -859,9 +860,9 @@ private fun SaveBar(settings: SettingsViewModel) {
                     Text(if (valid) "Unsaved changes" else "Turn on at least one tool", Modifier.weight(1f),
                         style = MaterialTheme.typography.bodyMedium,
                         color = if (valid) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error)
-                    TextButton(onClick = settings::discard) { Text("Discard") }
+                    TextButton(onClick = settings::discard) { Text(stringResource(R.string.settings_discard)) }
                     Spacer(Modifier.size(8.dp))
-                    Button(onClick = settings::save, enabled = valid) { Text("Save") }
+                    Button(onClick = settings::save, enabled = valid) { Text(stringResource(R.string.newreminder_save)) }
                 }
             }
         }
@@ -873,11 +874,11 @@ private fun UnsavedDialog(settings: SettingsViewModel, onDone: () -> Unit, onCan
     val draft by settings.draft.collectAsStateWithLifecycle()
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text("Save changes?") },
-        text = { Text("Nothing changes until you save.") },
+        title = { Text(stringResource(R.string.settings_save_changes)) },
+        text = { Text(stringResource(R.string.settings_nothing_changes_until_you_save)) },
         confirmButton = {
-            TextButton(onClick = { settings.save(); onDone() }, enabled = ToolSettings.enabledNames(draft).isNotEmpty()) { Text("Save") }
+            TextButton(onClick = { settings.save(); onDone() }, enabled = ToolSettings.enabledNames(draft).isNotEmpty()) { Text(stringResource(R.string.newreminder_save)) }
         },
-        dismissButton = { TextButton(onClick = { settings.discard(); onDone() }) { Text("Discard") } },
+        dismissButton = { TextButton(onClick = { settings.discard(); onDone() }) { Text(stringResource(R.string.settings_discard)) } },
     )
 }

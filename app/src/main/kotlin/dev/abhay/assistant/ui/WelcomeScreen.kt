@@ -1,5 +1,6 @@
 package dev.abhay.assistant.ui
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -46,14 +47,14 @@ internal fun WelcomeContent() {
                 tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.padding(10.dp))
         }
         Spacer(Modifier.height(32.dp))
-        Text("Ferb does things on your phone", style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+        Text(stringResource(R.string.welcome_ferb_does_things_on_your), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
         Spacer(Modifier.height(12.dp))
-        Text("Alarms, timers, apps and more. Turn on calls and the calendar in Settings.",
+        Text(stringResource(R.string.welcome_alarms_timers_apps_and_more),
             style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         Spacer(Modifier.height(24.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(painterResource(R.drawable.ic_lock), contentDescription = null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-            Text("Runs on this phone. No internet.", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(R.string.welcome_runs_on_this_phone_no), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
         }
     }
 }

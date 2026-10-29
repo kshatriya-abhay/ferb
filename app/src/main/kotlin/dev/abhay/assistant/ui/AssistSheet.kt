@@ -1,5 +1,6 @@
 package dev.abhay.assistant.ui
 
+import androidx.compose.ui.res.stringResource
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -133,7 +134,7 @@ fun AssistSheet(viewModel: AssistantViewModel, opened: Int, onOpenChat: () -> Un
         val maxConversation = (LocalConfiguration.current.screenHeightDp * 0.6f).dp
         Column(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
             Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Ferb", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
                 IconButton(onClick = ::openChat) { Icon(painterResource(R.drawable.ic_open_in_new), contentDescription = OPEN_CHAT) }
             }
             // The conversation, at most 60% of the screen, scrolling: a tap opens the full chat
@@ -150,7 +151,7 @@ fun AssistSheet(viewModel: AssistantViewModel, opened: Int, onOpenChat: () -> Un
                     LoadingIndicator(Modifier.size(40.dp))
                     Text(LISTENING, Modifier.padding(start = 12.dp), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                 } else if (shown.isEmpty() && state.pending == null) {
-                    Text("What would you like done?", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.assistsheet_what_would_you_like_done), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 shown.forEach { exchange ->
                     RequestBubble(exchange.request, exchange.heard, exchange.understood)

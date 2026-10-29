@@ -209,14 +209,14 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
                 subtitle = { Text(subtitle(engine, usesComputer)) },
                 actions = {
                     // Notes, once there's a folder for them.
-                    if (viewModel.notes.ready) IconButton(onClick = onOpenNotes) { Icon(painterResource(R.drawable.ic_note), contentDescription = "Notes") }
-                    IconButton(onClick = { seen(Tip.MoreTools); onOpenSettings() }) { Icon(Icons.Default.Settings, contentDescription = "Settings") }
+                    if (viewModel.notes.ready) IconButton(onClick = onOpenNotes) { Icon(painterResource(R.drawable.ic_note), contentDescription = stringResource(R.string.assistant_notes)) }
+                    IconButton(onClick = { seen(Tip.MoreTools); onOpenSettings() }) { Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.assistant_settings)) }
                     var menu by remember { mutableStateOf(false) }
                     Box {
-                        IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, contentDescription = "More") }
+                        IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.assistant_more)) }
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                             DropdownMenuItem(
-                                text = { Text("Clear chat") },
+                                text = { Text(stringResource(R.string.assistant_clear_chat)) },
                                 onClick = { menu = false; viewModel.clearHistory() },
                                 enabled = state.history.isNotEmpty(),
                             )
@@ -314,10 +314,10 @@ private fun Loading(modifier: Modifier) {
 @Composable
 private fun Failed(message: String, onRetry: () -> Unit, modifier: Modifier) {
     Column(modifier.fillMaxWidth().padding(32.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("Couldn't start", style = MaterialTheme.typography.titleLarge)
+        Text(stringResource(R.string.assistant_couldn_t_start), style = MaterialTheme.typography.titleLarge)
         Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 12.dp))
-        FilledTonalButton(onClick = onRetry) { Text("Try again") }
+        FilledTonalButton(onClick = onRetry) { Text(stringResource(R.string.assistant_try_again)) }
     }
 }
 
@@ -340,7 +340,7 @@ private fun Welcome(enabled: List<String>, onTry: (String) -> Unit, modifier: Mo
                     tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.padding(8.dp))
             }
             Spacer(Modifier.height(20.dp))
-            Text("How can I help?", style = MaterialTheme.typography.headlineMedium)
+            Text(stringResource(R.string.assistant_how_can_i_help), style = MaterialTheme.typography.headlineMedium)
             Spacer(Modifier.height(24.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 tools.forEach { tool ->
@@ -427,11 +427,11 @@ internal fun RequestBubble(text: String, heard: String? = null, understood: Stri
             Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
                 Text(text, style = MaterialTheme.typography.bodyLarge)
                 heard?.let {
-                    Text("Heard: \u201c$it\u201d", style = MaterialTheme.typography.bodySmall,
+                    Text(stringResource(R.string.assistant_heard_s, it), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f))
                 }
                 understood?.let {
-                    Text("Understood as \u201c$it\u201d", style = MaterialTheme.typography.bodySmall,
+                    Text(stringResource(R.string.assistant_understood_as_s, it), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f))
                 }
             }
@@ -495,11 +495,11 @@ internal fun ReplyBubble(
     AssistantBubble(onClick = onDetails) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             when {
-                reply.error != null -> Text("Something went wrong. Try again.", style = MaterialTheme.typography.bodyLarge)
-                offered != null -> Text("${offered.title} is off.", style = MaterialTheme.typography.bodyLarge)
+                reply.error != null -> Text(stringResource(R.string.assistant_something_went_wrong_try_again), style = MaterialTheme.typography.bodyLarge)
+                offered != null -> Text(stringResource(R.string.assistant_s_is_off, offered.title), style = MaterialTheme.typography.bodyLarge)
                 exchange.nothingAsked -> Text(NOTHING_ASKED, style = MaterialTheme.typography.bodyLarge)
-                exchange.calls.isEmpty() -> Text("I can't do that yet.", style = MaterialTheme.typography.bodyLarge)
-                asking && !choosing -> Text("Shall I do this?", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                exchange.calls.isEmpty() -> Text(stringResource(R.string.assistant_i_can_t_do_that), style = MaterialTheme.typography.bodyLarge)
+                asking && !choosing -> Text(stringResource(R.string.assistant_shall_i_do_this), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             exchange.calls.forEachIndexed { i, call ->
                 CallLine(call, onChoose = { choice -> onChoose(i, choice) }, onFollowUp = { action -> onFollowUp(i, action) }, onAdjust = { value -> onAdjust(i, value) }, onFollow = { value -> onFollow(i, value) }, onAllow = onAllow)
@@ -510,7 +510,7 @@ internal fun ReplyBubble(
                     Text(text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            offered?.let { tool -> Button(onClick = { onTurnOn(tool.name) }) { Text("Turn on") } }
+            offered?.let { tool -> Button(onClick = { onTurnOn(tool.name) }) { Text(stringResource(R.string.assistant_turn_on)) } }
             if (asking) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (!choosing) Button(onClick = onRun) { Text(only?.confirm ?: "Do it") }
@@ -681,7 +681,7 @@ internal fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () -
         Column(Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text("“${exchange.request}”", style = MaterialTheme.typography.titleMedium)
             exchange.heard?.let {
-                Text("Spoken. Heard: \u201c$it\u201d", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.assistant_spoken_heard_s, it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             // The path the request took, as it ran, with each step's pick or confidence.
             if (exchange.path.isNotEmpty()) {
@@ -689,7 +689,7 @@ internal fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () -
             }
             // A typed request the rewrite changed: what Ferb understood.
             exchange.understood?.let {
-                Text("Understood as \u201c$it\u201d", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.assistant_understood_as_s, it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             reply.confidence?.let { confidence ->
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -728,10 +728,10 @@ internal fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () -
                 HorizontalDivider()
                 exchange.calls.forEach { Text(it.call.signature(), style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace) }
                 reply.suppressed.forEachIndexed { i, call ->
-                    Text("held back: ${call.signature()}", style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+                    Text(stringResource(R.string.assistant_held_back_s, call.signature()), style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
                     // What Ferb itself made of it, with its own date ("Sat 31 Oct, 09:00").
                     exchange.heldBack.getOrNull(i)?.let {
-                        Text("Ferb would: $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.assistant_ferb_would_s, it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -743,7 +743,7 @@ internal fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () -
                     Text(if (notes) "Hide model notes" else MODEL_NOTES, style = MaterialTheme.typography.labelMedium)
                 }
                 if (notes) {
-                    Text("Needle 3's words. Ferb works out dates itself.",
+                    Text(stringResource(R.string.assistant_needle_3_s_words_ferb),
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(reply.reasoning, style = MaterialTheme.typography.bodySmall, fontStyle = FontStyle.Italic,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -846,7 +846,7 @@ internal fun VoiceField(voice: AssistantViewModel.Voice, onFinish: () -> Unit, o
                                 value = SystemClock.elapsedRealtime()
                             }
                         }
-                        Icon(painterResource(R.drawable.ic_mic), contentDescription = "Recording", tint = MaterialTheme.colorScheme.error)
+                        Icon(painterResource(R.drawable.ic_mic), contentDescription = stringResource(R.string.assistant_recording), tint = MaterialTheme.colorScheme.error)
                         // Gemini Nano: what it hears so far, as it's said.
                         if (voice.live) Text(voice.heard.ifBlank { "Listening\u2026" }, Modifier.padding(start = 12.dp, top = 8.dp, bottom = 8.dp).weight(1f),
                             style = MaterialTheme.typography.bodyLarge, maxLines = 4)
@@ -854,11 +854,11 @@ internal fun VoiceField(voice: AssistantViewModel.Voice, onFinish: () -> Unit, o
                             style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
                     }
                     is AssistantViewModel.Voice.Heard -> {
-                        Icon(painterResource(R.drawable.ic_mic), contentDescription = "Heard", tint = MaterialTheme.colorScheme.primary)
+                        Icon(painterResource(R.drawable.ic_mic), contentDescription = stringResource(R.string.assistant_heard), tint = MaterialTheme.colorScheme.primary)
                         Text(voice.text, Modifier.padding(start = 12.dp, top = 8.dp, bottom = 8.dp).weight(1f), style = MaterialTheme.typography.bodyLarge, maxLines = 4)
                     }
                     is AssistantViewModel.Voice.Recorded -> {
-                        Icon(painterResource(R.drawable.ic_mic), contentDescription = "Recorded", tint = MaterialTheme.colorScheme.primary)
+                        Icon(painterResource(R.drawable.ic_mic), contentDescription = stringResource(R.string.assistant_recorded), tint = MaterialTheme.colorScheme.primary)
                         Text(elapsed(voice.ms), Modifier.padding(start = 12.dp).weight(1f), style = MaterialTheme.typography.titleMedium)
                     }
                 }
@@ -876,7 +876,7 @@ internal fun VoiceField(voice: AssistantViewModel.Voice, onFinish: () -> Unit, o
             if (sending != null) CircularWavyProgressIndicator(progress = { sending }, Modifier.size(IconButtonDefaults.mediumContainerSize().width + 8.dp).semantics { contentDescription = SENDING })
             FilledIconButton(onClick = if (recording) onFinish else onSend, modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()), shapes = IconButtonDefaults.shapes()) {
                 if (recording) Icon(painterResource(R.drawable.ic_check), contentDescription = FINISH, Modifier.size(IconButtonDefaults.mediumIconSize))
-                else Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", Modifier.size(IconButtonDefaults.mediumIconSize))
+                else Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.assistant_send), Modifier.size(IconButtonDefaults.mediumIconSize))
             }
         }
     }
@@ -915,7 +915,7 @@ internal fun InputField(
         modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 4.dp)
             .focusRequester(requester)
             .onFocusChanged { if (it.isFocused) onFocus() },
-        placeholder = { Text("Ask me to do something") },
+        placeholder = { Text(stringResource(R.string.assistant_ask_me_to_do_something)) },
         enabled = ready,
         shape = BoxShape,
         colors = TextFieldDefaults.colors(
@@ -935,12 +935,12 @@ internal fun InputField(
             Row(Modifier.padding(end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 // Null: hidden (Whistle off where it would hear), only the box and Send.
                 if (onMic != null) IconButton(onClick = onMic, enabled = ready && !state.busy) {
-                    Icon(painterResource(R.drawable.ic_mic), contentDescription = "Speak")
+                    Icon(painterResource(R.drawable.ic_mic), contentDescription = stringResource(R.string.assistant_speak))
                 }
                 Box(Modifier.width(48.dp), contentAlignment = Alignment.Center) {
                     if (state.busy && !state.transcribing) LoadingIndicator(Modifier.size(36.dp))
                     else FilledIconButton(onClick = onSend, enabled = ready && !state.busy && state.input.isNotBlank()) {
-                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.assistant_send))
                     }
                 }
             }

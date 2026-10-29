@@ -2,6 +2,7 @@
 
 package dev.abhay.assistant.ui
 
+import androidx.compose.ui.res.stringResource
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -105,9 +106,9 @@ fun NewReminderScreen(viewModel: AssistantViewModel, onDone: () -> Unit) {
     var picking by remember { mutableStateOf<Picker?>(null) }
     Scaffold(containerColor = MaterialTheme.colorScheme.surfaceContainer, topBar = {
         TopAppBar(
-            title = { Text("New reminder") },
-            navigationIcon = { IconButton(onClick = onDone) { Icon(Icons.Default.Close, contentDescription = "Cancel") } },
-            actions = { TextButton(onClick = onSave, enabled = draft.valid(now) && !saving, modifier = Modifier.padding(end = 8.dp)) { Text("Save") } },
+            title = { Text(stringResource(R.string.newreminder_new_reminder)) },
+            navigationIcon = { IconButton(onClick = onDone) { Icon(Icons.Default.Close, contentDescription = stringResource(R.string.newreminder_cancel)) } },
+            actions = { TextButton(onClick = onSave, enabled = draft.valid(now) && !saving, modifier = Modifier.padding(end = 8.dp)) { Text(stringResource(R.string.newreminder_save)) } },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         )
     }) { padding ->
@@ -115,11 +116,11 @@ fun NewReminderScreen(viewModel: AssistantViewModel, onDone: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp)) {
             val focus = remember { FocusRequester() }
             LaunchedEffect(Unit) { focus.requestFocus() }
-            OutlinedTextField(title, { title = it; problem = null }, Modifier.fillMaxWidth().focusRequester(focus), label = { Text("Title") },
+            OutlinedTextField(title, { title = it; problem = null }, Modifier.fillMaxWidth().focusRequester(focus), label = { Text(stringResource(R.string.newreminder_title)) },
                 singleLine = true, keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences))
             Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
                 SegmentedListItem(onClick = { picking = Picker.Date }, shapes = ListItemDefaults.segmentedShapes(0, 3),
-                    leadingContent = { IconBadge(R.drawable.ic_event) }, supportingContent = { Text("Date") }) {
+                    leadingContent = { IconBadge(R.drawable.ic_event) }, supportingContent = { Text(stringResource(R.string.newreminder_date)) }) {
                     Text(draft.date.format(DateTimeFormatter.ofPattern("EEE d MMM yyyy", Locale.US)))
                 }
                 SegmentedListItem(onClick = { picking = Picker.Time }, shapes = ListItemDefaults.segmentedShapes(1, 3),
@@ -129,7 +130,7 @@ fun NewReminderScreen(viewModel: AssistantViewModel, onDone: () -> Unit) {
                 }
                 Box {
                     SegmentedListItem(onClick = { picking = Picker.Repeat }, shapes = ListItemDefaults.segmentedShapes(2, 3),
-                        leadingContent = { IconBadge(R.drawable.ic_reminder) }, supportingContent = { Text("Repeat") }) { Text(repeat.label(draft.date)) }
+                        leadingContent = { IconBadge(R.drawable.ic_reminder) }, supportingContent = { Text(stringResource(R.string.newreminder_repeat)) }) { Text(repeat.label(draft.date)) }
                     DropdownMenu(expanded = picking == Picker.Repeat, onDismissRequest = { picking = null }) {
                         RepeatChoice.entries.forEach { choice ->
                             DropdownMenuItem(text = { Text(choice.label(draft.date)) }, onClick = { repeat = choice; picking = null })
@@ -148,14 +149,14 @@ fun NewReminderScreen(viewModel: AssistantViewModel, onDone: () -> Unit) {
                     override fun isSelectableYear(year: Int) = year >= today.year
                 })
             DatePickerDialog(onDismissRequest = { picking = null },
-                confirmButton = { TextButton(onClick = { state.selectedDateMillis?.let { day = it / 86_400_000L }; problem = null; picking = null }) { Text("OK") } },
-                dismissButton = { TextButton(onClick = { picking = null }) { Text("Cancel") } }) { DatePicker(state) }
+                confirmButton = { TextButton(onClick = { state.selectedDateMillis?.let { day = it / 86_400_000L }; problem = null; picking = null }) { Text(stringResource(R.string.newreminder_ok)) } },
+                dismissButton = { TextButton(onClick = { picking = null }) { Text(stringResource(R.string.newreminder_cancel)) } }) { DatePicker(state) }
         }
         Picker.Time -> {
             val state = rememberTimePickerState(initialHour = draft.time.hour, initialMinute = draft.time.minute)
             AlertDialog(onDismissRequest = { picking = null },
-                confirmButton = { TextButton(onClick = { minute = state.hour * 60 + state.minute; problem = null; picking = null }) { Text("OK") } },
-                dismissButton = { TextButton(onClick = { picking = null }) { Text("Cancel") } },
+                confirmButton = { TextButton(onClick = { minute = state.hour * 60 + state.minute; problem = null; picking = null }) { Text(stringResource(R.string.newreminder_ok)) } },
+                dismissButton = { TextButton(onClick = { picking = null }) { Text(stringResource(R.string.newreminder_cancel)) } },
                 text = { TimePicker(state) })
         }
         else -> {}
