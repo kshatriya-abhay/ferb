@@ -51,7 +51,7 @@ The details behind the [README](../README.md): how a request becomes tool calls,
 
 ## How Ferb understands you
 
-Needle 3, on the phone, always makes the tool call. Before it, up to three steps help it understand a request, each set in **Settings → How Ferb understands you** (`pipeline/`, `AnswerFlow`):
+Needle 3, on the phone, always makes the tool call. Before it, up to three steps help it understand a request (`pipeline/`, `AnswerFlow`). **Settings → Talk to Ferb in** (English, English + Hindi, Typing only; `Talk`) picks them from what the phone can use now: Gemini Nano when it's there, else, for Hindi, the computer through Ferb Link, else Whistle. **Settings → Advanced** sets them one by one:
 
 | Step | Options | Default |
 |---|---|---|
@@ -82,7 +82,7 @@ Ferb Link's options are greyed out, with why, until Ferb Link is installed and p
 
 **Ferb Link** (in its own repo) is a companion app that holds the internet access Ferb doesn't have and passes a step's request to a model on your own computer, such as a laptop on your Tailscale network running Gemma 4 E2B through llama.cpp, or to Jev. Ferb talks to it through one `ContentResolver.call` on its content provider (`link/FerbLink.kt`, Ferb's copy of Ferb Link's `LinkContract`, version 1), so Ferb itself stays offline; Ferb Link answers only apps signed with its key. Ferb uses its `status`, `check`, `wake`, `transcribe` (audio processing), `rewrite` (with `instructions`: Ferb's prompt) and `decide` (Jev). Gemma's own tool calls (`complete`, Computer mode until 2026-10-24) are no longer used: Needle 3 always makes the call.
 
-**Settings → Ferb Link** shows whether the computer answers, and, until Ferb Link works, a checklist that ticks itself off from Ferb Link's status and Ferb's own check: install it (from Releases), set up its server (its quick start), Tailscale on both, pair (the computer's QR code, `ferblink://pair`), switch it on, the computer answers. Which steps use it is under How Ferb understands you. Ferb also suggests Ferb Link once in the chat, after Needle 3 has found no tool or been unsure three times while Ferb Link isn't set up; dismissed, it doesn't come back.
+**Settings → Ferb Link** shows whether the computer answers, and, until Ferb Link works, a checklist that ticks itself off from Ferb Link's status and Ferb's own check: install it (from Releases), set up its server (its quick start), Tailscale on both, pair (the computer's QR code, `ferblink://pair`), switch it on, the computer answers. Talk to Ferb in uses it when Gemini Nano can't hear Hindi; Advanced sets which steps use it. Ferb also suggests Ferb Link once in the chat, after Needle 3 has found no tool or been unsure three times while Ferb Link isn't set up; dismissed, it doesn't come back.
 
 ## Routing
 

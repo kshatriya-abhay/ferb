@@ -12,13 +12,23 @@ Ferb doesn't chat or answer questions; it runs tools on your phone, and says so 
 
 ### Install
 
-Grab the latest APK from [Releases](https://github.com/kshatriya-abhay/ferb/releases) and open it on your phone (Android asks you to allow installing from your browser or files app). Or [build it from source](#build-from-source).
+You need an Android phone with a 64-bit ARM processor (most phones since 2017) and Android 13 or later. Ferb isn't on the Play Store; install it from GitHub, with updates through Obtainium if you like.
 
-You need an Android phone with a 64-bit ARM processor (most phones since 2017) and Android 13 or later.
+**From GitHub:** download the latest `ferb-*.apk` from [Releases](https://github.com/kshatriya-abhay/ferb/releases/latest) on your phone and open it. Android asks once to allow installs from your browser or files app. To update, install the newer APK the same way: your settings and reminders stay.
+
+**With [Obtainium](https://obtainium.imranr.dev)** (updates without checking GitHub yourself):
+
+1. Install Obtainium, from its site or F-Droid.
+2. In Obtainium, tap **Add app**, paste `https://github.com/kshatriya-abhay/ferb`, and tap **Add**.
+3. Tap **Install**. Obtainium then checks Ferb's releases and offers each update; Android asks you to confirm it.
+
+Using Ferb Link too? Add `https://github.com/kshatriya-abhay/ferb-link` the same way. Get both apps from the same place: Ferb Link answers only a Ferb signed with the same key, so releases go with releases and your own builds with your own builds. Android won't update a release with your own build either (the keys differ); switching means uninstalling, which removes Ferb's settings and reminders.
+
+Or [build it from source](#build-from-source).
 
 ### First launch
 
-A short welcome says what Ferb does and that it runs on the phone; tap **Start**. Three pages follow, one for each step of how Ferb understands you (how it hears you, whether it rewrites your request first, and whether Jev picks the tool), each with the recommended choice already picked and anything your phone can't use yet greyed out; then one on making Ferb your phone's assistant. **Skip** goes straight to the chat, and **Settings → Run setup again** brings the pages back. Then "How can I help?" shows a few requests to try; tap one, or type your own in the box at the bottom. Try:
+Three pages: a short welcome; **How will you talk to Ferb?** (English, English + Hindi, or Typing only, with the best choice for your phone picked); and making Ferb your phone's assistant (left out if it already is). **Skip** goes straight to the chat, and **Settings → Run setup again** brings the pages back. Then "How can I help?" shows a few requests to try; tap one, or type your own in the box at the bottom. Try:
 
 - "Set a timer for 10 minutes"
 - "Turn on the flashlight"
@@ -32,9 +42,15 @@ Each reply shows what Ferb did, with buttons such as **Turn off**, **Undo** or *
 
 Five tools are on at first: **Alarms, Timers, Open apps, Settings pages** and **Flashlight**. The others are off until you turn them on in **Settings → Tools**; Ferb asks for an Android permission when a tool needs one (contacts for Calls and Messages, the calendar for Agenda and Calendar), and uses it on the phone only. Each tool's page also has its keywords, whether it always asks first, and how sure Needle 3 must be before it runs without asking.
 
-### Choose how Ferb understands you
+### Talk to Ferb in
 
-**Settings → How Ferb understands you** has the steps before Needle 3 picks the action: **Audio processing** (Off, Whistle, Gemini Nano, or Ferb Link), **Prompt rewrite** (Off, Gemini Nano, or Ferb Link: "Helps with other languages and improves accuracy") and **Tool selection** (Off, or Jev through Ferb Link: "Improves accuracy by narrowing the tool choice"). Ferb picks Gemini Nano for the first two where your phone has it. If a step fails for a request, Ferb goes on without it and says so on the reply. Gemini Nano's page (its settings button) shows its download progress and the language it expects.
+**Settings → Talk to Ferb in** has three choices, and each uses the best your phone has:
+
+- **English**: Gemini Nano on the phone where it's available (Pixel 10 and 11), else Whistle.
+- **English + Hindi**: Gemini Nano on the phone, else your computer through Ferb Link. Greyed out, with why, when neither can hear you.
+- **Typing only**: no mic.
+
+If your computer can't be reached for a request, Ferb answers on the phone and says so on the reply. **Settings → Advanced** has the steps one by one: audio processing, prompt rewrite and tool selection (Jev, through Ferb Link). Options your phone can't ever use there are hidden, with a line saying why.
 
 ### Make Ferb your phone's assistant
 
