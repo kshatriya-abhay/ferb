@@ -224,7 +224,7 @@ fun Onboarding(settings: SettingsViewModel, onDone: () -> Unit) {
     }
     OnboardingFlow(
         pipeline = pipeline,
-        recommended = Pipeline.resolve(Saved(), gemini.speech == Part.Ready, gemini.rewrite == Part.Ready),
+        recommended = Pipeline.resolve(Saved(), dev.abhay.assistant.pipeline.Abilities(gemini.speech == Part.Ready, gemini.rewrite == Part.Ready)),
         available = available,
         gemini = gemini,
         assistantHeld = held,

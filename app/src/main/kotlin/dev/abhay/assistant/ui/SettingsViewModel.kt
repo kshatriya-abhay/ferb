@@ -30,6 +30,11 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     /** How Ferb understands you (Settings): each step as chosen, and the steps in use. Saved at once. */
     private val steps = (app as AssistantApp).pipeline
     val pipeline: StateFlow<Pipeline> = steps.pipeline
+    /** Talk to Ferb in, or null when the steps were changed under Advanced. */
+    val chosen get() = steps.saved
+    val abilities get() = steps.abilities
+    fun setTalk(talk: dev.abhay.assistant.pipeline.Talk) = steps.setTalk(talk)
+    fun linkChanged(heard: Boolean? = null) = steps.linkChanged(heard)
     fun setAudio(step: AudioStep) = steps.setAudio(step)
     fun setRewrite(step: RewriteStep) = steps.setRewrite(step)
     fun setTools(step: ToolStep) = steps.setTools(step)

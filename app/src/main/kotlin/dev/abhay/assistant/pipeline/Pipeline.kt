@@ -45,22 +45,118 @@ enum class ToolStep(val id: String, val title: String, val hint: String) {
     }
 }
 
-/** The three steps as chosen; each null until chosen (or migrated), then [resolve]d to a default. */
-data class Saved(val audio: AudioStep? = null, val rewrite: RewriteStep? = null, val tools: ToolStep? = null)
+/**
+ * Settings → Talk to Ferb in: the one choice most people make. Each picks the best steps this
+ * phone can use now ([steps]); the steps themselves are under Advanced. When nothing here can
+ * hear Hindi, English + Hindi can't be picked, and [reason] says why.
+ */
+enum class Talk(val id: String, val title: String, val hint: String) {
+    English("english", "English", "Speak in English"),
+    Hindi("hindi", "English + Hindi", "Speak English, Hindi or Hinglish"),
+    Typing("typing", "Typing only", "No microphone");
+
+    /**
+     * The steps for this choice, on this phone now: Gemini Nano when it's here (it stays on the
+     * phone), else the computer through Ferb Link for Hindi (Whistle hears English only), else
+     * Whistle. English stays on the phone. Tool selection is always off (Jev is under Advanced).
+     */
+    fun steps(can: Abilities): Pipeline = when (this) {
+        English -> Pipeline(if (can.geminiSpeech == true) AudioStep.Gemini else AudioStep.Whistle, can.phoneRewrite, ToolStep.Off)
+        Hindi -> Pipeline(
+            audio = when {
+                can.geminiSpeech == true -> AudioStep.Gemini
+                can.linkAudio -> AudioStep.Link
+                else -> AudioStep.Whistle
+            },
+            rewrite = can.bestRewrite,
+            tools = ToolStep.Off,
+        )
+        Typing -> Pipeline(AudioStep.Off, can.bestRewrite, ToolStep.Off)
+    }
+
+    /** Why this choice can't be picked now, or null when it can. */
+    fun reason(can: Abilities): String? = when {
+        this == Hindi && can.geminiSpeech != true && !can.linkAudio && can.geminiSpeech != null -> HINDI_NEEDS
+        else -> null
+    }
+
+    /** Where requests are understood, for the choice's second line. */
+    fun where(can: Abilities): String {
+        val steps = steps(can)
+        return when {
+            steps.audio == AudioStep.Link || (this == Typing && steps.rewrite == RewriteStep.Link) -> "Through your computer"
+            steps.audio == AudioStep.Gemini || steps.rewrite == RewriteStep.Gemini -> "Gemini Nano, on this phone"
+            steps.audio == AudioStep.Whistle -> "Whistle, on this phone"
+            else -> "On this phone"
+        }
+    }
+
+    companion object {
+        fun of(id: String?) = entries.firstOrNull { it.id == id }
+        const val TITLE = "Talk to Ferb in"
+        const val HINDI_NEEDS = "Needs Gemini Nano on this phone, or Ferb Link connected to your computer"
+
+        /** Before anything is chosen: English + Hindi when something here hears it, else English. */
+        fun default(can: Abilities) = if (can.geminiSpeech == true || can.linkAudio) Hindi else English
+    }
+}
+
+/**
+ * What this phone can use now: Gemini Nano's speech and rewrite (null until AICore has answered),
+ * and Ferb Link ([link]: installed, paired and on; [linkAudio]: and the computer's model hears).
+ */
+data class Abilities(
+    val geminiSpeech: Boolean? = null,
+    val geminiRewrite: Boolean? = null,
+    val link: Boolean = false,
+    val linkAudio: Boolean = false,
+) {
+    internal val phoneRewrite get() = if (geminiRewrite == true) RewriteStep.Gemini else RewriteStep.Off
+    internal val bestRewrite get() = when {
+        geminiRewrite == true -> RewriteStep.Gemini
+        link -> RewriteStep.Link
+        else -> RewriteStep.Off
+    }
+}
+
+/**
+ * What the user chose: [talk], or, once a step is changed under Advanced, the three steps (each
+ * null until chosen or migrated, then a default), and [talk] null.
+ */
+data class Saved(val audio: AudioStep? = null, val rewrite: RewriteStep? = null, val tools: ToolStep? = null, val talk: Talk? = null) {
+    val custom get() = talk == null && (audio != null || rewrite != null || tools != null)
+}
 
 data class Pipeline(val audio: AudioStep, val rewrite: RewriteStep, val tools: ToolStep) {
     companion object {
         /**
-         * The steps to use: as saved, else the defaults (the user's decision, 2026-10-24): Gemini
-         * Nano for audio if its speech is available on this phone, else Whistle; Gemini Nano for the
-         * rewrite if its model is available, else off; tool selection off. Until AICore has answered
-         * ([geminiSpeech] or [geminiRewrite] null), the phone-only fallbacks.
+         * The steps to use: [Saved.talk]'s; else, once changed under Advanced, the steps as saved,
+         * the rest the defaults (the user's decision, 2026-10-24): Gemini Nano for audio if its
+         * speech is available on this phone, else Whistle; Gemini Nano for the rewrite if its model
+         * is available, else off; tool selection off. With nothing saved, [Talk.default]'s. Until
+         * AICore has answered, the phone-only fallbacks.
          */
-        fun resolve(saved: Saved, geminiSpeech: Boolean?, geminiRewrite: Boolean?) = Pipeline(
-            audio = saved.audio ?: if (geminiSpeech == true) AudioStep.Gemini else AudioStep.Whistle,
-            rewrite = saved.rewrite ?: if (geminiRewrite == true) RewriteStep.Gemini else RewriteStep.Off,
-            tools = saved.tools ?: ToolStep.Off,
-        )
+        fun resolve(saved: Saved, can: Abilities): Pipeline = when {
+            saved.talk != null -> saved.talk.steps(can)
+            saved.custom -> Pipeline(
+                audio = saved.audio ?: if (can.geminiSpeech == true) AudioStep.Gemini else AudioStep.Whistle,
+                rewrite = saved.rewrite ?: can.phoneRewrite,
+                tools = saved.tools ?: ToolStep.Off,
+            )
+            else -> Talk.default(can).steps(can)
+        }
+
+        /**
+         * Once, when Talk to Ferb in arrived (2026-10-30): steps that one of its choices gives
+         * anyway become that choice, so the settings show it; anything else stays under Advanced.
+         */
+        fun toTalk(saved: Saved): Saved = when {
+            saved.talk != null || !saved.custom -> saved
+            saved.tools != null && saved.tools != ToolStep.Off -> saved
+            saved.audio == AudioStep.Off && saved.rewrite in setOf(null, RewriteStep.Gemini) -> Saved(talk = Talk.Typing)
+            saved.audio in setOf(null, AudioStep.Gemini) && saved.rewrite in setOf(null, RewriteStep.Gemini) -> Saved()
+            else -> saved
+        }
 
         /**
          * Once, from the settings before the steps (2026-10-24): Computer picked in the chat (Ferb

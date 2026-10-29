@@ -263,6 +263,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             val started = SystemClock.elapsedRealtime()
             val enabled = enabledTools.value.mapNotNull(Tools::byName)
             val configs = assistant.toolSettings.configs.value
+            // Talk to Ferb in follows Ferb Link: paired or not, as of now.
+            if (heardBy == null) assistant.pipeline.linkChanged()
             val answer = flow.answer(said, enabled, configs, pipeline.value, heardBy,
                 geminiUsable = assistant.nanoEars.setup.value.rewrite == Part.Ready)
             val shown = answer.shown
@@ -305,6 +307,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     fun startRecording() {
         if (_state.value.busy || pcmRecorder.recording || pcmRecording != null || nanoJob != null) return
         sendWhenStopped = false
+        assistant.pipeline.linkChanged()
         when (pipeline.value.audio) {
             // Off: there's no mic, so this is only a guard.
             AudioStep.Off -> return

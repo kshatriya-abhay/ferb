@@ -1,12 +1,18 @@
 package dev.abhay.assistant.ui
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
@@ -25,8 +31,10 @@ import dev.abhay.assistant.R
 import dev.abhay.assistant.link.FerbLink
 import dev.abhay.assistant.link.LinkStatus
 import dev.abhay.assistant.link.describe
+import dev.abhay.assistant.pipeline.Abilities
 import dev.abhay.assistant.pipeline.AudioStep
 import dev.abhay.assistant.pipeline.Availability
+import dev.abhay.assistant.pipeline.Talk
 import dev.abhay.assistant.pipeline.RewriteStep
 import dev.abhay.assistant.pipeline.ToolStep
 import dev.abhay.assistant.voice.GeminiSetup
@@ -131,7 +139,84 @@ internal fun StepTitle(title: String, hint: String) {
 }
 
 /**
- * Settings → How Ferb understands you: the three steps in order (audio processing, prompt
+ * Talk to Ferb in's choices as radio rows: the one in use selected (none once a step was changed
+ * under Advanced), each saying where it's understood, and one that can't work here greyed out with why.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+internal fun TalkOptions(selected: Talk?, can: Abilities, onSelect: (Talk) -> Unit, recommended: Talk? = null) {
+    Group(Talk.entries.map { talk ->
+        { shapes ->
+            val reason = talk.reason(can)
+            val enabled = reason == null || talk == selected
+            SegmentedListItem(
+                selected = talk == selected,
+                onClick = { onSelect(talk) },
+                shapes = shapes,
+                enabled = enabled,
+                leadingContent = { RadioButton(selected = talk == selected, onClick = null, enabled = enabled) },
+                supportingContent = {
+                    val line = reason ?: "${talk.hint} · ${talk.where(can)}"
+                    Text(if (talk == recommended && reason == null) "$RECOMMENDED · $line" else line)
+                },
+            ) { Text(talk.title) }
+        }
+    })
+}
+
+/**
+ * What this phone can use now, kept up to date while shown: Gemini Nano (checked once) and Ferb
+ * Link (on each resume, with a live check of whether the computer hears).
+ */
+@Composable
+internal fun rememberAbilities(settings: SettingsViewModel): Abilities {
+    LaunchedEffect(Unit) { settings.checkGemini() }
+    val status = rememberLinkStatus(settings.link)
+    val hears = rememberVoiceAvailable(settings.link, active = status is LinkStatus.Ready)
+    LaunchedEffect(status, hears) { settings.linkChanged(hears.takeIf { it }) }
+    val can by settings.abilities.collectAsStateWithLifecycle()
+    return can
+}
+
+/** Settings → Talk to Ferb in, and the row to Advanced (the steps one by one). */
+@Composable
+internal fun TalkSection(settings: SettingsViewModel, onOpenAdvanced: () -> Unit) {
+    val chosen by settings.chosen.collectAsStateWithLifecycle()
+    val can = rememberAbilities(settings)
+    SectionTitle(Talk.TITLE)
+    val selected = chosen.talk ?: if (chosen.custom) null else Talk.default(can)
+    TalkOptions(selected, can, settings::setTalk)
+    if (selected == null) Text(CUSTOM_STEPS, Modifier.padding(horizontal = 32.dp),
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Group(listOf { shapes ->
+        SegmentedListItem(
+            onClick = onOpenAdvanced,
+            shapes = shapes,
+            leadingContent = { IconBadge(R.drawable.ic_tune) },
+            supportingContent = { Text("Which model hears, rewrites and picks the tool") },
+            trailingContent = { Icon(androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
+        ) { Text(ADVANCED) }
+    })
+}
+
+internal const val ADVANCED = "Advanced"
+internal const val CUSTOM_STEPS = "Using your Advanced settings. Pick one above to go back."
+
+/** Settings → Advanced: the three steps, one by one. */
+@Composable
+fun AdvancedScreen(settings: SettingsViewModel, onOpenGemini: () -> Unit, onBack: () -> Unit) {
+    val bar = androidx.compose.material3.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    androidx.compose.material3.Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        topBar = { TopBar(ADVANCED, onBack = onBack, scroll = bar) }) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            UnderstandingSection(settings, onOpenGemini)
+        }
+    }
+}
+
+/**
+ * Settings → Advanced → How Ferb understands you: the three steps in order (audio processing, prompt
  * rewrite, tool selection), each with its options. Needle 3 always makes the tool call. Saved at once.
  */
 @Composable

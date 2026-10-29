@@ -129,7 +129,7 @@ import kotlin.math.roundToInt
 
 /** The settings home: the tools and Ferb Link (pages of their own), how Ferb understands you (its steps), the tips, and privacy. */
 @Composable
-fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenLink: () -> Unit, onOpenGemini: () -> Unit = {}, onOpenBench: () -> Unit = {}, onBack: () -> Unit) {
+fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenLink: () -> Unit, onOpenAdvanced: () -> Unit = {}, onOpenBench: () -> Unit = {}, onBack: () -> Unit) {
     val saved by settings.saved.collectAsStateWithLifecycle()
     val pipeline by settings.pipeline.collectAsStateWithLifecycle()
     val usesComputer = pipeline.audio == AudioStep.Link || pipeline.rewrite == RewriteStep.Link || pipeline.tools == ToolStep.Link
@@ -149,8 +149,8 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
                 },
                 { shapes -> LinkRow(settings, onOpen = onOpenLink, shapes = shapes) },
             ))
-            // How Ferb understands you: audio processing, prompt rewrite and tool selection, in order.
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { UnderstandingSection(settings, onOpenGemini) }
+            // Talk to Ferb in: one choice; the steps one by one are under Advanced.
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { TalkSection(settings, onOpenAdvanced) }
             // Debug builds only: the phone bench (Needle 3 and Gemini Nano on tool-check's requests).
             if (dev.abhay.assistant.DebugBench.AVAILABLE) Group(listOf { shapes ->
                 SegmentedListItem(

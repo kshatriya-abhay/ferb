@@ -5,17 +5,64 @@ import org.junit.Test
 
 /** The three steps: their defaults, the carry-over from the old settings, and what each option needs. */
 class PipelineTest {
+    private val gemini = Abilities(geminiSpeech = true, geminiRewrite = true)
+    private val bare = Abilities(geminiSpeech = false, geminiRewrite = false)
+    private val computer = bare.copy(link = true, linkAudio = true)
+
     @Test
     fun theDefaultsFollowWhatGeminiNanoCanDoHere() {
-        assertThat(Pipeline.resolve(Saved(), geminiSpeech = true, geminiRewrite = true))
-            .isEqualTo(Pipeline(AudioStep.Gemini, RewriteStep.Gemini, ToolStep.Off))
-        assertThat(Pipeline.resolve(Saved(), geminiSpeech = false, geminiRewrite = false))
-            .isEqualTo(Pipeline(AudioStep.Whistle, RewriteStep.Off, ToolStep.Off))
+        assertThat(Pipeline.resolve(Saved(), gemini)).isEqualTo(Pipeline(AudioStep.Gemini, RewriteStep.Gemini, ToolStep.Off))
+        assertThat(Pipeline.resolve(Saved(), bare)).isEqualTo(Pipeline(AudioStep.Whistle, RewriteStep.Off, ToolStep.Off))
         // Before AICore has answered: the phone-only fallbacks.
-        assertThat(Pipeline.resolve(Saved(), null, null)).isEqualTo(Pipeline(AudioStep.Whistle, RewriteStep.Off, ToolStep.Off))
-        // What the user chose stays chosen.
-        assertThat(Pipeline.resolve(Saved(AudioStep.Off, RewriteStep.Link, ToolStep.Link), geminiSpeech = true, geminiRewrite = true))
+        assertThat(Pipeline.resolve(Saved(), Abilities())).isEqualTo(Pipeline(AudioStep.Whistle, RewriteStep.Off, ToolStep.Off))
+        // What the user chose under Advanced stays chosen.
+        assertThat(Pipeline.resolve(Saved(AudioStep.Off, RewriteStep.Link, ToolStep.Link), gemini))
             .isEqualTo(Pipeline(AudioStep.Off, RewriteStep.Link, ToolStep.Link))
+        // One step chosen, the rest the defaults.
+        assertThat(Pipeline.resolve(Saved(tools = ToolStep.Link), gemini)).isEqualTo(Pipeline(AudioStep.Gemini, RewriteStep.Gemini, ToolStep.Link))
+    }
+
+    @Test
+    fun eachTalkChoiceWorksWithWhateverIsHere() {
+        // Gemini Nano here: everything stays on the phone.
+        assertThat(Talk.English.steps(gemini)).isEqualTo(Pipeline(AudioStep.Gemini, RewriteStep.Gemini, ToolStep.Off))
+        assertThat(Talk.Hindi.steps(gemini)).isEqualTo(Pipeline(AudioStep.Gemini, RewriteStep.Gemini, ToolStep.Off))
+        assertThat(Talk.Typing.steps(gemini)).isEqualTo(Pipeline(AudioStep.Off, RewriteStep.Gemini, ToolStep.Off))
+        // No Gemini Nano, Ferb Link paired and hearing: Hindi through the computer; English stays on the phone.
+        assertThat(Talk.Hindi.steps(computer)).isEqualTo(Pipeline(AudioStep.Link, RewriteStep.Link, ToolStep.Off))
+        assertThat(Talk.English.steps(computer)).isEqualTo(Pipeline(AudioStep.Whistle, RewriteStep.Off, ToolStep.Off))
+        assertThat(Talk.Typing.steps(computer)).isEqualTo(Pipeline(AudioStep.Off, RewriteStep.Link, ToolStep.Off))
+        // Gemini's rewrite but not its speech, computer paired: hears there, rewrites here.
+        assertThat(Talk.Hindi.steps(computer.copy(geminiRewrite = true))).isEqualTo(Pipeline(AudioStep.Link, RewriteStep.Gemini, ToolStep.Off))
+        // Neither: English and typing work, Hindi can't be picked, and says why.
+        assertThat(Talk.English.steps(bare)).isEqualTo(Pipeline(AudioStep.Whistle, RewriteStep.Off, ToolStep.Off))
+        assertThat(Talk.Hindi.reason(bare)).isEqualTo(Talk.HINDI_NEEDS)
+        assertThat(Talk.English.reason(bare)).isNull()
+        assertThat(Talk.Typing.reason(bare)).isNull()
+        assertThat(Talk.Hindi.reason(computer)).isNull()
+        // Paired, but the computer's model doesn't hear: still no Hindi voice.
+        assertThat(Talk.Hindi.reason(bare.copy(link = true))).isEqualTo(Talk.HINDI_NEEDS)
+        // Not checked yet: not held back.
+        assertThat(Talk.Hindi.reason(Abilities())).isNull()
+        // The default: Hindi when something hears it.
+        assertThat(Talk.default(gemini)).isEqualTo(Talk.Hindi)
+        assertThat(Talk.default(computer)).isEqualTo(Talk.Hindi)
+        assertThat(Talk.default(bare)).isEqualTo(Talk.English)
+        assertThat(Pipeline.resolve(Saved(talk = Talk.Typing), gemini).audio).isEqualTo(AudioStep.Off)
+    }
+
+    @Test
+    fun stepsAChoiceGivesAnywayBecomeIt() {
+        assertThat(Pipeline.toTalk(Saved())).isEqualTo(Saved())
+        assertThat(Pipeline.toTalk(Saved(AudioStep.Gemini, RewriteStep.Gemini, ToolStep.Off))).isEqualTo(Saved())
+        assertThat(Pipeline.toTalk(Saved(audio = AudioStep.Gemini))).isEqualTo(Saved())
+        assertThat(Pipeline.toTalk(Saved(audio = AudioStep.Off))).isEqualTo(Saved(talk = Talk.Typing))
+        // Anything a choice wouldn't give stays under Advanced.
+        assertThat(Pipeline.toTalk(Saved(tools = ToolStep.Link))).isEqualTo(Saved(tools = ToolStep.Link))
+        assertThat(Pipeline.toTalk(Saved(AudioStep.Link, RewriteStep.Link))).isEqualTo(Saved(AudioStep.Link, RewriteStep.Link))
+        assertThat(Pipeline.toTalk(Saved(audio = AudioStep.Whistle))).isEqualTo(Saved(audio = AudioStep.Whistle))
+        assertThat(Saved(audio = AudioStep.Whistle).custom).isTrue()
+        assertThat(Saved(talk = Talk.English).custom).isFalse()
     }
 
     @Test

@@ -29,18 +29,18 @@ import org.junit.runner.RunWith
 class AssistSheetDeviceTest {
     @get:Rule val compose = createEmptyComposeRule()
     private val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as AssistantApp
-    private var audio: AudioStep? = null
+    private var saved: dev.abhay.assistant.pipeline.Saved? = null
 
     @Before
     fun noMic() {
-        audio = app.pipeline.saved.value.audio
+        saved = app.pipeline.saved.value
         app.pipeline.setAudio(AudioStep.Off)
     }
 
     @After
     fun restore() {
-        // Back to what the user had (or to the default, when nothing was chosen).
-        audio?.let(app.pipeline::setAudio) ?: app.getSharedPreferences("pipeline", android.content.Context.MODE_PRIVATE).edit().remove("audio").commit()
+        // Back to what the user had: Talk to Ferb in, or the steps under Advanced.
+        saved?.let(app.pipeline::restore)
     }
 
     @Test

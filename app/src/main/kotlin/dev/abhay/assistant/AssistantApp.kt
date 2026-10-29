@@ -37,7 +37,11 @@ class AssistantApp : Application() {
     val callsRunning = kotlinx.coroutines.sync.Mutex()
 
     /** How Ferb understands a request: audio processing, rewrite, tool selection (Settings). */
-    val pipeline by lazy { dev.abhay.assistant.pipeline.PipelineSettings(this) }
+    val pipeline by lazy {
+        dev.abhay.assistant.pipeline.PipelineSettings(this) {
+            (link.status() as? dev.abhay.assistant.link.LinkStatus.Ready).let { (it != null) to (it?.audio == true) }
+        }
+    }
     /** Gemini Nano's speech recognition (POC), when picked in Settings. */
     val nanoEars by lazy { dev.abhay.assistant.voice.NanoEars() }
     val reminders by lazy { ReminderBook(FileReminderStore(java.io.File(filesDir, "reminders.json"))) { java.time.LocalDateTime.now() } }
