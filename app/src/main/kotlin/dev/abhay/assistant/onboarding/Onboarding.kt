@@ -83,12 +83,12 @@ class Onboarding(private val load: () -> OnboardingState, private val store: (On
 }
 
 /**
- * The first launch's pages, in order: what Ferb is, then one page per step of how it understands
- * you (each with its options, the recommended one picked), then making Ferb the phone's assistant
- * (left out once it is). Every page can be skipped; Settings → Run setup again shows them again.
+ * The first launch's pages, in order: what Ferb is, how you'll talk to it (Talk to Ferb in, the
+ * recommended choice picked), then making Ferb the phone's assistant (left out once it is). Every
+ * page can be skipped; Settings → Run setup again shows them again.
  */
 enum class Page {
-    Welcome, Audio, Rewrite, Tools, Assistant;
+    Welcome, Talk, Assistant;
 
     companion object {
         /** The pages to show: [Assistant] only while Ferb isn't the phone's assistant yet. */

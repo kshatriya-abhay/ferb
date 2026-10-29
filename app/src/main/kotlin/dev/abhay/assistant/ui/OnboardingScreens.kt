@@ -34,7 +34,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -49,29 +48,19 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.abhay.assistant.onboarding.Page
-import dev.abhay.assistant.pipeline.AudioStep
-import dev.abhay.assistant.pipeline.Availability
-import dev.abhay.assistant.pipeline.Pipeline
-import dev.abhay.assistant.pipeline.RewriteStep
-import dev.abhay.assistant.pipeline.Saved
-import dev.abhay.assistant.pipeline.ToolStep
+import dev.abhay.assistant.pipeline.Abilities
+import dev.abhay.assistant.pipeline.Talk
 import dev.abhay.assistant.voice.GeminiSetup
 import dev.abhay.assistant.voice.Part
 
-/** Each step's page in plain words: its question, and what the choice means. */
+/** Each page in plain words. */
 internal object PageText {
-    const val AUDIO_TITLE = "How should Ferb hear you?"
-    const val AUDIO_BODY = "Tap the mic and say what you'd like done. Pick what turns your voice into text: Gemini Nano and Whistle " +
-        "stay on this phone; Ferb Link uses your own computer. Off hides the mic, and you type instead. Ferb asks for the microphone the first time you tap it."
-    const val REWRITE_TITLE = "Should Ferb tidy up what you ask?"
-    const val REWRITE_BODY = "Before acting, Ferb can rewrite your request as one short, plain English command. That helps with Hindi and " +
-        "Hinglish, and lets Ferb tell when nothing needs doing, such as a question. Gemini Nano does it on this phone; Ferb Link on your computer."
-    const val TOOLS_TITLE = "Should Jev pick the tool?"
-    const val TOOLS_BODY = "Jev, a model in the cloud reached through Ferb Link, can narrow down which tool fits before Ferb acts. Your " +
-        "request's text and your tools' names then go to TypeSafe (US). Off keeps it all on this phone."
-    const val ASSISTANT_TITLE = "Make Ferb your phone's assistant"
-    const val ASSISTANT_BODY = "Then holding the power button, or swiping up from a bottom corner, opens Ferb from anywhere. In Android's " +
-        "default apps, pick Ferb as the Digital assistant app. Ferb doesn't read your screen."
+    const val TALK_TITLE = "How will you talk to Ferb?"
+    const val TALK_BODY = "Tap the mic and say what you'd like done. Ferb asks for the microphone the first time."
+    const val TALK_MORE = "More options in Settings → Advanced."
+    const val ASSISTANT_TITLE = "Make Ferb your assistant"
+    const val ASSISTANT_BODY = "Then hold the power button to open Ferb from anywhere. Pick Ferb as the digital assistant app. Ferb doesn't read your screen."
+    const val START = "Start"
     const val SKIP = "Skip"
     const val NEXT = "Next"
     const val BACK = "Back"
@@ -81,21 +70,19 @@ internal object PageText {
 }
 
 /**
- * The first launch (and Settings → Run setup again), one page at a time: the welcome, then each
- * step of how Ferb understands you with its options (the recommended one picked, and why an option
- * can't be used now), then the assistant role. Skip ends it at once, keeping what's chosen; Next on
- * a step saves the option shown, so a default doesn't change under the user later.
+ * The first launch (and Settings → Run setup again), one page at a time: the welcome, Talk to
+ * Ferb in (the recommended choice picked, and why one can't be used here), then the assistant
+ * role. Skip ends it at once, keeping what's chosen; Next on Talk to Ferb in saves the choice
+ * shown, so a default doesn't change under the user later. [talk] is null when steps were
+ * changed under Advanced: then nothing is picked, and Next keeps them.
  */
 @Composable
 internal fun OnboardingFlow(
-    pipeline: Pipeline,
-    recommended: Pipeline,
-    available: Availability,
+    talk: Talk?,
+    can: Abilities,
     gemini: GeminiSetup,
     assistantHeld: Boolean,
-    onAudio: (AudioStep) -> Unit,
-    onRewrite: (RewriteStep) -> Unit,
-    onTools: (ToolStep) -> Unit,
+    onTalk: (Talk) -> Unit,
     onSetUpGemini: () -> Unit,
     onOpenDefaultApps: () -> Unit,
     onDone: () -> Unit,
@@ -103,12 +90,7 @@ internal fun OnboardingFlow(
     var page by rememberSaveable { mutableStateOf(Page.Welcome) }
     val pages = Page.shown(assistantHeld)
     fun next() {
-        when (page) {
-            Page.Audio -> onAudio(pipeline.audio)
-            Page.Rewrite -> onRewrite(pipeline.rewrite)
-            Page.Tools -> onTools(pipeline.tools)
-            else -> {}
-        }
+        if (page == Page.Talk) talk?.let(onTalk)
         Page.next(page, assistantHeld)?.let { page = it } ?: onDone()
     }
     Page.previous(page, assistantHeld)?.let { previous -> BackHandler { page = previous } }
@@ -128,19 +110,12 @@ internal fun OnboardingFlow(
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     when (shown) {
                         Page.Welcome -> WelcomeContent()
-                        Page.Audio -> {
-                            PageHeader(PageText.AUDIO_TITLE, PageText.AUDIO_BODY)
-                            StepOptions(AudioOptions, pipeline.audio, onAudio, available, gemini, onOpenGemini = {}, recommended = recommended.audio, geminiButton = false)
-                            GeminiSetUp(gemini, gemini.speech, onSetUpGemini)
-                        }
-                        Page.Rewrite -> {
-                            PageHeader(PageText.REWRITE_TITLE, PageText.REWRITE_BODY)
-                            StepOptions(RewriteOptions, pipeline.rewrite, onRewrite, available, gemini, onOpenGemini = {}, recommended = recommended.rewrite, geminiButton = false)
-                            GeminiSetUp(gemini, gemini.rewrite, onSetUpGemini)
-                        }
-                        Page.Tools -> {
-                            PageHeader(PageText.TOOLS_TITLE, PageText.TOOLS_BODY)
-                            StepOptions(ToolOptions, pipeline.tools, onTools, available, gemini, onOpenGemini = {}, recommended = recommended.tools)
+                        Page.Talk -> {
+                            PageHeader(PageText.TALK_TITLE, PageText.TALK_BODY)
+                            TalkOptions(talk, can, onTalk, recommended = Talk.default(can))
+                            GeminiSetUp(gemini, onSetUpGemini)
+                            Text(PageText.TALK_MORE, Modifier.padding(horizontal = 32.dp),
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Page.Assistant -> {
                             PageHeader(PageText.ASSISTANT_TITLE, PageText.ASSISTANT_BODY)
@@ -158,7 +133,7 @@ internal fun OnboardingFlow(
                 }
                 Button(onClick = ::next, Modifier.weight(1f).height(56.dp), contentPadding = ButtonDefaults.MediumContentPadding) {
                     Text(when {
-                        page == Page.Welcome -> "Start"
+                        page == Page.Welcome -> PageText.START
                         page == pages.last() -> PageText.DONE
                         else -> PageText.NEXT
                     }, style = MaterialTheme.typography.titleMedium)
@@ -178,8 +153,8 @@ private fun PageHeader(title: String, body: String) {
 
 /** Gemini Nano still to download: the button that starts it (progress then shows on the option). */
 @Composable
-private fun GeminiSetUp(setup: GeminiSetup, part: Part, onSetUp: () -> Unit) {
-    if (part != Part.NeedsDownload && part !is Part.Failed) return
+private fun GeminiSetUp(setup: GeminiSetup, onSetUp: () -> Unit) {
+    if (listOf(setup.speech, setup.rewrite).none { it == Part.NeedsDownload || it is Part.Failed }) return
     Box(Modifier.fillMaxWidth().padding(horizontal = 32.dp)) {
         TextButton(onClick = onSetUp, enabled = !setup.downloading) { Text(PageText.SET_UP_GEMINI) }
     }
@@ -209,28 +184,24 @@ internal fun openDefaultApps(context: Context) {
     }
 }
 
-/** [OnboardingFlow] on the settings' state: the steps as they are now, and Gemini Nano's and Ferb Link's. */
+/** [OnboardingFlow] on the settings' state: Talk to Ferb in as it is now, and what this phone can use. */
 @Composable
 fun Onboarding(settings: SettingsViewModel, onDone: () -> Unit) {
     val context = LocalContext.current
-    val pipeline by settings.pipeline.collectAsStateWithLifecycle()
+    val chosen by settings.chosen.collectAsStateWithLifecycle()
     val gemini by settings.gemini.collectAsStateWithLifecycle()
-    LaunchedEffect(Unit) { settings.checkGemini() }
-    val available = rememberAvailability(settings.link, gemini)
+    val can = rememberAbilities(settings)
     var held by rememberSaveable { mutableStateOf(assistantHeld(context)) }
     androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
         held = assistantHeld(context)
         onPauseOrDispose { }
     }
     OnboardingFlow(
-        pipeline = pipeline,
-        recommended = Pipeline.resolve(Saved(), dev.abhay.assistant.pipeline.Abilities(gemini.speech == Part.Ready, gemini.rewrite == Part.Ready)),
-        available = available,
+        talk = chosen.talk ?: if (chosen.custom) null else Talk.default(can),
+        can = can,
         gemini = gemini,
         assistantHeld = held,
-        onAudio = settings::setAudio,
-        onRewrite = settings::setRewrite,
-        onTools = settings::setTools,
+        onTalk = settings::setTalk,
         onSetUpGemini = settings::setUpGemini,
         onOpenDefaultApps = { openDefaultApps(context) },
         onDone = onDone,

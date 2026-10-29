@@ -167,7 +167,7 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
                         onClick = { settings.onboarding.rerun() },
                         shapes = shapes,
                         leadingContent = { IconBadge(R.drawable.ic_tune) },
-                        supportingContent = { Text("The first launch's pages: how Ferb hears you, rewrites and picks tools") },
+                        supportingContent = { Text("The first launch's pages") },
                     ) { Text("Run setup again") }
                 },
                 { shapes ->
