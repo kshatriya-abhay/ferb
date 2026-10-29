@@ -16,7 +16,9 @@ class VoiceKindTest {
 
     @Test
     fun theButtonsSayWhatTheyDo() {
-        assertThat(CANCEL).isEqualTo("Cancel")
-        assertThat(FINISH).isEqualTo("Stop and send")
+        // As in res/values/strings.xml (the unit tests have no Android resources to read).
+        val xml = java.io.File("src/main/res/values/strings.xml").readText()
+        assertThat(xml).contains("""<string name="ui_cancel">Cancel</string>""")
+        assertThat(xml).contains("""<string name="ui_finish">Stop and send</string>""")
     }
 }

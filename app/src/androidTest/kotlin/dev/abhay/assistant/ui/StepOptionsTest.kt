@@ -40,7 +40,7 @@ class StepOptionsTest {
         compose.onNode(hasText(AudioStep.Whistle.title)).assertIsEnabled().performClick()
         assertThat(picked).isEqualTo(AudioStep.Whistle)
         // Gemini Nano's own button opens its page; the row only picks it.
-        compose.onNodeWithContentDescription(GEMINI_SETTINGS).performClick()
+        compose.onNodeWithContentDescription(str(GEMINI_SETTINGS)).performClick()
         assertThat(opened).isEqualTo(1)
     }
 

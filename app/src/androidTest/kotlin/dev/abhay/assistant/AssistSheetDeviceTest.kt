@@ -1,5 +1,6 @@
 package dev.abhay.assistant
 
+import dev.abhay.assistant.ui.str
 import android.content.Intent
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -48,7 +49,7 @@ class AssistSheetDeviceTest {
         val intent = Intent(Intent.ACTION_ASSIST).setClass(app, AssistActivity::class.java)
         ActivityScenario.launch<AssistActivity>(intent).use { scenario ->
             compose.onNodeWithText("Ferb").assertExists()
-            compose.onNodeWithContentDescription(OPEN_CHAT).assertExists()
+            compose.onNodeWithContentDescription(str(OPEN_CHAT)).assertExists()
             compose.onNodeWithText("What would you like done?").assertExists()
             // The box is on screen straight away, with no drag: whole, inside the window
             // (2026-10-24: at half height it was below the fold).

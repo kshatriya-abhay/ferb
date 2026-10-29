@@ -61,8 +61,8 @@ internal fun sheetHistory(state: AssistantViewModel.UiState, since: Long): List<
 /** At most this many exchanges in the sheet; the rest are in the full chat. */
 internal const val SHEET_EXCHANGES = 2
 
-internal const val OPEN_CHAT = "Open the chat"
-internal const val LISTENING = "Listening\u2026"
+internal val OPEN_CHAT = R.string.ui_open_chat
+internal val LISTENING = R.string.ui_listening
 /** The sheet's box or recording bar, for the device test. */
 internal const val SHEET_BAR = "sheet_bar"
 /** How far a drag up on the conversation goes before the full chat opens. */
@@ -135,13 +135,13 @@ fun AssistSheet(viewModel: AssistantViewModel, opened: Int, onOpenChat: () -> Un
         Column(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
             Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                IconButton(onClick = ::openChat) { Icon(painterResource(R.drawable.ic_open_in_new), contentDescription = OPEN_CHAT) }
+                IconButton(onClick = ::openChat) { Icon(painterResource(R.drawable.ic_open_in_new), contentDescription = stringResource(OPEN_CHAT)) }
             }
             // The conversation, at most 60% of the screen, scrolling: a tap opens the full chat
             // (buttons on a reply still do their own thing), and so does a drag up.
             Column(
                 Modifier.fillMaxWidth().heightIn(max = maxConversation).nestedScroll(dragUp).verticalScroll(rememberScrollState())
-                    .clickable(onClickLabel = OPEN_CHAT, onClick = ::openChat)
+                    .clickable(onClickLabel = stringResource(OPEN_CHAT), onClick = ::openChat)
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.Bottom),
             ) {
@@ -149,7 +149,7 @@ fun AssistSheet(viewModel: AssistantViewModel, opened: Int, onOpenChat: () -> Un
                 // Listening: plain to see at once, with Expressive's loading indicator.
                 if (recording) Row(Modifier.semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.CenterVertically) {
                     LoadingIndicator(Modifier.size(40.dp))
-                    Text(LISTENING, Modifier.padding(start = 12.dp), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                    Text(stringResource(LISTENING), Modifier.padding(start = 12.dp), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                 } else if (shown.isEmpty() && state.pending == null) {
                     Text(stringResource(R.string.assistsheet_what_would_you_like_done), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }

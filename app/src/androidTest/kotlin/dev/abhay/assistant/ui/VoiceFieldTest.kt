@@ -25,9 +25,9 @@ class VoiceFieldTest {
                 onFinish = { finished++ }, onDiscard = { discarded++ }, onSend = {})
         }
         compose.onNodeWithText("set an alarm").assertIsDisplayed()
-        compose.onNodeWithContentDescription(FINISH).performClick()
+        compose.onNodeWithContentDescription(str(FINISH)).performClick()
         assertThat(finished).isEqualTo(1)
-        compose.onNodeWithContentDescription(CANCEL).performClick()
+        compose.onNodeWithContentDescription(str(CANCEL)).performClick()
         assertThat(discarded).isEqualTo(1)
     }
 
@@ -36,7 +36,7 @@ class VoiceFieldTest {
         compose.setContent {
             VoiceField(AssistantViewModel.Voice.Recording(0, onPhone = true, sendingIn = 0.5f), onFinish = {}, onDiscard = {}, onSend = {})
         }
-        compose.onNodeWithContentDescription(SENDING).assertIsDisplayed()
+        compose.onNodeWithContentDescription(str(SENDING)).assertIsDisplayed()
     }
 
     @Test
@@ -44,7 +44,7 @@ class VoiceFieldTest {
         compose.setContent {
             VoiceField(AssistantViewModel.Voice.Recording(0, onPhone = true), onFinish = {}, onDiscard = {}, onSend = {})
         }
-        compose.onNodeWithContentDescription(SENDING).assertDoesNotExist()
+        compose.onNodeWithContentDescription(str(SENDING)).assertDoesNotExist()
     }
 
     @Test

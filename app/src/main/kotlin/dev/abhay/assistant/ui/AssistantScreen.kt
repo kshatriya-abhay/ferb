@@ -497,7 +497,7 @@ internal fun ReplyBubble(
             when {
                 reply.error != null -> Text(stringResource(R.string.assistant_something_went_wrong_try_again), style = MaterialTheme.typography.bodyLarge)
                 offered != null -> Text(stringResource(R.string.assistant_s_is_off, offered.title), style = MaterialTheme.typography.bodyLarge)
-                exchange.nothingAsked -> Text(NOTHING_ASKED, style = MaterialTheme.typography.bodyLarge)
+                exchange.nothingAsked -> Text(stringResource(NOTHING_ASKED), style = MaterialTheme.typography.bodyLarge)
                 exchange.calls.isEmpty() -> Text(stringResource(R.string.assistant_i_can_t_do_that), style = MaterialTheme.typography.bodyLarge)
                 asking && !choosing -> Text(stringResource(R.string.assistant_shall_i_do_this), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -522,7 +522,7 @@ internal fun ReplyBubble(
 }
 
 /** What the rewrite answers when nothing is asked of the phone (NONE). */
-internal const val NOTHING_ASKED = "Nothing for me to do on the phone there."
+internal val NOTHING_ASKED = R.string.ui_nothing_asked
 
 /**
  * A step that couldn't be used for this request, as an icon and a few words ("Rewrite · Gemini
@@ -740,7 +740,7 @@ internal fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () -
             if (reply.reasoning.isNotBlank()) {
                 var notes by remember { mutableStateOf(false) }
                 TextButton(onClick = { notes = !notes }, contentPadding = PaddingValues(0.dp)) {
-                    Text(if (notes) "Hide model notes" else MODEL_NOTES, style = MaterialTheme.typography.labelMedium)
+                    Text(if (notes) stringResource(R.string.ui_hide_model_notes) else stringResource(MODEL_NOTES), style = MaterialTheme.typography.labelMedium)
                 }
                 if (notes) {
                     Text(stringResource(R.string.assistant_needle_3_s_words_ferb),
@@ -866,16 +866,17 @@ internal fun VoiceField(voice: AssistantViewModel.Voice, onFinish: () -> Unit, o
         }
         Spacer(Modifier.width(8.dp))
         FilledTonalIconButton(onClick = onDiscard, modifier = Modifier.size(IconButtonDefaults.smallContainerSize()), shapes = IconButtonDefaults.shapes()) {
-            Icon(Icons.Default.Close, contentDescription = CANCEL, Modifier.size(IconButtonDefaults.smallIconSize))
+            Icon(Icons.Default.Close, contentDescription = stringResource(CANCEL), Modifier.size(IconButtonDefaults.smallIconSize))
         }
         Spacer(Modifier.width(8.dp))
         val recording = voice is AssistantViewModel.Voice.Recording
         // Silent after speech: a ring round ✓ fills over the silence before it's sent by itself.
         val sending = (voice as? AssistantViewModel.Voice.Recording)?.sendingIn
+        val sendingLabel = stringResource(SENDING)
         Box(contentAlignment = Alignment.Center) {
-            if (sending != null) CircularWavyProgressIndicator(progress = { sending }, Modifier.size(IconButtonDefaults.mediumContainerSize().width + 8.dp).semantics { contentDescription = SENDING })
+            if (sending != null) CircularWavyProgressIndicator(progress = { sending }, Modifier.size(IconButtonDefaults.mediumContainerSize().width + 8.dp).semantics { contentDescription = sendingLabel })
             FilledIconButton(onClick = if (recording) onFinish else onSend, modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()), shapes = IconButtonDefaults.shapes()) {
-                if (recording) Icon(painterResource(R.drawable.ic_check), contentDescription = FINISH, Modifier.size(IconButtonDefaults.mediumIconSize))
+                if (recording) Icon(painterResource(R.drawable.ic_check), contentDescription = stringResource(FINISH), Modifier.size(IconButtonDefaults.mediumIconSize))
                 else Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.assistant_send), Modifier.size(IconButtonDefaults.mediumIconSize))
             }
         }
@@ -883,12 +884,12 @@ internal fun VoiceField(voice: AssistantViewModel.Voice, onFinish: () -> Unit, o
 }
 
 /** The recording's two buttons, by what they say to TalkBack (and the UI tests). */
-internal const val CANCEL = "Cancel"
-internal const val FINISH = "Stop and send"
+internal val CANCEL = R.string.ui_cancel
+internal val FINISH = R.string.ui_finish
 /** The details' folded Needle 3 reasoning. */
-internal const val MODEL_NOTES = "Model notes"
+internal val MODEL_NOTES = R.string.ui_model_notes
 /** The ring round ✓ while it's about to send by itself. */
-internal const val SENDING = "Sending when you stop speaking"
+internal val SENDING = R.string.ui_sending
 
 /** "0:04". */
 private fun elapsed(ms: Long) = String.format(Locale.US, "%d:%02d", ms / 60_000, ms / 1000 % 60)

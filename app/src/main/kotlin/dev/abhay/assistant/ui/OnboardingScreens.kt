@@ -55,20 +55,20 @@ import dev.abhay.assistant.pipeline.Talk
 import dev.abhay.assistant.voice.GeminiSetup
 import dev.abhay.assistant.voice.Part
 
-/** Each page in plain words. */
+/** Each page in plain words (string resources). */
 internal object PageText {
-    const val TALK_TITLE = "How will you talk to Ferb?"
-    const val TALK_BODY = "Tap the mic and say what you'd like done."
-    const val TALK_MORE = "More in Settings → Advanced."
-    const val ASSISTANT_TITLE = "Make Ferb your assistant"
-    const val ASSISTANT_BODY = "Hold the power button to open Ferb anywhere. Ferb doesn't read your screen."
-    const val START = "Start"
-    const val SKIP = "Skip"
-    const val NEXT = "Next"
-    const val BACK = "Back"
-    const val DONE = "Done"
-    const val SET_UP_GEMINI = dev.abhay.assistant.ui.SET_UP_GEMINI
-    const val OPEN_DEFAULT_APPS = "Open default apps"
+    val TALK_TITLE = R.string.onboarding_talk_title
+    val TALK_BODY = R.string.onboarding_talk_body
+    val TALK_MORE = R.string.onboarding_talk_more
+    val ASSISTANT_TITLE = R.string.onboarding_assistant_title
+    val ASSISTANT_BODY = R.string.onboarding_assistant_body
+    val START = R.string.onboarding_start
+    val SKIP = R.string.onboarding_skip
+    val NEXT = R.string.onboarding_next
+    val BACK = R.string.onboarding_back
+    val DONE = R.string.onboarding_done
+    val SET_UP_GEMINI = dev.abhay.assistant.ui.SET_UP_GEMINI
+    val OPEN_DEFAULT_APPS = R.string.onboarding_open_default_apps
 }
 
 /**
@@ -101,7 +101,7 @@ internal fun OnboardingFlow(
         Column(Modifier.fillMaxSize().safeDrawingPadding()) {
             // Skip, top right, on every page but the last.
             Row(Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 8.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                if (page != pages.last()) TextButton(onClick = onDone) { Text(PageText.SKIP) }
+                if (page != pages.last()) TextButton(onClick = onDone) { Text(stringResource(PageText.SKIP)) }
             }
             // Material's shared axis on X between pages, forward to the right.
             AnimatedContent(page, Modifier.weight(1f), transitionSpec = {
@@ -113,16 +113,16 @@ internal fun OnboardingFlow(
                     when (shown) {
                         Page.Welcome -> WelcomeContent()
                         Page.Talk -> {
-                            PageHeader(PageText.TALK_TITLE, PageText.TALK_BODY)
+                            PageHeader(stringResource(PageText.TALK_TITLE), stringResource(PageText.TALK_BODY))
                             TalkOptions(talk, can, onTalk, recommended = Talk.default(can))
                             GeminiSetUp(gemini, onSetUpGemini)
-                            Text(PageText.TALK_MORE, Modifier.padding(horizontal = 32.dp),
+                            Text(stringResource(PageText.TALK_MORE), Modifier.padding(horizontal = 32.dp),
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Page.Assistant -> {
-                            PageHeader(PageText.ASSISTANT_TITLE, PageText.ASSISTANT_BODY)
+                            PageHeader(stringResource(PageText.ASSISTANT_TITLE), stringResource(PageText.ASSISTANT_BODY))
                             Box(Modifier.fillMaxWidth().padding(horizontal = 32.dp)) {
-                                OutlinedButton(onClick = onOpenDefaultApps) { Text(PageText.OPEN_DEFAULT_APPS) }
+                                OutlinedButton(onClick = onOpenDefaultApps) { Text(stringResource(PageText.OPEN_DEFAULT_APPS)) }
                             }
                         }
                     }
@@ -131,13 +131,13 @@ internal fun OnboardingFlow(
             Dots(pages, page)
             Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Page.previous(page, assistantHeld)?.let { previous ->
-                    OutlinedButton(onClick = { page = previous }, Modifier.height(56.dp)) { Text(PageText.BACK) }
+                    OutlinedButton(onClick = { page = previous }, Modifier.height(56.dp)) { Text(stringResource(PageText.BACK)) }
                 }
                 Button(onClick = ::next, Modifier.weight(1f).height(56.dp), contentPadding = ButtonDefaults.MediumContentPadding) {
                     Text(when {
-                        page == Page.Welcome -> PageText.START
-                        page == pages.last() -> PageText.DONE
-                        else -> PageText.NEXT
+                        page == Page.Welcome -> stringResource(PageText.START)
+                        page == pages.last() -> stringResource(PageText.DONE)
+                        else -> stringResource(PageText.NEXT)
                     }, style = MaterialTheme.typography.titleMedium)
                 }
             }

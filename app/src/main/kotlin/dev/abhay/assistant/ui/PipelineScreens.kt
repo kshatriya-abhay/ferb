@@ -109,14 +109,14 @@ internal fun <T : Any> StepOptions(
                         option.gemini -> "${option.hint} · ${gemini.summary()}"
                         else -> option.hint
                     }
-                    Text(if (option.value == recommended && reason == null) "$RECOMMENDED · $line" else line)
+                    Text(if (option.value == recommended && reason == null) "${stringResource(RECOMMENDED)} · $line" else line)
                 },
                 trailingContent = if (option.gemini && geminiButton) {
                     {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             VerticalDivider(Modifier.height(32.dp).padding(end = 4.dp))
                             IconButton(onClick = onOpenGemini, modifier = Modifier.size(48.dp)) {
-                                Icon(painterResource(R.drawable.ic_tune), contentDescription = GEMINI_SETTINGS)
+                                Icon(painterResource(R.drawable.ic_tune), contentDescription = stringResource(GEMINI_SETTINGS))
                             }
                         }
                     }
@@ -126,10 +126,10 @@ internal fun <T : Any> StepOptions(
     })
 }
 
-internal const val RECOMMENDED = "Recommended"
+internal val RECOMMENDED = R.string.ui_recommended
 
 /** The Gemini Nano rows' settings button, which opens its page (the row itself only selects it). */
-internal const val GEMINI_SETTINGS = "Gemini Nano settings"
+internal val GEMINI_SETTINGS = R.string.ui_gemini_settings
 
 /** A step's name and what it's for, above its options. */
 @Composable
@@ -159,7 +159,7 @@ internal fun TalkOptions(selected: Talk?, can: Abilities, onSelect: (Talk) -> Un
                 leadingContent = { RadioButton(selected = talk == selected, onClick = null, enabled = enabled) },
                 supportingContent = {
                     val line = reason ?: "${talk.hint} · ${talk.where(can)}"
-                    Text(if (talk == recommended && reason == null) "$RECOMMENDED · $line" else line)
+                    Text(if (talk == recommended && reason == null) "${stringResource(RECOMMENDED)} · $line" else line)
                 },
             ) { Text(talk.title) }
         }
@@ -190,7 +190,7 @@ internal fun TalkSection(settings: SettingsViewModel, onOpenAdvanced: () -> Unit
     TalkOptions(selected, can, settings::setTalk)
     val gemini by settings.gemini.collectAsStateWithLifecycle()
     GeminiSetUp(gemini, settings::setUpGemini)
-    if (selected == null) Note(CUSTOM_STEPS)
+    if (selected == null) Note(stringResource(CUSTOM_STEPS))
     Group(listOf { shapes ->
         SegmentedListItem(
             onClick = onOpenAdvanced,
@@ -198,7 +198,7 @@ internal fun TalkSection(settings: SettingsViewModel, onOpenAdvanced: () -> Unit
             leadingContent = { IconBadge(R.drawable.ic_tune) },
             supportingContent = { Text(stringResource(R.string.pipeline_each_step_one_by_one)) },
             trailingContent = { Icon(androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
-        ) { Text(ADVANCED) }
+        ) { Text(stringResource(ADVANCED)) }
     })
 }
 
@@ -207,20 +207,20 @@ internal fun TalkSection(settings: SettingsViewModel, onOpenAdvanced: () -> Unit
 internal fun GeminiSetUp(setup: GeminiSetup, onSetUp: () -> Unit) {
     if (listOf(setup.speech, setup.rewrite).none { it == Part.NeedsDownload || it is Part.Failed }) return
     androidx.compose.foundation.layout.Box(Modifier.padding(horizontal = 32.dp)) {
-        androidx.compose.material3.TextButton(onClick = onSetUp, enabled = !setup.downloading) { Text(SET_UP_GEMINI) }
+        androidx.compose.material3.TextButton(onClick = onSetUp, enabled = !setup.downloading) { Text(stringResource(SET_UP_GEMINI)) }
     }
 }
 
-internal const val SET_UP_GEMINI = "Set up Gemini Nano"
-internal const val ADVANCED = "Advanced"
-internal const val CUSTOM_STEPS = "Set in Advanced. Pick one to go back."
+internal val SET_UP_GEMINI = R.string.ui_set_up_gemini
+internal val ADVANCED = R.string.ui_advanced
+internal val CUSTOM_STEPS = R.string.ui_custom_steps
 
 /** Settings → Advanced: the three steps, one by one. */
 @Composable
 fun AdvancedScreen(settings: SettingsViewModel, onOpenGemini: () -> Unit, onBack: () -> Unit) {
     val bar = androidx.compose.material3.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     androidx.compose.material3.Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        topBar = { TopBar(ADVANCED, onBack = onBack, scroll = bar) }) { padding ->
+        topBar = { TopBar(stringResource(ADVANCED), onBack = onBack, scroll = bar) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
             UnderstandingSection(settings, onOpenGemini)
@@ -238,7 +238,7 @@ internal fun UnderstandingSection(settings: SettingsViewModel, onOpenGemini: () 
     val gemini by settings.gemini.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { settings.checkGemini() }
     val available = rememberAvailability(settings.link, gemini)
-    SectionTitle(UNDERSTANDING)
+    SectionTitle(stringResource(UNDERSTANDING))
     Note("Needle 3 always picks the action, on this phone.")
     // What isn't offered here, and why, in a line each.
     if (available.linkReason == Availability.LINK_NOT_INSTALLED) Note(Availability.LINK_NOT_INSTALLED)
@@ -259,4 +259,4 @@ internal fun UnderstandingSection(settings: SettingsViewModel, onOpenGemini: () 
 private fun Note(text: String) = Text(text, Modifier.padding(horizontal = 32.dp),
     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
-internal const val UNDERSTANDING = "How Ferb understands you"
+internal val UNDERSTANDING = R.string.ui_understanding
