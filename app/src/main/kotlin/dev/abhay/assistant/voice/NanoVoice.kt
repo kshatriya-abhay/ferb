@@ -5,9 +5,17 @@ import org.json.JSONObject
 import java.util.Locale
 
 /**
- * Gemini Nano's speech recognition, in one locale (the user's decision, 2026-10-25): set to English
- * it still writes Hindi down, in Devanagari, and Hinglish too (2026-10-24), and both locales report
- * the same AICore feature, so there's no language to choose.
+ * Gemini Nano's speech recognition, in one locale, en-US, for English and for English + Hindi (the
+ * user's decisions, 2026-10-25 and 2026-10-30). Advanced mode is one model for every language: the
+ * locale is only a hint, and checkStatus says the same for every locale. Set to en-US it still
+ * writes Hindi down, in Devanagari, and Hinglish too, and it detects other languages itself (the
+ * phone's TTS in Japanese and French came back right). The locale probe (2026-10-30,
+ * tool-check/locale-probe-2026-10-30.md) found:
+ *  - en-IN gives exactly what en-US gives;
+ *  - hi-IN hears Hindi about as well, but writes English in Devanagari and gets it wrong more
+ *    ("Show me my alarms" as "Xiaomi my alarms");
+ *  - a wrong locale is worse than none: ja-JP and fr-FR translate Hindi into Japanese or French.
+ * So no language setting: Ferb's rewrite and Needle 3 handle English and Hindi only anyway.
  */
 object NanoSpeech {
     val LOCALE: Locale = Locale.forLanguageTag("en-US")
