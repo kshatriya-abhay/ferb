@@ -23,54 +23,80 @@ class PipelineTest {
     }
 
     @Test
-    fun eachTalkChoiceWorksWithWhateverIsHere() {
-        // Gemini Nano here: everything stays on the phone.
-        assertThat(Talk.English.steps(gemini)).isEqualTo(Pipeline(AudioStep.Gemini, RewriteStep.Gemini, ToolStep.Off))
-        assertThat(Talk.Hindi.steps(gemini)).isEqualTo(Pipeline(AudioStep.Gemini, RewriteStep.Gemini, ToolStep.Off))
-        assertThat(Talk.Typing.steps(gemini)).isEqualTo(Pipeline(AudioStep.Off, RewriteStep.Gemini, ToolStep.Off))
-        // No Gemini Nano, Ferb Link paired and hearing: Hindi through the computer; English stays on the phone.
-        assertThat(Talk.Hindi.steps(computer)).isEqualTo(Pipeline(AudioStep.Link, RewriteStep.Link, ToolStep.Off))
-        assertThat(Talk.English.steps(computer)).isEqualTo(Pipeline(AudioStep.Whistle, RewriteStep.Off, ToolStep.Off))
-        assertThat(Talk.Typing.steps(computer)).isEqualTo(Pipeline(AudioStep.Off, RewriteStep.Link, ToolStep.Off))
-        // Gemini's rewrite but not its speech, computer paired: hears there, rewrites here.
-        assertThat(Talk.Hindi.steps(computer.copy(geminiRewrite = true))).isEqualTo(Pipeline(AudioStep.Link, RewriteStep.Gemini, ToolStep.Off))
-        // Neither yet, but Gemini Nano can download: Hindi can be picked, and hears English until it's ready.
-        assertThat(Talk.English.steps(bare)).isEqualTo(Pipeline(AudioStep.Whistle, RewriteStep.Off, ToolStep.Off))
-        assertThat(Talk.Hindi.steps(bare)).isEqualTo(Pipeline(AudioStep.Whistle, RewriteStep.Off, ToolStep.Off))
-        assertThat(Talk.Hindi.reason(bare)).isNull()
-        assertThat(Talk.Hindi.waitsForGemini(bare)).isTrue()
-        assertThat(Talk.Hindi.where(bare)).isEqualTo(Talk.UNTIL_GEMINI)
-        assertThat(Talk.English.waitsForGemini(bare)).isFalse()
-        assertThat(Talk.Hindi.waitsForGemini(gemini)).isFalse()
-        assertThat(Talk.Hindi.waitsForGemini(computer)).isFalse()
-        assertThat(Talk.English.reason(bare)).isNull()
-        assertThat(Talk.Typing.reason(bare)).isNull()
-        assertThat(Talk.Hindi.reason(computer)).isNull()
-        // Gemini Nano can't run on this phone at all: only the computer can hear Hindi.
-        assertThat(Talk.Hindi.reason(bare.copy(geminiHere = false))).isEqualTo(Talk.HINDI_NEEDS_LINK)
-        assertThat(Talk.Hindi.reason(bare.copy(geminiHere = false, link = true))).isEqualTo(Talk.HINDI_NEEDS_LINK)
-        assertThat(Talk.Hindi.reason(computer.copy(geminiHere = false))).isNull()
-        // Not checked yet: not held back.
-        assertThat(Talk.Hindi.reason(Abilities())).isNull()
-        // The default: Hindi when something hears it.
-        assertThat(Talk.default(gemini)).isEqualTo(Talk.Hindi)
-        assertThat(Talk.default(computer)).isEqualTo(Talk.Hindi)
-        assertThat(Talk.default(bare)).isEqualTo(Talk.English)
-        assertThat(Pipeline.resolve(Saved(talk = Talk.Typing), gemini).audio).isEqualTo(AudioStep.Off)
+    fun eachModelStandsForItsSteps() {
+        assertThat(ModelChoice.Whistle.steps).isEqualTo(Pipeline(AudioStep.Whistle, RewriteStep.Off, ToolStep.Off))
+        assertThat(ModelChoice.Gemini.steps).isEqualTo(Pipeline(AudioStep.Gemini, RewriteStep.Gemini, ToolStep.Off))
+        assertThat(ModelChoice.Gemma.steps).isEqualTo(Pipeline(AudioStep.Link, RewriteStep.Link, ToolStep.Off))
+        // Jev is never a model's: only under Advanced.
+        assertThat(ModelChoice.entries.map { it.steps.tools }).containsExactly(ToolStep.Off, ToolStep.Off, ToolStep.Off)
+        assertThat(ModelChoice.TITLE).isEqualTo("Choose your preferred model")
+        assertThat(ModelChoice.entries.map { it.title }).containsExactly("Needle + Whistle", "Gemini Nano", "Gemma 4 (via Ferb Link)").inOrder()
+        assertThat(ModelChoice.entries.map { it.hint }).containsExactly("English-only, wide-compatibility",
+            "on-device, multilingual, compatibility varies", "run it on your own server, multilingual").inOrder()
     }
 
     @Test
-    fun stepsAChoiceGivesAnywayBecomeIt() {
-        assertThat(Pipeline.toTalk(Saved())).isEqualTo(Saved())
-        assertThat(Pipeline.toTalk(Saved(AudioStep.Gemini, RewriteStep.Gemini, ToolStep.Off))).isEqualTo(Saved())
-        assertThat(Pipeline.toTalk(Saved(audio = AudioStep.Gemini))).isEqualTo(Saved())
-        assertThat(Pipeline.toTalk(Saved(audio = AudioStep.Off))).isEqualTo(Saved(talk = Talk.Typing))
-        // Anything a choice wouldn't give stays under Advanced.
-        assertThat(Pipeline.toTalk(Saved(tools = ToolStep.Link))).isEqualTo(Saved(tools = ToolStep.Link))
-        assertThat(Pipeline.toTalk(Saved(AudioStep.Link, RewriteStep.Link))).isEqualTo(Saved(AudioStep.Link, RewriteStep.Link))
-        assertThat(Pipeline.toTalk(Saved(audio = AudioStep.Whistle))).isEqualTo(Saved(audio = AudioStep.Whistle))
+    fun geminiNanoUsesWhatsReadyAndSwitchesWhenItIs() {
+        assertThat(ModelChoice.Gemini.resolve(gemini)).isEqualTo(Pipeline(AudioStep.Gemini, RewriteStep.Gemini, ToolStep.Off))
+        // Still to download: Whistle and no rewrite meanwhile.
+        assertThat(ModelChoice.Gemini.resolve(bare)).isEqualTo(Pipeline(AudioStep.Whistle, RewriteStep.Off, ToolStep.Off))
+        assertThat(ModelChoice.Gemini.waitsForGemini(bare)).isTrue()
+        assertThat(ModelChoice.Gemini.waitsForGemini(gemini)).isFalse()
+        assertThat(ModelChoice.Gemini.reason(bare)).isNull()
+        // Speech ready, the rewrite still downloading.
+        assertThat(ModelChoice.Gemini.resolve(bare.copy(geminiSpeech = true))).isEqualTo(Pipeline(AudioStep.Gemini, RewriteStep.Off, ToolStep.Off))
+        // AICore can't run it here: greyed out, and nothing to wait for.
+        assertThat(ModelChoice.Gemini.reason(bare.copy(geminiHere = false))).isEqualTo(ModelChoice.GEMINI_CANT_RUN)
+        assertThat(ModelChoice.Gemini.waitsForGemini(bare.copy(geminiHere = false))).isFalse()
+        // The others don't wait for it.
+        assertThat(ModelChoice.Whistle.resolve(gemini)).isEqualTo(ModelChoice.Whistle.steps)
+        assertThat(ModelChoice.Gemma.waitsForGemini(bare)).isFalse()
+    }
+
+    @Test
+    fun gemmaNeedsFerbLinkInstalledAndSaysWhenItIsntPaired() {
+        val installed = bare.copy(linkApp = true)
+        assertThat(ModelChoice.Gemma.reason(bare)).isEqualTo(ModelChoice.LINK_NOT_INSTALLED)
+        assertThat(ModelChoice.Gemma.needsPairing(bare)).isFalse()
+        // Installed, not paired: can be picked, says so; requests fall back one at a time meanwhile.
+        assertThat(ModelChoice.Gemma.reason(installed)).isNull()
+        assertThat(ModelChoice.Gemma.needsPairing(installed)).isTrue()
+        assertThat(ModelChoice.Gemma.resolve(installed)).isEqualTo(Pipeline(AudioStep.Link, RewriteStep.Link, ToolStep.Off))
+        assertThat(ModelChoice.Gemma.needsPairing(computer)).isFalse()
+        assertThat(ModelChoice.Gemma.reason(computer)).isNull()
+        // Paired means installed.
+        assertThat(computer.linkInstalled).isTrue()
+        assertThat(ModelChoice.Whistle.reason(bare.copy(geminiHere = false))).isNull()
+        assertThat(ModelChoice.Whistle.needsPairing(installed)).isFalse()
+    }
+
+    @Test
+    fun theDefaultIsGeminiNanoWhereItCanRun() {
+        assertThat(ModelChoice.default(gemini)).isEqualTo(ModelChoice.Gemini)
+        // Still to download counts: it can run here.
+        assertThat(ModelChoice.default(bare)).isEqualTo(ModelChoice.Gemini)
+        assertThat(ModelChoice.default(computer)).isEqualTo(ModelChoice.Gemini)
+        assertThat(ModelChoice.default(bare.copy(geminiHere = false))).isEqualTo(ModelChoice.Whistle)
+        assertThat(ModelChoice.default(computer.copy(geminiHere = false))).isEqualTo(ModelChoice.Whistle)
+        assertThat(Pipeline.resolve(Saved(model = ModelChoice.Gemma), gemini).audio).isEqualTo(AudioStep.Link)
+        assertThat(Pipeline.resolve(Saved(model = ModelChoice.Whistle), gemini)).isEqualTo(ModelChoice.Whistle.steps)
+        assertThat(ModelChoice.of("gemma")).isEqualTo(ModelChoice.Gemma)
+        assertThat(ModelChoice.of("hindi")).isNull()
+    }
+
+    @Test
+    fun stepsThatAreExactlyAModelsBecomeIt() {
+        assertThat(Pipeline.toModel(Saved())).isEqualTo(Saved())
+        assertThat(Pipeline.toModel(Saved(AudioStep.Whistle, RewriteStep.Off, ToolStep.Off))).isEqualTo(Saved(model = ModelChoice.Whistle))
+        assertThat(Pipeline.toModel(Saved(AudioStep.Gemini, RewriteStep.Gemini, ToolStep.Off))).isEqualTo(Saved(model = ModelChoice.Gemini))
+        assertThat(Pipeline.toModel(Saved(AudioStep.Link, RewriteStep.Link, ToolStep.Off))).isEqualTo(Saved(model = ModelChoice.Gemma))
+        // Not exactly one: stays under Advanced.
+        assertThat(Pipeline.toModel(Saved(AudioStep.Link, RewriteStep.Link, ToolStep.Link))).isEqualTo(Saved(AudioStep.Link, RewriteStep.Link, ToolStep.Link))
+        assertThat(Pipeline.toModel(Saved(AudioStep.Off, RewriteStep.Gemini, ToolStep.Off))).isEqualTo(Saved(AudioStep.Off, RewriteStep.Gemini, ToolStep.Off))
+        assertThat(Pipeline.toModel(Saved(audio = AudioStep.Whistle))).isEqualTo(Saved(audio = AudioStep.Whistle))
+        assertThat(Pipeline.toModel(Saved(model = ModelChoice.Gemma))).isEqualTo(Saved(model = ModelChoice.Gemma))
         assertThat(Saved(audio = AudioStep.Whistle).custom).isTrue()
-        assertThat(Saved(talk = Talk.English).custom).isFalse()
+        assertThat(Saved(model = ModelChoice.Whistle).custom).isFalse()
     }
 
     @Test

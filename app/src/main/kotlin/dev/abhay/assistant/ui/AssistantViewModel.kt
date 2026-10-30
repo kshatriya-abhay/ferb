@@ -262,7 +262,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             val started = SystemClock.elapsedRealtime()
             val enabled = enabledTools.value.mapNotNull(Tools::byName)
             val configs = assistant.toolSettings.configs.value
-            // Talk to Ferb in follows Ferb Link: paired or not, as of now.
+            // The model choice follows Ferb Link: paired or not, as of now.
             if (heardBy == null) assistant.pipeline.linkChanged()
             val answer = flow.answer(said, enabled, configs, pipeline.value, heardBy,
                 geminiUsable = assistant.nanoEars.setup.value.rewrite == Part.Ready)

@@ -45,7 +45,10 @@ class AssistantApp : Application() {
     /** How Ferb understands a request: audio processing, rewrite, tool selection (Settings). */
     val pipeline by lazy {
         dev.abhay.assistant.pipeline.PipelineSettings(this) {
-            (link.status() as? dev.abhay.assistant.link.LinkStatus.Ready).let { (it != null) to (it?.audio == true) }
+            val status = link.status()
+            val ready = status as? dev.abhay.assistant.link.LinkStatus.Ready
+            dev.abhay.assistant.pipeline.PipelineSettings.LinkState(
+                installed = status != dev.abhay.assistant.link.LinkStatus.NotInstalled, ready = ready != null, audio = ready?.audio == true)
         }
     }
     /** Gemini Nano's speech recognition (POC), when picked in Settings. */
@@ -134,4 +137,4 @@ class AssistantApp : Application() {
 private const val FROM_NOTES = "imported_from_notes"
 
 /** The chat's note when a Gemini Nano download Ferb waited for is ready. */
-const val GEMINI_READY = "Gemini Nano is ready. Ferb now understands English + Hindi on this phone."
+const val GEMINI_READY = "Gemini Nano is ready. Ferb now uses it, on this phone."

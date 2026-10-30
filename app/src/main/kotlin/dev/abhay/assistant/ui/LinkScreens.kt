@@ -212,7 +212,7 @@ fun LinkScreen(settings: SettingsViewModel, onBack: () -> Unit) {
             }
 
             Text(
-                "Choose what uses your computer in Settings \u2192 Talk to Ferb in.",
+                "Choose Gemma 4 in Settings \u2192 Choose your preferred model to use your computer.",
                 Modifier.padding(horizontal = 32.dp, vertical = 12.dp),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

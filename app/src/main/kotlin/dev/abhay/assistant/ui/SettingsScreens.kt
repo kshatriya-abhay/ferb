@@ -150,8 +150,8 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
                 },
                 { shapes -> LinkRow(settings, onOpen = onOpenLink, shapes = shapes) },
             ))
-            // Talk to Ferb in: one choice; the steps one by one are under Advanced.
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { TalkSection(settings, onOpenAdvanced) }
+            // The model choice: one choice; the steps one by one are under Advanced.
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { ModelSection(settings, onOpenAdvanced) }
             // Debug builds only: the phone bench (Needle 3 and Gemini Nano on tool-check's requests).
             if (dev.abhay.assistant.DebugBench.AVAILABLE) Group(listOf { shapes ->
                 SegmentedListItem(

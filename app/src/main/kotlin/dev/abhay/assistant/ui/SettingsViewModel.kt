@@ -30,13 +30,16 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     /** How Ferb understands you (Settings): each step as chosen, and the steps in use. Saved at once. */
     private val steps = (app as AssistantApp).pipeline
     val pipeline: StateFlow<Pipeline> = steps.pipeline
-    /** Talk to Ferb in, or null when the steps were changed under Advanced. */
+    /** The model choice ([dev.abhay.assistant.pipeline.Saved.model]), or none when the steps were changed under Advanced. */
     val chosen get() = steps.saved
     val abilities get() = steps.abilities
-    /** Talk to Ferb in; English + Hindi with Gemini Nano still to download starts the download. */
-    fun setTalk(talk: dev.abhay.assistant.pipeline.Talk) {
-        steps.setTalk(talk)
-        if (talk.waitsForGemini(steps.abilities.value) && nano.setup.value.needsSetUp) nano.setUp()
+    /**
+     * The model choice. Picking Gemini Nano while it's still to download starts the download
+     * ([download] false: only saved, as onboarding's Next saves the choice shown).
+     */
+    fun setModel(model: dev.abhay.assistant.pipeline.ModelChoice, download: Boolean = true) {
+        steps.setModel(model)
+        if (download && model.waitsForGemini(steps.abilities.value) && nano.setup.value.needsSetUp) nano.setUp()
     }
     fun linkChanged(heard: Boolean? = null) = steps.linkChanged(heard)
     fun setAudio(step: AudioStep) = steps.setAudio(step)

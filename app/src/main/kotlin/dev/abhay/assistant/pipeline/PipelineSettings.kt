@@ -7,13 +7,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Talk to Ferb in, or the three steps as the user chose them under Advanced ([Saved]), saved at
+ * The model choice, or the three steps as the user chose them under Advanced ([Saved]), saved at
  * once, and the [pipeline] in use, resolved against what this phone can use now ([Abilities]):
  * Gemini Nano once AICore has answered ([geminiChecked]), Ferb Link as [linkState] says
  * ([linkChanged]). The first time, the settings from before the steps are carried over
- * ([Pipeline.migrate]), and later the steps a choice gives anyway become it ([Pipeline.toTalk]).
+ * ([Pipeline.migrate]), and later steps that are exactly a model's become it ([Pipeline.toModel]).
  */
-class PipelineSettings(context: Context, private val linkState: () -> Pair<Boolean, Boolean> = { false to false }) {
+class PipelineSettings(context: Context, private val linkState: () -> LinkState = { LinkState() }) {
+    /** Ferb Link as last read: installed; paired and on ([ready]); and the computer hears ([audio]). */
+    data class LinkState(val installed: Boolean = false, val ready: Boolean = false, val audio: Boolean = false)
+
     private val prefs = context.getSharedPreferences("pipeline", Context.MODE_PRIVATE)
     private val voice = context.getSharedPreferences("voice", Context.MODE_PRIVATE)
 
@@ -37,21 +40,23 @@ class PipelineSettings(context: Context, private val linkState: () -> Pair<Boole
     }
 
     init {
-        if (!prefs.getBoolean(KEY_TALK_MIGRATED, false)) {
-            val talked = Pipeline.toTalk(read())
+        if (!prefs.getBoolean(KEY_MODEL_MIGRATED, false)) {
+            val modelled = Pipeline.toModel(read())
             prefs.edit().apply {
-                if (talked != read()) {
+                // Talk to Ferb in (2026-10-30, briefly) is gone: its choice goes with it.
+                remove(KEY_TALK); remove(KEY_TALK_MIGRATED)
+                if (modelled != read()) {
                     remove(KEY_AUDIO); remove(KEY_REWRITE); remove(KEY_TOOLS)
-                    talked.talk?.let { putString(KEY_TALK, it.id) }
+                    modelled.model?.let { putString(KEY_MODEL, it.id) }
                 }
-                putBoolean(KEY_TALK_MIGRATED, true)
+                putBoolean(KEY_MODEL_MIGRATED, true)
             }.apply()
         }
     }
 
     private fun read() = Saved(
         AudioStep.of(prefs.getString(KEY_AUDIO, null)), RewriteStep.of(prefs.getString(KEY_REWRITE, null)),
-        ToolStep.of(prefs.getString(KEY_TOOLS, null)), Talk.of(prefs.getString(KEY_TALK, null)),
+        ToolStep.of(prefs.getString(KEY_TOOLS, null)), ModelChoice.of(prefs.getString(KEY_MODEL, null)),
     )
 
     private val _saved = MutableStateFlow(read())
@@ -73,8 +78,9 @@ class PipelineSettings(context: Context, private val linkState: () -> Pair<Boole
      * all). Ferb Link's state is read again too.
      */
     fun geminiChecked(speech: Boolean, rewrite: Boolean, here: Boolean = true) {
-        val (link, audio) = linkState()
-        _abilities.value = _abilities.value.copy(geminiSpeech = speech, geminiRewrite = rewrite, link = link, linkAudio = audio, geminiHere = here)
+        val link = linkState()
+        _abilities.value = _abilities.value.copy(geminiSpeech = speech, geminiRewrite = rewrite, link = link.ready, linkAudio = link.audio,
+            linkApp = link.installed, geminiHere = here)
         update()
     }
 
@@ -83,10 +89,12 @@ class PipelineSettings(context: Context, private val linkState: () -> Pair<Boole
      * computer's model takes audio, when a live check has just said so (its status may not know yet).
      */
     fun linkChanged(heard: Boolean? = null) {
-        val (link, seen) = linkState()
-        val audio = link && (heard ?: seen)
-        if (link == _abilities.value.link && audio == _abilities.value.linkAudio) return
-        _abilities.value = _abilities.value.copy(link = link, linkAudio = audio)
+        val state = linkState()
+        val link = state.ready
+        val audio = link && (heard ?: state.audio)
+        val now = _abilities.value
+        if (link == now.link && audio == now.linkAudio && state.installed == now.linkApp) return
+        _abilities.value = now.copy(link = link, linkAudio = audio, linkApp = state.installed)
         update()
     }
 
@@ -96,14 +104,14 @@ class PipelineSettings(context: Context, private val linkState: () -> Pair<Boole
         update()
     }
 
-    /** Talk to Ferb in: the choice, and the steps under Advanced go back to following it. */
-    fun setTalk(talk: Talk) = save { remove(KEY_AUDIO); remove(KEY_REWRITE); remove(KEY_TOOLS); putString(KEY_TALK, talk.id) }
+    /** The model choice, and the steps under Advanced go back to following it. */
+    fun setModel(model: ModelChoice) = save { remove(KEY_AUDIO); remove(KEY_REWRITE); remove(KEY_TOOLS); putString(KEY_MODEL, model.id) }
 
-    /** A step changed under Advanced: the other two stay as they are now, and Talk to Ferb in shows none. */
+    /** A step changed under Advanced: the other two stay as they are now, and the model choice shows none. */
     private fun setStep(key: String, id: String) {
         val now = _pipeline.value
         save {
-            remove(KEY_TALK)
+            remove(KEY_MODEL)
             putString(KEY_AUDIO, now.audio.id); putString(KEY_REWRITE, now.rewrite.id); putString(KEY_TOOLS, now.tools.id)
             putString(key, id)
         }
@@ -111,9 +119,9 @@ class PipelineSettings(context: Context, private val linkState: () -> Pair<Boole
 
     /** Puts back what was saved before (device tests). */
     fun restore(saved: Saved) = save {
-        clear(); putBoolean(KEY_MIGRATED, true); putBoolean(KEY_TALK_MIGRATED, true)
+        clear(); putBoolean(KEY_MIGRATED, true); putBoolean(KEY_MODEL_MIGRATED, true)
         saved.audio?.let { putString(KEY_AUDIO, it.id) }; saved.rewrite?.let { putString(KEY_REWRITE, it.id) }
-        saved.tools?.let { putString(KEY_TOOLS, it.id) }; saved.talk?.let { putString(KEY_TALK, it.id) }
+        saved.tools?.let { putString(KEY_TOOLS, it.id) }; saved.model?.let { putString(KEY_MODEL, it.id) }
     }
 
     fun setAudio(step: AudioStep) = setStep(KEY_AUDIO, step.id)
@@ -131,6 +139,9 @@ class PipelineSettings(context: Context, private val linkState: () -> Pair<Boole
         private const val KEY_REWRITE = "rewrite"
         private const val KEY_TOOLS = "tools"
         private const val KEY_MIGRATED = "migrated"
+        private const val KEY_MODEL = "model"
+        private const val KEY_MODEL_MIGRATED = "model_migrated"
+        /** Talk to Ferb in's choice and its migration flag, 2026-10-30; removed by the model choice's migration. */
         private const val KEY_TALK = "talk"
         private const val KEY_TALK_MIGRATED = "talk_migrated"
         /** Gemini Nano's language choice, removed 2026-10-25; kept in "voice", where the first POC build saved it. */

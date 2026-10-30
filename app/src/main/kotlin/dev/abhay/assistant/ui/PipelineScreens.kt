@@ -40,7 +40,7 @@ import dev.abhay.assistant.link.describe
 import dev.abhay.assistant.pipeline.Abilities
 import dev.abhay.assistant.pipeline.AudioStep
 import dev.abhay.assistant.pipeline.Availability
-import dev.abhay.assistant.pipeline.Talk
+import dev.abhay.assistant.pipeline.ModelChoice
 import dev.abhay.assistant.pipeline.RewriteStep
 import dev.abhay.assistant.pipeline.ToolStep
 import dev.abhay.assistant.voice.GeminiSetup
@@ -147,29 +147,58 @@ internal fun StepTitle(title: String, hint: String) {
 }
 
 /**
- * Talk to Ferb in's choices as radio rows: the one in use selected (none once a step was changed
- * under Advanced), each saying where it's understood, and one that can't work here greyed out with why.
+ * The model choice as radio rows: the one in use selected (none once a step was changed under
+ * Advanced), each with its line, and one that can't ever work here greyed out with why. Under
+ * them, what the one picked still needs: Gemini Nano's download and its progress ([GeminiSetUp]),
+ * or Ferb Link's pairing, with a button to open it ([onOpenLink], null when it can't be opened).
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-internal fun TalkOptions(selected: Talk?, can: Abilities, onSelect: (Talk) -> Unit, recommended: Talk? = null) {
-    Group(Talk.entries.map { talk ->
+internal fun ModelOptions(
+    selected: ModelChoice?,
+    can: Abilities,
+    onSelect: (ModelChoice) -> Unit,
+    gemini: GeminiSetup,
+    onSetUpGemini: () -> Unit,
+    onCheckGemini: () -> Unit,
+    onOpenLink: (() -> Unit)?,
+    recommended: ModelChoice? = null,
+    showReady: Boolean = false,
+    watch: GeminiWatch = GeminiWatch.Off,
+) {
+    Group(ModelChoice.entries.map { model ->
         { shapes ->
-            val reason = talk.reason(can)
-            val enabled = reason == null || talk == selected
+            val reason = model.reason(can)
+            val enabled = reason == null || model == selected
             SegmentedListItem(
-                selected = talk == selected,
-                onClick = { onSelect(talk) },
+                selected = model == selected,
+                onClick = { onSelect(model) },
                 shapes = shapes,
                 enabled = enabled,
-                leadingContent = { RadioButton(selected = talk == selected, onClick = null, enabled = enabled) },
+                leadingContent = { RadioButton(selected = model == selected, onClick = null, enabled = enabled) },
                 supportingContent = {
-                    val line = reason ?: "${talk.hint} · ${talk.where(can)}"
-                    Text(if (talk == recommended && reason == null) "${stringResource(RECOMMENDED)} · $line" else line)
+                    val line = reason ?: model.hint
+                    Text(if (model == recommended && reason == null) "${stringResource(RECOMMENDED)} · $line" else line)
                 },
-            ) { Text(talk.title) }
+            ) { Text(model.title) }
         }
     })
+    when {
+        selected == ModelChoice.Gemini -> GeminiSetUp(gemini, onSetUpGemini, onCheckGemini, showReady = showReady, watch = watch)
+        selected?.needsPairing(can) == true -> Column(Modifier.fillMaxWidth().padding(horizontal = 32.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(ModelChoice.PAIR_LINK, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            onOpenLink?.let { OutlinedButton(onClick = it) { Text(stringResource(OPEN_FERB_LINK)) } }
+        }
+    }
+}
+
+internal val OPEN_FERB_LINK = R.string.link_open_ferb_link
+
+/** Opens Ferb Link, or null when it isn't installed. */
+@Composable
+internal fun rememberOpenLink(link: FerbLink): (() -> Unit)? {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    return link.openIntent()?.let { intent -> { context.startActivity(intent) } }
 }
 
 /**
@@ -186,17 +215,17 @@ internal fun rememberAbilities(settings: SettingsViewModel): Abilities {
     return can
 }
 
-/** Settings → Talk to Ferb in, and the row to Advanced (the steps one by one). */
+/** Settings → Choose your preferred model, and the row to Advanced (the steps one by one). */
 @Composable
-internal fun TalkSection(settings: SettingsViewModel, onOpenAdvanced: () -> Unit) {
+internal fun ModelSection(settings: SettingsViewModel, onOpenAdvanced: () -> Unit) {
     val chosen by settings.chosen.collectAsStateWithLifecycle()
     val can = rememberAbilities(settings)
-    SectionTitle(Talk.TITLE)
-    val selected = chosen.talk ?: if (chosen.custom) null else Talk.default(can)
-    TalkOptions(selected, can, settings::setTalk)
+    SectionTitle(ModelChoice.TITLE)
+    val selected = chosen.model ?: if (chosen.custom) null else ModelChoice.default(can)
     val gemini by settings.gemini.collectAsStateWithLifecycle()
     val watch by settings.geminiWatch.collectAsStateWithLifecycle()
-    GeminiSetUp(gemini, settings::setUpGemini, settings::checkGemini, watch = watch)
+    ModelOptions(selected, can, { settings.setModel(it) }, gemini, settings::setUpGemini, settings::checkGemini,
+        rememberOpenLink(settings.link), watch = watch)
     if (selected == null) Note(stringResource(CUSTOM_STEPS))
     Group(listOf { shapes ->
         SegmentedListItem(
@@ -210,7 +239,7 @@ internal fun TalkSection(settings: SettingsViewModel, onOpenAdvanced: () -> Unit
 }
 
 /**
- * Gemini Nano's setup where Talk to Ferb in is chosen: the check, a download button, its progress
+ * Gemini Nano's setup under the model choice, when Gemini Nano is picked: the check, a download button, its progress
  * (Ferb works on what's there meanwhile, and switches when it's ready), a failed download's reason
  * with Try again, a status check that threw ("couldn't check", Try again: [onCheckAgain]), or one
  * line when AICore says it can't run on this phone. [showReady]: say when it's ready; it's said

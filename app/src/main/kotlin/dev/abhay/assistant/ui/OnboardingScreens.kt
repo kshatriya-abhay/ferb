@@ -54,15 +54,15 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.abhay.assistant.onboarding.Page
 import dev.abhay.assistant.pipeline.Abilities
-import dev.abhay.assistant.pipeline.Talk
+import dev.abhay.assistant.pipeline.ModelChoice
 import dev.abhay.assistant.voice.GeminiSetup
 import dev.abhay.assistant.voice.Part
 
 /** Each page in plain words (string resources). */
 internal object PageText {
-    val TALK_TITLE = R.string.onboarding_talk_title
-    val TALK_BODY = R.string.onboarding_talk_body
-    val TALK_MORE = R.string.onboarding_talk_more
+    val MODEL_TITLE = R.string.onboarding_model_title
+    val MODEL_BODY = R.string.onboarding_model_body
+    val MODEL_MORE = R.string.onboarding_model_more
     val ASSISTANT_TITLE = R.string.onboarding_assistant_title
     val ASSISTANT_BODY = R.string.onboarding_assistant_body
     val START = R.string.onboarding_start
@@ -77,32 +77,35 @@ internal object PageText {
 }
 
 /**
- * The first launch (and Settings → Run setup again), one page at a time: the welcome, Talk to
- * Ferb in (the recommended choice picked, and why one can't be used here), then the assistant
- * role. Skip ends it at once, keeping what's chosen; Next on Talk to Ferb in saves the choice
- * shown, so a default doesn't change under the user later. [talk] is null when steps were
- * changed under Advanced: then nothing is picked, and Next keeps them. The assistant page opens
+ * The first launch (and Settings → Run setup again), one page at a time: the welcome, the model
+ * (the recommended one picked, and why one can't be used here), then the assistant role. Skip
+ * ends it at once, keeping what's chosen. Next on the model page saves the one shown
+ * ([onKeepModel]: saved, no download started), so a default doesn't change under the user later;
+ * tapping one ([onModel]) also starts Gemini Nano's download when it needs one. [model] is null
+ * when steps were changed under Advanced: then nothing is picked, and Next keeps them. The assistant page opens
  * the phone's assistant setting ([openAssistantSettings]) and, back in Ferb, says once it's set.
  */
 @Composable
 internal fun OnboardingFlow(
-    talk: Talk?,
+    model: ModelChoice?,
     can: Abilities,
     gemini: GeminiSetup,
     assistantHeld: Boolean,
-    onTalk: (Talk) -> Unit,
+    onModel: (ModelChoice) -> Unit,
     onSetUpGemini: () -> Unit,
     onOpenAssistantSettings: () -> Unit,
     onCheckGemini: () -> Unit = {},
     onDone: () -> Unit,
     geminiWatch: dev.abhay.assistant.voice.GeminiWatch = dev.abhay.assistant.voice.GeminiWatch.Off,
+    onKeepModel: (ModelChoice) -> Unit = onModel,
+    onOpenLink: (() -> Unit)? = null,
 ) {
     var page by rememberSaveable { mutableStateOf(Page.Welcome) }
     // The pages as at the start: the assistant page stays once Ferb is made the assistant from it, to say so.
     val heldAtStart by rememberSaveable { mutableStateOf(assistantHeld) }
     val pages = Page.shown(heldAtStart)
     fun next() {
-        if (page == Page.Talk) talk?.let(onTalk)
+        if (page == Page.Model) model?.let(onKeepModel)
         Page.next(page, heldAtStart)?.let { page = it } ?: onDone()
     }
     Page.previous(page, heldAtStart)?.let { previous -> BackHandler { page = previous } }
@@ -122,11 +125,11 @@ internal fun OnboardingFlow(
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     when (shown) {
                         Page.Welcome -> WelcomeContent()
-                        Page.Talk -> {
-                            PageHeader(stringResource(PageText.TALK_TITLE), stringResource(PageText.TALK_BODY))
-                            TalkOptions(talk, can, onTalk, recommended = Talk.default(can))
-                            GeminiSetUp(gemini, onSetUpGemini, onCheckGemini, showReady = true, watch = geminiWatch)
-                            Text(stringResource(PageText.TALK_MORE), Modifier.padding(horizontal = 32.dp),
+                        Page.Model -> {
+                            PageHeader(stringResource(PageText.MODEL_TITLE), stringResource(PageText.MODEL_BODY))
+                            ModelOptions(model, can, onModel, gemini, onSetUpGemini, onCheckGemini, onOpenLink,
+                                recommended = ModelChoice.default(can), showReady = true, watch = geminiWatch)
+                            Text(stringResource(PageText.MODEL_MORE), Modifier.padding(horizontal = 32.dp),
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Page.Assistant -> {
@@ -213,7 +216,7 @@ internal fun openAssistantSettings(context: Context) {
     }
 }
 
-/** [OnboardingFlow] on the settings' state: Talk to Ferb in as it is now, and what this phone can use. */
+/** [OnboardingFlow] on the settings' state: the model choice as it is now, and what this phone can use. */
 @Composable
 fun Onboarding(settings: SettingsViewModel, onDone: () -> Unit) {
     val context = LocalContext.current
@@ -227,11 +230,13 @@ fun Onboarding(settings: SettingsViewModel, onDone: () -> Unit) {
         onPauseOrDispose { }
     }
     OnboardingFlow(
-        talk = chosen.talk ?: if (chosen.custom) null else Talk.default(can),
+        model = chosen.model ?: if (chosen.custom) null else ModelChoice.default(can),
         can = can,
         gemini = gemini,
         assistantHeld = held,
-        onTalk = settings::setTalk,
+        onModel = { settings.setModel(it) },
+        onKeepModel = { settings.setModel(it, download = false) },
+        onOpenLink = rememberOpenLink(settings.link),
         onSetUpGemini = settings::setUpGemini,
         onCheckGemini = settings::checkGemini,
         onOpenAssistantSettings = { openAssistantSettings(context) },

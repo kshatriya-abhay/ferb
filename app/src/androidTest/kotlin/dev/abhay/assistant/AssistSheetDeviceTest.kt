@@ -40,7 +40,7 @@ class AssistSheetDeviceTest {
 
     @After
     fun restore() {
-        // Back to what the user had: Talk to Ferb in, or the steps under Advanced.
+        // Back to what the user had: the model choice, or the steps under Advanced.
         saved?.let(app.pipeline::restore)
     }
 

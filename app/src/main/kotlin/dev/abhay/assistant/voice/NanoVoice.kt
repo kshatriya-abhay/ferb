@@ -5,9 +5,9 @@ import org.json.JSONObject
 import java.util.Locale
 
 /**
- * Gemini Nano's speech recognition, in one locale, en-US, for English and for English + Hindi (the
- * user's decisions, 2026-10-25 and 2026-10-30). Advanced mode is one model for every language: the
- * locale is only a hint, and checkStatus says the same for every locale. Set to en-US it still
+ * Gemini Nano's speech recognition, in one locale, en-US, whatever the user speaks (the user's
+ * decisions, 2026-10-25 and 2026-10-30; there's no language setting). Advanced mode is one model
+ * for every language: the locale is only a hint, and checkStatus says the same for every locale. Set to en-US it still
  * writes Hindi down, in Devanagari, and Hinglish too, and it detects other languages itself (the
  * phone's TTS in Japanese and French came back right). The locale probe (2026-10-30,
  * tool-check/locale-probe-2026-10-30.md) found:

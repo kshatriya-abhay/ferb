@@ -28,7 +28,7 @@ Or [build it from source](#build-from-source).
 
 ### First launch
 
-Three pages: a short welcome; **How will you talk to Ferb?** (English, English + Hindi, or Typing only, with the best choice for your phone picked, and Gemini Nano's download right there when it's still needed: Ferb works meanwhile and switches to it once it's ready); and making Ferb your phone's assistant (left out if it already is). **Skip** goes straight to the chat, and **Settings → Run setup again** brings the pages back. In the chat, a tip says some tools start off, and **Show me** opens Settings → Tools, where each switch turns a tool on or off. Then "How can I help?" shows a few requests to try; tap one, or type your own in the box at the bottom. Try:
+Three pages: a short welcome; **Choose your preferred model** (Needle + Whistle, Gemini Nano, or Gemma 4 via Ferb Link, with Gemini Nano picked where it can run, and its download right there when it's still needed: Ferb works meanwhile and switches to it once it's ready); and making Ferb your phone's assistant (left out if it already is). **Skip** goes straight to the chat, and **Settings → Run setup again** brings the pages back. In the chat, a tip says some tools start off, and **Show me** opens Settings → Tools, where each switch turns a tool on or off. Then "How can I help?" shows a few requests to try; tap one, or type your own in the box at the bottom. Try:
 
 - "Set a timer for 10 minutes"
 - "Turn on the flashlight"
@@ -42,13 +42,13 @@ Each reply shows what Ferb did, with buttons such as **Turn off**, **Undo** or *
 
 Five tools are on at first: **Alarms, Timers, Open apps, Settings pages** and **Flashlight**. The others are off until you turn them on in **Settings → Tools**; Ferb asks for an Android permission when a tool needs one (contacts for Calls and Messages, the calendar for Agenda and Calendar), and uses it on the phone only. Each tool's page also has its keywords, whether it always asks first, and how sure Needle 3 must be before it runs without asking.
 
-### Talk to Ferb in
+### Choose your preferred model
 
-**Settings → Talk to Ferb in** has three choices, and each uses the best your phone has:
+**Settings → Choose your preferred model** has three choices. Each one hears you and tidies what you say; Needle 3 makes the tool call on the phone whichever you choose, and you can always type.
 
-- **English**: Gemini Nano on the phone where it's available (Pixel 10 and 11), else Whistle.
-- **English + Hindi**: Gemini Nano on the phone, else your computer through Ferb Link. Greyed out, with why, when neither can hear you.
-- **Typing only**: no mic.
+- **Needle + Whistle**: English-only, wide-compatibility. Whistle hears you on the phone; no rewrite.
+- **Gemini Nano**: on-device, multilingual, compatibility varies (Pixel 10 and 11 among others). It hears you and rewrites the request, on the phone. Greyed out where Gemini Nano can't run; where it still needs a one-time download, the download is right there, and Ferb uses Whistle until it's ready.
+- **Gemma 4 (via Ferb Link)**: run it on your own server, multilingual. Your computer hears you and rewrites the request, through Ferb Link. Greyed out until Ferb Link is installed; until it's paired, a line and a button open it.
 
 If your computer can't be reached for a request, Ferb answers on the phone and says so on the reply. **Settings → Advanced** has the steps one by one: audio processing, prompt rewrite and tool selection (Jev, through Ferb Link). Options your phone can't ever use there are hidden, with a line saying why.
 

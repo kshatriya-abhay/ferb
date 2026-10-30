@@ -46,69 +46,72 @@ enum class ToolStep(val id: String, val title: String, val hint: String) {
 }
 
 /**
- * Settings → Talk to Ferb in: the one choice most people make. Each picks the best steps this
- * phone can use now ([steps]); the steps themselves are under Advanced. English + Hindi can be
- * picked while Gemini Nano is still to download (picking it starts the download, and Ferb hears
- * English until it's ready); only when nothing here ever can is it greyed out, [reason] saying why.
+ * Settings → Choose your preferred model (and onboarding's second page), the one choice most
+ * people make (the user's decision, 2026-10-30). Each stands for a set of steps ([steps]); the steps
+ * themselves are under Advanced, where Jev stays. Needle 3 makes every tool call whichever is
+ * picked, and typing works with each. Gemini Nano can be picked while it's still to download
+ * (picking it starts the download, and Ferb uses Whistle meanwhile); Gemma 4 while Ferb Link isn't
+ * paired yet (requests fall back, one at a time). Only what can never work here is greyed out,
+ * [reason] saying why.
  */
-enum class Talk(val id: String, val title: String, val hint: String) {
-    English("english", "English", "Speak in English"),
-    Hindi("hindi", "English + Hindi", "Also Hindi and Hinglish"),
-    Typing("typing", "Typing only", "No microphone");
+enum class ModelChoice(val id: String, val title: String, val hint: String) {
+    Whistle("needle_whistle", "Needle + Whistle", "English-only, wide-compatibility"),
+    Gemini("gemini", "Gemini Nano", "on-device, multilingual, compatibility varies"),
+    Gemma("gemma", "Gemma 4 (via Ferb Link)", "run it on your own server, multilingual");
+
+    /** The steps it stands for: what a set saved under Advanced must be, exactly, to become it. */
+    val steps: Pipeline get() = when (this) {
+        Whistle -> Pipeline(AudioStep.Whistle, RewriteStep.Off, ToolStep.Off)
+        Gemini -> Pipeline(AudioStep.Gemini, RewriteStep.Gemini, ToolStep.Off)
+        Gemma -> Pipeline(AudioStep.Link, RewriteStep.Link, ToolStep.Off)
+    }
 
     /**
-     * The steps for this choice, on this phone now: Gemini Nano when it's here (it stays on the
-     * phone), else the computer through Ferb Link for Hindi (Whistle hears English only), else
-     * Whistle. English stays on the phone. Tool selection is always off (Jev is under Advanced).
+     * The steps requests take now: Gemini Nano's parts once each is ready (Whistle, and no rewrite,
+     * until then), so Ferb switches the moment its download is done. Ferb Link's steps as they
+     * are: one that fails (not paired, or the computer away) falls back for that request.
      */
-    fun steps(can: Abilities): Pipeline = when (this) {
-        English -> Pipeline(if (can.geminiSpeech == true) AudioStep.Gemini else AudioStep.Whistle, can.phoneRewrite, ToolStep.Off)
-        Hindi -> Pipeline(
-            audio = when {
-                can.geminiSpeech == true -> AudioStep.Gemini
-                can.linkAudio -> AudioStep.Link
-                else -> AudioStep.Whistle
-            },
-            rewrite = can.bestRewrite,
-            tools = ToolStep.Off,
-        )
-        Typing -> Pipeline(AudioStep.Off, can.bestRewrite, ToolStep.Off)
+    fun resolve(can: Abilities): Pipeline = when (this) {
+        Gemini -> Pipeline(if (can.geminiSpeech == true) AudioStep.Gemini else AudioStep.Whistle, can.phoneRewrite, ToolStep.Off)
+        else -> steps
     }
 
-    /** Why this choice can't be picked, or null when it can (Gemini Nano still to download counts as can). */
-    fun reason(can: Abilities): String? = HINDI_NEEDS_LINK.takeIf { this == Hindi && !can.geminiHere && !can.linkAudio }
-
-    /** English + Hindi picked, but Gemini Nano isn't ready yet and the computer can't hear: English until it is. */
-    fun waitsForGemini(can: Abilities) = this == Hindi && can.geminiHere && can.geminiSpeech != true && !can.linkAudio
-
-    /** Where requests are understood, for the choice's second line. */
-    fun where(can: Abilities): String {
-        val steps = steps(can)
-        return when {
-            waitsForGemini(can) -> UNTIL_GEMINI
-            steps.audio == AudioStep.Link || (this == Typing && steps.rewrite == RewriteStep.Link) -> "Through your computer"
-            steps.audio == AudioStep.Gemini || steps.rewrite == RewriteStep.Gemini -> "Gemini Nano, on this phone"
-            steps.audio == AudioStep.Whistle -> "Whistle, on this phone"
-            else -> "On this phone"
-        }
+    /** Why this can't be picked on this phone, or null when it can (still to download, or to pair, counts as can). */
+    fun reason(can: Abilities): String? = when (this) {
+        Gemini -> GEMINI_CANT_RUN.takeIf { !can.geminiHere }
+        Gemma -> LINK_NOT_INSTALLED.takeIf { !can.linkInstalled }
+        Whistle -> null
     }
+
+    /** Gemma 4 picked with Ferb Link installed but not paired (or off): it says so, with a button to open Ferb Link. */
+    fun needsPairing(can: Abilities) = this == Gemma && can.linkInstalled && !can.link
+
+    /** Gemini Nano picked but not ready yet: Whistle hears until it is. */
+    fun waitsForGemini(can: Abilities) = this == Gemini && can.geminiHere && can.geminiSpeech != true
 
     companion object {
         fun of(id: String?) = entries.firstOrNull { it.id == id }
-        const val TITLE = "Talk to Ferb in"
-        const val UNTIL_GEMINI = "English only, until Gemini Nano is ready"
-        /** Gemini Nano can't run on this phone at all. */
-        const val HINDI_NEEDS_LINK = "Needs Ferb Link and your computer"
+        const val TITLE = "Choose your preferred model"
+        const val GEMINI_CANT_RUN = "Gemini Nano can't run on this phone"
+        const val LINK_NOT_INSTALLED = "Needs the Ferb Link app"
+        const val PAIR_LINK = "Pair Ferb Link with your computer. Until then, requests stay on this phone."
 
-        /** Before anything is chosen: English + Hindi when something here hears it, else English. */
-        fun default(can: Abilities) = if (can.geminiSpeech == true || can.linkAudio) Hindi else English
+        /** Before anything is chosen: Gemini Nano if it can run here (even still to download), else Needle + Whistle. */
+        fun default(can: Abilities) = if (can.geminiHere) Gemini else Whistle
+
+        /** The one whose steps [saved] are, exactly, or null (they stay under Advanced). */
+        fun matching(saved: Saved): ModelChoice? {
+            val steps = Pipeline(saved.audio ?: return null, saved.rewrite ?: return null, saved.tools ?: return null)
+            return entries.firstOrNull { it.steps == steps }
+        }
     }
 }
 
 /**
  * What this phone can use now: Gemini Nano's speech and rewrite, ready (null until AICore has
  * answered; [geminiHere] false when AICore can't run it on this phone at all, not even after a
- * download), and Ferb Link ([link]: installed, paired and on; [linkAudio]: and the computer hears).
+ * download), and Ferb Link ([linkApp]: installed; [link]: installed, paired and on; [linkAudio]:
+ * and the computer hears).
  */
 data class Abilities(
     val geminiSpeech: Boolean? = null,
@@ -116,7 +119,11 @@ data class Abilities(
     val link: Boolean = false,
     val linkAudio: Boolean = false,
     val geminiHere: Boolean = true,
+    val linkApp: Boolean = false,
 ) {
+    /** Ferb Link is installed (paired means installed). */
+    val linkInstalled get() = linkApp || link
+
     internal val phoneRewrite get() = if (geminiRewrite == true) RewriteStep.Gemini else RewriteStep.Off
     internal val bestRewrite get() = when {
         geminiRewrite == true -> RewriteStep.Gemini
@@ -126,43 +133,40 @@ data class Abilities(
 }
 
 /**
- * What the user chose: [talk], or, once a step is changed under Advanced, the three steps (each
- * null until chosen or migrated, then a default), and [talk] null.
+ * What the user chose: [model], or, once a step is changed under Advanced, the three steps (each
+ * null until chosen or migrated, then a default), and [model] null.
  */
-data class Saved(val audio: AudioStep? = null, val rewrite: RewriteStep? = null, val tools: ToolStep? = null, val talk: Talk? = null) {
-    val custom get() = talk == null && (audio != null || rewrite != null || tools != null)
+data class Saved(val audio: AudioStep? = null, val rewrite: RewriteStep? = null, val tools: ToolStep? = null, val model: ModelChoice? = null) {
+    val custom get() = model == null && (audio != null || rewrite != null || tools != null)
 }
 
 data class Pipeline(val audio: AudioStep, val rewrite: RewriteStep, val tools: ToolStep) {
     companion object {
         /**
-         * The steps to use: [Saved.talk]'s; else, once changed under Advanced, the steps as saved,
+         * The steps to use: [Saved.model]'s; else, once changed under Advanced, the steps as saved,
          * the rest the defaults (the user's decision, 2026-10-24): Gemini Nano for audio if its
          * speech is available on this phone, else Whistle; Gemini Nano for the rewrite if its model
-         * is available, else off; tool selection off. With nothing saved, [Talk.default]'s. Until
-         * AICore has answered, the phone-only fallbacks.
+         * is available, else off; tool selection off. With nothing saved, [ModelChoice.default]'s.
+         * Until AICore has answered, the phone-only fallbacks.
          */
         fun resolve(saved: Saved, can: Abilities): Pipeline = when {
-            saved.talk != null -> saved.talk.steps(can)
+            saved.model != null -> saved.model.resolve(can)
             saved.custom -> Pipeline(
                 audio = saved.audio ?: if (can.geminiSpeech == true) AudioStep.Gemini else AudioStep.Whistle,
                 rewrite = saved.rewrite ?: can.phoneRewrite,
                 tools = saved.tools ?: ToolStep.Off,
             )
-            else -> Talk.default(can).steps(can)
+            else -> ModelChoice.default(can).resolve(can)
         }
 
         /**
-         * Once, when Talk to Ferb in arrived (2026-10-30): steps that one of its choices gives
-         * anyway become that choice, so the settings show it; anything else stays under Advanced.
+         * Once, when the model choice replaced Talk to Ferb in (2026-10-30): steps saved under
+         * Advanced that are exactly a model's become it; anything else stays under Advanced. (A Talk
+         * to Ferb in choice stood for steps that followed the phone, none exactly a model's: it
+         * goes, and the default applies; [PipelineSettings] drops it.)
          */
-        fun toTalk(saved: Saved): Saved = when {
-            saved.talk != null || !saved.custom -> saved
-            saved.tools != null && saved.tools != ToolStep.Off -> saved
-            saved.audio == AudioStep.Off && saved.rewrite in setOf(null, RewriteStep.Gemini) -> Saved(talk = Talk.Typing)
-            saved.audio in setOf(null, AudioStep.Gemini) && saved.rewrite in setOf(null, RewriteStep.Gemini) -> Saved()
-            else -> saved
-        }
+        fun toModel(saved: Saved): Saved =
+            if (saved.custom) ModelChoice.matching(saved)?.let { Saved(model = it) } ?: saved else saved
 
         /**
          * Once, from the settings before the steps (2026-10-24): Computer picked in the chat (Ferb
