@@ -222,7 +222,7 @@ the alarm woke the baby -> NONE"""
      * R2 (2026-10-29, written before any run of it): R plus the event rule blind-1 and blind-2
      * showed (meetings, visits and plans became reminders, alarms or lists): something the user
      * will attend at a time is a calendar event; "remind me" or yaad dilana is always a reminder;
-     * an alarm only when asked for one or to be woken. New examples, in no bench file. For the bench.
+     * an alarm only when asked for one or to be woken. New examples, in no bench file.
      */
     val PROMPT_R2 = PROMPT_R.replace(
         "Keep what the request asks for: a reminder stays a reminder",
@@ -234,12 +234,12 @@ the alarm woke the baby -> NONE"""
     const val VERSION_R2 = "r2"
 
     /**
-     * The prompt the app uses, for Gemini Nano and for Ferb Link (sent as its instructions): R
-     * (2026-10-25, the user's decision). On the blind date set it picked the right tool for 138 of
-     * 154 requests, against v2's 107 and 87 without a rewrite. v2 stays for the bench.
+     * The prompt the app uses, for Gemini Nano and for Ferb Link (sent as its instructions): R2
+     * (2026-10-30). On blind-2 it gives 90 right and 2 wrong (R: 75 and 13); on datetime-v2,
+     * behind the date gate, 122 right and 0 wrong (R: 123 and 0). R and v2 stay for the bench.
      */
-    const val PROMPT = PROMPT_R
-    const val VERSION = VERSION_R
+    val PROMPT = PROMPT_R2
+    const val VERSION = VERSION_R2
 
     const val CUT_OFF = "answer cut off"
 

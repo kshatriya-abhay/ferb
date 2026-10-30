@@ -8,7 +8,7 @@ import java.util.Locale
 
 /**
  * The time of a timed call, worked out by Ferb (the user's decision, 2026-10-25, from the blind date
- * round): [DateResolver] reads the words as said, and the rewritten command (prompt R) too when
+ * round): [DateResolver] reads the words as said, and the rewritten command (the rewrite prompt) too when
  * there is one; the call runs only when the two agree, else it asks, showing what Ferb read. Needle
  * 3's own time arguments never decide. The resolved value goes in the tool's arguments as
  * [TimeArgs] has them ([TimeArgs.RESOLVED], [TimeArgs.AT], [TimeArgs.DAY], [TimeArgs.REPEAT],
