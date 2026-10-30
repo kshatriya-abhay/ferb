@@ -34,8 +34,8 @@ class ChatTipsTest {
 
     @Test
     fun theStartScreenSuggestsTryingAnExample() {
-        assertThat(tips(emptyList(), start = true)).containsExactly(TipPlace(Tip.TryOne, null))
-        assertThat(Tip.next(tips(emptyList(), start = true).map { it.tip }, emptySet())).isEqualTo(Tip.TryOne)
+        assertThat(tips(emptyList(), start = true)).containsExactly(TipPlace(Tip.MoreTools, null), TipPlace(Tip.TryOne, null))
+        assertThat(Tip.next(tips(emptyList(), start = true).map { it.tip }, setOf(Tip.MoreTools))).isEqualTo(Tip.TryOne)
     }
 
     @Test
@@ -45,16 +45,19 @@ class ChatTipsTest {
         assertThat(places).contains(TipPlace(Tip.Details, 2))
         assertThat(places).contains(TipPlace(Tip.AskFirst, 2))
         assertThat(places).contains(TipPlace(Tip.Undo, 1))
-        // Details first, then asking first once Details is seen.
-        assertThat(Tip.next(places.map { it.tip }, emptySet())).isEqualTo(Tip.Details)
-        assertThat(Tip.next(places.map { it.tip }, setOf(Tip.Details))).isEqualTo(Tip.AskFirst)
+        // After the tools guide: Details first, then asking first once Details is seen.
+        assertThat(Tip.next(places.map { it.tip }, setOf(Tip.MoreTools))).isEqualTo(Tip.Details)
+        assertThat(Tip.next(places.map { it.tip }, setOf(Tip.MoreTools, Tip.Details))).isEqualTo(Tip.AskFirst)
     }
 
     @Test
-    fun moreToolsAfterNoToolOrAFewRequests() {
-        assertThat(tips(listOf(exchange(1, withUndo))).map { it.tip }).doesNotContain(Tip.MoreTools)
-        assertThat(tips(listOf(exchange(1))).map { it.tip }).contains(Tip.MoreTools) // "I can't do that yet"
-        assertThat(tips((1L..5L).map { exchange(it, withUndo) }).map { it.tip }).contains(Tip.MoreTools)
+    fun moreToolsFirstStraightAfterSetup() {
+        // The start screen, nothing asked yet: the tools guide comes before the examples' tip.
+        val start = tips(emptyList(), start = true).map { it.tip }
+        assertThat(start).containsAtLeast(Tip.MoreTools, Tip.TryOne)
+        assertThat(Tip.next(start, emptySet())).isEqualTo(Tip.MoreTools)
+        assertThat(Tip.next(start, setOf(Tip.MoreTools))).isEqualTo(Tip.TryOne)
+        assertThat(tips(listOf(exchange(1, withUndo))).map { it.tip }).contains(Tip.MoreTools)
     }
 
     @Test

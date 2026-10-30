@@ -156,7 +156,7 @@ import androidx.compose.runtime.rememberUpdatedState
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, onOpenLink: () -> Unit = onOpenSettings, onOpenNotes: () -> Unit = {}) {
+fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, onOpenLink: () -> Unit = onOpenSettings, onOpenNotes: () -> Unit = {}, onOpenTools: () -> Unit = onOpenSettings) {
     val engine by viewModel.engine.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val enabled by viewModel.enabledTools.collectAsStateWithLifecycle()
@@ -263,7 +263,11 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
             tip?.takeIf { it.exchange == null && it.tip != Tip.TryOne }?.let {
                 TipCard(it.tip, onDismiss = { seen(it.tip) }, Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                     text = if (it.tip == Tip.Mic) Mic.tip(pipeline.audio) else it.tip.text,
-                    action = ("Set up" to onOpenLink).takeIf { _ -> it.tip == Tip.SuggestLink })
+                    action = when (it.tip) {
+                        Tip.SuggestLink -> "Set up" to onOpenLink
+                        Tip.MoreTools -> stringResource(R.string.ui_show_me) to onOpenTools
+                        else -> null
+                    })
             }
             // While a step uses the computer, keep Ferb Link's process up, so a request doesn't wait for it to start.
             DisposableEffect(usesComputer) {

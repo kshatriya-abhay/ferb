@@ -12,6 +12,10 @@ import dev.abhay.assistant.reminders.FileReminderStore
 import dev.abhay.assistant.reminders.ReminderAlarms
 import dev.abhay.assistant.reminders.ReminderBook
 import dev.abhay.assistant.onboarding.Onboarding
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 /** One model, one tool configuration, one app list, one contact book and one calendar per process, shared by the screens. */
 class AssistantApp : Application() {
@@ -44,6 +48,23 @@ class AssistantApp : Application() {
     }
     /** Gemini Nano's speech recognition (POC), when picked in Settings. */
     val nanoEars by lazy { dev.abhay.assistant.voice.NanoEars() }
+
+    private val geminiFollow = java.util.concurrent.atomic.AtomicBoolean()
+    /**
+     * From the first check on, the steps follow Gemini Nano's state: each part counts once AICore
+     * has answered, so Ferb works on what's there while a download runs and switches to Gemini
+     * Nano the moment it's ready. Started by the first screen that checks it; once per process.
+     */
+    fun followGemini() {
+        if (!geminiFollow.compareAndSet(false, true)) return
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main.immediate).launch {
+            nanoEars.setup
+                .filter { s -> s.parts.none { it == dev.abhay.assistant.voice.Part.Checking } }
+                .map { s -> dev.abhay.assistant.voice.GeminiSetup.abilities(s) }
+                .distinctUntilChanged()
+                .collect { (speech, rewrite, here) -> pipeline.geminiChecked(speech, rewrite, here) }
+        }
+    }
     val reminders by lazy { ReminderBook(FileReminderStore(java.io.File(filesDir, "reminders.json"))) { java.time.LocalDateTime.now() } }
     val alarms by lazy { ReminderAlarms(this) }
 

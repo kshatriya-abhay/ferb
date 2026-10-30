@@ -47,8 +47,9 @@ enum class ToolStep(val id: String, val title: String, val hint: String) {
 
 /**
  * Settings → Talk to Ferb in: the one choice most people make. Each picks the best steps this
- * phone can use now ([steps]); the steps themselves are under Advanced. When nothing here can
- * hear Hindi, English + Hindi can't be picked, and [reason] says why.
+ * phone can use now ([steps]); the steps themselves are under Advanced. English + Hindi can be
+ * picked while Gemini Nano is still to download (picking it starts the download, and Ferb hears
+ * English until it's ready); only when nothing here ever can is it greyed out, [reason] saying why.
  */
 enum class Talk(val id: String, val title: String, val hint: String) {
     English("english", "English", "Speak in English"),
@@ -74,17 +75,17 @@ enum class Talk(val id: String, val title: String, val hint: String) {
         Typing -> Pipeline(AudioStep.Off, can.bestRewrite, ToolStep.Off)
     }
 
-    /** Why this choice can't be picked now, or null when it can. */
-    fun reason(can: Abilities): String? = when {
-        this != Hindi || can.geminiSpeech == true || can.linkAudio || can.geminiSpeech == null -> null
-        !can.geminiHere -> HINDI_NEEDS_LINK
-        else -> HINDI_NEEDS
-    }
+    /** Why this choice can't be picked, or null when it can (Gemini Nano still to download counts as can). */
+    fun reason(can: Abilities): String? = HINDI_NEEDS_LINK.takeIf { this == Hindi && !can.geminiHere && !can.linkAudio }
+
+    /** English + Hindi picked, but Gemini Nano isn't ready yet and the computer can't hear: English until it is. */
+    fun waitsForGemini(can: Abilities) = this == Hindi && can.geminiHere && can.geminiSpeech != true && !can.linkAudio
 
     /** Where requests are understood, for the choice's second line. */
     fun where(can: Abilities): String {
         val steps = steps(can)
         return when {
+            waitsForGemini(can) -> UNTIL_GEMINI
             steps.audio == AudioStep.Link || (this == Typing && steps.rewrite == RewriteStep.Link) -> "Through your computer"
             steps.audio == AudioStep.Gemini || steps.rewrite == RewriteStep.Gemini -> "Gemini Nano, on this phone"
             steps.audio == AudioStep.Whistle -> "Whistle, on this phone"
@@ -95,7 +96,7 @@ enum class Talk(val id: String, val title: String, val hint: String) {
     companion object {
         fun of(id: String?) = entries.firstOrNull { it.id == id }
         const val TITLE = "Talk to Ferb in"
-        const val HINDI_NEEDS = "Needs Gemini Nano, or Ferb Link and your computer"
+        const val UNTIL_GEMINI = "English only, until Gemini Nano is ready"
         /** Gemini Nano can't run on this phone at all. */
         const val HINDI_NEEDS_LINK = "Needs Ferb Link and your computer"
 

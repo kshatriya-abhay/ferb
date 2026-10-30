@@ -33,7 +33,11 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     /** Talk to Ferb in, or null when the steps were changed under Advanced. */
     val chosen get() = steps.saved
     val abilities get() = steps.abilities
-    fun setTalk(talk: dev.abhay.assistant.pipeline.Talk) = steps.setTalk(talk)
+    /** Talk to Ferb in; English + Hindi with Gemini Nano still to download starts the download. */
+    fun setTalk(talk: dev.abhay.assistant.pipeline.Talk) {
+        steps.setTalk(talk)
+        if (talk.waitsForGemini(steps.abilities.value) && nano.setup.value.needsSetUp) nano.setUp()
+    }
     fun linkChanged(heard: Boolean? = null) = steps.linkChanged(heard)
     fun setAudio(step: AudioStep) = steps.setAudio(step)
     fun setRewrite(step: RewriteStep) = steps.setRewrite(step)
@@ -43,9 +47,8 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     val gemini: StateFlow<GeminiSetup> = nano.setup
     fun checkGemini() {
         viewModelScope.launch {
+            (getApplication<Application>() as AssistantApp).followGemini()
             nano.refresh()
-            val setup = nano.setup.value
-            steps.geminiChecked(speech = setup.speech == Part.Ready, rewrite = setup.rewrite == Part.Ready, here = setup.speech != Part.Unavailable)
         }
     }
     fun setUpGemini() = nano.setUp()

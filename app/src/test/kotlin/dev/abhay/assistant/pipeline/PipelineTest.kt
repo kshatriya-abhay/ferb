@@ -34,16 +34,22 @@ class PipelineTest {
         assertThat(Talk.Typing.steps(computer)).isEqualTo(Pipeline(AudioStep.Off, RewriteStep.Link, ToolStep.Off))
         // Gemini's rewrite but not its speech, computer paired: hears there, rewrites here.
         assertThat(Talk.Hindi.steps(computer.copy(geminiRewrite = true))).isEqualTo(Pipeline(AudioStep.Link, RewriteStep.Gemini, ToolStep.Off))
-        // Neither: English and typing work, Hindi can't be picked, and says why.
+        // Neither yet, but Gemini Nano can download: Hindi can be picked, and hears English until it's ready.
         assertThat(Talk.English.steps(bare)).isEqualTo(Pipeline(AudioStep.Whistle, RewriteStep.Off, ToolStep.Off))
-        assertThat(Talk.Hindi.reason(bare)).isEqualTo(Talk.HINDI_NEEDS)
+        assertThat(Talk.Hindi.steps(bare)).isEqualTo(Pipeline(AudioStep.Whistle, RewriteStep.Off, ToolStep.Off))
+        assertThat(Talk.Hindi.reason(bare)).isNull()
+        assertThat(Talk.Hindi.waitsForGemini(bare)).isTrue()
+        assertThat(Talk.Hindi.where(bare)).isEqualTo(Talk.UNTIL_GEMINI)
+        assertThat(Talk.English.waitsForGemini(bare)).isFalse()
+        assertThat(Talk.Hindi.waitsForGemini(gemini)).isFalse()
+        assertThat(Talk.Hindi.waitsForGemini(computer)).isFalse()
         assertThat(Talk.English.reason(bare)).isNull()
         assertThat(Talk.Typing.reason(bare)).isNull()
         assertThat(Talk.Hindi.reason(computer)).isNull()
         // Gemini Nano can't run on this phone at all: only the computer can hear Hindi.
         assertThat(Talk.Hindi.reason(bare.copy(geminiHere = false))).isEqualTo(Talk.HINDI_NEEDS_LINK)
-        // Paired, but the computer's model doesn't hear: still no Hindi voice.
-        assertThat(Talk.Hindi.reason(bare.copy(link = true))).isEqualTo(Talk.HINDI_NEEDS)
+        assertThat(Talk.Hindi.reason(bare.copy(geminiHere = false, link = true))).isEqualTo(Talk.HINDI_NEEDS_LINK)
+        assertThat(Talk.Hindi.reason(computer.copy(geminiHere = false))).isNull()
         // Not checked yet: not held back.
         assertThat(Talk.Hindi.reason(Abilities())).isNull()
         // The default: Hindi when something hears it.

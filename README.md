@@ -28,7 +28,7 @@ Or [build it from source](#build-from-source).
 
 ### First launch
 
-Three pages: a short welcome; **How will you talk to Ferb?** (English, English + Hindi, or Typing only, with the best choice for your phone picked); and making Ferb your phone's assistant (left out if it already is). **Skip** goes straight to the chat, and **Settings → Run setup again** brings the pages back. Then "How can I help?" shows a few requests to try; tap one, or type your own in the box at the bottom. Try:
+Three pages: a short welcome; **How will you talk to Ferb?** (English, English + Hindi, or Typing only, with the best choice for your phone picked, and Gemini Nano's download right there when it's still needed: Ferb works meanwhile and switches to it once it's ready); and making Ferb your phone's assistant (left out if it already is). **Skip** goes straight to the chat, and **Settings → Run setup again** brings the pages back. In the chat, a tip says some tools start off, and **Show me** opens Settings → Tools, where each switch turns a tool on or off. Then "How can I help?" shows a few requests to try; tap one, or type your own in the box at the bottom. Try:
 
 - "Set a timer for 10 minutes"
 - "Turn on the flashlight"

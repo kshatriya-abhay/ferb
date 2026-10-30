@@ -30,8 +30,8 @@ internal fun chatTips(history: List<Exchange>, startScreen: Boolean, micShown: B
         newest.firstOrNull()?.let { TipPlace(Tip.Details, it.id) },
         at(Tip.AskFirst) { e -> e.calls.any { it.status == Status.Waiting } },
         at(Tip.Undo) { e -> done(e).any { it.actions.isNotEmpty() } },
-        // After a request no tool could do, or a few requests in: there's more to turn on.
-        TipPlace(Tip.MoreTools, null).takeIf { history.size >= 5 || history.any { it.calls.isEmpty() && it.reply.error == null } },
+        // From the start (first of all, after setup): some tools are off, with Show me to Settings → Tools.
+        TipPlace(Tip.MoreTools, null),
         at(Tip.Fallback) { it.fallbacks.isNotEmpty() },
         TipPlace(Tip.Mic, null).takeIf { micShown && micTip },
         at(Tip.Heard) { it.heard != null },

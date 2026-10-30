@@ -31,8 +31,9 @@ import androidx.compose.ui.unit.dp
 import dev.abhay.assistant.R
 
 /**
- * The first page of the first launch ([OnboardingFlow]): what Ferb is and what stays private. It
- * asks for nothing; permissions come when a tool or the mic needs them.
+ * The first page of the first launch ([OnboardingFlow]): what Ferb is (not a chatbot: it does
+ * things) and what stays private. It asks for nothing; permissions come when a tool or the mic
+ * needs them. Which tools are on is shown after setup ([Tip.MoreTools], then [Tip.Switches]).
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -47,10 +48,10 @@ internal fun WelcomeContent() {
                 tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.padding(10.dp))
         }
         Spacer(Modifier.height(32.dp))
-        Text(stringResource(R.string.welcome_ferb_does_things_on_your), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
-        Spacer(Modifier.height(12.dp))
-        Text(stringResource(R.string.welcome_alarms_timers_apps_and_more),
-            style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+        Text(stringResource(R.string.welcome_not_a_chatbot), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(4.dp))
+        Text(stringResource(R.string.welcome_does_things_for_you), style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.primary, textAlign = TextAlign.Center)
         Spacer(Modifier.height(24.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(painterResource(R.drawable.ic_lock), contentDescription = null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)

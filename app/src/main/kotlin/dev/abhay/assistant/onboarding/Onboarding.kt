@@ -13,12 +13,15 @@ import kotlinx.coroutines.flow.update
  * gone once dismissed or used.
  */
 enum class Tip(val text: String) {
+    /** First, straight after setup: the start of the short guide to turning tools on and off ([Switches] next). */
+    MoreTools("Some tools start off, like calls and the calendar."),
     TryOne("Tap one, or type your own request below."),
     Details("Tap a reply to see what Ferb understood."),
     AskFirst("Ferb asks first when unsure, or before reaching other people."),
     Undo("Changed your mind? A result's buttons undo it."),
-    MoreTools("Turn on calls, messages and the calendar in Settings → Tools."),
     Keywords("Requests with these words go to this tool."),
+    /** Settings → Tools, the guide's second step: put away by ✕ or by using a switch. */
+    Switches("Each switch turns a tool on or off. Tap a tool for when it asks first."),
     Fallback("A step was skipped this time. Tap the reply for why."),
     Mic("Tap the mic, speak English, then \u2713 to send."),
     Heard("What Ferb heard; above, what it understood."),

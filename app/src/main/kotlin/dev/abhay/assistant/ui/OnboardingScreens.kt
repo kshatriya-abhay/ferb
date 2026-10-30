@@ -115,7 +115,7 @@ internal fun OnboardingFlow(
                         Page.Talk -> {
                             PageHeader(stringResource(PageText.TALK_TITLE), stringResource(PageText.TALK_BODY))
                             TalkOptions(talk, can, onTalk, recommended = Talk.default(can))
-                            GeminiSetUp(gemini, onSetUpGemini)
+                            GeminiSetUp(gemini, onSetUpGemini, showReady = true)
                             Text(stringResource(PageText.TALK_MORE), Modifier.padding(horizontal = 32.dp),
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }

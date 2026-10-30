@@ -227,9 +227,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         // What Gemini Nano can do here, for the steps not chosen yet (their defaults). Ferb is in
         // front now, which AICore needs.
         viewModelScope.launch {
+            assistant.followGemini()
             assistant.nanoEars.refresh()
-            val setup = assistant.nanoEars.setup.value
-            assistant.pipeline.geminiChecked(speech = setup.speech == Part.Ready, rewrite = setup.rewrite == Part.Ready, here = setup.speech != Part.Unavailable)
         }
     }
 

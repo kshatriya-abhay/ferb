@@ -128,7 +128,8 @@ class ChatActivity : ComponentActivity() {
                 NavStack(stack, onBack = back) { screen ->
                     when {
                         screen == "assistant" -> AssistantScreen(viewModel, onOpenSettings = { open("settings") },
-                            onOpenLink = { stack = stack + "settings" + "link" }, onOpenNotes = { open("notes") })
+                            onOpenLink = { stack = stack + "settings" + "link" }, onOpenNotes = { open("notes") },
+                            onOpenTools = { stack = stack + "settings" + "tools" })
                         screen == "notes" || screen == REMINDERS -> NotesScreen(viewModel, onOpen = { showNote(it) }, onBack = back,
                             tab = if (screen == REMINDERS) NotesTab.Reminders else NotesTab.Notes,
                             // The page beneath becomes the Reminders tab, so Save or Back lands there.

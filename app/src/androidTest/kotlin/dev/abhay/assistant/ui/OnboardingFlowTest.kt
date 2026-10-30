@@ -6,6 +6,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
+import dev.abhay.assistant.R
 import dev.abhay.assistant.pipeline.Abilities
 import dev.abhay.assistant.pipeline.Talk
 import dev.abhay.assistant.voice.GeminiSetup
@@ -14,7 +15,11 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** The first launch's three pages (Compose, on the phone): in order, the recommended choice saved by Next, Skip, and Hindi greyed out when nothing hears it. */
+/**
+ * The first launch's three pages (Compose, on the phone): in order, the recommended choice saved by
+ * Next, Skip, Gemini Nano's setup on the Talk page (download, progress, failure, can't run), and
+ * Hindi greyed out only when nothing here ever can hear it.
+ */
 @RunWith(AndroidJUnit4::class)
 class OnboardingFlowTest {
     @get:Rule val compose = createComposeRule()
@@ -31,7 +36,8 @@ class OnboardingFlowTest {
     @Test
     fun throughEveryPageWithTheRecommendedChoice() {
         show()
-        compose.onNodeWithText("Ferb does things on your phone").assertExists()
+        compose.onNodeWithText(str(R.string.welcome_not_a_chatbot)).assertExists()
+        compose.onNodeWithText(str(R.string.welcome_does_things_for_you)).assertExists()
         compose.onNodeWithText(str(PageText.START)).performClick()
         compose.onNodeWithText(str(PageText.TALK_TITLE)).assertExists()
         // The recommended choice says so, and where it's understood.
@@ -50,26 +56,57 @@ class OnboardingFlowTest {
         show(assistantHeld = true)
         compose.onNodeWithText(str(PageText.START)).performClick()
         compose.onNodeWithText(str(PageText.BACK)).performClick()
-        compose.onNodeWithText("Ferb does things on your phone").assertExists()
+        compose.onNodeWithText(str(R.string.welcome_not_a_chatbot)).assertExists()
+        compose.onNodeWithText(str(R.string.welcome_does_things_for_you)).assertExists()
         compose.onNodeWithText(str(PageText.SKIP)).performClick()
         assertThat(done).isEqualTo(1)
         assertThat(saved).isEmpty()
     }
 
     @Test
-    fun withNothingThatHearsHindiItSaysWhyAndEnglishIsPicked() {
-        show(can = Abilities(geminiSpeech = false, geminiRewrite = false), setup = GeminiSetup(Part.Unavailable, Part.Unavailable))
+    fun whereGeminiNanoCantRunItSaysSoAndHindiNeedsTheComputer() {
+        show(can = Abilities(geminiSpeech = false, geminiRewrite = false, geminiHere = false), setup = GeminiSetup(Part.Unavailable, Part.Unavailable))
         compose.onNodeWithText(str(PageText.START)).performClick()
-        compose.onNodeWithText(Talk.HINDI_NEEDS).assertExists()
+        compose.onNodeWithText(str(R.string.ui_gemini_cant_run)).assertExists()
+        compose.onNodeWithText(Talk.HINDI_NEEDS_LINK).assertExists()
         compose.onNodeWithText(str(PageText.NEXT)).performClick()
         assertThat(saved).containsExactly(Talk.English)
     }
 
     @Test
-    fun geminiNanoToDownloadOffersItsSetUp() {
-        show(setup = GeminiSetup(Part.Ready, Part.NeedsDownload))
+    fun geminiNanoToDownloadIsSetUpOnThePage() {
+        val toDownload = Abilities(geminiSpeech = false, geminiRewrite = false)
+        show(can = toDownload, setup = GeminiSetup(Part.NeedsDownload, Part.NeedsDownload))
         compose.onNodeWithText(str(PageText.START)).performClick()
+        compose.onNodeWithText(str(R.string.ui_gemini_offer)).assertExists()
         compose.onNodeWithText(str(PageText.SET_UP_GEMINI)).performScrollTo().performClick()
         assertThat(saved).contains("set up")
+        // English + Hindi can still be picked: English until Gemini Nano is ready.
+        compose.onNodeWithText("${Talk.Hindi.hint} · ${Talk.UNTIL_GEMINI}").performScrollTo().performClick()
+        assertThat(saved).contains(Talk.Hindi)
+    }
+
+    @Test
+    fun aDownloadShowsItsProgress() {
+        show(can = Abilities(geminiSpeech = false, geminiRewrite = false), setup = GeminiSetup(Part.Downloading(30, 100), Part.Downloading(10, 100)))
+        compose.onNodeWithText(str(PageText.START)).performClick()
+        compose.onNodeWithText(str(R.string.ui_gemini_downloading_percent, 20)).assertExists()
+        compose.onNodeWithText(str(R.string.ui_gemini_meanwhile)).assertExists()
+    }
+
+    @Test
+    fun aFailedDownloadSaysWhyAndCanBeTriedAgain() {
+        show(can = Abilities(geminiSpeech = false, geminiRewrite = false), setup = GeminiSetup(Part.Failed("not enough space on the phone"), Part.NeedsDownload))
+        compose.onNodeWithText(str(PageText.START)).performClick()
+        compose.onNodeWithText(str(R.string.ui_gemini_failed, "not enough space on the phone")).assertExists()
+        compose.onNodeWithText(str(R.string.ui_try_again)).performScrollTo().performClick()
+        assertThat(saved).contains("set up")
+    }
+
+    @Test
+    fun readyGeminiNanoSaysSo() {
+        show()
+        compose.onNodeWithText(str(PageText.START)).performClick()
+        compose.onNodeWithText(str(R.string.ui_gemini_ready)).assertExists()
     }
 }

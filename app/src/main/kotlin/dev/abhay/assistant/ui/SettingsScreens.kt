@@ -304,6 +304,7 @@ fun ToolsScreen(settings: SettingsViewModel, onOpenTool: (String) -> Unit, onBac
     val on = ToolSettings.enabledNames(draft).size
     val askPermissions = rememberPermissionAsk()
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val onboarding by settings.onboarding.state.collectAsStateWithLifecycle()
 
     Scaffold(
         Modifier.nestedScroll(bar.nestedScrollConnection),
@@ -316,9 +317,14 @@ fun ToolsScreen(settings: SettingsViewModel, onOpenTool: (String) -> Unit, onBac
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
         ) {
+            // The guide's second step, once: what the switches do.
+            if (Tip.Switches !in onboarding.seen) item(key = "tip") {
+                TipCard(Tip.Switches, onDismiss = { settings.onboarding.seen(Tip.Switches) }, Modifier.padding(bottom = 8.dp))
+            }
             itemsIndexed(Tools.all, key = { _, tool -> tool.name }) { i, tool ->
                 val config = draft.getValue(tool.name)
                 ToolRow(tool, config, ListItemDefaults.segmentedShapes(i, Tools.all.size), onOpen = { onOpenTool(tool.name) }, onToggle = { enabled ->
+                    settings.onboarding.seen(Tip.Switches)
                     if (enabled) askPermissions(tool)
                     settings.update(tool.name) { it.copy(enabled = enabled) }
                 })

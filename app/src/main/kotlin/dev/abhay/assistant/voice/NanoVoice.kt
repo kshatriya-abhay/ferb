@@ -59,6 +59,14 @@ data class GeminiSetup(val speech: Part = Part.Checking, val rewrite: Part = Par
     /** Something to fetch: Set up downloads it. */
     val needsSetUp get() = parts.any { it == Part.NeedsDownload || it is Part.Failed || (it is Part.Downloading && it.total == null && it.done == 0L) }
     val downloading get() = parts.any { it is Part.Downloading }
+    /** Both parts' progress together, 0 to 1, once AICore has said how much each needs; else null. */
+    val progress: Float? get() = parts.filterIsInstance<Part.Downloading>().takeIf { d -> d.isNotEmpty() && d.all { it.total != null && it.total > 0 } }
+        ?.let { d -> (d.sumOf { it.done }.toFloat() / d.sumOf { it.total!! }).coerceIn(0f, 1f) }
+
+    companion object {
+        /** For the steps: speech ready, rewrite ready, and whether Gemini Nano can run here at all. */
+        fun abilities(s: GeminiSetup) = Triple(s.speech == Part.Ready, s.rewrite == Part.Ready, s.speech != Part.Unavailable)
+    }
 
     /** The Settings row's line under "Gemini Nano". */
     fun summary(): String = when {

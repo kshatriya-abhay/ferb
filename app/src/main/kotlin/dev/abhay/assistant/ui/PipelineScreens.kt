@@ -4,6 +4,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -202,12 +207,44 @@ internal fun TalkSection(settings: SettingsViewModel, onOpenAdvanced: () -> Unit
     })
 }
 
-/** Gemini Nano still to download: the button that starts it (progress then shows on the choice). */
+/**
+ * Gemini Nano's setup where Talk to Ferb in is chosen: the check, a download button, its progress
+ * (Ferb works on what's there meanwhile, and switches when it's ready), a failed download's reason
+ * with Try again, or one line when AICore can't run it on this phone. [showReady]: say when it's ready.
+ */
 @Composable
-internal fun GeminiSetUp(setup: GeminiSetup, onSetUp: () -> Unit) {
-    if (listOf(setup.speech, setup.rewrite).none { it == Part.NeedsDownload || it is Part.Failed }) return
-    androidx.compose.foundation.layout.Box(Modifier.padding(horizontal = 32.dp)) {
-        androidx.compose.material3.TextButton(onClick = onSetUp, enabled = !setup.downloading) { Text(stringResource(SET_UP_GEMINI)) }
+internal fun GeminiSetUp(setup: GeminiSetup, onSetUp: () -> Unit, showReady: Boolean = false) {
+    val failed = setup.parts.filterIsInstance<Part.Failed>().firstOrNull()
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    Column(Modifier.fillMaxWidth().padding(horizontal = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        when {
+            setup.ready -> if (showReady) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(painterResource(R.drawable.ic_check), contentDescription = null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                Text(stringResource(R.string.ui_gemini_ready), style = MaterialTheme.typography.bodyMedium)
+            }
+            setup.speech == Part.Unavailable -> Text(stringResource(R.string.ui_gemini_cant_run), style = MaterialTheme.typography.bodyMedium, color = muted)
+            setup.downloading -> {
+                val progress = setup.progress
+                Text(if (progress != null) stringResource(R.string.ui_gemini_downloading_percent, (progress * 100).toInt())
+                    else stringResource(R.string.ui_gemini_downloading), style = MaterialTheme.typography.bodyMedium)
+                if (progress != null) LinearProgressIndicator(progress = { progress }, Modifier.fillMaxWidth())
+                else LinearProgressIndicator(Modifier.fillMaxWidth())
+                Text(stringResource(R.string.ui_gemini_meanwhile), style = MaterialTheme.typography.bodySmall, color = muted)
+            }
+            failed != null -> {
+                Text(stringResource(R.string.ui_gemini_failed, failed.why), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+                OutlinedButton(onClick = onSetUp) { Text(stringResource(R.string.ui_try_again)) }
+            }
+            setup.needsSetUp -> {
+                Text(stringResource(R.string.ui_gemini_offer), style = MaterialTheme.typography.bodyMedium, color = muted)
+                FilledTonalButton(onClick = onSetUp) { Text(stringResource(SET_UP_GEMINI)) }
+            }
+            setup.parts.any { it == Part.Checking } -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                Text(stringResource(R.string.ui_gemini_checking), style = MaterialTheme.typography.bodyMedium, color = muted)
+            }
+        }
     }
 }
 
