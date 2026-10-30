@@ -34,7 +34,8 @@ class OnboardingFlowTest {
 
     private fun show(assistantHeld: Boolean = false, can: Abilities = gemini, setup: GeminiSetup = GeminiSetup(Part.Ready, Part.Ready)) = compose.setContent {
         OnboardingFlow(Talk.default(can), can, setup, assistantHeld, onTalk = { saved += it },
-            onSetUpGemini = { saved += "set up" }, onOpenAssistantSettings = { saved += "assistant settings" }, onDone = { done++ })
+            onSetUpGemini = { saved += "set up" }, onOpenAssistantSettings = { saved += "assistant settings" },
+            onCheckGemini = { saved += "check" }, onDone = { done++ })
     }
 
     @Test
@@ -105,6 +106,16 @@ class OnboardingFlowTest {
         compose.onNodeWithText(str(R.string.ui_gemini_failed, "not enough space on the phone")).assertExists()
         compose.onNodeWithText(str(R.string.ui_try_again)).performScrollTo().performClick()
         assertThat(saved).contains("set up")
+    }
+
+    @Test
+    fun aStatusCheckThatThrewSaysCouldntCheckNotCantRun() {
+        show(can = Abilities(geminiSpeech = false, geminiRewrite = false), setup = GeminiSetup(Part.Unchecked("NullPointerException"), Part.Unchecked("NullPointerException")))
+        compose.onNodeWithText(str(PageText.START)).performClick()
+        compose.onNodeWithText(str(R.string.ui_gemini_unchecked, "NullPointerException")).assertExists()
+        compose.onNodeWithText(str(R.string.ui_gemini_cant_run)).assertDoesNotExist()
+        compose.onNodeWithText(str(R.string.ui_try_again)).performScrollTo().performClick()
+        assertThat(saved).contains("check")
     }
 
     @Test

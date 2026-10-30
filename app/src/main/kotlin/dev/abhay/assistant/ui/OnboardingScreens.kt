@@ -93,6 +93,7 @@ internal fun OnboardingFlow(
     onTalk: (Talk) -> Unit,
     onSetUpGemini: () -> Unit,
     onOpenAssistantSettings: () -> Unit,
+    onCheckGemini: () -> Unit = {},
     onDone: () -> Unit,
 ) {
     var page by rememberSaveable { mutableStateOf(Page.Welcome) }
@@ -123,7 +124,7 @@ internal fun OnboardingFlow(
                         Page.Talk -> {
                             PageHeader(stringResource(PageText.TALK_TITLE), stringResource(PageText.TALK_BODY))
                             TalkOptions(talk, can, onTalk, recommended = Talk.default(can))
-                            GeminiSetUp(gemini, onSetUpGemini, showReady = true)
+                            GeminiSetUp(gemini, onSetUpGemini, onCheckGemini, showReady = true)
                             Text(stringResource(PageText.TALK_MORE), Modifier.padding(horizontal = 32.dp),
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
@@ -230,6 +231,7 @@ fun Onboarding(settings: SettingsViewModel, onDone: () -> Unit) {
         assistantHeld = held,
         onTalk = settings::setTalk,
         onSetUpGemini = settings::setUpGemini,
+        onCheckGemini = settings::checkGemini,
         onOpenAssistantSettings = { openAssistantSettings(context) },
         onDone = onDone,
     )

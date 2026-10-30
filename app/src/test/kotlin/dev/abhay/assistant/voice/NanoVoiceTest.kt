@@ -46,6 +46,20 @@ class NanoVoiceTest {
         assertThat(GeminiSetup(Part.Ready, Part.Downloading(10, 100)).needsSetUp).isFalse()
         assertThat(GeminiSetup(Part.Unavailable, Part.Ready).summary()).isEqualTo("Not available on this phone")
         assertThat(GeminiSetup().summary()).isEqualTo("Checking…")
+        assertThat(GeminiSetup(Part.Unchecked("NullPointerException"), Part.Unchecked("NullPointerException")).summary()).isEqualTo("Couldn't check: tap to try again")
+        assertThat(GeminiSetup(Part.Downloading(30, 100), Part.Downloading(10, 100)).progress).isWithin(0.001f).of(0.2f)
+        assertThat(GeminiSetup(Part.Downloading(), Part.Ready).progress).isNull()
+    }
+
+    @Test
+    fun aCheckThatThrewIsNotCantRun() {
+        // Release 0.1: every status check threw (a constructor R8 dropped), and Ferb said Gemini Nano can't run.
+        val (speech, rewrite, here) = GeminiSetup.abilities(GeminiSetup(Part.Unchecked("NullPointerException"), Part.Unchecked("NullPointerException")))
+        assertThat(speech).isFalse()
+        assertThat(rewrite).isFalse()
+        assertThat(here).isTrue()
+        assertThat(GeminiSetup.abilities(GeminiSetup(Part.Unavailable, Part.Unavailable)).third).isFalse()
+        assertThat(Part.Unchecked("x").label()).isEqualTo("Couldn't check: x")
     }
 
     @Test

@@ -194,7 +194,7 @@ internal fun TalkSection(settings: SettingsViewModel, onOpenAdvanced: () -> Unit
     val selected = chosen.talk ?: if (chosen.custom) null else Talk.default(can)
     TalkOptions(selected, can, settings::setTalk)
     val gemini by settings.gemini.collectAsStateWithLifecycle()
-    GeminiSetUp(gemini, settings::setUpGemini)
+    GeminiSetUp(gemini, settings::setUpGemini, settings::checkGemini)
     if (selected == null) Note(stringResource(CUSTOM_STEPS))
     Group(listOf { shapes ->
         SegmentedListItem(
@@ -210,11 +210,13 @@ internal fun TalkSection(settings: SettingsViewModel, onOpenAdvanced: () -> Unit
 /**
  * Gemini Nano's setup where Talk to Ferb in is chosen: the check, a download button, its progress
  * (Ferb works on what's there meanwhile, and switches when it's ready), a failed download's reason
- * with Try again, or one line when AICore can't run it on this phone. [showReady]: say when it's ready.
+ * with Try again, a status check that threw ("couldn't check", Try again: [onCheckAgain]), or one
+ * line when AICore says it can't run on this phone. [showReady]: say when it's ready.
  */
 @Composable
-internal fun GeminiSetUp(setup: GeminiSetup, onSetUp: () -> Unit, showReady: Boolean = false) {
+internal fun GeminiSetUp(setup: GeminiSetup, onSetUp: () -> Unit, onCheckAgain: () -> Unit, showReady: Boolean = false) {
     val failed = setup.parts.filterIsInstance<Part.Failed>().firstOrNull()
+    val unchecked = setup.parts.filterIsInstance<Part.Unchecked>().firstOrNull()
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Column(Modifier.fillMaxWidth().padding(horizontal = 32.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -222,6 +224,10 @@ internal fun GeminiSetUp(setup: GeminiSetup, onSetUp: () -> Unit, showReady: Boo
             setup.ready -> if (showReady) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(painterResource(R.drawable.ic_check), contentDescription = null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
                 Text(stringResource(R.string.ui_gemini_ready), style = MaterialTheme.typography.bodyMedium)
+            }
+            unchecked != null -> {
+                Text(stringResource(R.string.ui_gemini_unchecked, unchecked.why), style = MaterialTheme.typography.bodyMedium, color = muted)
+                OutlinedButton(onClick = onCheckAgain) { Text(stringResource(R.string.ui_try_again)) }
             }
             setup.speech == Part.Unavailable -> Text(stringResource(R.string.ui_gemini_cant_run), style = MaterialTheme.typography.bodyMedium, color = muted)
             setup.downloading -> {

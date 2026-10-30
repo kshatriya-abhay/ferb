@@ -234,7 +234,7 @@ fun GeminiScreen(settings: SettingsViewModel, onBack: () -> Unit) {
                 when {
                     setup.ready -> OutlinedButton(onClick = settings::checkGemini) { Text(stringResource(R.string.settings_check_again)) }
                     setup.downloading && !setup.needsSetUp -> Button(onClick = {}, enabled = false) { Text(stringResource(R.string.settings_downloading)) }
-                    setup.parts.any { it == Part.Unavailable } -> OutlinedButton(onClick = settings::checkGemini) { Text(stringResource(R.string.settings_check_again)) }
+                    setup.parts.any { it == Part.Unavailable || it is Part.Unchecked } -> OutlinedButton(onClick = settings::checkGemini) { Text(stringResource(R.string.settings_check_again)) }
                     else -> Button(onClick = settings::setUpGemini, enabled = setup.parts.none { it == Part.Checking }) { Text(stringResource(R.string.settings_set_up)) }
                 }
             }

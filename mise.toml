@@ -181,12 +181,13 @@ depends = ["fetch"]
 run = "scripts/release.sh"
 
 [tasks.smoke]
-description = "Build the release build (R8) as its own app, dev.abhay.assistant.smoke, signed with the debug key, and check it's offline; for the smoke test (docs/development.md)"
+description = "Build the release build (R8) as its own app, dev.abhay.assistant.smoke, signed with the debug key, and check it's offline and keeps what reflection needs (CI runs it); for the smoke test (docs/development.md)"
 depends = ["fetch"]
 shell = "bash -c"
 run = """
 ./gradlew --no-daemon -q :app:assembleSmoke
 scripts/check-offline.sh app/build/outputs/apk/smoke/app-smoke.apk
+scripts/check-release.sh app/build/outputs/apk/smoke/app-smoke.apk
 echo "Built app/build/outputs/apk/smoke/app-smoke.apk"
 """
 

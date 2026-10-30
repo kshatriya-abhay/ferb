@@ -24,6 +24,8 @@ sealed interface Part {
     }
     data object Unavailable : Part
     data class Failed(val why: String) : Part
+    /** The status check itself threw: not known, so not "can't run" (Try again checks again). */
+    data class Unchecked(val why: String) : Part
 
     /** For Settings. */
     fun label(): String = when (this) {
@@ -37,6 +39,7 @@ sealed interface Part {
         }
         Unavailable -> "Not available on this phone"
         is Failed -> "Couldn't download: $why"
+        is Unchecked -> "Couldn't check: $why"
     }
 
     companion object {
@@ -71,6 +74,7 @@ data class GeminiSetup(val speech: Part = Part.Checking, val rewrite: Part = Par
     /** The Settings row's line under "Gemini Nano". */
     fun summary(): String = when {
         ready -> "Ready"
+        parts.any { it is Part.Unchecked } -> "Couldn't check: tap to try again"
         parts.any { it == Part.Unavailable } -> "Not available on this phone"
         downloading -> parts.filterIsInstance<Part.Downloading>().let { d ->
             val total = d.mapNotNull { it.total }.sum()

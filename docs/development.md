@@ -30,7 +30,7 @@ mise run release:publish   # the maintainer only: create the GitHub release v<ve
 1. Builds the release APK unsigned (Gradle never sees the key).
 2. Aligns it, and signs it with `apksigner`, which reads the passwords from the environment, not its command line.
 3. Checks the signing certificate against `release-cert.sha256`, the committed SHA-256 of the release certificate. It's public, and Ferb Link's repo holds the same line.
-4. Runs `scripts/check-offline.sh` on the signed APK.
+4. Runs `scripts/check-offline.sh` on the signed APK, and `scripts/check-release.sh`: every class the manifest names for creating by reflection (ML Kit's component registrars) must still have its public no-argument constructor after R8. Without it Gemini Nano's status check threw, and release 0.1 said Gemini Nano can't run. CI checks the same on the smoke build (`mise run smoke`).
 5. Writes the APK and its checksum to `dist/` (git-ignored).
 
 On the very first release there's no `release-cert.sha256` yet: the task writes it, then stops so it can be checked and committed.

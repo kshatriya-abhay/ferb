@@ -42,6 +42,11 @@ jobs:
       - name: No network in the APK
         run: mise run check-offline
 
+      # The release build, minified by R8 (as the smoke build, debug-signed), and what reflection
+      # needs from it: scripts/check-release.sh.
+      - name: Release build keeps what reflection needs
+        run: mise run smoke
+
       - name: Test reports
         if: failure()
         uses: actions/upload-artifact@v4

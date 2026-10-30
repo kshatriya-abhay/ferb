@@ -49,5 +49,6 @@ else
 fi
 
 scripts/check-offline.sh "$OUT"
+scripts/check-release.sh "$OUT"
 (cd dist && sha256sum "$(basename "$OUT")" > "$(basename "$OUT").sha256")
 echo "Built $OUT ($(du -h "$OUT" | cut -f1)), SHA-256 in $OUT.sha256"

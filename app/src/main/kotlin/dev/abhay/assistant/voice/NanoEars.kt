@@ -99,16 +99,29 @@ class NanoEars {
      * Android is fetching on its own is followed, so its progress shows.
      */
     suspend fun refresh() {
-        val speech = status()
-        val rewrite = status { writer().checkStatus() }.also { Log.i(TAG, "rewrite ($writerName): checkStatus ${NanoChoice.name(it)}") }
+        _setup.update { s -> s.copy(speech = s.speech.takeIf { it !is Part.Unchecked } ?: Part.Checking, rewrite = s.rewrite.takeIf { it !is Part.Unchecked } ?: Part.Checking) }
+        val speech = part(SPEECH) { listener(NanoSpeech.LOCALE).checkStatus() }
+        val rewrite = part(REWRITE) { writer().checkStatus() }
         _setup.update {
             GeminiSetup(
-                speech = if (it.speech is Part.Downloading && downloads[SPEECH]?.isActive == true) it.speech else Part.of(speech),
-                rewrite = if (it.rewrite is Part.Downloading && downloads[REWRITE]?.isActive == true) it.rewrite else Part.of(rewrite),
+                speech = if (it.speech is Part.Downloading && downloads[SPEECH]?.isActive == true) it.speech else speech,
+                rewrite = if (it.rewrite is Part.Downloading && downloads[REWRITE]?.isActive == true) it.rewrite else rewrite,
             )
         }
-        if (speech == FeatureStatus.DOWNLOADING) download(SPEECH)
-        if (rewrite == FeatureStatus.DOWNLOADING) download(REWRITE)
+        if (speech is Part.Downloading) download(SPEECH)
+        if (rewrite is Part.Downloading) download(REWRITE)
+    }
+
+    /**
+     * One part's checkStatus() as a [Part]. A check that throws is [Part.Unchecked], never
+     * "can't run": in release 0.1 a stripped ML Kit constructor made every check throw, and the
+     * phone was told Gemini Nano can't run.
+     */
+    private suspend fun part(part: String, check: suspend () -> Int): Part = try {
+        Part.of(check()).also { Log.i(TAG, "$part${if (part == REWRITE) " ($writerName)" else ""}: checkStatus $it") }
+    } catch (e: Exception) {
+        Log.w(TAG, "$part: checkStatus failed", e)
+        Part.Unchecked(reason(e))
     }
 
     /** One part's download, when its row is tapped. */
@@ -118,8 +131,8 @@ class NanoEars {
     /** Set up: downloads every part that needs it, with progress in [setup], then checks again. */
     fun setUp() {
         val now = _setup.value
-        if (now.speech !is Part.Ready && now.speech != Part.Unavailable) download(SPEECH)
-        if (now.rewrite !is Part.Ready && now.rewrite != Part.Unavailable) download(REWRITE)
+        if (now.speech !is Part.Ready && now.speech != Part.Unavailable && now.speech !is Part.Unchecked) download(SPEECH)
+        if (now.rewrite !is Part.Ready && now.rewrite != Part.Unavailable && now.rewrite !is Part.Unchecked) download(REWRITE)
     }
 
     private fun download(part: String) {
@@ -153,8 +166,8 @@ class NanoEars {
                 set(Part.Failed(reason(e)))
             }
             // Downloads that were already there end without steps: ask again.
-            val status = if (part == SPEECH) status() else status { writer().checkStatus() }
-            if (_setup.value.let { if (part == SPEECH) it.speech else it.rewrite } !is Part.Failed) set(Part.of(status))
+            val after = part(part) { if (part == SPEECH) listener(NanoSpeech.LOCALE).checkStatus() else writer().checkStatus() }
+            if (_setup.value.let { if (part == SPEECH) it.speech else it.rewrite } !is Part.Failed) set(after)
         }
     }
 
@@ -162,7 +175,7 @@ class NanoEars {
         GenAiException.ErrorCode.NOT_ENOUGH_DISK_SPACE -> "not enough space on the phone"
         GenAiException.ErrorCode.NEEDS_SYSTEM_UPDATE -> "the phone needs a system update"
         GenAiException.ErrorCode.BACKGROUND_USE_BLOCKED -> "keep Ferb open while it downloads"
-        else -> e.message ?: e.toString()
+        else -> e.message ?: e.javaClass.simpleName
     }
 
     /** Listens on the microphone until [stop] (or ML Kit ends it), streaming what it hears. */
