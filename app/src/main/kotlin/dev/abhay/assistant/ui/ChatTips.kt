@@ -26,13 +26,9 @@ internal fun chatTips(history: List<Exchange>, startScreen: Boolean, micShown: B
     fun at(tip: Tip, shows: (Exchange) -> Boolean) = newest.firstOrNull(shows)?.let { TipPlace(tip, it.id) }
     val done = { e: Exchange -> e.calls.mapNotNull { (it.status as? Status.Finished)?.outcome as? Outcome.Done } }
     return listOfNotNull(
-        TipPlace(Tip.TryOne, null).takeIf { startScreen },
         newest.firstOrNull()?.let { TipPlace(Tip.Details, it.id) },
-        at(Tip.AskFirst) { e -> e.calls.any { it.status == Status.Waiting } },
-        at(Tip.Undo) { e -> done(e).any { it.actions.isNotEmpty() } },
         at(Tip.Fallback) { it.fallbacks.isNotEmpty() },
         TipPlace(Tip.Mic, null).takeIf { micShown && micTip },
-        at(Tip.Heard) { it.heard != null },
         // Ferb Link, once: when it's off and Needle 3 has found no tool, or been unsure, a few times.
         TipPlace(Tip.SuggestLink, null).takeIf { linkOff && history.count { it.struggled() } >= SUGGEST_LINK_AFTER },
     )

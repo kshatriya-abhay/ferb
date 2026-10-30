@@ -28,10 +28,10 @@ class OnboardingDeviceTest {
         assertThat(first.state.value).isEqualTo(OnboardingState())
         first.welcomed()
         first.seen(Tip.Details)
-        first.seen(Tip.Undo)
+        first.seen(Tip.Fallback)
         // A new instance, as after a restart, reads the same.
         val again = Onboarding.from(context, PREFS)
-        assertThat(again.state.value).isEqualTo(OnboardingState(welcomed = true, seen = setOf(Tip.Details, Tip.Undo)))
+        assertThat(again.state.value).isEqualTo(OnboardingState(welcomed = true, seen = setOf(Tip.Details, Tip.Fallback)))
         again.reset()
         assertThat(Onboarding.from(context, PREFS).state.value).isEqualTo(OnboardingState())
     }

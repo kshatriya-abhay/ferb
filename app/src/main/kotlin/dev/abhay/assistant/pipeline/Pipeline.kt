@@ -83,6 +83,13 @@ enum class ModelChoice(val id: String, val title: String, val hint: String) {
         Whistle -> null
     }
 
+    /** [reason] in a few words, for setup, where the options carry no other text. */
+    fun shortReason(can: Abilities): String? = when (this) {
+        Gemini -> CANT_RUN_HERE.takeIf { !can.geminiHere }
+        Gemma -> NEEDS_LINK.takeIf { !can.linkInstalled }
+        Whistle -> null
+    }
+
     /** Gemma 4 picked with Ferb Link installed but not paired (or off): it says so, with a button to open Ferb Link. */
     fun needsPairing(can: Abilities) = this == Gemma && can.linkInstalled && !can.link
 
@@ -95,6 +102,9 @@ enum class ModelChoice(val id: String, val title: String, val hint: String) {
         const val GEMINI_CANT_RUN = "Gemini Nano can't run on this phone"
         const val LINK_NOT_INSTALLED = "Needs the Ferb Link app"
         const val PAIR_LINK = "Pair Ferb Link with your computer. Until then, requests stay on this phone."
+        const val CANT_RUN_HERE = "Can't run on this phone"
+        const val NEEDS_LINK = "Needs Ferb Link"
+        const val NOT_PAIRED = "Not paired yet"
 
         /** Before anything is chosen: Gemini Nano if it can run here (even still to download), else Needle + Whistle. */
         fun default(can: Abilities) = if (can.geminiHere) Gemini else Whistle

@@ -233,8 +233,7 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
                 AssistantEngine.State.Loading -> Loading(Modifier.weight(1f))
                 is AssistantEngine.State.Failed -> Failed(e.message, viewModel::retry, Modifier.weight(1f))
                 is AssistantEngine.State.Ready ->
-                    if (startScreen) Welcome(enabled, onTry = { seen(Tip.TryOne); viewModel.send(it) }, Modifier.weight(1f),
-                        tip = tip?.tip?.takeIf { it == Tip.TryOne }, onTipSeen = seen)
+                    if (startScreen) Welcome(enabled, onTry = { viewModel.send(it) }, Modifier.weight(1f))
                     else History(state, viewModel, onDetails = { seen(Tip.Details); details = it }, Modifier.weight(1f), tip = tip, onTipSeen = seen,
                         onTurnOn = { id, tool ->
                             val missing = Tools.byName(tool)?.permissions.orEmpty().filter { context.checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
@@ -260,7 +259,7 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
                         })
             }
             // A tip about the box, the toggle or the mic, above them.
-            tip?.takeIf { it.exchange == null && it.tip != Tip.TryOne }?.let {
+            tip?.takeIf { it.exchange == null }?.let {
                 TipCard(it.tip, onDismiss = { seen(it.tip) }, Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                     text = if (it.tip == Tip.Mic) Mic.tip(pipeline.audio) else it.tip.text,
                     action = when (it.tip) {
@@ -279,7 +278,7 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
                 else {
                     // Refused: typing still works. Once Android won't ask again, the mic opens Ferb's settings page.
                     if ((context as? Activity)?.shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO) == false) refused = refused + Manifest.permission.RECORD_AUDIO
-                    viewModel.notify("Ferb needs the microphone. You can still type.")
+                    viewModel.notify("Ferb needs the microphone.")
                 }
             }
             InputBar(state, ready = engine is AssistantEngine.State.Ready, focus = 0, onChange = viewModel::onInputChange, onSend = { viewModel.send() },
@@ -330,7 +329,7 @@ private val WELCOME = listOf(SetAlarm, ShowAgenda, SendText, GetDirections, Flas
 /** Before the first request: what to say, as chips with the tools' icons. Scrolls when the screen is short. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun Welcome(enabled: List<String>, onTry: (String) -> Unit, modifier: Modifier, tip: Tip? = null, onTipSeen: (Tip) -> Unit = {}) {
+private fun Welcome(enabled: List<String>, onTry: (String) -> Unit, modifier: Modifier) {
     val tools = (WELCOME + Tools.all).distinct().filter { it.name in enabled }.take(5)
     BoxWithConstraints(modifier.fillMaxWidth()) {
         Column(
@@ -354,10 +353,6 @@ private fun Welcome(enabled: List<String>, onTry: (String) -> Unit, modifier: Mo
                         icon = { Icon(painterResource(tool.icon), contentDescription = null, Modifier.size(18.dp)) },
                     )
                 }
-            }
-            tip?.let {
-                Spacer(Modifier.height(16.dp))
-                TipCard(it, onDismiss = { onTipSeen(it) })
             }
         }
     }
@@ -398,10 +393,10 @@ private fun History(
                 RequestBubble(exchange.request, exchange.heard, exchange.understood)
                 ReplyBubble(
                     exchange,
-                    onRun = { onTipSeen(Tip.AskFirst); viewModel.run(exchange.id) },
-                    onSkip = { onTipSeen(Tip.AskFirst); viewModel.skip(exchange.id) },
-                    onChoose = { index, choice -> onTipSeen(Tip.AskFirst); viewModel.choose(exchange.id, index, choice) },
-                    onFollowUp = { index, action -> onTipSeen(Tip.Undo); viewModel.followUp(exchange.id, index, action) },
+                    onRun = { viewModel.run(exchange.id) },
+                    onSkip = { viewModel.skip(exchange.id) },
+                    onChoose = { index, choice -> viewModel.choose(exchange.id, index, choice) },
+                    onFollowUp = { index, action -> viewModel.followUp(exchange.id, index, action) },
                     onAdjust = { index, value -> viewModel.adjust(exchange.id, index, value) },
                     onFollow = { index, value -> viewModel.follow(exchange.id, index, value) },
                     onDetails = { onDetails(exchange) },
@@ -746,8 +741,6 @@ internal fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () -
                     Text(if (notes) stringResource(R.string.ui_hide_model_notes) else stringResource(MODEL_NOTES), style = MaterialTheme.typography.labelMedium)
                 }
                 if (notes) {
-                    Text(stringResource(R.string.assistant_needle_3_s_words_ferb),
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(reply.reasoning, style = MaterialTheme.typography.bodySmall, fontStyle = FontStyle.Italic,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }

@@ -22,8 +22,10 @@ import org.junit.runner.RunWith
 
 /**
  * The first launch's four pages (Compose, on the phone): in order, the recommended model saved by
- * Next, the tools page's way to Settings → Tools (and back to it), Skip, Gemini Nano's setup under it on the model page (download, progress, failure, can't
- * run), and Gemma 4 greyed out without Ferb Link, or asking to pair it.
+ * Next, Download in its place while Gemini Nano is still to download, the tools page's way to
+ * Settings → Tools (and back to it), Skip, Gemini Nano's status under it on the model page
+ * (progress, failure, can't run), Gemma 4 greyed out without Ferb Link, or not paired, and no
+ * explanatory text on any page (that's in Settings).
  */
 @RunWith(AndroidJUnit4::class)
 class OnboardingFlowTest {
@@ -48,13 +50,12 @@ class OnboardingFlowTest {
         compose.onNodeWithText(str(R.string.welcome_does_things_for_you)).assertExists()
         compose.onNodeWithText(str(PageText.START)).performClick()
         compose.onNodeWithText(str(PageText.MODEL_TITLE)).assertExists()
-        // The recommended model says so: Gemini Nano, where it can run.
-        compose.onNodeWithText("${str(RECOMMENDED)} · ${ModelChoice.Gemini.hint}").assertExists()
-        compose.onNodeWithText(ModelChoice.Whistle.hint).assertExists()
-        compose.onNodeWithText(ModelChoice.Gemma.title).assertExists()
+        // The three options by title alone: the hints and "Recommended" are Settings' (Gemini Nano is picked).
+        ModelChoice.entries.forEach { compose.onNodeWithText(it.title).assertExists() }
+        ModelChoice.entries.forEach { compose.onNodeWithText(it.hint, substring = true).assertDoesNotExist() }
+        compose.onNodeWithText(str(RECOMMENDED), substring = true).assertDoesNotExist()
         compose.onNodeWithText(str(PageText.NEXT)).performClick()
         compose.onNodeWithText(str(PageText.TOOLS_TITLE)).assertExists()
-        compose.onNodeWithText(str(PageText.TOOLS_BODY)).assertExists()
         compose.onNodeWithText(str(PageText.OPEN_TOOLS)).performClick()
         compose.onNodeWithText(str(PageText.NEXT)).performClick()
         compose.onNodeWithText(str(PageText.ASSISTANT_TITLE)).assertExists()
@@ -81,10 +82,9 @@ class OnboardingFlowTest {
     fun whereGeminiNanoCantRunItsGreyedOutAndNeedleWhistleIsRecommended() {
         show(can = Abilities(geminiSpeech = false, geminiRewrite = false, geminiHere = false), setup = GeminiSetup(Part.Unavailable, Part.Unavailable))
         compose.onNodeWithText(str(PageText.START)).performClick()
-        compose.onNodeWithText(ModelChoice.GEMINI_CANT_RUN).assertExists()
-        compose.onNodeWithText("${str(RECOMMENDED)} · ${ModelChoice.Whistle.hint}").assertExists()
+        compose.onNodeWithText(ModelChoice.CANT_RUN_HERE).assertExists()
         // Greyed out: a tap does nothing.
-        compose.onNodeWithText(ModelChoice.GEMINI_CANT_RUN).performClick()
+        compose.onNodeWithText(ModelChoice.CANT_RUN_HERE).performClick()
         compose.onNodeWithText(str(PageText.NEXT)).performClick()
         assertThat(saved).containsExactly("kept needle_whistle")
     }
@@ -93,8 +93,8 @@ class OnboardingFlowTest {
     fun gemmaNeedsFerbLinkAndAsksToPairIt() {
         show(can = gemini)
         compose.onNodeWithText(str(PageText.START)).performClick()
-        compose.onNodeWithText(ModelChoice.LINK_NOT_INSTALLED).assertExists()
-        compose.onNodeWithText(ModelChoice.LINK_NOT_INSTALLED).performClick()
+        compose.onNodeWithText(ModelChoice.NEEDS_LINK).assertExists()
+        compose.onNodeWithText(ModelChoice.NEEDS_LINK).performClick()
         assertThat(saved).isEmpty()
     }
 
@@ -102,7 +102,8 @@ class OnboardingFlowTest {
     fun gemmaPickedWithFerbLinkNotPairedSaysSoWithAButton() {
         show(can = gemini.copy(linkApp = true), model = ModelChoice.Gemma)
         compose.onNodeWithText(str(PageText.START)).performClick()
-        compose.onNodeWithText(ModelChoice.PAIR_LINK).assertExists()
+        compose.onNodeWithText(ModelChoice.NOT_PAIRED).assertExists()
+        compose.onNodeWithText(ModelChoice.PAIR_LINK).assertDoesNotExist()
         compose.onNodeWithText(str(OPEN_FERB_LINK)).performScrollTo().performClick()
         assertThat(saved).containsExactly("open link")
         // Gemini Nano's setup belongs to Gemini Nano: not shown under Gemma 4.
@@ -110,23 +111,35 @@ class OnboardingFlowTest {
     }
 
     @Test
-    fun geminiNanoToDownloadIsSetUpOnThePage() {
+    fun geminiNanoToDownloadMakesNextADownloadButton() {
         val toDownload = Abilities(geminiSpeech = false, geminiRewrite = false)
         show(can = toDownload, setup = GeminiSetup(Part.NeedsDownload, Part.NeedsDownload))
         compose.onNodeWithText(str(PageText.START)).performClick()
-        compose.onNodeWithText(str(R.string.ui_gemini_offer)).assertExists()
-        compose.onNodeWithText(str(PageText.SET_UP_GEMINI)).performScrollTo().performClick()
-        assertThat(saved).contains("set up")
-        // Picking it (a tap) saves it; Whistle hears until it's ready.
-        compose.onNodeWithText("${str(RECOMMENDED)} · ${ModelChoice.Gemini.hint}").performScrollTo().performClick()
-        assertThat(saved).contains(ModelChoice.Gemini)
+        // No offer text or button of its own on the page: the main button says Download.
+        compose.onNodeWithText(str(R.string.ui_gemini_offer)).assertDoesNotExist()
+        compose.onNodeWithText(str(PageText.SET_UP_GEMINI)).assertDoesNotExist()
+        compose.onNodeWithText(str(PageText.NEXT)).assertDoesNotExist()
+        compose.onNodeWithText(str(PageText.DOWNLOAD)).performClick()
+        // Saved, the download started, and on to the tools page.
+        assertThat(saved).containsExactly("kept gemini", "set up").inOrder()
+        compose.onNodeWithText(str(PageText.TOOLS_TITLE)).assertExists()
+    }
+
+    @Test
+    fun anotherChoiceKeepsNext() {
+        val toDownload = Abilities(geminiSpeech = false, geminiRewrite = false)
+        show(can = toDownload, setup = GeminiSetup(Part.NeedsDownload, Part.NeedsDownload), model = ModelChoice.Whistle)
+        compose.onNodeWithText(str(PageText.START)).performClick()
+        compose.onNodeWithText(str(PageText.DOWNLOAD)).assertDoesNotExist()
+        compose.onNodeWithText(str(PageText.NEXT)).performClick()
+        assertThat(saved).containsExactly("kept needle_whistle")
     }
 
     @Test
     fun stillNotReadyAfterWaitingOffersTryAgain() {
         show(can = Abilities(geminiSpeech = false, geminiRewrite = false), setup = GeminiSetup(Part.Downloading, Part.Downloading), watch = GeminiWatch.GaveUp)
         compose.onNodeWithText(str(PageText.START)).performClick()
-        compose.onNodeWithText(str(R.string.ui_gemini_still_downloading)).assertExists()
+        compose.onNodeWithText(str(R.string.ui_gemini_not_ready)).assertExists()
         compose.onNodeWithText(str(R.string.ui_try_again)).performScrollTo().performClick()
         assertThat(saved).contains("check")
     }
@@ -146,7 +159,7 @@ class OnboardingFlowTest {
         compose.onNodeWithText(str(PageText.START)).performClick()
         compose.onNodeWithText(str(R.string.ui_gemini_downloading)).assertExists()
         compose.onNodeWithText("%", substring = true).assertDoesNotExist()
-        compose.onNodeWithText(str(R.string.ui_gemini_meanwhile)).assertExists()
+        compose.onNodeWithText(str(R.string.ui_gemini_meanwhile)).assertDoesNotExist()
     }
 
     @Test
@@ -186,7 +199,7 @@ class OnboardingFlowTest {
         compose.onNodeWithText(str(PageText.NEXT)).performClick()
         compose.onNodeWithText(str(PageText.NEXT)).performClick()
         compose.onNodeWithText(str(PageText.OPEN_ASSISTANT_SETTINGS)).performClick()
-        compose.onNodeWithText(str(PageText.COME_BACK)).assertExists()
+        compose.onNodeWithText(str(PageText.OPEN_ASSISTANT_SETTINGS)).assertExists()
         // Picked in Settings; back in Ferb, the page stays and says so.
         held = true
         compose.onNodeWithText(str(PageText.IS_ASSISTANT)).assertExists()

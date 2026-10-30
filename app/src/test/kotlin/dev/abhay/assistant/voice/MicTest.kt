@@ -19,11 +19,11 @@ class MicTest {
         assertThat(tips(Mic.shows(AudioStep.Gemini))).contains(Tip.Mic)
     }
 
-    @Test fun theMicTipSaysWhoHearsIt() {
+    @Test fun theMicTipSaysWhichLanguages() {
         assertThat(Mic.tip(AudioStep.Whistle)).isEqualTo(Tip.Mic.text)
-        assertThat(Mic.tip(AudioStep.Whistle)).contains("English")
-        assertThat(Mic.tip(AudioStep.Gemini)).contains("Gemini Nano")
-        assertThat(Mic.tip(AudioStep.Link)).containsMatch("(?i)your computer")
+        assertThat(Mic.tip(AudioStep.Whistle)).doesNotContain("Hindi")
+        assertThat(Mic.tip(AudioStep.Gemini)).contains("Hindi")
+        assertThat(Mic.tip(AudioStep.Link)).contains("Hindi")
         // ✓ and ✕, as the recording shows them.
         AudioStep.entries.forEach { assertThat(Mic.tip(it)).contains("✓") }
     }

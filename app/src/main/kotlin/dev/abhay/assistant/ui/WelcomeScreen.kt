@@ -32,7 +32,7 @@ import dev.abhay.assistant.R
 
 /**
  * The first page of the first launch ([OnboardingFlow]): what Ferb is (not a chatbot: it does
- * things) and what stays private. It asks for nothing; permissions come when a tool or the mic
+ * things), the two headline lines alone. It asks for nothing; permissions come when a tool or the mic
  * needs them. Which tools are on comes on the tools page ([Page.Tools]), then [Tip.Switches].
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -52,10 +52,5 @@ internal fun WelcomeContent() {
         Spacer(Modifier.height(4.dp))
         Text(stringResource(R.string.welcome_does_things_for_you), style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.primary, textAlign = TextAlign.Center)
-        Spacer(Modifier.height(24.dp))
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(painterResource(R.drawable.ic_lock), contentDescription = null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-            Text(stringResource(R.string.welcome_runs_on_this_phone_no), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-        }
     }
 }

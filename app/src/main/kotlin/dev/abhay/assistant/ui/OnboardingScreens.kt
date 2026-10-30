@@ -62,31 +62,29 @@ import dev.abhay.assistant.voice.Part
 /** Each page in plain words (string resources). */
 internal object PageText {
     val MODEL_TITLE = R.string.onboarding_model_title
-    val MODEL_BODY = R.string.onboarding_model_body
-    val MODEL_MORE = R.string.onboarding_model_more
     val TOOLS_TITLE = R.string.onboarding_tools_title
-    val TOOLS_BODY = R.string.onboarding_tools_body
     val OPEN_TOOLS = R.string.onboarding_open_tools
     val ASSISTANT_TITLE = R.string.onboarding_assistant_title
-    val ASSISTANT_BODY = R.string.onboarding_assistant_body
     val START = R.string.onboarding_start
     val SKIP = R.string.onboarding_skip
     val NEXT = R.string.onboarding_next
+    val DOWNLOAD = R.string.onboarding_download
     val BACK = R.string.onboarding_back
     val DONE = R.string.onboarding_done
     val SET_UP_GEMINI = dev.abhay.assistant.ui.SET_UP_GEMINI
     val OPEN_ASSISTANT_SETTINGS = R.string.onboarding_open_assistant_settings
-    val COME_BACK = R.string.onboarding_come_back
     val IS_ASSISTANT = R.string.onboarding_is_assistant
 }
 
 /**
  * The first launch (and Settings → Run setup again), one page at a time: the welcome, the model
- * (the recommended one picked, and why one can't be used here), then the assistant role. Skip
- * ends it at once, keeping what's chosen. Next on the model page saves the one shown
- * ([onKeepModel]: saved, no download started), so a default doesn't change under the user later;
- * tapping one ([onModel]) also starts Gemini Nano's download when it needs one. [model] is null
- * when steps were changed under Advanced: then nothing is picked, and Next keeps them. The tools
+ * (the recommended one picked; a greyed one says why in a few words), the tools, then the
+ * assistant role. Setup carries no explanations: titles, buttons and the status needed to act
+ * (those live in Settings). Skip ends it at once, keeping what's chosen. Next on the model page
+ * saves the one shown ([onKeepModel]), so a default doesn't change under the user later; with
+ * Gemini Nano shown and still to download, the button says Download, and also starts it
+ * ([onSetUpGemini]). [model] is null when steps were changed under Advanced: then nothing is
+ * picked, and Next keeps them. The tools
  * page opens Settings → Tools ([onOpenTools]); back from there is this page again, so the page
  * is held outside ([pageState]), where it outlives the trip. The assistant page opens
  * the phone's assistant setting ([openAssistantSettings]) and, back in Ferb, says once it's set.
@@ -112,8 +110,11 @@ internal fun OnboardingFlow(
     // The pages as at the start: the assistant page stays once Ferb is made the assistant from it, to say so.
     val heldAtStart by rememberSaveable { mutableStateOf(assistantHeld) }
     val pages = Page.shown(heldAtStart)
+    // Gemini Nano picked and still to download: the button says Download, starts it and moves on.
+    val download = page == Page.Model && model == ModelChoice.Gemini && can.geminiHere && gemini.needsSetUp
     fun next() {
         if (page == Page.Model) model?.let(onKeepModel)
+        if (download) onSetUpGemini()
         Page.next(page, heldAtStart)?.let { page = it } ?: onDone()
     }
     Page.previous(page, heldAtStart)?.let { previous -> BackHandler { page = previous } }
@@ -134,25 +135,22 @@ internal fun OnboardingFlow(
                     when (shown) {
                         Page.Welcome -> WelcomeContent()
                         Page.Model -> {
-                            PageHeader(stringResource(PageText.MODEL_TITLE), stringResource(PageText.MODEL_BODY))
+                            PageHeader(stringResource(PageText.MODEL_TITLE))
                             ModelOptions(model, can, onModel, gemini, onSetUpGemini, onCheckGemini, onOpenLink,
-                                recommended = ModelChoice.default(can), showReady = true, watch = geminiWatch)
-                            Text(stringResource(PageText.MODEL_MORE), Modifier.padding(horizontal = 32.dp),
-                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                showReady = true, watch = geminiWatch, brief = true)
                         }
                         Page.Tools -> {
-                            PageHeader(stringResource(PageText.TOOLS_TITLE), stringResource(PageText.TOOLS_BODY))
+                            PageHeader(stringResource(PageText.TOOLS_TITLE))
                             FilledTonalButton(onClick = onOpenTools, Modifier.padding(horizontal = 32.dp)) { Text(stringResource(PageText.OPEN_TOOLS)) }
                         }
                         Page.Assistant -> {
-                            PageHeader(stringResource(PageText.ASSISTANT_TITLE), stringResource(PageText.ASSISTANT_BODY))
+                            PageHeader(stringResource(PageText.ASSISTANT_TITLE))
                             Column(Modifier.fillMaxWidth().padding(horizontal = 32.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 if (assistantHeld) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Icon(painterResource(R.drawable.ic_check), contentDescription = null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
                                     Text(stringResource(PageText.IS_ASSISTANT), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                                 } else {
                                     FilledTonalButton(onClick = onOpenAssistantSettings) { Text(stringResource(PageText.OPEN_ASSISTANT_SETTINGS)) }
-                                    Text(stringResource(PageText.COME_BACK), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                         }
@@ -167,6 +165,7 @@ internal fun OnboardingFlow(
                 Button(onClick = ::next, Modifier.weight(1f).height(56.dp), contentPadding = ButtonDefaults.MediumContentPadding) {
                     Text(when {
                         page == Page.Welcome -> stringResource(PageText.START)
+                        download -> stringResource(PageText.DOWNLOAD)
                         page == pages.last() -> stringResource(PageText.DONE)
                         else -> stringResource(PageText.NEXT)
                     }, style = MaterialTheme.typography.titleMedium)
@@ -177,11 +176,8 @@ internal fun OnboardingFlow(
 }
 
 @Composable
-private fun PageHeader(title: String, body: String) {
-    Column(Modifier.padding(horizontal = 32.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(title, style = MaterialTheme.typography.headlineSmall)
-        Text(body, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
+private fun PageHeader(title: String) {
+    Text(title, Modifier.padding(horizontal = 32.dp, vertical = 8.dp), style = MaterialTheme.typography.headlineSmall)
 }
 
 /** Where the user is among the pages. */
@@ -269,7 +265,8 @@ private fun SetupPages(settings: SettingsViewModel, onDone: () -> Unit, page: Mu
         can = can,
         gemini = gemini,
         assistantHeld = held,
-        onModel = { settings.setModel(it) },
+        // A tap only picks: the Download button starts Gemini Nano's download.
+        onModel = { settings.setModel(it, download = false) },
         onKeepModel = { settings.setModel(it, download = false) },
         onOpenLink = rememberOpenLink(settings.link),
         onSetUpGemini = settings::setUpGemini,

@@ -13,7 +13,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /** What the calendar tools say without the permission. */
-private const val NO_CALENDAR = "Ferb needs your calendar to show your day. It stays on this phone."
+private const val NO_CALENDAR = "Ferb needs your calendar to show your day"
 
 /**
  * The request itself, added to the arguments by [Tool.fromRequest]: the calendar tools read the day

@@ -137,4 +137,4 @@ class AssistantApp : Application() {
 private const val FROM_NOTES = "imported_from_notes"
 
 /** The chat's note when a Gemini Nano download Ferb waited for is ready. */
-const val GEMINI_READY = "Gemini Nano is ready. Ferb now uses it, on this phone."
+const val GEMINI_READY = "Gemini Nano is ready"

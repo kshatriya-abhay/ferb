@@ -833,7 +833,7 @@ object GetDirections : Tool(
 }
 
 /** What [MakeCall] and [SendText] say without the contacts permission. */
-private const val NO_CONTACTS = "Ferb needs your contacts to find who you mean. They stay on this phone."
+private const val NO_CONTACTS = "Ferb needs your contacts to find who you mean"
 
 /** Why [MakeCall] and [SendText] ask first. */
 private const val WRONG_PERSON = "Ferb may pick the wrong person. Without asking, the best match opens for you to check."

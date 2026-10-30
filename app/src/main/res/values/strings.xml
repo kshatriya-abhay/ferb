@@ -18,7 +18,6 @@
     <string name="assistant_spoken_heard_s">Spoken. Heard: “%1$s”</string>
     <string name="assistant_held_back_s">held back: %1$s</string>
     <string name="assistant_ferb_would_s">Ferb would: %1$s</string>
-    <string name="assistant_needle_3_s_words_ferb">Needle 3\'s words. Ferb works out dates itself.</string>
     <string name="assistant_recording">Recording</string>
     <string name="assistant_heard">Heard</string>
     <string name="assistant_recorded">Recorded</string>
@@ -41,7 +40,6 @@
     <string name="newreminder_date">Date</string>
     <string name="newreminder_repeat">Repeat</string>
     <string name="newreminder_ok">OK</string>
-    <string name="notes_pick_a_folder_for_notes">Pick a folder for notes and lists, like an Obsidian vault.</string>
     <string name="notes_pick_a_notes_folder">Pick a notes folder</string>
     <string name="notes_clear_reminder">Clear reminder</string>
     <string name="onboarding_page_s_of_s">Page %1$s of %2$s</string>
@@ -83,7 +81,6 @@
     <string name="tipcard_dismiss_tip">Dismiss tip</string>
     <string name="welcome_not_a_chatbot">Ferb is not a chatbot</string>
     <string name="welcome_does_things_for_you">Ferb does things for you</string>
-    <string name="welcome_runs_on_this_phone_no">Runs on this phone. No internet.</string>
     <string name="ui_open_chat">Open the chat</string>
     <string name="ui_listening">Listening…</string>
     <string name="ui_recommended">Recommended</string>
@@ -94,6 +91,7 @@
     <string name="ui_gemini_downloading">Downloading Gemini Nano…</string>
     <string name="ui_gemini_meanwhile">Ferb works meanwhile, and switches to it once it\'s ready.</string>
     <string name="ui_gemini_ready">Gemini Nano is ready</string>
+    <string name="ui_gemini_not_ready">Gemini Nano isn\'t ready yet</string>
     <string name="ui_gemini_still_downloading">Gemini Nano isn\'t ready yet. Ferb checks again each time you open it.</string>
     <string name="ui_gemini_failed">The download stopped: %1$s</string>
     <string name="ui_gemini_unchecked">Couldn\'t check Gemini Nano: %1$s</string>
@@ -108,20 +106,16 @@
     <string name="ui_model_notes">Model notes</string>
     <string name="ui_sending">Sending when you stop speaking</string>
     <string name="onboarding_model_title">Choose your preferred model</string>
-    <string name="onboarding_model_body">It hears you and tidies what you say. Needle 3 then does it, on this phone, whichever you choose, and you can always type.</string>
-    <string name="onboarding_model_more">Change it later in Settings. Each step on its own: Settings → Advanced.</string>
     <string name="onboarding_tools_title">Choose Ferb\'s tools</string>
-    <string name="onboarding_tools_body">Choose which tools Ferb can use. Some, like calls and the calendar, need a permission first.</string>
     <string name="onboarding_open_tools">Open tools</string>
     <string name="onboarding_assistant_title">Make Ferb your assistant</string>
-    <string name="onboarding_assistant_body">Hold the power button to open Ferb anywhere. Ferb doesn\'t read your screen.</string>
     <string name="onboarding_start">Start</string>
     <string name="onboarding_skip">Skip</string>
     <string name="onboarding_next">Next</string>
+    <string name="onboarding_download">Download</string>
     <string name="onboarding_back">Back</string>
     <string name="onboarding_done">Done</string>
     <string name="onboarding_open_assistant_settings">Choose Ferb as assistant</string>
-    <string name="onboarding_come_back">Pick Ferb there, then come back here.</string>
     <string name="onboarding_is_assistant">Ferb is your assistant</string>
     <string name="ui_hide_model_notes">Hide model notes</string>
     <string name="ui_licences">Open-source licences</string>

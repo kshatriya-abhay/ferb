@@ -165,10 +165,13 @@ internal fun ModelOptions(
     recommended: ModelChoice? = null,
     showReady: Boolean = false,
     watch: GeminiWatch = GeminiWatch.Off,
+    brief: Boolean = false,
 ) {
     Group(ModelChoice.entries.map { model ->
         { shapes ->
             val reason = model.reason(can)
+            // Setup (brief): the title alone, or a few words when it can't be used yet.
+            val status = if (model == selected && model.needsPairing(can)) ModelChoice.NOT_PAIRED else model.shortReason(can)
             val enabled = reason == null || model == selected
             SegmentedListItem(
                 selected = model == selected,
@@ -176,17 +179,17 @@ internal fun ModelOptions(
                 shapes = shapes,
                 enabled = enabled,
                 leadingContent = { RadioButton(selected = model == selected, onClick = null, enabled = enabled) },
-                supportingContent = {
+                supportingContent = if (brief) status?.let { { Text(it) } } else ({
                     val line = reason ?: model.hint
                     Text(if (model == recommended && reason == null) "${stringResource(RECOMMENDED)} · $line" else line)
-                },
+                }),
             ) { Text(model.title) }
         }
     })
     when {
-        selected == ModelChoice.Gemini -> GeminiSetUp(gemini, onSetUpGemini, onCheckGemini, showReady = showReady, watch = watch)
+        selected == ModelChoice.Gemini -> GeminiSetUp(gemini, onSetUpGemini, onCheckGemini, showReady = showReady, watch = watch, brief = brief)
         selected?.needsPairing(can) == true -> Column(Modifier.fillMaxWidth().padding(horizontal = 32.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(ModelChoice.PAIR_LINK, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (!brief) Text(ModelChoice.PAIR_LINK, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             onOpenLink?.let { OutlinedButton(onClick = it) { Text(stringResource(OPEN_FERB_LINK)) } }
         }
     }
@@ -244,10 +247,12 @@ internal fun ModelSection(settings: SettingsViewModel, onOpenAdvanced: () -> Uni
  * with Try again, a status check that threw ("couldn't check", Try again: [onCheckAgain]), or one
  * line when AICore says it can't run on this phone. [showReady]: say when it's ready; it's said
  * anyway when it became ready while Ferb waited ([watch]). A download still going after Ferb
- * stopped asking ([GeminiWatch.GaveUp]) has Try again.
+ * stopped asking ([GeminiWatch.GaveUp]) has Try again. [brief] (setup): status only, no
+ * explanations, and no download button (setup's Download button starts it).
  */
 @Composable
-internal fun GeminiSetUp(setup: GeminiSetup, onSetUp: () -> Unit, onCheckAgain: () -> Unit, showReady: Boolean = false, watch: GeminiWatch = GeminiWatch.Off) {
+internal fun GeminiSetUp(setup: GeminiSetup, onSetUp: () -> Unit, onCheckAgain: () -> Unit, showReady: Boolean = false, watch: GeminiWatch = GeminiWatch.Off,
+                         brief: Boolean = false) {
     val failed = setup.parts.filterIsInstance<Part.Failed>().firstOrNull()
     val unchecked = setup.parts.filterIsInstance<Part.Unchecked>().firstOrNull()
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
@@ -264,20 +269,20 @@ internal fun GeminiSetUp(setup: GeminiSetup, onSetUp: () -> Unit, onCheckAgain: 
             }
             setup.speech == Part.Unavailable -> Text(stringResource(R.string.ui_gemini_cant_run), style = MaterialTheme.typography.bodyMedium, color = muted)
             setup.downloading && watch == GeminiWatch.GaveUp -> {
-                Text(stringResource(R.string.ui_gemini_still_downloading), style = MaterialTheme.typography.bodyMedium, color = muted)
+                Text(stringResource(if (brief) R.string.ui_gemini_not_ready else R.string.ui_gemini_still_downloading), style = MaterialTheme.typography.bodyMedium, color = muted)
                 OutlinedButton(onClick = onCheckAgain) { Text(stringResource(R.string.ui_try_again)) }
             }
             setup.downloading -> {
                 // No percentage: AICore's byte counts may be misleading (its model is shared across apps).
                 Text(stringResource(R.string.ui_gemini_downloading), style = MaterialTheme.typography.bodyMedium)
                 LinearProgressIndicator(Modifier.fillMaxWidth())
-                Text(stringResource(R.string.ui_gemini_meanwhile), style = MaterialTheme.typography.bodySmall, color = muted)
+                if (!brief) Text(stringResource(R.string.ui_gemini_meanwhile), style = MaterialTheme.typography.bodySmall, color = muted)
             }
             failed != null -> {
                 Text(stringResource(R.string.ui_gemini_failed, failed.why), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
                 OutlinedButton(onClick = onSetUp) { Text(stringResource(R.string.ui_try_again)) }
             }
-            setup.needsSetUp -> {
+            setup.needsSetUp -> if (!brief) {
                 Text(stringResource(R.string.ui_gemini_offer), style = MaterialTheme.typography.bodyMedium, color = muted)
                 FilledTonalButton(onClick = onSetUp) { Text(stringResource(SET_UP_GEMINI)) }
             }

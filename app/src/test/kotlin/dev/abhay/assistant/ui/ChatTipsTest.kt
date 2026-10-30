@@ -34,29 +34,25 @@ class ChatTipsTest {
 
     @Test
     fun theStartScreenSuggestsTryingAnExample() {
-        // Straight after setup, the examples' tip first: setup's tools page covers which tools are on.
-        assertThat(tips(emptyList(), start = true)).containsExactly(TipPlace(Tip.TryOne, null))
-        assertThat(Tip.next(tips(emptyList(), start = true).map { it.tip }, emptySet())).isEqualTo(Tip.TryOne)
+        // The start screen explains nothing: its examples speak for themselves.
+        assertThat(tips(emptyList(), start = true)).isEmpty()
     }
 
     @Test
     fun repliesCarryTheirTipsAtTheNewestThatShowsThem() {
         val history = listOf(exchange(1, withUndo), exchange(2, waiting))
         val places = tips(history)
-        assertThat(places).contains(TipPlace(Tip.Details, 2))
-        assertThat(places).contains(TipPlace(Tip.AskFirst, 2))
-        assertThat(places).contains(TipPlace(Tip.Undo, 1))
-        // Details first, then asking first once Details is seen.
+        // Details, at the newest reply; nothing explains asking first or undo (the buttons say it).
+        assertThat(places).containsExactly(TipPlace(Tip.Details, 2))
         assertThat(Tip.next(places.map { it.tip }, emptySet())).isEqualTo(Tip.Details)
-        assertThat(Tip.next(places.map { it.tip }, setOf(Tip.Details))).isEqualTo(Tip.AskFirst)
     }
 
     @Test
     fun voiceAndFallbackTipsOnlyWhenTheirThingShows() {
-        assertThat(tips(emptyList()).map { it.tip }).containsNoneOf(Tip.Mic, Tip.Fallback, Tip.Heard)
+        assertThat(tips(emptyList()).map { it.tip }).containsNoneOf(Tip.Mic, Tip.Fallback)
         val history = listOf(exchange(1, withUndo, heard = "torch on karo"), exchange(2, withUndo, fellBack = true))
         val places = tips(history, mic = true)
-        assertThat(places).containsAtLeast(TipPlace(Tip.Mic, null), TipPlace(Tip.Fallback, 2), TipPlace(Tip.Heard, 1))
+        assertThat(places).containsAtLeast(TipPlace(Tip.Mic, null), TipPlace(Tip.Fallback, 2))
     }
 
     @Test

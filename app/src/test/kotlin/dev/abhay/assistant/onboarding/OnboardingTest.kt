@@ -6,11 +6,11 @@ import org.junit.Test
 class OnboardingTest {
     @Test
     fun oneTipAtATimeByPriorityAndNeverTwice() {
-        // A first reply that asked first: Details comes before AskFirst.
-        val onScreen = listOf(Tip.AskFirst, Tip.Details)
+        // A reply that fell back, with the mic shown: Details comes before Fallback.
+        val onScreen = listOf(Tip.Fallback, Tip.Details)
         assertThat(Tip.next(onScreen, seen = emptySet())).isEqualTo(Tip.Details)
-        assertThat(Tip.next(onScreen, seen = setOf(Tip.Details))).isEqualTo(Tip.AskFirst)
-        assertThat(Tip.next(onScreen, seen = setOf(Tip.Details, Tip.AskFirst))).isNull()
+        assertThat(Tip.next(onScreen, seen = setOf(Tip.Details))).isEqualTo(Tip.Fallback)
+        assertThat(Tip.next(onScreen, seen = setOf(Tip.Details, Tip.Fallback))).isNull()
         // Only what's on screen: nothing shows for a thing that isn't.
         assertThat(Tip.next(emptyList(), seen = emptySet())).isNull()
     }

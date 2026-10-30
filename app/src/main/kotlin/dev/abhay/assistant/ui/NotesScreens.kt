@@ -179,12 +179,10 @@ private fun NotesTab(notes: SafNotes, shown: List<NoteRef>?, warning: String?, o
         }
         when {
             !notes.ready -> Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(stringResource(R.string.notes_pick_a_folder_for_notes),
-                    style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Button(onClick = onPick) { Text(stringResource(R.string.notes_pick_a_notes_folder)) }
             }
             shown == null -> Loading()
-            shown.isEmpty() -> Empty("No notes yet. Ask Ferb to take one.")
+            shown.isEmpty() -> Empty("No notes yet")
             else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = LIST_PADDING, verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
                 itemsIndexed(shown, key = { _, n -> n.id }) { i, note ->
                     SegmentedListItem(

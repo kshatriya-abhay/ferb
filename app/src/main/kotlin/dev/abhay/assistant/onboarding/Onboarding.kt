@@ -7,22 +7,19 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /**
- * The one-time hints that explain what the screens no longer spell out (the UX review of
- * 2026-10-12 took the text off them; see the vault's "Plan - Onboarding"). Each shows once, on
+ * The one-time hints, for what the screens can't show: a hidden gesture or what to do next.
+ * Explanations live in Settings (the rule of 2026-10-30: no explanatory text outside it), so
+ * tips that only explained what's on screen are gone (TryOne, AskFirst, Undo, Heard, MoreTools). Each shows once, on
  * the thing it explains, the first time that thing is on screen, in this order of priority; it's
  * gone once dismissed or used.
  */
 enum class Tip(val text: String) {
-    TryOne("Tap one, or type your own request below."),
     Details("Tap a reply to see what Ferb understood."),
-    AskFirst("Ferb asks first when unsure, or before reaching other people."),
-    Undo("Changed your mind? A result's buttons undo it."),
     Keywords("Requests with these words go to this tool."),
     /** Settings → Tools (setup's tools page leads there): put away by ✕ or by using a switch. */
     Switches("Each switch turns a tool on or off. Tap a tool for when it asks first."),
     Fallback("A step was skipped this time. Tap the reply for why."),
     Mic("Tap the mic, speak English, then \u2713 to send."),
-    Heard("What Ferb heard; above, what it understood."),
     SuggestLink("Ferb Link lets a bigger model on your computer help.");
 
     companion object {
