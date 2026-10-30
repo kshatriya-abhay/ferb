@@ -1,38 +1,69 @@
 #!/usr/bin/env bash
-# Checks a minified (R8) APK for what reflection needs and R8 can't see: every class the manifest
-# names for creating by reflection must be in the dex with a public no-argument constructor.
+# Checks a minified (R8) APK for what reflection needs and R8 can't always see: every class Android
+# or a library creates by name must be in the dex, public, with a public no-argument constructor.
 #   - ML Kit's component registrars (meta-data "com.google.firebase.components:<class>"): without
-#     one, Gemini Nano's status check throws and Ferb says it can't run (release 0.1, 2026-10-30).
-# Usage: scripts/check-release.sh APK   (mise run smoke and scripts/release.sh run it)
+#     one's constructor, Gemini Nano's status check threw and release 0.1 said it can't run
+#     (2026-10-30, R8 full mode);
+#   - the manifest's application, activities, services, receivers and providers;
+#   - androidx.startup initializers (meta-data with the value "androidx.startup");
+#   - ServiceLoader implementations (META-INF/services/*), when the dex calls ServiceLoader at all.
+# The same check as Ferb Link's release/check-reflection.sh, plus the registrars.
+# Usage: scripts/check-release.sh APK   (scripts/release.sh and mise run smoke run it; CI too)
 set -euo pipefail
 APK=${1:?usage: check-release.sh APK}
-SDK=${ANDROID_HOME/#\~/$HOME}
+SDK=${ANDROID_HOME:-$HOME/Android/Sdk}; SDK=${SDK/#\~/$HOME}
 TOOLS=$(ls -d "$SDK"/build-tools/*/ | sort -V | tail -1)
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 
-# The registrars the manifest names.
-"$TOOLS/aapt2" dump xmltree --file AndroidManifest.xml "$APK" \
-  | sed -n 's/.*android:name(0x01010003)="com\.google\.firebase\.components:\([^"]*\)".*/\1/p' | sort -u > "$WORK/registrars"
+"$TOOLS/aapt2" dump xmltree --file AndroidManifest.xml "$APK" > "$WORK/manifest.txt"
+
+# ML Kit's registrars: there must be at least one (Gemini Nano needs CommonComponentRegistrar).
+sed -n 's/.*android:name(0x01010003)="com\.google\.firebase\.components:\([^"]*\)".*/\1/p' "$WORK/manifest.txt" | sort -u > "$WORK/registrars"
 [ -s "$WORK/registrars" ] || { echo "FAIL: no ML Kit component registrars in the manifest of $APK"; exit 1; }
+cp "$WORK/registrars" "$WORK/classes"
+
+# Manifest components (android:name on application/activity/service/receiver/provider; an
+# activity-alias names no class of its own) and androidx.startup initializers.
+awk '
+  /E: (application|activity|service|receiver|provider) / { want = 1; next }
+  /E: meta-data / { meta = 1; name = ""; next }
+  /E: / { want = 0; meta = 0 }
+  want && /android:name\(0x01010003\)=/ { match($0, /="[^"]*"/); print substr($0, RSTART + 2, RLENGTH - 3); want = 0 }
+  meta && /android:name\(0x01010003\)=/ { match($0, /="[^"]*"/); name = substr($0, RSTART + 2, RLENGTH - 3) }
+  meta && /android:value\(0x01010024\)="androidx.startup"/ { print name; meta = 0 }
+' "$WORK/manifest.txt" >> "$WORK/classes"
 
 unzip -q -o "$APK" 'classes*.dex' -d "$WORK"
+
+# ServiceLoader implementations, only if the code calls ServiceLoader: R8 turns coroutines' Main
+# dispatcher lookup into a plain constructor call and leaves the services files behind, unread.
+if grep -aqs 'Ljava/util/ServiceLoader;' "$WORK"/classes*.dex; then
+  unzip -Z1 "$APK" 'META-INF/services/*' 2>/dev/null | while read -r f; do
+    unzip -p "$APK" "$f" | sed 's/#.*//' | tr -d ' \r' | grep -v '^$' || true
+  done >> "$WORK/classes"
+else
+  echo "Skipped: META-INF/services (nothing in the dex calls ServiceLoader)"
+fi
+sort -u -o "$WORK/classes" "$WORK/classes"
+
 for dex in "$WORK"/classes*.dex; do "$TOOLS/dexdump" "$dex" 2>/dev/null; done > "$WORK/dex.txt"
 
 fail=0
 while read -r class; do
   descriptor="L${class//.//};"
-  # The class's block, up to the next class: a public (0x0001) <init> with type ()V among its direct methods.
+  # The class's block: public itself, with a public <init> of type ()V among its direct methods.
   if awk -v d="$descriptor" '
-      $0 ~ /Class descriptor/ { inside = index($0, "\x27" d "\x27") > 0 }
+      /Class descriptor/ { inside = index($0, "\x27" d "\x27") > 0; if (inside) seen = 1; classAccess = 0; next }
+      inside && !classAccess && /^  Access flags/ { classAccess = 1; if ($0 ~ /PUBLIC/) pub = 1 }
       inside && /name          : \x27<init>\x27/ { init = 1; next }
       inside && init && /type          : \x27\(\)V\x27/ { ctor = 1 }
       inside && init && /access        :/ { if (ctor && $0 ~ /PUBLIC/) found = 1; init = 0; ctor = 0 }
-      END { exit found ? 0 : 1 }' "$WORK/dex.txt"; then
-    echo "Kept: $class with its public no-argument constructor"
+      END { exit (seen && pub && found) ? 0 : 1 }' "$WORK/dex.txt"; then
+    echo "Kept: $class, public, with a public no-argument constructor"
   else
-    echo "FAIL: $class (named in the manifest, created by reflection) has no public no-argument constructor in $APK: check app/proguard-rules.pro"
+    echo "FAIL: $class (created by name) is missing, not public, or has no public no-argument constructor in $APK: check app/proguard-rules.pro"
     fail=1
   fi
-done < "$WORK/registrars"
+done < "$WORK/classes"
 exit $fail
