@@ -5,6 +5,9 @@
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
+    <!-- AICore's recogniser checks it even for audio from a file (ERROR_TYPE_INSUFFICIENT_PERMISSION
+         without it, 2026-10-30); the test grants it to the probe itself. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <application android:label="Locale probe">
         <activity android:name=".ProbeActivity" android:exported="false" />
     </application>

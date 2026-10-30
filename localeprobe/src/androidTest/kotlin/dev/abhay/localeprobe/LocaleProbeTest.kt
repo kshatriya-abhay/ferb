@@ -54,6 +54,8 @@ class LocaleProbeTest {
         val args = InstrumentationRegistry.getArguments()
         val locales = (args.getString("locales") ?: DEFAULT_LOCALES).split(",").map { it.trim() }.filter { it.isNotEmpty() }
         val modes = (args.getString("modes") ?: "advanced").split(",").map { it.trim() }
+        // The recogniser needs RECORD_AUDIO even for a file's audio: the probe's own, granted here.
+        instrumentation.uiAutomation.grantRuntimePermission(context.packageName, android.Manifest.permission.RECORD_AUDIO)
         instrumentation.startActivitySync(Intent(context, ProbeActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         Thread.sleep(1_500) // In front before AICore is asked.
 
