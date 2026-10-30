@@ -43,6 +43,7 @@ class ToolSchemasTest {
     fun everyToolThatNeedsNoSetupIsOnByDefault() {
         // On: no permission, special access, folder or other app to set up first. A request only
         // reaches the tools it mentions (ToolRouter), so more tools on doesn't crowd Needle 3.
+        // Setup's tools page sets up the rest (SetupGroup).
         val needsSetup = listOf(MakeCall, SendText, ShowAgenda, AddEvent, AddReminder, AddToList, ShowList, CheckOff)
         assertThat(Tools.all.filter { it.onByDefault }).containsExactlyElementsIn(Tools.all - needsSetup.toSet())
         // Every tool that asks for a permission is among those.

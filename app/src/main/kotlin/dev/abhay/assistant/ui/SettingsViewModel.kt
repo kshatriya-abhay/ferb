@@ -77,6 +77,16 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun save() = settings.save(_draft.value)
 
+    /**
+     * Turns these tools on or off and saves that at once, outside the draft (setup's tools page):
+     * the draft's other unsaved changes stay unsaved.
+     */
+    fun setEnabled(names: Collection<String>, on: Boolean) {
+        fun change(configs: Map<String, ToolConfig>) = configs + names.associateWith { configs.getValue(it).copy(enabled = on) }
+        settings.save(change(saved.value))
+        _draft.update(::change)
+    }
+
     fun discard() {
         _draft.value = saved.value
     }

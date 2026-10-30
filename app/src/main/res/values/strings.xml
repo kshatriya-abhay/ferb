@@ -107,7 +107,10 @@
     <string name="ui_sending">Sending when you stop speaking</string>
     <string name="onboarding_model_title">Choose your preferred model</string>
     <string name="onboarding_tools_title">Choose Ferb\'s tools</string>
-    <string name="onboarding_open_tools">Open tools</string>
+    <string name="onboarding_tools_body">The following tools need configuration before they can be used</string>
+    <string name="onboarding_all_tools">All tools</string>
+    <string name="onboarding_not_allowed">Not allowed</string>
+    <string name="onboarding_open_settings">Open settings</string>
     <string name="onboarding_assistant_title">Make Ferb your assistant</string>
     <string name="onboarding_start">Start</string>
     <string name="onboarding_skip">Skip</string>

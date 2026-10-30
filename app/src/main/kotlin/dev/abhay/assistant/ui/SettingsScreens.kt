@@ -24,6 +24,7 @@ import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -630,12 +631,38 @@ internal fun SectionTitle(text: String) {
 /** Asks Android for the permissions [Tool.permissions] that aren't granted yet; nothing if none are missing. */
 @Composable
 private fun rememberPermissionAsk(onResult: (Boolean) -> Unit = {}): (Tool) -> Unit {
+    val ask = rememberPermissionsAsk(onResult)
+    return { tool -> ask(tool.permissions) }
+}
+
+/**
+ * Asks Android for those of the permissions that aren't granted yet; [onResult] says whether all
+ * were allowed. None missing: it's true at once, without asking. The tool pages and setup share it.
+ */
+@Composable
+internal fun rememberPermissionsAsk(onResult: (Boolean) -> Unit = {}): (List<String>) -> Unit {
     val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result -> onResult(result.values.all { it }) }
-    return { tool ->
-        val missing = tool.permissions.filter { context.checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
-        if (missing.isNotEmpty()) launcher.launch(missing.toTypedArray())
+    return { permissions ->
+        val missing = permissions.filter { context.checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
+        if (missing.isNotEmpty()) launcher.launch(missing.toTypedArray()) else onResult(true)
     }
+}
+
+/** Ferb's page in Android's settings: where a permission Android won't ask for again is allowed. */
+internal fun openAppSettings(context: Context) =
+    context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
+
+/** The notes folder picker (Storage Access Framework): a folder picked is saved at once, then [onPicked]. */
+@Composable
+internal fun rememberFolderPick(notes: SafNotes, onPicked: () -> Unit = {}): () -> Unit {
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
+        if (tree != null) {
+            notes.pick(tree)
+            onPicked()
+        }
+    }
+    return { pick.launch(null) }
 }
 
 /** What a permission lets the tool see, in words. */
@@ -673,8 +700,7 @@ private fun PermissionsCard(tool: Tool) {
                 Text(stringResource(R.string.settings_needs_s, tool.permissions.joinToString { permissionTitle(it) }.lowercase()), Modifier.weight(1f),
                     style = MaterialTheme.typography.bodyLarge)
                 Button(onClick = {
-                    if (refused) context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
-                    else ask(tool)
+                    if (refused) openAppSettings(context) else ask(tool)
                 }) { Text(if (refused) "Open settings" else "Allow") }
             }
         }
@@ -813,12 +839,7 @@ private fun where(calendar: CalendarInfo) = when {
 @Composable
 private fun NotesFolderSetting(notes: SafNotes, enabled: Boolean) {
     var name by remember { mutableStateOf(notes.folderName().takeIf { notes.ready }) }
-    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
-        if (tree != null) {
-            notes.pick(tree)
-            name = notes.folderName()
-        }
-    }
+    val pick = rememberFolderPick(notes) { name = notes.folderName() }
     // Whether it's a vault's top folder: a warning when not, nothing blocked.
     val vault by produceState<VaultCheck.Outcome?>(null, name) {
         value = if (name == null) null else withContext(Dispatchers.IO) { notes.vaultCheck() }
@@ -826,7 +847,7 @@ private fun NotesFolderSetting(notes: SafNotes, enabled: Boolean) {
     Spacer(Modifier.height(16.dp))
     Group(listOf { shapes ->
         SegmentedListItem(
-            onClick = { pick.launch(null) },
+            onClick = pick,
             shapes = shapes,
             enabled = enabled,
             supportingContent = { Text(name ?: "None yet: notes go to your notes app") },

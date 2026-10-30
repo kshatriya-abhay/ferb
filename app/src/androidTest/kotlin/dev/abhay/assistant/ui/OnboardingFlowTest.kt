@@ -1,6 +1,8 @@
 package dev.abhay.assistant.ui
 
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -11,6 +13,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.common.truth.Truth.assertThat
 import dev.abhay.assistant.R
+import dev.abhay.assistant.onboarding.SetupGroup
 import dev.abhay.assistant.pipeline.Abilities
 import dev.abhay.assistant.pipeline.ModelChoice
 import dev.abhay.assistant.voice.GeminiSetup
@@ -22,10 +25,10 @@ import org.junit.runner.RunWith
 
 /**
  * The first launch's four pages (Compose, on the phone): in order, the recommended model saved by
- * Next, Download in its place while Gemini Nano is still to download, the tools page's way to
- * Settings → Tools (and back to it), Skip, Gemini Nano's status under it on the model page
+ * Next, Download in its place while Gemini Nano is still to download, the tools page's rows for
+ * the tools that need setup and its link to Settings → Tools (and back to it), Skip, Gemini Nano's status under it on the model page
  * (progress, failure, can't run), Gemma 4 greyed out without Ferb Link, or not paired, and no
- * explanatory text on any page (that's in Settings).
+ * explanatory text on any page (that's in Settings) but the tools page's one line.
  */
 @RunWith(AndroidJUnit4::class)
 class OnboardingFlowTest {
@@ -40,7 +43,8 @@ class OnboardingFlowTest {
         OnboardingFlow(model, can, setup, assistantHeld, onModel = { saved += it },
             onSetUpGemini = { saved += "set up" }, onOpenAssistantSettings = { saved += "assistant settings" },
             onCheckGemini = { saved += "check" }, onDone = { done++ }, geminiWatch = watch,
-            onKeepModel = { saved += "kept ${it.id}" }, onOpenLink = { saved += "open link" }, onOpenTools = { saved += "tools" })
+            onKeepModel = { saved += "kept ${it.id}" }, onOpenLink = { saved += "open link" }, onOpenTools = { saved += "tools" },
+            toolRows = { androidx.compose.material3.Text("rows") })
     }
 
     @Test
@@ -56,7 +60,9 @@ class OnboardingFlowTest {
         compose.onNodeWithText(str(RECOMMENDED), substring = true).assertDoesNotExist()
         compose.onNodeWithText(str(PageText.NEXT)).performClick()
         compose.onNodeWithText(str(PageText.TOOLS_TITLE)).assertExists()
-        compose.onNodeWithText(str(PageText.OPEN_TOOLS)).performClick()
+        compose.onNodeWithText(str(PageText.TOOLS_BODY)).assertExists()
+        compose.onNodeWithText("rows").assertExists()
+        compose.onNodeWithText(str(PageText.ALL_TOOLS)).performClick()
         compose.onNodeWithText(str(PageText.NEXT)).performClick()
         compose.onNodeWithText(str(PageText.ASSISTANT_TITLE)).assertExists()
         compose.onNodeWithText(str(PageText.OPEN_ASSISTANT_SETTINGS)).performClick()
@@ -219,12 +225,35 @@ class OnboardingFlowTest {
         }
         compose.onNodeWithText(str(PageText.START)).performClick()
         compose.onNodeWithText(str(PageText.NEXT)).performClick()
-        compose.onNodeWithText(str(PageText.OPEN_TOOLS)).performClick()
+        compose.onNodeWithText(str(PageText.ALL_TOOLS)).performClick()
         compose.onNodeWithText(str(PageText.TOOLS_TITLE)).assertDoesNotExist()
         away = false
         compose.onNodeWithText(str(PageText.TOOLS_TITLE)).assertExists()
         compose.onNodeWithText(str(PageText.NEXT)).performClick()
         compose.onNodeWithText(str(PageText.ASSISTANT_TITLE)).assertExists()
+    }
+
+    @Test
+    fun theToolRowsToggleAndSayWhenNotAllowed() {
+        val toggled = mutableListOf<String>()
+        var settings = 0
+        val rows = listOf(
+            SetupRow(SetupGroup.CallsAndMessages, on = true),
+            SetupRow(SetupGroup.AgendaAndCalendar, on = false, refused = true),
+            SetupRow(SetupGroup.Reminders, on = false, refused = true, askAgain = false),
+            SetupRow(SetupGroup.Lists, on = false),
+        )
+        compose.setContent { SetupToolRows(rows, onToggle = { group, on -> toggled += "${group.name} $on" }, onOpenAppSettings = { settings++ }) }
+        SetupGroup.entries.forEach { compose.onNodeWithText(it.title).assertExists() }
+        compose.onNodeWithText(SetupGroup.CallsAndMessages.title).performClick()
+        compose.onNodeWithText(SetupGroup.Lists.title).performClick()
+        // Refused, Android asks again: "Not allowed", and the switch still asks.
+        compose.onNodeWithText(SetupGroup.AgendaAndCalendar.title).performClick()
+        assertThat(toggled).containsExactly("CallsAndMessages false", "Lists true", "AgendaAndCalendar true").inOrder()
+        // Refused for good: Ferb's page in Android's settings instead of the switch.
+        compose.onNodeWithText(str(PageText.OPEN_SETTINGS)).performClick()
+        assertThat(settings).isEqualTo(1)
+        compose.onAllNodesWithText(str(PageText.NOT_ALLOWED)).assertCountEquals(2)
     }
 
     @Test

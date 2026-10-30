@@ -53,6 +53,15 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import android.content.pm.PackageManager
+import androidx.activity.compose.LocalActivity
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.SegmentedListItem
+import androidx.compose.material3.Switch
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import dev.abhay.assistant.onboarding.SetupGroup
 import dev.abhay.assistant.onboarding.Page
 import dev.abhay.assistant.pipeline.Abilities
 import dev.abhay.assistant.pipeline.ModelChoice
@@ -63,7 +72,10 @@ import dev.abhay.assistant.voice.Part
 internal object PageText {
     val MODEL_TITLE = R.string.onboarding_model_title
     val TOOLS_TITLE = R.string.onboarding_tools_title
-    val OPEN_TOOLS = R.string.onboarding_open_tools
+    val TOOLS_BODY = R.string.onboarding_tools_body
+    val ALL_TOOLS = R.string.onboarding_all_tools
+    val NOT_ALLOWED = R.string.onboarding_not_allowed
+    val OPEN_SETTINGS = R.string.onboarding_open_settings
     val ASSISTANT_TITLE = R.string.onboarding_assistant_title
     val START = R.string.onboarding_start
     val SKIP = R.string.onboarding_skip
@@ -84,9 +96,10 @@ internal object PageText {
  * saves the one shown ([onKeepModel]), so a default doesn't change under the user later; with
  * Gemini Nano shown and still to download, the button says Download, and also starts it
  * ([onSetUpGemini]). [model] is null when steps were changed under Advanced: then nothing is
- * picked, and Next keeps them. The tools
- * page opens Settings → Tools ([onOpenTools]); back from there is this page again, so the page
- * is held outside ([pageState]), where it outlives the trip. The assistant page opens
+ * picked, and Next keeps them. The tools page lists the tools that need setup ([toolRows]: one
+ * line under the title says so, the user's one exception to the rule), and links to all tools in
+ * Settings ([onOpenTools]); back from there is this page again, so the page is held outside
+ * ([pageState]), where it outlives the trip. The assistant page opens
  * the phone's assistant setting ([openAssistantSettings]) and, back in Ferb, says once it's set.
  */
 @Composable
@@ -104,6 +117,7 @@ internal fun OnboardingFlow(
     onKeepModel: (ModelChoice) -> Unit = onModel,
     onOpenLink: (() -> Unit)? = null,
     onOpenTools: () -> Unit = {},
+    toolRows: @Composable () -> Unit = {},
     pageState: MutableState<Page> = rememberSaveable { mutableStateOf(Page.Welcome) },
 ) {
     var page by pageState
@@ -141,7 +155,10 @@ internal fun OnboardingFlow(
                         }
                         Page.Tools -> {
                             PageHeader(stringResource(PageText.TOOLS_TITLE))
-                            FilledTonalButton(onClick = onOpenTools, Modifier.padding(horizontal = 32.dp)) { Text(stringResource(PageText.OPEN_TOOLS)) }
+                            Text(stringResource(PageText.TOOLS_BODY), Modifier.padding(horizontal = 32.dp),
+                                style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            toolRows()
+                            TextButton(onClick = onOpenTools, Modifier.padding(horizontal = 20.dp)) { Text(stringResource(PageText.ALL_TOOLS)) }
                         }
                         Page.Assistant -> {
                             PageHeader(stringResource(PageText.ASSISTANT_TITLE))
@@ -225,9 +242,82 @@ internal fun openAssistantSettings(context: Context) {
 }
 
 /**
+ * One row of setup's tools page: [group]'s switch, [on] once set up and on. [refused]: Android
+ * said no, shown as "Not allowed"; when Android won't ask again ([askAgain] false), the switch
+ * gives way to a button to Ferb's page in Android's settings.
+ */
+internal data class SetupRow(val group: SetupGroup, val on: Boolean, val refused: Boolean = false, val askAgain: Boolean = true)
+
+/** The rows: the name and a switch (the whole row toggles), and the short status when refused. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+internal fun SetupToolRows(rows: List<SetupRow>, onToggle: (SetupGroup, Boolean) -> Unit, onOpenAppSettings: () -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
+        rows.forEachIndexed { i, row ->
+            val settingsOnly = row.refused && !row.askAgain
+            SegmentedListItem(
+                onClick = { if (settingsOnly) onOpenAppSettings() else onToggle(row.group, !row.on) },
+                shapes = ListItemDefaults.segmentedShapes(i, rows.size),
+                supportingContent = if (row.refused) { { Text(stringResource(PageText.NOT_ALLOWED), color = MaterialTheme.colorScheme.error) } } else null,
+                trailingContent = {
+                    if (settingsOnly) TextButton(onClick = onOpenAppSettings) { Text(stringResource(PageText.OPEN_SETTINGS)) }
+                    else Switch(checked = row.on, onCheckedChange = null)
+                },
+            ) { Text(row.group.title) }
+        }
+    }
+}
+
+/**
+ * [SetupToolRows] on the real state: each group's switch runs the tool pages' permission request
+ * ([rememberPermissionsAsk]) or the notes folder picker ([rememberFolderPick]) in place, and turns
+ * on the group's tools that can then run, saved at once. Off turns them off. Back from Android's
+ * settings, it looks again.
+ */
+@Composable
+private fun SetupTools(settings: SettingsViewModel) {
+    val context = LocalContext.current
+    val activity = LocalActivity.current
+    val saved by settings.saved.collectAsStateWithLifecycle()
+    var looked by remember { mutableIntStateOf(0) }
+    LifecycleResumeEffect(Unit) {
+        looked++
+        onPauseOrDispose { }
+    }
+    var refused by rememberSaveable { mutableStateOf(emptyList<String>()) }
+    var pending by rememberSaveable { mutableStateOf<String?>(null) }
+    fun granted(permission: String) = context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
+    fun turnOn(group: SetupGroup) {
+        val usable = group.usable(::granted, settings.notes.ready)
+        settings.setEnabled(usable.map { it.name }, true)
+        refused = if (usable.isEmpty() && !group.needsFolder) refused + group.name else refused - group.name
+        looked++
+    }
+    val ask = rememberPermissionsAsk { _ -> pending?.let { SetupGroup.valueOf(it) }?.let(::turnOn); pending = null }
+    val pick = rememberFolderPick(settings.notes) { turnOn(SetupGroup.Lists) }
+    val rows = SetupGroup.entries.map { group ->
+        looked // read, so the rows follow a permission or folder change
+        val missing = group.permissions.filterNot(::granted)
+        SetupRow(
+            group,
+            on = group.on(saved, ::granted, settings.notes.ready),
+            refused = group.name in refused && missing.isNotEmpty(),
+            askAgain = activity == null || missing.any { activity.shouldShowRequestPermissionRationale(it) },
+        )
+    }
+    SetupToolRows(rows, onToggle = { group, on ->
+        when {
+            !on -> settings.setEnabled(group.tools.map { it.name }, false)
+            group.needsFolder && !settings.notes.ready -> pick()
+            else -> { pending = group.name; ask(group.permissions) }
+        }
+    }, onOpenAppSettings = { openAppSettings(context) })
+}
+
+/**
  * [OnboardingFlow] on the settings' state: the model choice as it is now, and what this phone can
- * use. The tools page's button opens Settings → Tools (and each tool's page) over it; back returns
- * to the tools page. A tool's page has no "Try it" here: it would end setup before the assistant page.
+ * use. The tools page sets up the tools that need it in place ([SetupTools]); its All tools link
+ * opens Settings → Tools (and each tool's page) over it, and back returns to the tools page. A tool's page has no "Try it" here: it would end setup before the assistant page.
  */
 @Composable
 fun Onboarding(settings: SettingsViewModel, onDone: () -> Unit) {
@@ -256,7 +346,7 @@ private fun SetupPages(settings: SettingsViewModel, onDone: () -> Unit, page: Mu
     val watch by settings.geminiWatch.collectAsStateWithLifecycle()
     val can = rememberAbilities(settings)
     var held by rememberSaveable { mutableStateOf(assistantHeld(context)) }
-    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
+    LifecycleResumeEffect(Unit) {
         held = assistantHeld(context)
         onPauseOrDispose { }
     }
@@ -275,6 +365,7 @@ private fun SetupPages(settings: SettingsViewModel, onDone: () -> Unit, page: Mu
         onDone = onDone,
         geminiWatch = watch,
         onOpenTools = onOpenTools,
+        toolRows = { SetupTools(settings) },
         pageState = page,
     )
 }

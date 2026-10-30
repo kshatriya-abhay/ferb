@@ -82,7 +82,7 @@ class Onboarding(private val load: () -> OnboardingState, private val store: (On
 
 /**
  * The first launch's pages, in order: what Ferb is, the model (the recommended one picked), the
- * tools (a way to Settings → Tools, for the ones that need a permission), then making Ferb the
+ * tools that need setup, set up in place ([SetupGroup]; a link to Settings → Tools), then making Ferb the
  * phone's assistant (left out once it is). Every page can be skipped; Settings → Run setup again
  * shows them again.
  */
