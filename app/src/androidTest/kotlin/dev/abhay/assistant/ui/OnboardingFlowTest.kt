@@ -4,7 +4,11 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.google.common.truth.Truth.assertThat
 import dev.abhay.assistant.R
 import dev.abhay.assistant.pipeline.Abilities
@@ -30,7 +34,7 @@ class OnboardingFlowTest {
 
     private fun show(assistantHeld: Boolean = false, can: Abilities = gemini, setup: GeminiSetup = GeminiSetup(Part.Ready, Part.Ready)) = compose.setContent {
         OnboardingFlow(Talk.default(can), can, setup, assistantHeld, onTalk = { saved += it },
-            onSetUpGemini = { saved += "set up" }, onOpenDefaultApps = { saved += "default apps" }, onDone = { done++ })
+            onSetUpGemini = { saved += "set up" }, onOpenAssistantSettings = { saved += "assistant settings" }, onDone = { done++ })
     }
 
     @Test
@@ -44,10 +48,10 @@ class OnboardingFlowTest {
         compose.onNodeWithText("${str(RECOMMENDED)} · ${Talk.Hindi.hint} · ${Talk.Hindi.where(gemini)}").assertExists()
         compose.onNodeWithText(str(PageText.NEXT)).performClick()
         compose.onNodeWithText(str(PageText.ASSISTANT_TITLE)).assertExists()
-        compose.onNodeWithText(str(PageText.OPEN_DEFAULT_APPS)).performClick()
+        compose.onNodeWithText(str(PageText.OPEN_ASSISTANT_SETTINGS)).performClick()
         compose.onNodeWithText(str(PageText.DONE)).performClick()
         // Next saved the choice as shown, so a default can't change under the user later.
-        assertThat(saved).containsExactly(Talk.Hindi, "default apps").inOrder()
+        assertThat(saved).containsExactly(Talk.Hindi, "assistant settings").inOrder()
         assertThat(done).isEqualTo(1)
     }
 
@@ -108,5 +112,37 @@ class OnboardingFlowTest {
         show()
         compose.onNodeWithText(str(PageText.START)).performClick()
         compose.onNodeWithText(str(R.string.ui_gemini_ready)).assertExists()
+    }
+
+    @Test
+    fun backFromSettingsAsTheAssistantItSaysSo() {
+        var held by mutableStateOf(false)
+        compose.setContent {
+            OnboardingFlow(Talk.Hindi, gemini, GeminiSetup(Part.Ready, Part.Ready), held, onTalk = { saved += it },
+                onSetUpGemini = {}, onOpenAssistantSettings = { saved += "assistant settings" }, onDone = { done++ })
+        }
+        compose.onNodeWithText(str(PageText.START)).performClick()
+        compose.onNodeWithText(str(PageText.NEXT)).performClick()
+        compose.onNodeWithText(str(PageText.OPEN_ASSISTANT_SETTINGS)).performClick()
+        compose.onNodeWithText(str(PageText.COME_BACK)).assertExists()
+        // Picked in Settings; back in Ferb, the page stays and says so.
+        held = true
+        compose.onNodeWithText(str(PageText.IS_ASSISTANT)).assertExists()
+        compose.onNodeWithText(str(PageText.OPEN_ASSISTANT_SETTINGS)).assertDoesNotExist()
+        compose.onNodeWithText(str(PageText.DONE)).performClick()
+        assertThat(done).isEqualTo(1)
+    }
+
+    @Test
+    fun theAssistantSettingIsTheFirstPageTried() {
+        val intents = assistantSettingsIntents()
+        assertThat(intents.map { it.action }).containsExactly(
+            android.provider.Settings.ACTION_VOICE_INPUT_SETTINGS,
+            android.provider.Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS,
+            android.provider.Settings.ACTION_SETTINGS,
+        ).inOrder()
+        // This phone opens one of them.
+        val packages = InstrumentationRegistry.getInstrumentation().targetContext.packageManager
+        assertThat(intents.any { packages.resolveActivity(it, 0) != null }).isTrue()
     }
 }

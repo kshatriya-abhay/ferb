@@ -29,6 +29,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.ui.res.painterResource
+import androidx.compose.material3.Icon
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -68,7 +71,9 @@ internal object PageText {
     val BACK = R.string.onboarding_back
     val DONE = R.string.onboarding_done
     val SET_UP_GEMINI = dev.abhay.assistant.ui.SET_UP_GEMINI
-    val OPEN_DEFAULT_APPS = R.string.onboarding_open_default_apps
+    val OPEN_ASSISTANT_SETTINGS = R.string.onboarding_open_assistant_settings
+    val COME_BACK = R.string.onboarding_come_back
+    val IS_ASSISTANT = R.string.onboarding_is_assistant
 }
 
 /**
@@ -76,7 +81,8 @@ internal object PageText {
  * Ferb in (the recommended choice picked, and why one can't be used here), then the assistant
  * role. Skip ends it at once, keeping what's chosen; Next on Talk to Ferb in saves the choice
  * shown, so a default doesn't change under the user later. [talk] is null when steps were
- * changed under Advanced: then nothing is picked, and Next keeps them.
+ * changed under Advanced: then nothing is picked, and Next keeps them. The assistant page opens
+ * the phone's assistant setting ([openAssistantSettings]) and, back in Ferb, says once it's set.
  */
 @Composable
 internal fun OnboardingFlow(
@@ -86,16 +92,18 @@ internal fun OnboardingFlow(
     assistantHeld: Boolean,
     onTalk: (Talk) -> Unit,
     onSetUpGemini: () -> Unit,
-    onOpenDefaultApps: () -> Unit,
+    onOpenAssistantSettings: () -> Unit,
     onDone: () -> Unit,
 ) {
     var page by rememberSaveable { mutableStateOf(Page.Welcome) }
-    val pages = Page.shown(assistantHeld)
+    // The pages as at the start: the assistant page stays once Ferb is made the assistant from it, to say so.
+    val heldAtStart by rememberSaveable { mutableStateOf(assistantHeld) }
+    val pages = Page.shown(heldAtStart)
     fun next() {
         if (page == Page.Talk) talk?.let(onTalk)
-        Page.next(page, assistantHeld)?.let { page = it } ?: onDone()
+        Page.next(page, heldAtStart)?.let { page = it } ?: onDone()
     }
-    Page.previous(page, assistantHeld)?.let { previous -> BackHandler { page = previous } }
+    Page.previous(page, heldAtStart)?.let { previous -> BackHandler { page = previous } }
     val motion = MaterialTheme.motionScheme
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
         Column(Modifier.fillMaxSize().safeDrawingPadding()) {
@@ -121,8 +129,14 @@ internal fun OnboardingFlow(
                         }
                         Page.Assistant -> {
                             PageHeader(stringResource(PageText.ASSISTANT_TITLE), stringResource(PageText.ASSISTANT_BODY))
-                            Box(Modifier.fillMaxWidth().padding(horizontal = 32.dp)) {
-                                OutlinedButton(onClick = onOpenDefaultApps) { Text(stringResource(PageText.OPEN_DEFAULT_APPS)) }
+                            Column(Modifier.fillMaxWidth().padding(horizontal = 32.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                if (assistantHeld) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Icon(painterResource(R.drawable.ic_check), contentDescription = null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                                    Text(stringResource(PageText.IS_ASSISTANT), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                                } else {
+                                    FilledTonalButton(onClick = onOpenAssistantSettings) { Text(stringResource(PageText.OPEN_ASSISTANT_SETTINGS)) }
+                                    Text(stringResource(PageText.COME_BACK), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
                             }
                         }
                     }
@@ -170,10 +184,29 @@ private fun Dots(pages: List<Page>, page: Page) {
 internal fun assistantHeld(context: Context): Boolean =
     context.getSystemService(RoleManager::class.java)?.isRoleHeld(RoleManager.ROLE_ASSISTANT) == true
 
-/** Android's default apps (where the assistant is picked), or Settings if this phone has no such page. */
-internal fun openDefaultApps(context: Context) {
-    val intents = listOf(Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS), Intent(Settings.ACTION_SETTINGS))
-    for (intent in intents) {
+/**
+ * Where the phone's assistant is picked, the most direct page this phone allows:
+ * 1. voice input settings, which on Android 17 (Pixel) is the "Digital assistant app" page itself
+ *    (the permission controller's AssistantSettingsActivity), and on older ones the page holding it;
+ * 2. Default apps, asked to highlight the assistant row (Settings' fragment-args extras; ignored
+ *    where unsupported); the page that picks one role directly (MANAGE_DEFAULT_APP) is for system apps only;
+ * 3. Settings.
+ * The assistant role can't be requested from a dialog, so the user picks Ferb there and comes back.
+ */
+internal fun assistantSettingsIntents(): List<Intent> = listOf(
+    Intent(Settings.ACTION_VOICE_INPUT_SETTINGS),
+    Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS)
+        .putExtra(FRAGMENT_ARGS_KEY, RoleManager.ROLE_ASSISTANT)
+        .putExtra(SHOW_FRAGMENT_ARGS, android.os.Bundle().apply { putString(FRAGMENT_ARGS_KEY, RoleManager.ROLE_ASSISTANT) }),
+    Intent(Settings.ACTION_SETTINGS),
+)
+
+private const val FRAGMENT_ARGS_KEY = ":settings:fragment_args_key"
+private const val SHOW_FRAGMENT_ARGS = ":settings:show_fragment_args"
+
+/** Opens the first of [assistantSettingsIntents] this phone has. */
+internal fun openAssistantSettings(context: Context) {
+    for (intent in assistantSettingsIntents()) {
         if (runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess) return
     }
 }
@@ -197,7 +230,7 @@ fun Onboarding(settings: SettingsViewModel, onDone: () -> Unit) {
         assistantHeld = held,
         onTalk = settings::setTalk,
         onSetUpGemini = settings::setUpGemini,
-        onOpenDefaultApps = { openDefaultApps(context) },
+        onOpenAssistantSettings = { openAssistantSettings(context) },
         onDone = onDone,
     )
 }
