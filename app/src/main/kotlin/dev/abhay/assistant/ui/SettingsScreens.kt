@@ -214,6 +214,7 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
 @Composable
 fun GeminiScreen(settings: SettingsViewModel, onBack: () -> Unit) {
     val setup by settings.gemini.collectAsStateWithLifecycle()
+    val watch by settings.geminiWatch.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { settings.checkGemini() }
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -233,6 +234,7 @@ fun GeminiScreen(settings: SettingsViewModel, onBack: () -> Unit) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp), horizontalArrangement = Arrangement.End) {
                 when {
                     setup.ready -> OutlinedButton(onClick = settings::checkGemini) { Text(stringResource(R.string.settings_check_again)) }
+                    setup.downloading && !setup.needsSetUp && watch == dev.abhay.assistant.voice.GeminiWatch.GaveUp -> OutlinedButton(onClick = settings::checkGemini) { Text(stringResource(R.string.settings_check_again)) }
                     setup.downloading && !setup.needsSetUp -> Button(onClick = {}, enabled = false) { Text(stringResource(R.string.settings_downloading)) }
                     setup.parts.any { it == Part.Unavailable || it is Part.Unchecked } -> OutlinedButton(onClick = settings::checkGemini) { Text(stringResource(R.string.settings_check_again)) }
                     else -> Button(onClick = settings::setUpGemini, enabled = setup.parts.none { it == Part.Checking }) { Text(stringResource(R.string.settings_set_up)) }

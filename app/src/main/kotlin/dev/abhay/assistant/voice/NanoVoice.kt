@@ -19,10 +19,10 @@ sealed interface Part {
     data object Ready : Part
     data object NeedsDownload : Part
     /**
-     * [done] bytes of [total] (null until AICore says how much). Not shown: AICore's model is shared
-     * across apps, so its byte counts may not match what this phone fetches (2026-10-30). NanoEars logs them.
+     * No amount: AICore's model is shared across apps, so the download's byte counts may not match
+     * what this phone fetches (2026-10-30). NanoEars logs them; [ReadyWatch] asks when it's done.
      */
-    data class Downloading(val done: Long = 0, val total: Long? = null) : Part
+    data object Downloading : Part
     data object Unavailable : Part
     data class Failed(val why: String) : Part
     /** The status check itself threw: not known, so not "can't run" (Try again checks again). */
@@ -33,7 +33,7 @@ sealed interface Part {
         Checking -> "Checking…"
         Ready -> "Ready"
         NeedsDownload -> "Needs a download"
-        is Downloading -> "Downloading…"
+        Downloading -> "Downloading…"
         Unavailable -> "Not available on this phone"
         is Failed -> "Couldn't download: $why"
         is Unchecked -> "Couldn't check: $why"
@@ -44,7 +44,7 @@ sealed interface Part {
         fun of(status: Int): Part = when (status) {
             FeatureStatus.AVAILABLE -> Ready
             FeatureStatus.DOWNLOADABLE -> NeedsDownload
-            FeatureStatus.DOWNLOADING -> Downloading()
+            FeatureStatus.DOWNLOADING -> Downloading
             else -> Unavailable
         }
 
@@ -56,8 +56,8 @@ data class GeminiSetup(val speech: Part = Part.Checking, val rewrite: Part = Par
     val ready get() = speech == Part.Ready && rewrite == Part.Ready
     val parts get() = listOf(speech, rewrite)
     /** Something to fetch: Set up downloads it. */
-    val needsSetUp get() = parts.any { it == Part.NeedsDownload || it is Part.Failed || (it is Part.Downloading && it.total == null && it.done == 0L) }
-    val downloading get() = parts.any { it is Part.Downloading }
+    val needsSetUp get() = parts.any { it == Part.NeedsDownload || it is Part.Failed }
+    val downloading get() = parts.any { it == Part.Downloading }
 
     companion object {
         /** For the steps: speech ready, rewrite ready, and whether Gemini Nano can run here at all. */

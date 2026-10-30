@@ -14,6 +14,7 @@ import dev.abhay.assistant.R
 import dev.abhay.assistant.pipeline.Abilities
 import dev.abhay.assistant.pipeline.Talk
 import dev.abhay.assistant.voice.GeminiSetup
+import dev.abhay.assistant.voice.GeminiWatch
 import dev.abhay.assistant.voice.Part
 import org.junit.Rule
 import org.junit.Test
@@ -32,10 +33,10 @@ class OnboardingFlowTest {
     private val saved = mutableListOf<Any>()
     private var done = 0
 
-    private fun show(assistantHeld: Boolean = false, can: Abilities = gemini, setup: GeminiSetup = GeminiSetup(Part.Ready, Part.Ready)) = compose.setContent {
+    private fun show(assistantHeld: Boolean = false, can: Abilities = gemini, setup: GeminiSetup = GeminiSetup(Part.Ready, Part.Ready), watch: GeminiWatch = GeminiWatch.Off) = compose.setContent {
         OnboardingFlow(Talk.default(can), can, setup, assistantHeld, onTalk = { saved += it },
             onSetUpGemini = { saved += "set up" }, onOpenAssistantSettings = { saved += "assistant settings" },
-            onCheckGemini = { saved += "check" }, onDone = { done++ })
+            onCheckGemini = { saved += "check" }, onDone = { done++ }, geminiWatch = watch)
     }
 
     @Test
@@ -92,8 +93,26 @@ class OnboardingFlowTest {
     }
 
     @Test
+    fun stillNotReadyAfterWaitingOffersTryAgain() {
+        show(can = Abilities(geminiSpeech = false, geminiRewrite = false), setup = GeminiSetup(Part.Downloading, Part.Downloading), watch = GeminiWatch.GaveUp)
+        compose.onNodeWithText(str(PageText.START)).performClick()
+        compose.onNodeWithText(str(R.string.ui_gemini_still_downloading)).assertExists()
+        compose.onNodeWithText(str(R.string.ui_try_again)).performScrollTo().performClick()
+        assertThat(saved).contains("check")
+    }
+
+    @Test
+    fun settingsSaysReadyOnlyWhenItBecameReadyWhileFerbWaited() {
+        var watch by mutableStateOf(GeminiWatch.Off)
+        compose.setContent { GeminiSetUp(GeminiSetup(Part.Ready, Part.Ready), onSetUp = {}, onCheckAgain = {}, watch = watch) }
+        compose.onNodeWithText(str(R.string.ui_gemini_ready)).assertDoesNotExist()
+        watch = GeminiWatch.Ready
+        compose.onNodeWithText(str(R.string.ui_gemini_ready)).assertExists()
+    }
+
+    @Test
     fun aDownloadShowsNoPercentage() {
-        show(can = Abilities(geminiSpeech = false, geminiRewrite = false), setup = GeminiSetup(Part.Downloading(30, 100), Part.Downloading(10, 100)))
+        show(can = Abilities(geminiSpeech = false, geminiRewrite = false), setup = GeminiSetup(Part.Downloading, Part.Downloading), watch = GeminiWatch.Watching)
         compose.onNodeWithText(str(PageText.START)).performClick()
         compose.onNodeWithText(str(R.string.ui_gemini_downloading)).assertExists()
         compose.onNodeWithText("%", substring = true).assertDoesNotExist()

@@ -44,6 +44,7 @@ import dev.abhay.assistant.pipeline.Talk
 import dev.abhay.assistant.pipeline.RewriteStep
 import dev.abhay.assistant.pipeline.ToolStep
 import dev.abhay.assistant.voice.GeminiSetup
+import dev.abhay.assistant.voice.GeminiWatch
 import dev.abhay.assistant.voice.Part
 
 /** One option of a step, as Settings and onboarding list it. */
@@ -194,7 +195,8 @@ internal fun TalkSection(settings: SettingsViewModel, onOpenAdvanced: () -> Unit
     val selected = chosen.talk ?: if (chosen.custom) null else Talk.default(can)
     TalkOptions(selected, can, settings::setTalk)
     val gemini by settings.gemini.collectAsStateWithLifecycle()
-    GeminiSetUp(gemini, settings::setUpGemini, settings::checkGemini)
+    val watch by settings.geminiWatch.collectAsStateWithLifecycle()
+    GeminiSetUp(gemini, settings::setUpGemini, settings::checkGemini, watch = watch)
     if (selected == null) Note(stringResource(CUSTOM_STEPS))
     Group(listOf { shapes ->
         SegmentedListItem(
@@ -211,17 +213,19 @@ internal fun TalkSection(settings: SettingsViewModel, onOpenAdvanced: () -> Unit
  * Gemini Nano's setup where Talk to Ferb in is chosen: the check, a download button, its progress
  * (Ferb works on what's there meanwhile, and switches when it's ready), a failed download's reason
  * with Try again, a status check that threw ("couldn't check", Try again: [onCheckAgain]), or one
- * line when AICore says it can't run on this phone. [showReady]: say when it's ready.
+ * line when AICore says it can't run on this phone. [showReady]: say when it's ready; it's said
+ * anyway when it became ready while Ferb waited ([watch]). A download still going after Ferb
+ * stopped asking ([GeminiWatch.GaveUp]) has Try again.
  */
 @Composable
-internal fun GeminiSetUp(setup: GeminiSetup, onSetUp: () -> Unit, onCheckAgain: () -> Unit, showReady: Boolean = false) {
+internal fun GeminiSetUp(setup: GeminiSetup, onSetUp: () -> Unit, onCheckAgain: () -> Unit, showReady: Boolean = false, watch: GeminiWatch = GeminiWatch.Off) {
     val failed = setup.parts.filterIsInstance<Part.Failed>().firstOrNull()
     val unchecked = setup.parts.filterIsInstance<Part.Unchecked>().firstOrNull()
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Column(Modifier.fillMaxWidth().padding(horizontal = 32.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
         when {
-            setup.ready -> if (showReady) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            setup.ready -> if (showReady || watch == GeminiWatch.Ready) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(painterResource(R.drawable.ic_check), contentDescription = null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
                 Text(stringResource(R.string.ui_gemini_ready), style = MaterialTheme.typography.bodyMedium)
             }
@@ -230,6 +234,10 @@ internal fun GeminiSetUp(setup: GeminiSetup, onSetUp: () -> Unit, onCheckAgain: 
                 OutlinedButton(onClick = onCheckAgain) { Text(stringResource(R.string.ui_try_again)) }
             }
             setup.speech == Part.Unavailable -> Text(stringResource(R.string.ui_gemini_cant_run), style = MaterialTheme.typography.bodyMedium, color = muted)
+            setup.downloading && watch == GeminiWatch.GaveUp -> {
+                Text(stringResource(R.string.ui_gemini_still_downloading), style = MaterialTheme.typography.bodyMedium, color = muted)
+                OutlinedButton(onClick = onCheckAgain) { Text(stringResource(R.string.ui_try_again)) }
+            }
             setup.downloading -> {
                 // No percentage: AICore's byte counts may be misleading (its model is shared across apps).
                 Text(stringResource(R.string.ui_gemini_downloading), style = MaterialTheme.typography.bodyMedium)

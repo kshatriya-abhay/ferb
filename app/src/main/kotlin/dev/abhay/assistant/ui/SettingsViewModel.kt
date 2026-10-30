@@ -45,6 +45,8 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     /** Gemini Nano's setup (Settings → Gemini Nano): what's on the phone, and download progress. */
     private val nano = (app as AssistantApp).nanoEars
     val gemini: StateFlow<GeminiSetup> = nano.setup
+    /** Waiting for its download: until ready, given up (Try again), or ready while Ferb waited. */
+    val geminiWatch: StateFlow<dev.abhay.assistant.voice.GeminiWatch> = nano.watch
     fun checkGemini() {
         viewModelScope.launch {
             (getApplication<Application>() as AssistantApp).followGemini()

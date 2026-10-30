@@ -23,12 +23,10 @@ class NanoVoiceTest {
     fun eachPartSaysWhereItStands() {
         assertThat(Part.of(FeatureStatus.AVAILABLE)).isEqualTo(Part.Ready)
         assertThat(Part.of(FeatureStatus.DOWNLOADABLE)).isEqualTo(Part.NeedsDownload)
-        assertThat(Part.of(FeatureStatus.DOWNLOADING)).isEqualTo(Part.Downloading())
+        assertThat(Part.of(FeatureStatus.DOWNLOADING)).isEqualTo(Part.Downloading)
         assertThat(Part.of(FeatureStatus.UNAVAILABLE)).isEqualTo(Part.Unavailable)
-        assertThat(Part.Downloading().label()).isEqualTo("Downloading…")
         // No amounts: AICore's byte counts may be misleading.
-        assertThat(Part.Downloading(4_200_000, null).label()).isEqualTo("Downloading…")
-        assertThat(Part.Downloading(120_000_000, 480_000_000).label()).isEqualTo("Downloading…")
+        assertThat(Part.Downloading.label()).isEqualTo("Downloading…")
         assertThat(Part.Failed("not enough space on the phone").label()).isEqualTo("Couldn't download: not enough space on the phone")
     }
 
@@ -38,11 +36,11 @@ class NanoVoiceTest {
         assertThat(GeminiSetup(Part.Ready, Part.Ready).ready).isTrue()
         assertThat(GeminiSetup(Part.Ready, Part.NeedsDownload).summary()).isEqualTo("Set up needed: tap to download")
         assertThat(GeminiSetup(Part.Ready, Part.NeedsDownload).needsSetUp).isTrue()
-        assertThat(GeminiSetup(Part.Downloading(100, 400), Part.Downloading(100, 600)).summary()).isEqualTo("Downloading…")
-        // Android fetching it with no numbers yet: Set up follows it, for progress.
-        assertThat(GeminiSetup(Part.Ready, Part.Downloading()).summary()).isEqualTo("Downloading…")
-        assertThat(GeminiSetup(Part.Ready, Part.Downloading()).needsSetUp).isTrue()
-        assertThat(GeminiSetup(Part.Ready, Part.Downloading(10, 100)).needsSetUp).isFalse()
+        assertThat(GeminiSetup(Part.Downloading, Part.Downloading).summary()).isEqualTo("Downloading…")
+        // Android fetching it already: nothing to set up, Ferb waits for it (ReadyWatch).
+        assertThat(GeminiSetup(Part.Ready, Part.Downloading).summary()).isEqualTo("Downloading…")
+        assertThat(GeminiSetup(Part.Ready, Part.Downloading).needsSetUp).isFalse()
+        assertThat(GeminiSetup(Part.Ready, Part.Failed("not enough space on the phone")).needsSetUp).isTrue()
         assertThat(GeminiSetup(Part.Unavailable, Part.Ready).summary()).isEqualTo("Not available on this phone")
         assertThat(GeminiSetup().summary()).isEqualTo("Checking…")
         assertThat(GeminiSetup(Part.Unchecked("NullPointerException"), Part.Unchecked("NullPointerException")).summary()).isEqualTo("Couldn't check: tap to try again")

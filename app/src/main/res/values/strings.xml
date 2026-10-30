@@ -94,6 +94,7 @@
     <string name="ui_gemini_downloading">Downloading Gemini Nano…</string>
     <string name="ui_gemini_meanwhile">Ferb works meanwhile, and switches to it once it\'s ready.</string>
     <string name="ui_gemini_ready">Gemini Nano is ready</string>
+    <string name="ui_gemini_still_downloading">Gemini Nano isn\'t ready yet. Ferb checks again each time you open it.</string>
     <string name="ui_gemini_failed">The download stopped: %1$s</string>
     <string name="ui_gemini_unchecked">Couldn\'t check Gemini Nano: %1$s</string>
     <string name="ui_gemini_cant_run">Gemini Nano can\'t run on this phone.</string>

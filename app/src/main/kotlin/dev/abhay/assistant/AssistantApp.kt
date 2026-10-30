@@ -13,6 +13,8 @@ import dev.abhay.assistant.reminders.ReminderAlarms
 import dev.abhay.assistant.reminders.ReminderBook
 import dev.abhay.assistant.onboarding.Onboarding
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -47,22 +49,33 @@ class AssistantApp : Application() {
         }
     }
     /** Gemini Nano's speech recognition (POC), when picked in Settings. */
-    val nanoEars by lazy { dev.abhay.assistant.voice.NanoEars() }
+    val nanoEars by lazy { dev.abhay.assistant.voice.NanoEars(foreground.inFront) }
 
     private val geminiFollow = java.util.concurrent.atomic.AtomicBoolean()
     /**
      * From the first check on, the steps follow Gemini Nano's state: each part counts once AICore
      * has answered, so Ferb works on what's there while a download runs and switches to Gemini
-     * Nano the moment it's ready. Started by the first screen that checks it; once per process.
+     * Nano the moment it's ready. Each time Ferb comes back to the front it checks again, and when
+     * a download it waited for is ready, the chat says so ([GEMINI_READY]). Started by the first
+     * screen that checks it; once per process.
      */
     fun followGemini() {
         if (!geminiFollow.compareAndSet(false, true)) return
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main.immediate).launch {
+        val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main.immediate)
+        scope.launch {
             nanoEars.setup
                 .filter { s -> s.parts.none { it == dev.abhay.assistant.voice.Part.Checking } }
                 .map { s -> dev.abhay.assistant.voice.GeminiSetup.abilities(s) }
                 .distinctUntilChanged()
                 .collect { (speech, rewrite, here) -> pipeline.geminiChecked(speech, rewrite, here) }
+        }
+        scope.launch {
+            // Coming back, not the resume that's on now (its screen has just checked).
+            foreground.inFront.drop(1).filter { it }.collect { nanoEars.resumed() }
+        }
+        scope.launch {
+            nanoEars.watch.drop(1).filter { it == dev.abhay.assistant.voice.GeminiWatch.Ready }
+                .collect { chat.update { it.copy(notice = GEMINI_READY) } }
         }
     }
     val reminders by lazy { ReminderBook(FileReminderStore(java.io.File(filesDir, "reminders.json"))) { java.time.LocalDateTime.now() } }
@@ -119,3 +132,6 @@ class AssistantApp : Application() {
 }
 
 private const val FROM_NOTES = "imported_from_notes"
+
+/** The chat's note when a Gemini Nano download Ferb waited for is ready. */
+const val GEMINI_READY = "Gemini Nano is ready. Ferb now understands English + Hindi on this phone."

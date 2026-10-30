@@ -40,10 +40,10 @@ import kotlinx.coroutines.launch
 /**
  * Gemini Nano on this phone, for the process (POC): speech recognition (ML Kit GenAI, Advanced
  * mode), and the Prompt API's model, which writes what was heard as English for Needle 3. Both run
- * in AICore, on the phone, and only with Ferb in front. ML Kit's telemetry can't send anything:
- * Ferb has no INTERNET permission.
+ * in AICore, on the phone, and only with Ferb in front ([inFront]). ML Kit's telemetry can't send
+ * anything: Ferb has no INTERNET permission.
  */
-class NanoEars {
+class NanoEars(inFront: StateFlow<Boolean>, private val now: () -> Long = SystemClock::elapsedRealtime) {
     private val listeners = mutableMapOf<Locale, SpeechRecognizer>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val downloads = mutableMapOf<String, Job>()
@@ -51,6 +51,14 @@ class NanoEars {
     /** Where the setup stands, as last checked ([refresh]). */
     private val _setup = MutableStateFlow(GeminiSetup())
     val setup: StateFlow<GeminiSetup> = _setup.asStateFlow()
+
+    /** Waiting for a download to be ready, by asking AICore ([ReadyWatch]); its state for the screens. */
+    private val readyWatch = ReadyWatch(scope, inFront, now) { refresh(); _setup.value }
+    val watch: StateFlow<GeminiWatch> = readyWatch.state
+
+    /** The setup checks' pacing: one at a time, [ReadyWatch.PACE_MS] apart. */
+    private val pacing = kotlinx.coroutines.sync.Mutex()
+    private var lastCheck = Long.MIN_VALUE / 2
 
     @Synchronized
     // Called from the main thread and from the downloads' background ones: one client per locale.
@@ -95,21 +103,27 @@ class NanoEars {
         status { listener(NanoSpeech.LOCALE).checkStatus() }.also { Log.i(TAG, "${NanoSpeech.LOCALE}: checkStatus ${NanoChoice.name(it)}") }
 
     /**
-     * Checks both parts; a part already downloading keeps its progress, and one
-     * Android is fetching on its own is followed, so its progress shows.
+     * Checks both parts, as AICore says they are: what it says wins over the download's callbacks,
+     * except that a failed download stays failed (with its reason) while AICore just offers it
+     * again. One Android is fetching on its own is followed, and waited for ([readyWatch]).
      */
     suspend fun refresh() {
         _setup.update { s -> s.copy(speech = s.speech.takeIf { it !is Part.Unchecked } ?: Part.Checking, rewrite = s.rewrite.takeIf { it !is Part.Unchecked } ?: Part.Checking) }
         val speech = part(SPEECH) { listener(NanoSpeech.LOCALE).checkStatus() }
         val rewrite = part(REWRITE) { writer().checkStatus() }
-        _setup.update {
-            GeminiSetup(
-                speech = if (it.speech is Part.Downloading && downloads[SPEECH]?.isActive == true) it.speech else speech,
-                rewrite = if (it.rewrite is Part.Downloading && downloads[REWRITE]?.isActive == true) it.rewrite else rewrite,
-            )
-        }
-        if (speech is Part.Downloading) download(SPEECH)
-        if (rewrite is Part.Downloading) download(REWRITE)
+        val before = _setup.value
+        _setup.update { GeminiSetup(speech = checked(SPEECH, it.speech, speech), rewrite = checked(REWRITE, it.rewrite, rewrite)) }
+        // Downloading: followed for the log, unless Ferb's own download of it failed (no retrying
+        // in a loop); waited for either way.
+        if (speech == Part.Downloading) { if (before.speech is Part.Failed) readyWatch.start() else download(SPEECH) }
+        if (rewrite == Part.Downloading) { if (before.rewrite is Part.Failed) readyWatch.start() else download(REWRITE) }
+        if (_setup.value.ready) readyWatch.sawReady()
+    }
+
+    /** Once Ferb comes back to the front: one check, or, while waiting for a download, ask now. */
+    fun resumed() {
+        if (readyWatch.state.value == GeminiWatch.Watching) readyWatch.nudge()
+        else scope.launch { refresh() }
     }
 
     /**
@@ -117,18 +131,23 @@ class NanoEars {
      * "can't run": in release 0.1 a stripped ML Kit constructor made every check throw, and the
      * phone was told Gemini Nano can't run.
      */
-    private suspend fun part(part: String, check: suspend () -> Int): Part = try {
-        Part.of(check()).also { Log.i(TAG, "$part${if (part == REWRITE) " ($writerName)" else ""}: checkStatus $it") }
-    } catch (e: Exception) {
-        Log.w(TAG, "$part: checkStatus failed", e)
-        Part.Unchecked(reason(e))
+    private suspend fun part(part: String, check: suspend () -> Int): Part = pacing.withLock {
+        kotlinx.coroutines.delay(ReadyWatch.pace(now(), lastCheck))
+        try {
+            Part.of(check()).also { Log.i(TAG, "$part${if (part == REWRITE) " ($writerName)" else ""}: checkStatus $it") }
+        } catch (e: Exception) {
+            Log.w(TAG, "$part: checkStatus failed", e)
+            Part.Unchecked(reason(e))
+        } finally {
+            lastCheck = now()
+        }
     }
 
     /** One part's download, when its row is tapped. */
     fun setUpSpeech() = download(SPEECH)
     fun setUpRewrite() = download(REWRITE)
 
-    /** Set up: downloads every part that needs it, with progress in [setup], then checks again. */
+    /** Set up: downloads every part that needs it, and waits until AICore says it's ready. */
     fun setUp() {
         val now = _setup.value
         if (now.speech !is Part.Ready && now.speech != Part.Unavailable && now.speech !is Part.Unchecked) download(SPEECH)
@@ -136,11 +155,14 @@ class NanoEars {
     }
 
     private fun download(part: String) {
+        readyWatch.start()
         if (downloads[part]?.isActive == true) return
         fun set(state: Part) = _setup.update { if (part == SPEECH) it.copy(speech = state) else it.copy(rewrite = state) }
         downloads[part] = scope.launch {
-            set(Part.Downloading())
+            set(Part.Downloading)
             var total: Long? = null
+            // The callbacks' bytes are only logged, to see what AICore reports: when it's done is
+            // AICore's checkStatus, asked by readyWatch (the model is shared across apps).
             try {
                 val steps = if (part == SPEECH) listener(NanoSpeech.LOCALE).download() else writer().download()
                 steps.collect { step ->
@@ -148,17 +170,9 @@ class NanoEars {
                         is DownloadStatus.DownloadStarted -> {
                             total = step.bytesToDownload
                             Log.i(TAG, "$part: download started, ${step.bytesToDownload} bytes")
-                            set(Part.Downloading(0, total))
                         }
-                        is DownloadStatus.DownloadProgress -> {
-                            // Every step, so a real download shows what AICore reports (the screens show no amount).
-                            Log.i(TAG, "$part: ${step.totalBytesDownloaded} of ${total ?: "?"} bytes")
-                            set(Part.Downloading(step.totalBytesDownloaded, total))
-                        }
-                        is DownloadStatus.DownloadCompleted -> {
-                            Log.i(TAG, "$part: download completed")
-                            set(Part.Ready)
-                        }
+                        is DownloadStatus.DownloadProgress -> Log.i(TAG, "$part: ${step.totalBytesDownloaded} of ${total ?: "?"} bytes")
+                        is DownloadStatus.DownloadCompleted -> Log.i(TAG, "$part: download completed")
                         is DownloadStatus.DownloadFailed -> {
                             Log.w(TAG, "$part: download failed", step.e)
                             set(Part.Failed(reason(step.e)))
@@ -169,10 +183,20 @@ class NanoEars {
                 Log.w(TAG, "$part: download failed", e)
                 set(Part.Failed(reason(e)))
             }
-            // Downloads that were already there end without steps: ask again.
-            val after = part(part) { if (part == SPEECH) listener(NanoSpeech.LOCALE).checkStatus() else writer().checkStatus() }
-            if (_setup.value.let { if (part == SPEECH) it.speech else it.rewrite } !is Part.Failed) set(after)
+            // Finished, failed, or already there (no steps): ask AICore now.
+            readyWatch.nudge()
         }
+    }
+
+    /**
+     * A part as just checked, against how it stood: a failed download stays failed while AICore
+     * only offers it again, and one Ferb is still downloading stays downloading.
+     */
+    private fun checked(part: String, was: Part, now: Part): Part = when {
+        now != Part.NeedsDownload -> now
+        was is Part.Failed -> was
+        downloads[part]?.isActive == true -> Part.Downloading
+        else -> now
     }
 
     private fun reason(e: Throwable): String = when ((e as? GenAiException)?.errorCode) {

@@ -95,6 +95,7 @@ internal fun OnboardingFlow(
     onOpenAssistantSettings: () -> Unit,
     onCheckGemini: () -> Unit = {},
     onDone: () -> Unit,
+    geminiWatch: dev.abhay.assistant.voice.GeminiWatch = dev.abhay.assistant.voice.GeminiWatch.Off,
 ) {
     var page by rememberSaveable { mutableStateOf(Page.Welcome) }
     // The pages as at the start: the assistant page stays once Ferb is made the assistant from it, to say so.
@@ -124,7 +125,7 @@ internal fun OnboardingFlow(
                         Page.Talk -> {
                             PageHeader(stringResource(PageText.TALK_TITLE), stringResource(PageText.TALK_BODY))
                             TalkOptions(talk, can, onTalk, recommended = Talk.default(can))
-                            GeminiSetUp(gemini, onSetUpGemini, onCheckGemini, showReady = true)
+                            GeminiSetUp(gemini, onSetUpGemini, onCheckGemini, showReady = true, watch = geminiWatch)
                             Text(stringResource(PageText.TALK_MORE), Modifier.padding(horizontal = 32.dp),
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
@@ -218,6 +219,7 @@ fun Onboarding(settings: SettingsViewModel, onDone: () -> Unit) {
     val context = LocalContext.current
     val chosen by settings.chosen.collectAsStateWithLifecycle()
     val gemini by settings.gemini.collectAsStateWithLifecycle()
+    val watch by settings.geminiWatch.collectAsStateWithLifecycle()
     val can = rememberAbilities(settings)
     var held by rememberSaveable { mutableStateOf(assistantHeld(context)) }
     androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
@@ -234,5 +236,6 @@ fun Onboarding(settings: SettingsViewModel, onDone: () -> Unit) {
         onCheckGemini = settings::checkGemini,
         onOpenAssistantSettings = { openAssistantSettings(context) },
         onDone = onDone,
+        geminiWatch = watch,
     )
 }
