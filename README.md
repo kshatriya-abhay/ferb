@@ -11,7 +11,7 @@ Type a request, such as "set a timer for 10 minutes" or "turn on the flashlight"
 Ferb doesn't chat or answer questions; it runs tools on your phone, and says so when none fits.
 
 <p align="center">
-  <img src="docs/screenshots/setup-model.png" alt="Setup: Choose your preferred model" width="31%">&nbsp;&nbsp;<img src="docs/screenshots/chat.png" alt="The chat: a timer, the media volume and the flashlight" width="31%">&nbsp;&nbsp;<img src="docs/screenshots/assistant-sheet.jpg" alt="The assistant sheet over the home screen, listening" width="31%">
+  <img src="docs/screenshots/setup-model.png" alt="Setup: Choose your preferred model" width="31%">&nbsp;&nbsp;<img src="docs/screenshots/chat.png" alt="The chat: a timer, the media volume and the flashlight" width="31%">&nbsp;&nbsp;<img src="docs/screenshots/assistant-sheet.gif" alt="The assistant sheet over the home screen: it hears “Add eggs to the shopping list”, adds them, and opens the list in Obsidian" width="31%">
 </p>
 
 ## Get started
