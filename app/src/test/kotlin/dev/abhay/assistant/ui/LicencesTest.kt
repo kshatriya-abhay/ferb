@@ -18,6 +18,14 @@ class LicencesTest {
 
     @Test
     fun apacheTextIsBundled() {
-        assertThat(File("src/main/res/raw/apache_2_0.txt").readText()).isEqualTo(File("../LICENSE").readText())
+        val bundled = File("src/main/res/raw/apache_2_0.txt").readText()
+        assertThat(bundled).isEqualTo(File("../LICENSE").readText())
+        assertThat(paragraphs(bundled).filter { '\n' in it }).isEmpty()
+    }
+
+    @Test
+    fun paragraphsAreJoinedIntoSingleLines() {
+        val text = "  1. Definitions.\n\n      \"License\" shall mean the terms\n      and conditions.\n\n\n   2. Grant.\n"
+        assertThat(paragraphs(text)).containsExactly("1. Definitions.", "\"License\" shall mean the terms and conditions.", "2. Grant.").inOrder()
     }
 }

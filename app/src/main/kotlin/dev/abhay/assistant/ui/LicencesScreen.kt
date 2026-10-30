@@ -2,6 +2,7 @@ package dev.abhay.assistant.ui
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -21,7 +22,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import dev.abhay.assistant.R
 
@@ -48,12 +48,17 @@ internal val LICENCES = listOf(
     Licence("Material Icons", "Google", APACHE),
 )
 
+/** [text]'s paragraphs (blank-line separated), each on one line so it wraps to the screen. */
+internal fun paragraphs(text: String): List<String> =
+    text.split(Regex("\n\\s*\n")).map { it.trim().replace(Regex("\\s*\n\\s*"), " ") }.filter { it.isNotBlank() }
+
 /** Settings → Open-source licences: each component, and the licence's text or terms on a tap. */
 @Composable
 fun LicencesScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     var shown by remember { mutableStateOf<String?>(null) }
-    val apache = remember { runCatching { context.resources.openRawResource(R.raw.apache_2_0).bufferedReader().use { it.readText() } }.getOrDefault("") }
+    // The file is wrapped at 80 columns: each paragraph's lines are joined so it wraps to the screen.
+    val apache = remember { paragraphs(runCatching { context.resources.openRawResource(R.raw.apache_2_0).bufferedReader().use { it.readText() } }.getOrDefault("")) }
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = { TopBar(stringResource(R.string.ui_licences), onBack = onBack, scroll = bar) }) { padding ->
@@ -70,7 +75,9 @@ fun LicencesScreen(onBack: () -> Unit) {
                     ) { Text(item.name) }
                 }
             })
-            if (shown == APACHE) Text(apache, Modifier.padding(16.dp), style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+            if (shown == APACHE) Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                apache.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
+            }
         }
     }
 }
