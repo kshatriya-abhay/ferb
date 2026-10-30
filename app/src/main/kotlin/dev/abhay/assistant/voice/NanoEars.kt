@@ -150,7 +150,11 @@ class NanoEars {
                             Log.i(TAG, "$part: download started, ${step.bytesToDownload} bytes")
                             set(Part.Downloading(0, total))
                         }
-                        is DownloadStatus.DownloadProgress -> set(Part.Downloading(step.totalBytesDownloaded, total))
+                        is DownloadStatus.DownloadProgress -> {
+                            // Every step, so a real download shows what AICore reports (the screens show no amount).
+                            Log.i(TAG, "$part: ${step.totalBytesDownloaded} of ${total ?: "?"} bytes")
+                            set(Part.Downloading(step.totalBytesDownloaded, total))
+                        }
                         is DownloadStatus.DownloadCompleted -> {
                             Log.i(TAG, "$part: download completed")
                             set(Part.Ready)

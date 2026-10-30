@@ -208,7 +208,7 @@ fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenL
 /**
  * Gemini Nano (POC): the language it expects, whether each part is on the phone (hearing, and
  * writing what was heard in English for Needle 3), and Set up, which downloads what's missing
- * with its progress. Downloads go through Android; Ferb has no internet access.
+ * (a moving bar, no amount). Downloads go through Android; Ferb has no internet access.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -249,7 +249,8 @@ fun GeminiScreen(settings: SettingsViewModel, onBack: () -> Unit) {
 }
 
 /**
- * One part of Gemini Nano's setup: where it stands, with a progress bar while it downloads. Only a
+ * One part of Gemini Nano's setup: where it stands, with a moving bar while it downloads (no amount:
+ * AICore's byte counts may be misleading). Only a
  * part to download can be tapped, which downloads it; one that needs a download also links to
  * AICore's settings, where turning it on made the rewriting model available (2026-10-24).
  */
@@ -263,11 +264,7 @@ private fun PartRow(title: String, part: Part, @DrawableRes icon: Int, shapes: L
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(if (canDownload) "${part.label()}: tap to download" else part.label(),
                 color = if (part is Part.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
-            if (part is Part.Downloading) {
-                val fraction = part.fraction
-                if (fraction != null) LinearWavyProgressIndicator(progress = { fraction }, Modifier.fillMaxWidth())
-                else LinearWavyProgressIndicator(Modifier.fillMaxWidth())
-            }
+            if (part is Part.Downloading) LinearWavyProgressIndicator(Modifier.fillMaxWidth())
         }
     }
     val trailing: @Composable () -> Unit = {

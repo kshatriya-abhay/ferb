@@ -18,10 +18,11 @@ sealed interface Part {
     data object Checking : Part
     data object Ready : Part
     data object NeedsDownload : Part
-    /** [done] bytes of [total] (null until AICore says how much). */
-    data class Downloading(val done: Long = 0, val total: Long? = null) : Part {
-        val fraction: Float? get() = total?.takeIf { it > 0 }?.let { (done.toFloat() / it).coerceIn(0f, 1f) }
-    }
+    /**
+     * [done] bytes of [total] (null until AICore says how much). Not shown: AICore's model is shared
+     * across apps, so its byte counts may not match what this phone fetches (2026-10-30). NanoEars logs them.
+     */
+    data class Downloading(val done: Long = 0, val total: Long? = null) : Part
     data object Unavailable : Part
     data class Failed(val why: String) : Part
     /** The status check itself threw: not known, so not "can't run" (Try again checks again). */
@@ -32,11 +33,7 @@ sealed interface Part {
         Checking -> "Checking…"
         Ready -> "Ready"
         NeedsDownload -> "Needs a download"
-        is Downloading -> when {
-            total != null && total > 0 -> "Downloading: ${mb(done)} of ${mb(total)} MB"
-            done > 0 -> "Downloading: ${mb(done)} MB so far"
-            else -> "Downloading…"
-        }
+        is Downloading -> "Downloading…"
         Unavailable -> "Not available on this phone"
         is Failed -> "Couldn't download: $why"
         is Unchecked -> "Couldn't check: $why"
@@ -51,7 +48,6 @@ sealed interface Part {
             else -> Unavailable
         }
 
-        private fun mb(bytes: Long) = String.format(Locale.US, if (bytes < 10_000_000) "%.1f" else "%.0f", bytes / 1_000_000.0)
     }
 }
 
@@ -62,9 +58,6 @@ data class GeminiSetup(val speech: Part = Part.Checking, val rewrite: Part = Par
     /** Something to fetch: Set up downloads it. */
     val needsSetUp get() = parts.any { it == Part.NeedsDownload || it is Part.Failed || (it is Part.Downloading && it.total == null && it.done == 0L) }
     val downloading get() = parts.any { it is Part.Downloading }
-    /** Both parts' progress together, 0 to 1, once AICore has said how much each needs; else null. */
-    val progress: Float? get() = parts.filterIsInstance<Part.Downloading>().takeIf { d -> d.isNotEmpty() && d.all { it.total != null && it.total > 0 } }
-        ?.let { d -> (d.sumOf { it.done }.toFloat() / d.sumOf { it.total!! }).coerceIn(0f, 1f) }
 
     companion object {
         /** For the steps: speech ready, rewrite ready, and whether Gemini Nano can run here at all. */
@@ -76,10 +69,7 @@ data class GeminiSetup(val speech: Part = Part.Checking, val rewrite: Part = Par
         ready -> "Ready"
         parts.any { it is Part.Unchecked } -> "Couldn't check: tap to try again"
         parts.any { it == Part.Unavailable } -> "Not available on this phone"
-        downloading -> parts.filterIsInstance<Part.Downloading>().let { d ->
-            val total = d.mapNotNull { it.total }.sum()
-            if (total > 0 && d.all { it.total != null }) "Downloading: ${(d.sumOf { it.done } * 100 / total)}%" else "Downloading…"
-        }
+        downloading -> "Downloading…"
         parts.any { it == Part.Checking } -> "Checking…"
         else -> "Set up needed: tap to download"
     }

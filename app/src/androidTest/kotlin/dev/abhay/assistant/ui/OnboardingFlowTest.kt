@@ -92,10 +92,11 @@ class OnboardingFlowTest {
     }
 
     @Test
-    fun aDownloadShowsItsProgress() {
+    fun aDownloadShowsNoPercentage() {
         show(can = Abilities(geminiSpeech = false, geminiRewrite = false), setup = GeminiSetup(Part.Downloading(30, 100), Part.Downloading(10, 100)))
         compose.onNodeWithText(str(PageText.START)).performClick()
-        compose.onNodeWithText(str(R.string.ui_gemini_downloading_percent, 20)).assertExists()
+        compose.onNodeWithText(str(R.string.ui_gemini_downloading)).assertExists()
+        compose.onNodeWithText("%", substring = true).assertDoesNotExist()
         compose.onNodeWithText(str(R.string.ui_gemini_meanwhile)).assertExists()
     }
 

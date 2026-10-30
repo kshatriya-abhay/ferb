@@ -231,11 +231,9 @@ internal fun GeminiSetUp(setup: GeminiSetup, onSetUp: () -> Unit, onCheckAgain: 
             }
             setup.speech == Part.Unavailable -> Text(stringResource(R.string.ui_gemini_cant_run), style = MaterialTheme.typography.bodyMedium, color = muted)
             setup.downloading -> {
-                val progress = setup.progress
-                Text(if (progress != null) stringResource(R.string.ui_gemini_downloading_percent, (progress * 100).toInt())
-                    else stringResource(R.string.ui_gemini_downloading), style = MaterialTheme.typography.bodyMedium)
-                if (progress != null) LinearProgressIndicator(progress = { progress }, Modifier.fillMaxWidth())
-                else LinearProgressIndicator(Modifier.fillMaxWidth())
+                // No percentage: AICore's byte counts may be misleading (its model is shared across apps).
+                Text(stringResource(R.string.ui_gemini_downloading), style = MaterialTheme.typography.bodyMedium)
+                LinearProgressIndicator(Modifier.fillMaxWidth())
                 Text(stringResource(R.string.ui_gemini_meanwhile), style = MaterialTheme.typography.bodySmall, color = muted)
             }
             failed != null -> {

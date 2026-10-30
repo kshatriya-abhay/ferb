@@ -26,10 +26,9 @@ class NanoVoiceTest {
         assertThat(Part.of(FeatureStatus.DOWNLOADING)).isEqualTo(Part.Downloading())
         assertThat(Part.of(FeatureStatus.UNAVAILABLE)).isEqualTo(Part.Unavailable)
         assertThat(Part.Downloading().label()).isEqualTo("Downloading…")
-        assertThat(Part.Downloading(4_200_000, null).label()).isEqualTo("Downloading: 4.2 MB so far")
-        assertThat(Part.Downloading(120_000_000, 480_000_000).label()).isEqualTo("Downloading: 120 of 480 MB")
-        assertThat(Part.Downloading(120_000_000, 480_000_000).fraction).isEqualTo(0.25f)
-        assertThat(Part.Downloading(5, 0).fraction).isNull()
+        // No amounts: AICore's byte counts may be misleading.
+        assertThat(Part.Downloading(4_200_000, null).label()).isEqualTo("Downloading…")
+        assertThat(Part.Downloading(120_000_000, 480_000_000).label()).isEqualTo("Downloading…")
         assertThat(Part.Failed("not enough space on the phone").label()).isEqualTo("Couldn't download: not enough space on the phone")
     }
 
@@ -39,7 +38,7 @@ class NanoVoiceTest {
         assertThat(GeminiSetup(Part.Ready, Part.Ready).ready).isTrue()
         assertThat(GeminiSetup(Part.Ready, Part.NeedsDownload).summary()).isEqualTo("Set up needed: tap to download")
         assertThat(GeminiSetup(Part.Ready, Part.NeedsDownload).needsSetUp).isTrue()
-        assertThat(GeminiSetup(Part.Downloading(100, 400), Part.Downloading(100, 600)).summary()).isEqualTo("Downloading: 20%")
+        assertThat(GeminiSetup(Part.Downloading(100, 400), Part.Downloading(100, 600)).summary()).isEqualTo("Downloading…")
         // Android fetching it with no numbers yet: Set up follows it, for progress.
         assertThat(GeminiSetup(Part.Ready, Part.Downloading()).summary()).isEqualTo("Downloading…")
         assertThat(GeminiSetup(Part.Ready, Part.Downloading()).needsSetUp).isTrue()
@@ -47,8 +46,6 @@ class NanoVoiceTest {
         assertThat(GeminiSetup(Part.Unavailable, Part.Ready).summary()).isEqualTo("Not available on this phone")
         assertThat(GeminiSetup().summary()).isEqualTo("Checking…")
         assertThat(GeminiSetup(Part.Unchecked("NullPointerException"), Part.Unchecked("NullPointerException")).summary()).isEqualTo("Couldn't check: tap to try again")
-        assertThat(GeminiSetup(Part.Downloading(30, 100), Part.Downloading(10, 100)).progress).isWithin(0.001f).of(0.2f)
-        assertThat(GeminiSetup(Part.Downloading(), Part.Ready).progress).isNull()
     }
 
     @Test
