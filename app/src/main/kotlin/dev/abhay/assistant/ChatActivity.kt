@@ -102,11 +102,7 @@ class ChatActivity : ComponentActivity() {
                     fadeIn(motion.defaultEffectsSpec()) togetherWith fadeOut(motion.defaultEffectsSpec())
                 }) { welcomed ->
                 if (!welcomed) {
-                    Onboarding(settings, onDone = { viewModel.onboarding.welcomed() }, onTry = { example ->
-                        // "Try it" on a tool's page, from setup's tools page: setup ends there, in the chat.
-                        viewModel.onboarding.welcomed()
-                        viewModel.send(example)
-                    })
+                    Onboarding(settings, onDone = { viewModel.onboarding.welcomed() })
                     return@AnimatedContent
                 }
                 var stack by rememberSaveable { mutableStateOf(listOf("assistant")) }

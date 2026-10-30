@@ -231,10 +231,10 @@ internal fun openAssistantSettings(context: Context) {
 /**
  * [OnboardingFlow] on the settings' state: the model choice as it is now, and what this phone can
  * use. The tools page's button opens Settings → Tools (and each tool's page) over it; back returns
- * to the tools page. [onTry]: "Try it" on a tool's page, which ends setup in the chat.
+ * to the tools page. A tool's page has no "Try it" here: it would end setup before the assistant page.
  */
 @Composable
-fun Onboarding(settings: SettingsViewModel, onDone: () -> Unit, onTry: (String) -> Unit = {}) {
+fun Onboarding(settings: SettingsViewModel, onDone: () -> Unit) {
     val page = rememberSaveable { mutableStateOf(Page.Welcome) }
     var stack by rememberSaveable { mutableStateOf(listOf(SETUP)) }
     val open = { screen: String -> stack = stack + screen }
@@ -245,7 +245,7 @@ fun Onboarding(settings: SettingsViewModel, onDone: () -> Unit, onTry: (String) 
             screen == "tools" -> ToolsScreen(settings, onOpenTool = { open("tool:$it") }, onBack = back)
             screen.startsWith("keywords:") -> KeywordsScreen(settings, screen.removePrefix("keywords:"), onBack = back)
             else -> ToolConfigScreen(settings, screen.removePrefix("tool:"), onOpenKeywords = { open("keywords:" + screen.removePrefix("tool:")) },
-                onTry = onTry, onBack = back)
+                onTry = null, onBack = back)
         }
     }
 }

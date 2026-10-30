@@ -366,7 +366,7 @@ private fun policy(tool: Tool, config: ToolConfig) = when {
  * request, the schema Needle 3 gets.
  */
 @Composable
-fun ToolConfigScreen(settings: SettingsViewModel, name: String, onOpenKeywords: () -> Unit, onTry: (String) -> Unit, onBack: () -> Unit) {
+fun ToolConfigScreen(settings: SettingsViewModel, name: String, onOpenKeywords: () -> Unit, onTry: ((String) -> Unit)?, onBack: () -> Unit) {
     val tool = Tools.byName(name)
     if (tool == null) {
         // A tool a newer version removed: go back, from an effect rather than mid-composition.
@@ -451,17 +451,20 @@ fun ToolConfigScreen(settings: SettingsViewModel, name: String, onOpenKeywords: 
                 }
             }
 
-            SectionTitle("Try it")
             // Sends the example from the chat; only once the tool is on and saved, so it can answer.
-            val usable = saved.getValue(name).enabled
-            FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                tool.examples.forEach { example ->
-                    SuggestionChip(
-                        onClick = { onTry(example) },
-                        enabled = usable,
-                        label = { Text(example) },
-                        icon = { Icon(painterResource(tool.icon), contentDescription = null, Modifier.size(18.dp)) },
-                    )
+            // Not during setup (onTry null): it would end setup before the assistant page.
+            if (onTry != null) {
+                SectionTitle("Try it")
+                val usable = saved.getValue(name).enabled
+                FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    tool.examples.forEach { example ->
+                        SuggestionChip(
+                            onClick = { onTry(example) },
+                            enabled = usable,
+                            label = { Text(example) },
+                            icon = { Icon(painterResource(tool.icon), contentDescription = null, Modifier.size(18.dp)) },
+                        )
+                    }
                 }
             }
             Schema(tool)
