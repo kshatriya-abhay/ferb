@@ -43,7 +43,19 @@ android {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
+        // The release build (R8 and all) as its own app, dev.abhay.assistant.smoke, signed with the
+        // debug key: for the smoke test on a phone, beside the installed Ferb and never touching its
+        // data. Ferb Link answers it when Ferb Link is a debug build too (same key). Never released.
+        create("smoke") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".smoke"
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += "release"
+        }
     }
+
+    // The smoke build compiles release's own stand-ins (no bench, no private lists).
+    sourceSets.getByName("smoke").kotlin.directories += "src/release/kotlin"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21

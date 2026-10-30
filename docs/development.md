@@ -47,7 +47,7 @@ Signing settings, from the environment or asked for (the password without echo):
 
 `mise run release:publish` (`scripts/publish.sh`) runs only at a terminal, from a clean tree that matches `origin/main`. It checks the APK's certificate and checksum, and refuses a version that's already released. It asks for the version to be typed before `gh release create`. Raise `versionName` (and `versionCode`) in `app/build.gradle.kts` for each release.
 
-Before publishing, install the release APK on a phone and run the smoke test below: the release build is shrunk by R8, which debug builds aren't.
+Before publishing, run the smoke test below on a phone: the release build is shrunk by R8, which debug builds aren't.
 
 ## Testing
 
@@ -74,13 +74,18 @@ Four tiers, cheapest first:
      `tool-check/jev.py --switch [--multi]` measures "Use Jev to select the tool" in every mode (Jev picks the tool, the answering model gets only it) against each mode without Jev. It keeps replies by request text and sends only the missing ones (same ledger, `--dry-run`, `--replies`).
    - **Hindi and Hinglish** (`# @hi`, at the end of `requests.txt` and `suite.txt`) are for the computer's model only: neither Needle 3 nor Jev understands Hindi. `tool-check`, the Needle 3 runs in `bench`, `laptop.py --decide` and `jev.py`'s Phone and Jev scores skip them (`tool-check/lines.py --skip hi`); `bench`'s other models and `laptop.py` keep them, scored apart.
    - Scored results go in `tool-check/results`.
-4. **Smoke test**, by hand on the phone before an install-worthy release, not per change. First `mise run check-offline` and `mise run device-test`, then:
-   1. Phone picked, type "Turn on the flashlight": the torch comes on (no source line).
-   2. Computer picked, type "Set volume to 40": runs, with a laptop icon and its time.
-   3. Computer picked, say "torch on karo": "Heard: …" under "Turn on the torch", and the torch comes on.
-   4. Computer picked, record 3 s of silence and send: "No words heard", nothing runs.
-   5. Switch off "Answer Ferb's requests" in Ferb Link, type "Set volume to 30": Needle 3 answers, with "On phone · turned off".
-   6. Type "Text Priya I'm running late": "Shall I do this?" (messages always ask); Cancel.
+4. **Smoke test**, by hand on the phone before an install-worthy release, not per change. It runs the release build (R8) as its own app, `dev.abhay.assistant.smoke` ("Ferb smoke"), signed with the debug key: it installs beside Ferb without touching Ferb's data, and a debug Ferb Link answers it (same key). It never uses the release keystore. First `mise run check-offline`, `mise run device-test` and `mise run smoke`, then, under `/tmp/ferb-validate.lock`, `adb install -r app/build/outputs/apk/smoke/app-smoke.apk` and open Ferb smoke:
+   1. Setup: three pages. On Talk to Ferb in, English + Hindi is picked when Gemini Nano is ready. Skip the assistant page: Ferb stays the assistant.
+   2. Settings → Open-source licences → Apache-2.0: the text wraps to the screen. Settings → Privacy opens.
+   3. Type "Turn on the flashlight": the torch comes on (Needle 3, native code).
+   4. Say "kal subah 7 baje alarm laga do": "Heard: …", then an alarm for 7:00 tomorrow, asked or run (Gemini Nano speech and rewrite, the date gate). Delete the alarm afterwards.
+   5. Advanced → Audio processing → Whistle, say "set a timer for one minute": the timer starts.
+   6. Type "remind me in 2 minutes to stretch": the reminder fires as a notification, and Snooze and Done work.
+   7. Type "Text Priya I'm running late": "Shall I do this?" (messages always ask); Cancel.
+   8. Advanced → Prompt rewrite → Ferb Link (Gemma 4), type "torch band karo": the torch goes off, with a laptop icon and its time. Switch off "Answer Ferb's requests" in Ferb Link and type it again: Needle 3 answers, with "On phone · turned off". Switch it back on.
+   9. `adb logcat -d -b crash` and `adb logcat -d | grep -E "ClassNotFound|NoSuchMethod|NoSuchField|JSONException"` show nothing from `dev.abhay.assistant.smoke`.
+
+   Ferb smoke keeps its own reminders and settings; remove it from the phone's app info when done.
 
 
 ## Tuning the tools: `mise run tool-check`
