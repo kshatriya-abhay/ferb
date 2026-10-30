@@ -62,7 +62,7 @@ Four tiers, cheapest first:
    - `SpokenRequestsTest` keeps what the audio bench found, at the component that handles it.
    - The dates resolver (`ResolveTest`): every line of `tool-check/times.txt` (150 requests, fixed "now"s) resolves to its expected value from its gold structure; `TimeArgsTest` checks the override, the grounding and the asks.
    - Who answers and the path it records (`AnswerFlowTest`), with fakes for Ferb Link and Needle 3.
-   - Device tests (`scripts/device-check.sh`, `QUIET=1` for a phone in use; take the lock, set `ANDROID_SERIAL`): the test phone is a Pixel 11 (Android 17, USB) from 2026-10-18, all four quiet checks passing. On it Needle 3 loads in 68 ms, sets up 5 tools in 0.44 s, and re-initialises with one tool and answers in 215–276 ms. A phone restored from a backup may get Ferb's permissions back on install (the Pixel did), so the first-run permission cards won't show there.
+   - Device tests (`scripts/device-check.sh`, `QUIET=1` for a phone in use; take the lock, set `ANDROID_SERIAL`): the test phone is a Pixel 11 (Android 17, USB) from 2026-10-18, all four quiet checks passing. On it Needle 3 loads in 68 ms, sets up 5 tools in 0.44 s, and re-initialises with one tool and answers in 215–276 ms. A phone restored from a backup may get Ferb's permissions back on install (the Pixel did), so the tool pages' permission cards won't show there.
 2. **Contract tests** (in `mise run test` too): Ferb's side of the link to Ferb Link, replayed from Ferb Link's example requests and results.
    - Status, check, complete, transcribe, wake, each error kind, and an older Ferb Link.
    - Ferb Link owns the fixtures ([contract/v1](https://github.com/kshatriya-abhay/ferb-link/tree/main/contract/v1)); Ferb keeps a copy in `app/src/test/resources/ferb-link-contract/v1` (with `SOURCE`, the commit it came from).
@@ -101,3 +101,17 @@ Needle 3's choices and confidence depend heavily on the tool descriptions. `mise
 
 `mise run bench [model|all] [all|default] [routed|unrouted]` runs models on `tool-check/requests.txt` plus `tool-check/suite.txt`: 201 more requests in categories (plain, casual, Indian English and Hinglish, typos, numbers in words, two actions at once, context, near misses, unrelated), which the bars aren't tuned on. `needle3` runs as tool-check does; the models in `tool-check/models.txt` (pinned GGUF files) run on the desktop's CPU through llama.cpp's server (`tool-check/bench.py`), with the same tool JSON and routing and one short system prompt. The same scorer reports each category, and, since other models have no confidence score like Needle 3's, how many right and wrong calls would run at one bar for all tools, on three stand-ins: the probability of the weakest token a model writes, of its first token (whether to call a tool at all), and their mean. With `all` (the default) it runs every model and writes a table, `tool-check/results/summary-*.txt` (`tool-check/compare.py`). Answers are kept per model in `tool-check/results/*.jsonl`, by tool set and request, so only what's new runs: added requests, or the requests routed to a tool whose schema changed. Delete a model's file to run it afresh.
 
+## Credits (tools for tuning, not shipped)
+
+Used on the computer for tuning and comparing; none of it is in the app. What the app ships with is in the [README's Credits](../README.md#credits).
+
+| Project | Licence | Used for |
+|---|---|---|
+| [Needle engine](https://github.com/cactus-compute/needle) by Cactus Compute | Apache-2.0 | Its Linux build runs `tool-check` |
+| [Zig](https://ziglang.org) (via the `ziglang` Python package) | MIT | Builds the desktop `tool-check` against libc++ |
+| [llama.cpp](https://github.com/ggml-org/llama.cpp) | MIT | Runs other models for `mise run bench` |
+| [FunctionGemma 270M](https://huggingface.co/google/functiongemma-270m-it) by Google (GGUF by Unsloth) | Gemma terms | Compared in `mise run bench` |
+| [Gemma 4 E2B](https://huggingface.co/google/gemma-4-E2B-it) by Google (GGUF by Unsloth) | Apache-2.0 | Compared in `mise run bench` |
+| [LFM2.5-350M, LFM2.5-1.2B](https://huggingface.co/LiquidAI) by Liquid AI | LFM Open License | Compared in `mise run bench` |
+| [Qwen3.5-0.8B, Qwen3.5-2B](https://huggingface.co/Qwen) by Alibaba (GGUF by Unsloth) | Apache-2.0 | Compared in `mise run bench` |
+| [Hammer2.1-0.5b](https://huggingface.co/MadeAgents/Hammer2.1-0.5b) by MadeAgents (GGUF by mradermacher) | CC-BY-NC-4.0 | Compared in `mise run bench` |

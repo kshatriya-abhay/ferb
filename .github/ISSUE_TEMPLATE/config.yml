@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Ferb Link
+    url: https://github.com/kshatriya-abhay/ferb-link/issues
+    about: Problems with the companion app on your computer, pairing or Tailscale go to Ferb Link's issues.

@@ -1,0 +1,55 @@
+name: Bug report
+description: Something in Ferb didn't work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Please don't paste personal requests, names or numbers. A similar demo request is enough.
+  - type: input
+    id: phone
+    attributes:
+      label: Phone model
+      placeholder: Pixel 10
+    validations:
+      required: true
+  - type: input
+    id: android
+    attributes:
+      label: Android version
+      placeholder: "16"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Ferb version
+      description: Android's app info for Ferb shows it.
+      placeholder: "0.1"
+    validations:
+      required: true
+  - type: dropdown
+    id: model
+    attributes:
+      label: Model
+      description: Settings → Choose your preferred model
+      options:
+        - Needle + Whistle
+        - Gemini Nano
+        - Gemma 4 (via Ferb Link)
+        - Custom steps (Advanced)
+    validations:
+      required: true
+  - type: textarea
+    id: asked
+    attributes:
+      label: What you asked
+      description: Typed or spoken, and the words (or a similar demo request).
+    validations:
+      required: true
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened
+      description: What Ferb did or said, and what you expected. Tapping the reply shows the details.
+    validations:
+      required: true

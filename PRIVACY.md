@@ -6,7 +6,7 @@ Ferb is an assistant that does things on your Android phone. It has no internet 
 
 - **Your requests.** Needle 3 picks the action and Whistle hears you, both on the phone. Gemini Nano, where you use it, runs on the phone too, inside Android's AICore.
 - **What Ferb keeps.** Your settings and reminders stay in Ferb's own storage. Notes and lists go to the folder you pick. The chat is kept only while Ferb is open, and recordings aren't kept.
-- **Contacts and calendar** are read on the phone, only for the tools you turn on. Ferb asks for each permission the first time a tool needs it.
+- **Contacts and calendar** are read on the phone, only for the tools you turn on. Ferb asks for each permission when you turn on a tool that needs it.
 
 ## What can leave your phone
 
