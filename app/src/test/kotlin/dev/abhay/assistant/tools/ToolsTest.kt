@@ -234,9 +234,9 @@ class ToolsTest {
     }
 
     @Test
-    fun fiveToolsAreOnByDefault() {
-        assertThat(ToolSettings.enabledNames(ToolSettings.defaults()))
-            .containsExactly("set_alarm", "set_timer", "open_app", "open_settings", "set_flashlight").inOrder()
+    fun theToolsThatNeedNoSetupAreOnByDefault() {
+        assertThat(ToolSettings.enabledNames(ToolSettings.defaults())).containsExactly("set_alarm", "set_timer", "open_app",
+            "open_settings", "set_flashlight", "show_alarms", "set_volume", "control_media", "open_camera", "create_note", "get_directions").inOrder()
     }
 
     @Test

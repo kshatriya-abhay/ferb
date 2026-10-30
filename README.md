@@ -28,7 +28,7 @@ Or [build it from source](#build-from-source).
 
 ### First launch
 
-Three pages: a short welcome; **Choose your preferred model** (Needle + Whistle, Gemini Nano, or Gemma 4 via Ferb Link, with Gemini Nano picked where it can run, and its download right there when it's still needed: Ferb works meanwhile and switches to it once it's ready); and making Ferb your phone's assistant (left out if it already is). **Skip** goes straight to the chat, and **Settings → Run setup again** brings the pages back. In the chat, a tip says some tools start off, and **Show me** opens Settings → Tools, where each switch turns a tool on or off. Then "How can I help?" shows a few requests to try; tap one, or type your own in the box at the bottom. Try:
+Four pages: a short welcome; **Choose your preferred model** (Needle + Whistle, Gemini Nano, or Gemma 4 via Ferb Link, with Gemini Nano picked where it can run, and its download right there when it's still needed: Ferb works meanwhile and switches to it once it's ready); **Choose Ferb's tools**, whose button opens Settings → Tools, where each switch turns a tool on or off (Back returns to setup); and making Ferb your phone's assistant (left out if it already is). Every tool that needs nothing set up is on from the start; the ones that need a permission or a notes folder (calls, messages, the calendar, reminders and lists) start off. **Skip** goes straight to the chat, and **Settings → Run setup again** brings the pages back. In the chat, "How can I help?" shows a few requests to try; tap one, or type your own in the box at the bottom. Try:
 
 - "Set a timer for 10 minutes"
 - "Turn on the flashlight"
@@ -65,16 +65,16 @@ In Android's **Settings → Apps → Default apps → Digital assistant app**, p
 | Open apps | ✓ | "Open the calculator" |
 | Settings pages | ✓ | "Open Wi-Fi settings" |
 | Flashlight | ✓ | "Turn on the flashlight" |
-| Show alarms | | "Show my alarms" |
-| Media volume | | "Set volume to 40" |
-| Media controls | | "Pause the music" |
-| Camera | | "Take a picture" |
-| Notes | | "Note that the car is parked on level 3" (to your notes app, such as Google Keep, or, with Obsidian installed, "Markdown notes (powered by Obsidian)": Markdown files in a folder of your vault, opened in Obsidian) |
+| Show alarms |  ✓ | "Show my alarms" |
+| Media volume |  ✓ | "Set volume to 40" |
+| Media controls |  ✓ | "Pause the music" |
+| Camera |  ✓ | "Take a picture" |
+| Notes |  ✓ | "Note that the car is parked on level 3" (to your notes app, such as Google Keep, or, with Obsidian installed, "Markdown notes (powered by Obsidian)": Markdown files in a folder of your vault, opened in Obsidian) |
 | Lists | | "Add milk and eggs to the shopping list" (a note with checkboxes in your notes folder) |
 | Show lists | | "What's on my shopping list?" (tick items off in the chat) |
 | Tick off | | "Tick milk off the shopping list" |
 | Reminders | | "Remind me on Friday to pay the rent" (Ferb's own notification, with Done and Snooze; can repeat; listed, made by hand and cleared on the Notes screen's Reminders tab) |
-| Directions | | "Show me the way to the Taj Mahal" (opens Google Maps) |
+| Directions |  ✓ | "Show me the way to the Taj Mahal" (opens Google Maps) |
 | Calls | | "Call Kritika" (always asks first) |
 | Messages | | "Text Priya I'm running late" (always asks first; you press send) |
 | Agenda | | "What's on tomorrow?" |

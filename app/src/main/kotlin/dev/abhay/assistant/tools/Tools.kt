@@ -346,7 +346,7 @@ object ShowAlarms : Tool(
     title = "Show alarms",
     icon = R.drawable.ic_alarm_list,
     description = "Open the clock app's list of alarms.",
-    onByDefault = false,
+    onByDefault = true,
     defaultRunFrom = 0.3,
     examples = listOf("Show my alarms"),
 ) {
@@ -511,7 +511,7 @@ object SetVolume : Tool(
     title = "Media volume",
     icon = R.drawable.ic_volume,
     description = "Set or mute the volume of music, videos and games.",
-    onByDefault = false,
+    onByDefault = true,
     // Right calls 0.59–0.95, none wrong; a little higher than the harmless tools, since a wrong
     // volume can be loud.
     defaultRunFrom = 0.5,
@@ -592,7 +592,7 @@ object MediaControl : Tool(
     title = "Media controls",
     icon = R.drawable.ic_music,
     description = "Play, pause or skip whatever music or video is playing.",
-    onByDefault = false,
+    onByDefault = true,
     // "resume" became pause at 0.56, and at 0.66 when routed to it alone; right calls 0.69+ when routed.
     defaultRunFrom = 0.7,
     examples = listOf("Pause the music", "Next song"),
@@ -653,7 +653,7 @@ object TakePhoto : Tool(
     title = "Camera",
     icon = R.drawable.ic_photo_camera,
     description = "Open the camera app, ready to take a photo.",
-    onByDefault = false,
+    onByDefault = true,
     // "which camera is better" opened it at 0.47, and at 0.64 when routed; right calls 0.80+ when routed.
     defaultRunFrom = 0.7,
     examples = listOf("Take a picture", "Open the camera"),
@@ -679,7 +679,7 @@ object CreateNote : Tool(
     title = "Notes",
     icon = R.drawable.ic_note,
     description = "Take a note in your notes app, such as Keep.",
-    onByDefault = false,
+    onByDefault = true,
     // On tool-check (2026-10-08), right notes scored 0.41–0.79 and took the text cleanly ("jot down
     // that the wifi password is on the fridge" → "the wifi password is on the fridge"); the worst
     // wrong one, "what's a quarter note", 0.19.
@@ -767,7 +767,7 @@ object GetDirections : Tool(
     title = "Directions",
     icon = R.drawable.ic_directions,
     description = "Show directions to a place in Google Maps, to check and start.",
-    onByDefault = false,
+    onByDefault = true,
     // On tool-check (2026-10-08), right calls scored 0.38–0.91 ("directions to the airport" 0.51);
     // the worst wrong ones, "how do I get to level 5 in this game" 0.56 and "directions for this
     // recipe" 0.35. A wrong one only opens Maps, to close.

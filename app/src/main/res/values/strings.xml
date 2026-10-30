@@ -99,7 +99,6 @@
     <string name="ui_gemini_unchecked">Couldn\'t check Gemini Nano: %1$s</string>
     <string name="ui_gemini_cant_run">Gemini Nano can\'t run on this phone.</string>
     <string name="ui_try_again">Try again</string>
-    <string name="ui_show_me">Show me</string>
     <string name="ui_advanced">Advanced</string>
     <string name="ui_custom_steps">Set in Advanced. Pick one to go back.</string>
     <string name="ui_understanding">How Ferb understands you</string>
@@ -111,6 +110,9 @@
     <string name="onboarding_model_title">Choose your preferred model</string>
     <string name="onboarding_model_body">It hears you and tidies what you say. Needle 3 then does it, on this phone, whichever you choose, and you can always type.</string>
     <string name="onboarding_model_more">Change it later in Settings. Each step on its own: Settings → Advanced.</string>
+    <string name="onboarding_tools_title">Choose Ferb\'s tools</string>
+    <string name="onboarding_tools_body">Choose which tools Ferb can use. Some, like calls and the calendar, need a permission first.</string>
+    <string name="onboarding_open_tools">Open tools</string>
     <string name="onboarding_assistant_title">Make Ferb your assistant</string>
     <string name="onboarding_assistant_body">Hold the power button to open Ferb anywhere. Ferb doesn\'t read your screen.</string>
     <string name="onboarding_start">Start</string>

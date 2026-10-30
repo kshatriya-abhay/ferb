@@ -52,13 +52,13 @@ class ToolRouterTest {
 
     @Test
     fun aToolThatsOffIsOfferedWhenTheRequestMentionsIt() {
-        // The defaults: five tools on, Media controls among the ones off.
-        assertThat(ToolRouter.off("pause the music", configs).map { it.name }).containsExactly("control_media")
+        // The defaults: the tools that need setup are off, Calls among them.
+        assertThat(ToolRouter.off("call mom", configs).map { it.name }).containsExactly("make_call")
         // Nothing to offer for a tool that's on, or for a request no tool's words match.
         assertThat(ToolRouter.off("turn on the flashlight", configs)).isEmpty()
         assertThat(ToolRouter.off("what's the capital of France", configs)).isEmpty()
         // Once turned on, it's no longer offered.
-        val on = configs + ("control_media" to configs.getValue("control_media").copy(enabled = true))
-        assertThat(ToolRouter.off("pause the music", on)).isEmpty()
+        val on = configs + ("make_call" to configs.getValue("make_call").copy(enabled = true))
+        assertThat(ToolRouter.off("call mom", on)).isEmpty()
     }
 }

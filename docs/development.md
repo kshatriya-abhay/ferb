@@ -75,7 +75,7 @@ Four tiers, cheapest first:
    - **Hindi and Hinglish** (`# @hi`, at the end of `requests.txt` and `suite.txt`) are for the computer's model only: neither Needle 3 nor Jev understands Hindi. `tool-check`, the Needle 3 runs in `bench`, `laptop.py --decide` and `jev.py`'s Phone and Jev scores skip them (`tool-check/lines.py --skip hi`); `bench`'s other models and `laptop.py` keep them, scored apart.
    - Scored results go in `tool-check/results`.
 4. **Smoke test**, by hand on the phone before an install-worthy release, not per change. It runs the release build (R8) as its own app, `dev.abhay.assistant.smoke` ("Ferb smoke"), signed with the debug key: it installs beside Ferb without touching Ferb's data, and a debug Ferb Link answers it (same key). It never uses the release keystore. First `mise run check-offline`, `mise run device-test` and `mise run smoke`, then, under `/tmp/ferb-validate.lock`, `adb install -r app/build/outputs/apk/smoke/app-smoke.apk` and open Ferb smoke:
-   1. Setup: three pages. On Choose your preferred model, Gemini Nano is picked (recommended) where it can run. Skip the assistant page: Ferb stays the assistant.
+   1. Setup: four pages. On Choose your preferred model, Gemini Nano is picked (recommended) where it can run. On Choose Ferb's tools, Open tools opens Settings → Tools; Back returns to that page. Skip the assistant page: Ferb stays the assistant.
    2. Settings → Open-source licences → Apache-2.0: the text wraps to the screen. Settings → Privacy opens.
    3. Type "Turn on the flashlight": the torch comes on (Needle 3, native code).
    4. Say "kal subah 7 baje alarm laga do": "Heard: …", then an alarm for 7:00 tomorrow, asked or run (Gemini Nano speech and rewrite, the date gate). Delete the alarm afterwards.

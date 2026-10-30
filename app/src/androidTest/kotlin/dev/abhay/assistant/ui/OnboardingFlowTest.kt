@@ -21,8 +21,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * The first launch's three pages (Compose, on the phone): in order, the recommended model saved by
- * Next, Skip, Gemini Nano's setup under it on the model page (download, progress, failure, can't
+ * The first launch's four pages (Compose, on the phone): in order, the recommended model saved by
+ * Next, the tools page's way to Settings → Tools (and back to it), Skip, Gemini Nano's setup under it on the model page (download, progress, failure, can't
  * run), and Gemma 4 greyed out without Ferb Link, or asking to pair it.
  */
 @RunWith(AndroidJUnit4::class)
@@ -38,7 +38,7 @@ class OnboardingFlowTest {
         OnboardingFlow(model, can, setup, assistantHeld, onModel = { saved += it },
             onSetUpGemini = { saved += "set up" }, onOpenAssistantSettings = { saved += "assistant settings" },
             onCheckGemini = { saved += "check" }, onDone = { done++ }, geminiWatch = watch,
-            onKeepModel = { saved += "kept ${it.id}" }, onOpenLink = { saved += "open link" })
+            onKeepModel = { saved += "kept ${it.id}" }, onOpenLink = { saved += "open link" }, onOpenTools = { saved += "tools" })
     }
 
     @Test
@@ -53,11 +53,15 @@ class OnboardingFlowTest {
         compose.onNodeWithText(ModelChoice.Whistle.hint).assertExists()
         compose.onNodeWithText(ModelChoice.Gemma.title).assertExists()
         compose.onNodeWithText(str(PageText.NEXT)).performClick()
+        compose.onNodeWithText(str(PageText.TOOLS_TITLE)).assertExists()
+        compose.onNodeWithText(str(PageText.TOOLS_BODY)).assertExists()
+        compose.onNodeWithText(str(PageText.OPEN_TOOLS)).performClick()
+        compose.onNodeWithText(str(PageText.NEXT)).performClick()
         compose.onNodeWithText(str(PageText.ASSISTANT_TITLE)).assertExists()
         compose.onNodeWithText(str(PageText.OPEN_ASSISTANT_SETTINGS)).performClick()
         compose.onNodeWithText(str(PageText.DONE)).performClick()
         // Next saved the choice as shown (no download started), so a default can't change under the user later.
-        assertThat(saved).containsExactly("kept gemini", "assistant settings").inOrder()
+        assertThat(saved).containsExactly("kept gemini", "tools", "assistant settings").inOrder()
         assertThat(done).isEqualTo(1)
     }
 
@@ -180,6 +184,7 @@ class OnboardingFlowTest {
         }
         compose.onNodeWithText(str(PageText.START)).performClick()
         compose.onNodeWithText(str(PageText.NEXT)).performClick()
+        compose.onNodeWithText(str(PageText.NEXT)).performClick()
         compose.onNodeWithText(str(PageText.OPEN_ASSISTANT_SETTINGS)).performClick()
         compose.onNodeWithText(str(PageText.COME_BACK)).assertExists()
         // Picked in Settings; back in Ferb, the page stays and says so.
@@ -188,6 +193,25 @@ class OnboardingFlowTest {
         compose.onNodeWithText(str(PageText.OPEN_ASSISTANT_SETTINGS)).assertDoesNotExist()
         compose.onNodeWithText(str(PageText.DONE)).performClick()
         assertThat(done).isEqualTo(1)
+    }
+
+    @Test
+    fun backFromSettingsToolsIsTheToolsPageAgain() {
+        // Settings → Tools replaces the pages on screen; the page is held outside, as Onboarding() does.
+        val page = mutableStateOf(dev.abhay.assistant.onboarding.Page.Welcome)
+        var away by mutableStateOf(false)
+        compose.setContent {
+            if (!away) OnboardingFlow(ModelChoice.Gemini, gemini, GeminiSetup(Part.Ready, Part.Ready), false, onModel = {},
+                onSetUpGemini = {}, onOpenAssistantSettings = {}, onDone = { done++ }, onOpenTools = { away = true }, pageState = page)
+        }
+        compose.onNodeWithText(str(PageText.START)).performClick()
+        compose.onNodeWithText(str(PageText.NEXT)).performClick()
+        compose.onNodeWithText(str(PageText.OPEN_TOOLS)).performClick()
+        compose.onNodeWithText(str(PageText.TOOLS_TITLE)).assertDoesNotExist()
+        away = false
+        compose.onNodeWithText(str(PageText.TOOLS_TITLE)).assertExists()
+        compose.onNodeWithText(str(PageText.NEXT)).performClick()
+        compose.onNodeWithText(str(PageText.ASSISTANT_TITLE)).assertExists()
     }
 
     @Test

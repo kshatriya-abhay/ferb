@@ -40,8 +40,12 @@ class ToolSchemasTest {
     }
 
     @Test
-    fun aboutFiveToolsAreOnByDefault() {
-        // Five or fewer: Needle 3 considers every one for every request.
-        assertThat(ToolSettings.enabledNames(ToolSettings.defaults()).size).isAtMost(5)
+    fun everyToolThatNeedsNoSetupIsOnByDefault() {
+        // On: no permission, special access, folder or other app to set up first. A request only
+        // reaches the tools it mentions (ToolRouter), so more tools on doesn't crowd Needle 3.
+        val needsSetup = listOf(MakeCall, SendText, ShowAgenda, AddEvent, AddReminder, AddToList, ShowList, CheckOff)
+        assertThat(Tools.all.filter { it.onByDefault }).containsExactlyElementsIn(Tools.all - needsSetup.toSet())
+        // Every tool that asks for a permission is among those.
+        assertThat(Tools.all.filter { it.permissions.isNotEmpty() }.toSet()).isEqualTo(needsSetup.filter { it.permissions.isNotEmpty() }.toSet())
     }
 }

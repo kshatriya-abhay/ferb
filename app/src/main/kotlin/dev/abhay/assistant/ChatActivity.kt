@@ -102,7 +102,11 @@ class ChatActivity : ComponentActivity() {
                     fadeIn(motion.defaultEffectsSpec()) togetherWith fadeOut(motion.defaultEffectsSpec())
                 }) { welcomed ->
                 if (!welcomed) {
-                    Onboarding(settings, onDone = { viewModel.onboarding.welcomed() })
+                    Onboarding(settings, onDone = { viewModel.onboarding.welcomed() }, onTry = { example ->
+                        // "Try it" on a tool's page, from setup's tools page: setup ends there, in the chat.
+                        viewModel.onboarding.welcomed()
+                        viewModel.send(example)
+                    })
                     return@AnimatedContent
                 }
                 var stack by rememberSaveable { mutableStateOf(listOf("assistant")) }
@@ -128,8 +132,7 @@ class ChatActivity : ComponentActivity() {
                 NavStack(stack, onBack = back) { screen ->
                     when {
                         screen == "assistant" -> AssistantScreen(viewModel, onOpenSettings = { open("settings") },
-                            onOpenLink = { stack = stack + "settings" + "link" }, onOpenNotes = { open("notes") },
-                            onOpenTools = { stack = stack + "settings" + "tools" })
+                            onOpenLink = { stack = stack + "settings" + "link" }, onOpenNotes = { open("notes") })
                         screen == "notes" || screen == REMINDERS -> NotesScreen(viewModel, onOpen = { showNote(it) }, onBack = back,
                             tab = if (screen == REMINDERS) NotesTab.Reminders else NotesTab.Notes,
                             // The page beneath becomes the Reminders tab, so Save or Back lands there.

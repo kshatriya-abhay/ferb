@@ -13,14 +13,12 @@ import kotlinx.coroutines.flow.update
  * gone once dismissed or used.
  */
 enum class Tip(val text: String) {
-    /** First, straight after setup: the start of the short guide to turning tools on and off ([Switches] next). */
-    MoreTools("Some tools start off, like calls and the calendar."),
     TryOne("Tap one, or type your own request below."),
     Details("Tap a reply to see what Ferb understood."),
     AskFirst("Ferb asks first when unsure, or before reaching other people."),
     Undo("Changed your mind? A result's buttons undo it."),
     Keywords("Requests with these words go to this tool."),
-    /** Settings → Tools, the guide's second step: put away by ✕ or by using a switch. */
+    /** Settings → Tools (setup's tools page leads there): put away by ✕ or by using a switch. */
     Switches("Each switch turns a tool on or off. Tap a tool for when it asks first."),
     Fallback("A step was skipped this time. Tap the reply for why."),
     Mic("Tap the mic, speak English, then \u2713 to send."),
@@ -86,12 +84,13 @@ class Onboarding(private val load: () -> OnboardingState, private val store: (On
 }
 
 /**
- * The first launch's pages, in order: what Ferb is, the model (the recommended one picked), then
- * making Ferb the phone's assistant (left out once it is). Every
- * page can be skipped; Settings → Run setup again shows them again.
+ * The first launch's pages, in order: what Ferb is, the model (the recommended one picked), the
+ * tools (a way to Settings → Tools, for the ones that need a permission), then making Ferb the
+ * phone's assistant (left out once it is). Every page can be skipped; Settings → Run setup again
+ * shows them again.
  */
 enum class Page {
-    Welcome, Model, Assistant;
+    Welcome, Model, Tools, Assistant;
 
     companion object {
         /** The pages to show: [Assistant] only while Ferb isn't the phone's assistant yet. */

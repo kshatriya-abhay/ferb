@@ -33,7 +33,7 @@ import dev.abhay.assistant.R
 /**
  * The first page of the first launch ([OnboardingFlow]): what Ferb is (not a chatbot: it does
  * things) and what stays private. It asks for nothing; permissions come when a tool or the mic
- * needs them. Which tools are on is shown after setup ([Tip.MoreTools], then [Tip.Switches]).
+ * needs them. Which tools are on comes on the tools page ([Page.Tools]), then [Tip.Switches].
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable

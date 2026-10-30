@@ -34,8 +34,9 @@ class ChatTipsTest {
 
     @Test
     fun theStartScreenSuggestsTryingAnExample() {
-        assertThat(tips(emptyList(), start = true)).containsExactly(TipPlace(Tip.MoreTools, null), TipPlace(Tip.TryOne, null))
-        assertThat(Tip.next(tips(emptyList(), start = true).map { it.tip }, setOf(Tip.MoreTools))).isEqualTo(Tip.TryOne)
+        // Straight after setup, the examples' tip first: setup's tools page covers which tools are on.
+        assertThat(tips(emptyList(), start = true)).containsExactly(TipPlace(Tip.TryOne, null))
+        assertThat(Tip.next(tips(emptyList(), start = true).map { it.tip }, emptySet())).isEqualTo(Tip.TryOne)
     }
 
     @Test
@@ -45,19 +46,9 @@ class ChatTipsTest {
         assertThat(places).contains(TipPlace(Tip.Details, 2))
         assertThat(places).contains(TipPlace(Tip.AskFirst, 2))
         assertThat(places).contains(TipPlace(Tip.Undo, 1))
-        // After the tools guide: Details first, then asking first once Details is seen.
-        assertThat(Tip.next(places.map { it.tip }, setOf(Tip.MoreTools))).isEqualTo(Tip.Details)
-        assertThat(Tip.next(places.map { it.tip }, setOf(Tip.MoreTools, Tip.Details))).isEqualTo(Tip.AskFirst)
-    }
-
-    @Test
-    fun moreToolsFirstStraightAfterSetup() {
-        // The start screen, nothing asked yet: the tools guide comes before the examples' tip.
-        val start = tips(emptyList(), start = true).map { it.tip }
-        assertThat(start).containsAtLeast(Tip.MoreTools, Tip.TryOne)
-        assertThat(Tip.next(start, emptySet())).isEqualTo(Tip.MoreTools)
-        assertThat(Tip.next(start, setOf(Tip.MoreTools))).isEqualTo(Tip.TryOne)
-        assertThat(tips(listOf(exchange(1, withUndo))).map { it.tip }).contains(Tip.MoreTools)
+        // Details first, then asking first once Details is seen.
+        assertThat(Tip.next(places.map { it.tip }, emptySet())).isEqualTo(Tip.Details)
+        assertThat(Tip.next(places.map { it.tip }, setOf(Tip.Details))).isEqualTo(Tip.AskFirst)
     }
 
     @Test

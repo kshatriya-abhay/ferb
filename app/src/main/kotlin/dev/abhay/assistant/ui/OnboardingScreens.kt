@@ -39,6 +39,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -63,6 +64,9 @@ internal object PageText {
     val MODEL_TITLE = R.string.onboarding_model_title
     val MODEL_BODY = R.string.onboarding_model_body
     val MODEL_MORE = R.string.onboarding_model_more
+    val TOOLS_TITLE = R.string.onboarding_tools_title
+    val TOOLS_BODY = R.string.onboarding_tools_body
+    val OPEN_TOOLS = R.string.onboarding_open_tools
     val ASSISTANT_TITLE = R.string.onboarding_assistant_title
     val ASSISTANT_BODY = R.string.onboarding_assistant_body
     val START = R.string.onboarding_start
@@ -82,7 +86,9 @@ internal object PageText {
  * ends it at once, keeping what's chosen. Next on the model page saves the one shown
  * ([onKeepModel]: saved, no download started), so a default doesn't change under the user later;
  * tapping one ([onModel]) also starts Gemini Nano's download when it needs one. [model] is null
- * when steps were changed under Advanced: then nothing is picked, and Next keeps them. The assistant page opens
+ * when steps were changed under Advanced: then nothing is picked, and Next keeps them. The tools
+ * page opens Settings → Tools ([onOpenTools]); back from there is this page again, so the page
+ * is held outside ([pageState]), where it outlives the trip. The assistant page opens
  * the phone's assistant setting ([openAssistantSettings]) and, back in Ferb, says once it's set.
  */
 @Composable
@@ -99,8 +105,10 @@ internal fun OnboardingFlow(
     geminiWatch: dev.abhay.assistant.voice.GeminiWatch = dev.abhay.assistant.voice.GeminiWatch.Off,
     onKeepModel: (ModelChoice) -> Unit = onModel,
     onOpenLink: (() -> Unit)? = null,
+    onOpenTools: () -> Unit = {},
+    pageState: MutableState<Page> = rememberSaveable { mutableStateOf(Page.Welcome) },
 ) {
-    var page by rememberSaveable { mutableStateOf(Page.Welcome) }
+    var page by pageState
     // The pages as at the start: the assistant page stays once Ferb is made the assistant from it, to say so.
     val heldAtStart by rememberSaveable { mutableStateOf(assistantHeld) }
     val pages = Page.shown(heldAtStart)
@@ -131,6 +139,10 @@ internal fun OnboardingFlow(
                                 recommended = ModelChoice.default(can), showReady = true, watch = geminiWatch)
                             Text(stringResource(PageText.MODEL_MORE), Modifier.padding(horizontal = 32.dp),
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Page.Tools -> {
+                            PageHeader(stringResource(PageText.TOOLS_TITLE), stringResource(PageText.TOOLS_BODY))
+                            FilledTonalButton(onClick = onOpenTools, Modifier.padding(horizontal = 32.dp)) { Text(stringResource(PageText.OPEN_TOOLS)) }
                         }
                         Page.Assistant -> {
                             PageHeader(stringResource(PageText.ASSISTANT_TITLE), stringResource(PageText.ASSISTANT_BODY))
@@ -216,9 +228,32 @@ internal fun openAssistantSettings(context: Context) {
     }
 }
 
-/** [OnboardingFlow] on the settings' state: the model choice as it is now, and what this phone can use. */
+/**
+ * [OnboardingFlow] on the settings' state: the model choice as it is now, and what this phone can
+ * use. The tools page's button opens Settings → Tools (and each tool's page) over it; back returns
+ * to the tools page. [onTry]: "Try it" on a tool's page, which ends setup in the chat.
+ */
 @Composable
-fun Onboarding(settings: SettingsViewModel, onDone: () -> Unit) {
+fun Onboarding(settings: SettingsViewModel, onDone: () -> Unit, onTry: (String) -> Unit = {}) {
+    val page = rememberSaveable { mutableStateOf(Page.Welcome) }
+    var stack by rememberSaveable { mutableStateOf(listOf(SETUP)) }
+    val open = { screen: String -> stack = stack + screen }
+    val back = { stack = stack.dropLast(1) }
+    NavStack(stack, onBack = back) { screen ->
+        when {
+            screen == SETUP -> SetupPages(settings, onDone, page, onOpenTools = { open("tools") })
+            screen == "tools" -> ToolsScreen(settings, onOpenTool = { open("tool:$it") }, onBack = back)
+            screen.startsWith("keywords:") -> KeywordsScreen(settings, screen.removePrefix("keywords:"), onBack = back)
+            else -> ToolConfigScreen(settings, screen.removePrefix("tool:"), onOpenKeywords = { open("keywords:" + screen.removePrefix("tool:")) },
+                onTry = onTry, onBack = back)
+        }
+    }
+}
+
+private const val SETUP = "setup"
+
+@Composable
+private fun SetupPages(settings: SettingsViewModel, onDone: () -> Unit, page: MutableState<Page>, onOpenTools: () -> Unit) {
     val context = LocalContext.current
     val chosen by settings.chosen.collectAsStateWithLifecycle()
     val gemini by settings.gemini.collectAsStateWithLifecycle()
@@ -242,5 +277,7 @@ fun Onboarding(settings: SettingsViewModel, onDone: () -> Unit) {
         onOpenAssistantSettings = { openAssistantSettings(context) },
         onDone = onDone,
         geminiWatch = watch,
+        onOpenTools = onOpenTools,
+        pageState = page,
     )
 }

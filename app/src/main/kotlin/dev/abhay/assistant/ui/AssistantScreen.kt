@@ -156,7 +156,7 @@ import androidx.compose.runtime.rememberUpdatedState
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, onOpenLink: () -> Unit = onOpenSettings, onOpenNotes: () -> Unit = {}, onOpenTools: () -> Unit = onOpenSettings) {
+fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, onOpenLink: () -> Unit = onOpenSettings, onOpenNotes: () -> Unit = {}) {
     val engine by viewModel.engine.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val enabled by viewModel.enabledTools.collectAsStateWithLifecycle()
@@ -210,7 +210,7 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
                 actions = {
                     // Notes, once there's a folder for them.
                     if (viewModel.notes.ready) IconButton(onClick = onOpenNotes) { Icon(painterResource(R.drawable.ic_note), contentDescription = stringResource(R.string.assistant_notes)) }
-                    IconButton(onClick = { seen(Tip.MoreTools); onOpenSettings() }) { Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.assistant_settings)) }
+                    IconButton(onClick = onOpenSettings) { Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.assistant_settings)) }
                     var menu by remember { mutableStateOf(false) }
                     Box {
                         IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.assistant_more)) }
@@ -265,7 +265,6 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
                     text = if (it.tip == Tip.Mic) Mic.tip(pipeline.audio) else it.tip.text,
                     action = when (it.tip) {
                         Tip.SuggestLink -> "Set up" to onOpenLink
-                        Tip.MoreTools -> stringResource(R.string.ui_show_me) to onOpenTools
                         else -> null
                     })
             }
