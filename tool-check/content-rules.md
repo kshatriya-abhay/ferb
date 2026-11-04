@@ -1,4 +1,4 @@
-# Content rules: scoring content-blind.txt
+# Content rules: scoring content-blind.txt and content-blind-2.txt
 
 The 0.2 issue: tools that carry the user's words (notes, reminders, messages, events, list items, alarm
 labels) must keep those words, and their language and script, after the rewrite step. `content-blind.txt`
@@ -67,6 +67,13 @@ The rows follow these, so arms are judged the same way:
   keys". "please" in front is accepted only where a row lists it.
 - Everything else the user said for the tool stays, including words that look like commands, names
   and relation words (Mausi, Jiju, Didi, Dr. Mehta), and numbers as written.
+
+## Control rows (content-blind-2.txt)
+
+Rows with "-" in `field` and `keep` carry no content: alarms, timers, volume, flashlight and media. They
+check that a fix for content doesn't hurt plain commands. Such a row passes when Ferb would run exactly
+one tool call, to the row's `tool`, with its `other` arguments matching (`percent=40`, `on=true`,
+`action=pause`). Times and lengths aren't scored here. Report control rows apart from content rows.
 
 ## Alarm labels
 

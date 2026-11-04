@@ -1,0 +1,74 @@
+# Content kept in the user's words, BLIND set 2: frozen, and kept from whoever tunes the fix. Nobody
+# opens it until the fix is final; then it is only scored. Written 2026-11-04 by the ferb-link session,
+# without seeing the content experiments or their results. New requests: none reuses or paraphrases
+# content-blind.txt. Weighted to Hinglish, Devanagari, transcribed speech, content that names other
+# tools, and recipients next to the content. Scoring: tool-check/content-rules.md, including its
+# "Control rows" section for the rows marked "-" in field.
+#
+# Format: id | tool | field | keep | alternatives | other | request   (split on " | " at most 6 times)
+# As content-blind.txt: one tool call expected, and any other tool call fails the row; "~"
+# alternatives are the same words in the other script; "other" is "name=value" pairs separated by
+# " ; ", with " || " alternatives. A control row has "-" in field and keep: only the tool call and
+# its "other" arguments are scored.
+#
+# Content that names another tool
+d01 | create_note | text | call Ravi tomorrow about the tiles | - | - | note: call Ravi tomorrow about the tiles
+d02 | create_note | text | set a 20 minute timer next time I boil eggs | set a 20-minute timer next time I boil eggs | - | jot down: set a 20 minute timer next time I boil eggs
+d03 | add_reminder | text | turn the volume down before the call with the client | - | - | remind me at 2:45 pm to turn the volume down before the call with the client
+d04 | send_text | message | open Google Maps and send me your live location | - | name=Varun | text Varun open Google Maps and send me your live location
+d05 | add_to_list | items | set up the alarm system, change the smoke detector battery | - | list=house | add set up the alarm system and change the smoke detector battery to the house list
+d06 | add_event | title | call with Meera to plan the trip | - | - | add call with Meera to plan the trip on Wednesday at 7 pm
+d07 | create_note | text | kal Pooja ko call karna hai cake ke baare mein | - | - | note likh do kal Pooja ko call karna hai cake ke baare mein
+d08 | add_reminder | text | Sonu ko message karna ki gaadi le aaye | Sonu ko message karna gaadi le aaye | - | 4 baje remind karo Sonu ko message karna ki gaadi le aaye
+d09 | create_note | text | अगली बार टाइमर लगाना, दाल जल गई थी | ~agli baar timer lagana, daal jal gayi thi | - | नोट करो अगली बार टाइमर लगाना, दाल जल गई थी
+d10 | send_text | message | torch jala ke neeche aao, seedhi pe andhera hai | - | name=Mintu | Mintu ko message bhejo torch jala ke neeche aao, seedhi pe andhera hai
+d11 | create_note | text | play the slow version of the song at the wedding | - | - | make a note: play the slow version of the song at the wedding
+#
+# Recipients next to the content
+d12 | send_text | message | Dad is calling you, pick up | Dad is calling you pick up | name=Mom | text Mom that Dad is calling you, pick up
+d13 | send_text | message | Priya ko call kar lena, wo wait kar rahi hai | - | name=Rahul | Rahul ko bolo Priya ko call kar lena, wo wait kar rahi hai
+d14 | send_text | message | Neha didi ki train late hai, station mat jaana abhi | - | name=Kunal | Kunal ko message karo Neha didi ki train late hai, station mat jaana abhi
+d15 | send_text | message | tell Arjun I said thanks for the books | - | name=Kavya | text Kavya tell Arjun I said thanks for the books
+d16 | send_text | message | Mamaji aa rahe hain Sunday ko, ghar saaf rakhna | - | name=Tinku | Tinku ko SMS bhejo Mamaji aa rahe hain Sunday ko, ghar saaf rakhna
+d17 | send_text | message | भाभी को बोलना मैं शाम को आऊँगा | ~bhabhi ko bolna main shaam ko aaunga | name=भैया || Bhaiya | भैया को मैसेज करो भाभी को बोलना मैं शाम को आऊँगा
+d18 | add_reminder | text | Nikhil se Ananya ka number lena | - | - | parso shaam ko yaad dilana Nikhil se Ananya ka number lena
+d19 | send_text | message | Sir, Rohan aaj half day lega, uski tabiyat theek nahi | - | name=Bose sir || Bose | Bose sir ko message bhejo Sir, Rohan aaj half day lega, uski tabiyat theek nahi
+d20 | send_text | message | Chhavi ke papa ka phone aaya tha, unhe call back karo | - | name=Sakshi | Sakshi ko text karo Chhavi ke papa ka phone aaya tha, unhe call back karo
+#
+# Hinglish in Latin letters, typed
+d21 | create_note | text | Bittu ki tuition fees 1800 har mahine, 5 tareekh tak | - | - | note kar lo Bittu ki tuition fees 1800 har mahine, 5 tareekh tak
+d22 | add_reminder | text | press wale se kapde wapas lene hain | - | - | kal shaam yaad dila dena press wale se kapde wapas lene hain
+d23 | add_to_list | items | sarson ka tel, besan, jeera | - | list=kirana || grocery | kirana list mein sarson ka tel, besan aur jeera likh do
+d24 | add_event | title | Sneha aur Aditya ki engagement | - | - | 9 tareekh ko Sneha aur Aditya ki engagement calendar mein daalo
+d25 | add_reminder | text | Masi ji ko anniversary wish karna | - | - | 12 tareekh subah yaad dilana Masi ji ko anniversary wish karna
+d26 | create_note | text | plumber ne bola tanki ka valve 450 ka aayega | - | - | likh ke rakh lo plumber ne bola tanki ka valve 450 ka aayega
+d27 | send_text | message | aaj dinner pe mat ruko, mujhe der ho jaayegi | - | name=Anjali | Anjali ko message bhejo aaj dinner pe mat ruko, mujhe der ho jaayegi
+#
+# Hindi in Devanagari, typed
+d28 | add_reminder | text | बिजली वाले को 600 रुपये देने हैं | बिजली वाले को ६०० रुपये देने हैं || ~bijli wale ko 600 rupaye dene hain | - | मंगलवार को याद दिलाना बिजली वाले को 600 रुपये देने हैं
+d29 | create_note | text | मौसी का नया पता: 7, शांति नगर, गली नंबर 3 | ~mausi ka naya pata: 7, shanti nagar, gali number 3 | - | नोट करो मौसी का नया पता: 7, शांति नगर, गली नंबर 3
+d30 | send_text | message | खाना फ्रिज में रखा है, गरम कर लेना | ~khana fridge mein rakha hai, garam kar lena | name=बेटा || Beta | बेटा को मैसेज भेजो खाना फ्रिज में रखा है, गरम कर लेना
+d31 | add_to_list | items | चावल, मूंग दाल, घी | ~chawal, moong daal, ghee | list=राशन || ration | राशन की लिस्ट में चावल, मूंग दाल और घी डाल दो
+d32 | add_event | title | नानी के घर पूजा | ~nani ke ghar pooja | - | रविवार सुबह 10 बजे नानी के घर पूजा कैलेंडर में जोड़ दो
+d33 | add_reminder | text | पापा का चश्मा ठीक करवाना | ~papa ka chashma theek karwana | - | कल दोपहर याद दिलाना पापा का चश्मा ठीक करवाना
+d34 | create_note | text | अलार्म घड़ी की बैटरी खत्म है, नई लानी है | ~alarm ghadi ki battery khatam hai, nayi laani hai | - | लिख लो अलार्म घड़ी की बैटरी खत्म है, नई लानी है
+#
+# As transcribed: lowercase, no punctuation, numbers as words, fillers
+d35 | create_note | text | locker code is seven three nine one | locker code is 7391 | - | note that uh locker code is seven three nine one
+d36 | send_text | message | i forgot my charger can you bring it | - | name=ishita | send ishita a message i forgot my charger can you bring it
+d37 | add_reminder | text | aunty ko paise lautane hain | - | - | um kal yaad dilana aunty ko paise lautane hain
+d38 | send_text | message | mummy keh rahi hai sabzi le aana | - | name=papa | papa ko message bhejo mummy keh rahi hai sabzi le aana
+d39 | create_note | text | car ki insurance agle mahine khatam ho rahi hai | - | - | note karo car ki insurance agle mahine khatam ho rahi hai
+d40 | add_to_list | items | detergent, toothpaste, shampoo | - | list=shopping | add detergent toothpaste and shampoo to my shopping list
+d41 | send_text | message | music band kar do so jao ab | - | name=golu | golu ko message karo music band kar do so jao ab
+d42 | add_reminder | text | gaas ka bill pachchis sau | gas ka bill pachchis sau || gaas ka bill 2500 | - | parso subah yaad dilana gaas ka bill pachchis sau
+#
+# Control rows: no content; scored on the tool call and "other" only
+d43 | set_timer | - | - | - | - | set a timer for 12 minutes
+d44 | set_alarm | - | - | - | - | kal subah 6 baje ka alarm laga do
+d45 | set_volume | - | - | - | percent=40 | volume 40 percent kar do
+d46 | set_flashlight | - | - | - | on=true | torch on karo
+d47 | control_media | - | - | - | action=pause | gaana rok do
+d48 | set_timer | - | - | - | - | पाँच मिनट का टाइमर लगाओ
+d49 | set_volume | - | - | - | percent=0 | um mute the phone
+d50 | set_alarm | - | - | - | - | wake me up at seven thirty tomorrow
