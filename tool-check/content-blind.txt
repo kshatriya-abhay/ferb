@@ -3,8 +3,8 @@
 # prompt changes or other sets for this issue. Scoring: tool-check/content-rules.md.
 #
 # Format: id | tool | field | keep | alternatives | other | request   (split on " | " at most 6 times)
-# - tool: the one call expected. No other call may be made (content that reads like a command stays
-#   content).
+# - tool: the call expected. Only its content is scored; the number of model and tool calls is recorded,
+#   not scored (content-rules.md).
 # - field: the argument that holds the content: text (create_note, add_reminder), message (send_text),
 #   title (add_event), items (add_to_list), label (set_alarm; see the rules).
 # - keep: the content as it should reach the tool, in the user's words, language and script.

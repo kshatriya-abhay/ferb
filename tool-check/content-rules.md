@@ -9,13 +9,13 @@ fixed in its own commit with the reason, as with `datetime-blind.txt`.
 ## What a row checks
 
 Run the request through the arm under test, end to end, as Ferb would: hearing (for typed rows there's
-none), the rewrite if the arm has one, then the tool call. Then score the calls Ferb would run:
+none), the rewrite if the arm has one (in one model call or several), then the tool call. Only the
+content is scored; how many calls it took is recorded, not judged (see Recorded, not scored):
 
-1. **Tool:** exactly one call, to the row's `tool`. A second call (a timer, alarm, flashlight, volume or
-   media call made from words inside the content) is a failure, reported as **extra call**.
+1. **Tool:** a call to the row's `tool` is among the calls Ferb would run.
 2. **Other arguments:** each `other` argument matches one of its values, after normalising (below).
    Times and days are not scored here; `datetime-blind.txt` covers them.
-3. **Content:** the `field` argument, after normalising, equals `keep` or one of the `alternatives`.
+3. **Content:** that call's `field` argument, after normalising, equals `keep` or one of the `alternatives`.
    - A match with `keep` or a plain alternative: **kept**.
    - A match only with a `~` alternative (the same words in the other script): **kept, script changed**.
    - Otherwise one of the failures below.
@@ -48,7 +48,6 @@ unless listed: the user's own spelling is their words.
 - **trimmed:** words of the content are missing (a name, a relation word, a number, a clause).
 - **added:** words not in the request were added ("please", "appointment", a reworded opening).
 - **reworded:** the same meaning in different words, with nothing trimmed or added overall.
-- **command executed:** the content's command-like words became their own call (see Tool above).
 - **wrong field or no call.**
 
 A row can show more than one kind; report each.
@@ -71,9 +70,20 @@ The rows follow these, so arms are judged the same way:
 rows (c25–c27, c56, c57, c76, c93) are reported as **no label field** and left out of the content
 score. The tool and extra-call checks still apply.
 
+## Recorded, not scored
+
+Per row, as their own columns, so an approach's cost can be weighed apart from its accuracy:
+- **model calls:** how many model calls the arm made for the row (a rewrite and a second, narrower call
+  for the content count 2);
+- **latency:** from the request to the tool call, in ms, and the model calls' share of it;
+- **tool calls:** how many tool calls Ferb would run, and which. A call besides the row's `tool` (a
+  timer, alarm, flashlight, volume or media call made from words inside the content) is listed as
+  **extra tool call**, without failing the row.
+
 ## Reporting
 
 For each arm: rows passed out of the rows scored, kept-with-script-changed apart, and the count of each
-failure kind. Also the same split by section (English; Hinglish in Latin; Devanagari; as transcribed),
+failure kind; the median and 90th-percentile latency and model calls per row; and the rows with an extra
+tool call. Also the same split by section (English; Hinglish in Latin; Devanagari; as transcribed),
 and the row ids of every failure, so the set can be compared across arms without reading the rows
 into a prompt.
