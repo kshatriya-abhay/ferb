@@ -1,0 +1,118 @@
+# Content kept in the user's words, BLIND set: frozen. Nobody tunes a prompt, rule or check on it; it is
+# only scored. Written 2026-11-04 by the ferb-link session, without seeing the content experiments,
+# prompt changes or other sets for this issue. Scoring: tool-check/content-rules.md.
+#
+# Format: id | tool | field | keep | alternatives | other | request   (split on " | " at most 6 times)
+# - tool: the one call expected. No other call may be made (content that reads like a command stays
+#   content).
+# - field: the argument that holds the content: text (create_note, add_reminder), message (send_text),
+#   title (add_event), items (add_to_list), label (set_alarm; see the rules).
+# - keep: the content as it should reach the tool, in the user's words, language and script.
+# - alternatives: other accepted forms, separated by " || ", or "-". A form starting with "~" is the
+#   same words in the other script: accepted, but counted as "script changed".
+# - other: the call's other arguments that are scored, "name=value", several separated by " ; ",
+#   values with " || " alternatives; or "-". Times and days aren't scored here.
+# - request: as a person would type it, or as speech comes out of transcription (lowercase, no
+#   punctuation, numbers as words, fillers).
+#
+# English, typed
+c01 | create_note | text | buy a new charger for the laptop | - | - | note: buy a new charger for the laptop
+c02 | create_note | text | the wifi password for the guest network is on the fridge | - | - | make a note that the wifi password for the guest network is on the fridge
+c03 | create_note | text | ideas for Priya's birthday: a plant, a book by Murakami, and the blue scarf | - | - | write down ideas for Priya's birthday: a plant, a book by Murakami, and the blue scarf
+c04 | create_note | text | set an alarm on the oven before the bread goes in | - | - | note to self: set an alarm on the oven before the bread goes in
+c05 | create_note | text | turn off the geyser after 10 minutes | - | - | take a note saying turn off the geyser after 10 minutes
+c06 | add_reminder | text | call mom | - | - | remind me to call mom at 6 pm
+c07 | add_reminder | text | tell him to set an alarm for the flight | - | - | remind me tomorrow morning to tell him to set an alarm for the flight
+c08 | add_reminder | text | pay the electricity bill of 2,340 rupees | pay the electricity bill of ₹2,340 || pay the electricity bill of Rs 2,340 | - | remind me on Friday to pay the electricity bill of 2,340 rupees
+c09 | add_reminder | text | take the blue pill, not the white one | - | - | remind me at 9 pm to take the blue pill, not the white one
+c10 | add_reminder | text | turn on the flashlight when the power goes | - | - | remind me at 8 to turn on the flashlight when the power goes
+c11 | add_reminder | text | ask Dr. Mehta about the 2nd dose | ask Dr. Mehta about the second dose | - | remind me next Monday to ask Dr. Mehta about the 2nd dose
+c12 | send_text | message | I'll be 15 minutes late | I will be 15 minutes late | name=Rahul | text Rahul I'll be 15 minutes late
+c13 | send_text | message | can you set an alarm for me at 5, my phone is dead | - | name=Aman | message Aman: can you set an alarm for me at 5, my phone is dead
+c14 | send_text | message | happy anniversary, dinner is on us this Saturday | - | name=Didi | text Didi happy anniversary, dinner is on us this Saturday
+c15 | send_text | message | bring the keys, I'm locked out | please bring the keys, I'm locked out | name=Neha | tell Neha to bring the keys, I'm locked out
+c16 | send_text | message | open the camera app and send me the photo of the whiteboard | - | name=Karan | text Karan open the camera app and send me the photo of the whiteboard
+c17 | send_text | message | call me when you land | - | name=Papa | send a message to Papa: call me when you land
+c18 | add_event | title | Riya's parent-teacher meeting | - | - | add Riya's parent-teacher meeting on Thursday at 4 pm
+c19 | add_event | title | dentist with Dr. Iyer | dentist appointment with Dr. Iyer | - | put dentist with Dr. Iyer on my calendar for 12 March at 11
+c20 | add_event | title | flight AI 302 to Bengaluru | flight AI302 to Bengaluru | - | add an event: flight AI 302 to Bengaluru, Sunday 6:40 am
+c21 | add_to_list | items | milk, eggs, brown bread | - | list=shopping | add milk, eggs and brown bread to the shopping list
+c22 | add_to_list | items | batteries for the remote | - | list=shopping | put batteries for the remote on my shopping list
+c23 | add_to_list | items | Atomic Habits, The Alchemist | - | list=books | add Atomic Habits and The Alchemist to my books list
+c24 | add_to_list | items | call the plumber, renew the car insurance | - | list=to-do || todo | add call the plumber and renew the car insurance to my to-do list
+c25 | set_alarm | label | gym | - | - | set an alarm for 6 am called gym
+c26 | set_alarm | label | take the cake out of the oven | - | - | alarm at 4:30 pm labelled take the cake out of the oven
+c27 | set_alarm | label | school bus | the school bus | - | wake me up at 6:15 for the school bus
+c28 | create_note | text | meeting notes, the vendor will deliver 40 chairs on the 3rd, payment of 60 percent upfront and the rest after installation, and Suresh will check the invoice before Friday | meeting notes, the vendor will deliver 40 chairs on the 3rd, payment of 60% upfront and the rest after installation, and Suresh will check the invoice before Friday | - | note this down: meeting notes, the vendor will deliver 40 chairs on the 3rd, payment of 60 percent upfront and the rest after installation, and Suresh will check the invoice before Friday
+c29 | send_text | message | Hi Ma'am, Aarav has a fever since last night so he won't come to school today. I'll send the leave application tomorrow | - | name=Class Teacher | send a text to Class Teacher: Hi Ma'am, Aarav has a fever since last night so he won't come to school today. I'll send the leave application tomorrow
+c30 | add_reminder | text | renew the passport, it expires on 14 June and the appointment needs the old passport, two photos and the address proof | - | - | remind me on 1 May to renew the passport, it expires on 14 June and the appointment needs the old passport, two photos and the address proof
+c31 | create_note | text | 4417 | - | - | note down 4417
+c32 | add_to_list | items | ghee | - | list=grocery | add ghee to grocery
+c33 | send_text | message | ok | okay | name=Bhaiya | text Bhaiya ok
+c34 | create_note | text | open settings, then Wi-Fi, then forget the old network | open settings, then WiFi, then forget the old network | - | note the steps: open settings, then Wi-Fi, then forget the old network
+c35 | add_reminder | text | set a timer for the pressure cooker, 3 whistles | - | - | remind me at 1 pm to set a timer for the pressure cooker, 3 whistles
+c36 | send_text | message | turn off the music and go to sleep | please turn off the music and go to sleep | name=Ishaan | tell Ishaan to turn off the music and go to sleep
+c37 | add_reminder | text | remind Papa to take his BP tablet | - | - | remind me at 8 to remind Papa to take his BP tablet
+c38 | create_note | text | call Ravi and ask him to text me the address | - | - | create a note call Ravi and ask him to text me the address
+c39 | add_reminder | text | wish Mausi on her anniversary | - | - | remind me on 5 Jan to wish Mausi on her anniversary
+c40 | create_note | text | Mama's new address is 14 B, Green Park, near the Gurudwara | - | - | note: Mama's new address is 14 B, Green Park, near the Gurudwara
+#
+# Hinglish and Hindi in Latin letters, typed
+c41 | create_note | text | Sharma ji ka number 98201 55432 hai | - | - | note kar lo Sharma ji ka number 98201 55432 hai
+c42 | create_note | text | gas cylinder ki booking number 2231 hai | - | - | likh lo gas cylinder ki booking number 2231 hai
+c43 | add_reminder | text | mummy ko dawai dena | mummy ko dawai deni hai | - | raat 9 baje yaad dilana mummy ko dawai dena
+c44 | add_reminder | text | bijli ka bill bharna | bijli ka bill bharna hai | - | kal subah bijli ka bill bharna yaad dila dena
+c45 | add_reminder | text | Raju ko bolna ki alarm laga de | Raju ko bolna alarm laga de | - | shaam 7 baje remind karna Raju ko bolna ki alarm laga de
+c46 | add_reminder | text | torch wapas karna Ankit ko | Ankit ko torch wapas karna | - | remind me kal to torch wapas karna Ankit ko
+c47 | send_text | message | main 10 minute mein pahunch raha hoon | - | name=Rohit | Rohit ko message bhejo main 10 minute mein pahunch raha hoon
+c48 | send_text | message | khana mat banana, hum bahar kha rahe hain | - | name=Mummy | Mummy ko text karo khana mat banana, hum bahar kha rahe hain
+c49 | send_text | message | gaana band karo, baby so raha hai | - | name=Vicky | Vicky ko message karo gaana band karo, baby so raha hai
+c50 | send_text | message | kal ki meeting 11 baje se 12 baje kar do | - | name=Gupta sir || Gupta | Gupta sir ko message bhejo kal ki meeting 11 baje se 12 baje kar do
+c51 | send_text | message | bhai paise transfer kar diye, check kar lena | - | name=Sunny | Sunny ko bolo bhai paise transfer kar diye, check kar lena
+c52 | add_to_list | items | aata, chini, haldi | - | list=shopping | shopping list mein aata, chini aur haldi daal do
+c53 | add_to_list | items | Nani ke liye shawl | - | list=gifts | gifts list mein Nani ke liye shawl add karo
+c54 | add_event | title | Pinky ki shaadi ka sangeet | - | - | 18 tareekh ko shaam 7 baje Pinky ki shaadi ka sangeet calendar mein daal do
+c55 | add_event | title | Chachu ke saath lunch | - | - | Sunday dopahar 1 baje Chachu ke saath lunch add karo
+c56 | set_alarm | label | namaz | namaz ke liye | - | subah 5 baje ka alarm lagao namaz ke liye
+c57 | set_alarm | label | dawai | dawai ke liye | - | 2 baje alarm lagao dawai ke liye
+c58 | create_note | text | yaad rakhna, flashlight drawer mein hai aur extra cell almari mein | flashlight drawer mein hai aur extra cell almari mein | - | note karo yaad rakhna, flashlight drawer mein hai aur extra cell almari mein
+c59 | create_note | text | volume 30 pe rakhna hai meeting mein | - | - | ek note bana do volume 30 pe rakhna hai meeting mein
+c60 | add_reminder | text | Dadi ka birthday gift lena, 2000 tak ka | Dadi ka birthday gift lena, do hazaar tak ka | - | parso yaad dilana Dadi ka birthday gift lena, 2000 tak ka
+c61 | send_text | message | ghar pe koi nahi hai, chabi padosi ke paas hai | - | name=Didi | Didi ko SMS karo ghar pe koi nahi hai, chabi padosi ke paas hai
+c62 | add_reminder | text | Bunty ko 500 rupaye wapas dene hain | - | - | Friday ko yaad dilana Bunty ko 500 rupaye wapas dene hain
+c63 | send_text | message | meeting postpone ho gayi hai, new time 3:30 PM | - | name=Sanjay | Sanjay ko text karo meeting postpone ho gayi hai, new time 3:30 PM
+c64 | send_text | message | Jiju se poochna ki Dubai wali flight kab hai | - | name=Didi | Didi ko message bhejo Jiju se poochna ki Dubai wali flight kab hai
+c65 | add_reminder | text | Tanvi ki fees bharna aur Kabir ka form submit karna | - | - | Monday ko ek hi reminder mein yaad dilana Tanvi ki fees bharna aur Kabir ka form submit karna
+c66 | add_to_list | items | eggs | - | list=shopping | shopping list mein eggs daal do
+#
+# Hindi in Devanagari, typed
+c67 | create_note | text | दूध वाले का हिसाब 1250 रुपये | दूध वाले का हिसाब १२५० रुपये || ~doodh wale ka hisaab 1250 rupaye | - | नोट करो दूध वाले का हिसाब 1250 रुपये
+c68 | add_reminder | text | माँ को फ़ोन करना | ~maa ko phone karna | - | शाम 6 बजे याद दिलाना माँ को फ़ोन करना
+c69 | add_reminder | text | गैस का सिलेंडर बुक करना | ~gas ka cylinder book karna | - | कल सुबह गैस का सिलेंडर बुक करना याद दिलाना
+c70 | send_text | message | मैं ट्रेन में हूँ, बाद में बात करता हूँ | ~main train mein hoon, baad mein baat karta hoon | name=पापा || Papa | पापा को मैसेज भेजो मैं ट्रेन में हूँ, बाद में बात करता हूँ
+c71 | send_text | message | अलार्म लगा के सोना, कल जल्दी निकलना है | ~alarm laga ke sona, kal jaldi nikalna hai | name=गोलू || Golu | गोलू को मैसेज करो अलार्म लगा के सोना, कल जल्दी निकलना है
+c72 | add_to_list | items | आलू, प्याज़, टमाटर | ~aloo, pyaaz, tamatar | list=सब्ज़ी || sabzi | सब्ज़ी की लिस्ट में आलू, प्याज़ और टमाटर जोड़ो
+c73 | add_event | title | भैया का जन्मदिन | ~bhaiya ka janmdin | - | 22 तारीख को भैया का जन्मदिन कैलेंडर में डालो
+c74 | create_note | text | बैंक लॉकर की चाबी नीली डायरी में है | ~bank locker ki chaabi neeli diary mein hai | - | नोट बना दो बैंक लॉकर की चाबी नीली डायरी में है
+c75 | add_reminder | text | दादी की दवाई लानी है | ~dadi ki dawai laani hai | - | शनिवार को याद दिलाना दादी की दवाई लानी है
+c76 | set_alarm | label | पूजा | पूजा के लिए || ~pooja || ~puja | - | सुबह 6 बजे का अलार्म लगाओ पूजा के लिए
+c77 | send_text | message | रास्ते में हूँ, 20 मिनट में पहुँचूँगा | रास्ते में हूँ, २० मिनट में पहुँचूँगा | name=अमित || Amit | अमित को लिखो रास्ते में हूँ, 20 मिनट में पहुँचूँगा
+c78 | create_note | text | ड्राइवर का नंबर 98765 43210 | - | - | लिख लो ड्राइवर का नंबर 98765 43210
+c79 | add_reminder | text | टॉर्च की बैटरी बदलनी है | ~torch ki battery badalni hai | - | रात 8 बजे याद दिलाना टॉर्च की बैटरी बदलनी है
+c80 | send_text | message | हाँ | ~haan || ~han | name=माँ || Maa | माँ को मैसेज करो हाँ
+#
+# As transcribed: lowercase, no punctuation, numbers as words, fillers
+c81 | add_reminder | text | call the bank about the credit card | - | - | remind me um tomorrow at ten to call the bank about the credit card
+c82 | create_note | text | the parking spot is b two level three | the parking spot is b2 level 3 | - | make a note the parking spot is b two level three
+c83 | send_text | message | where are you i am waiting at gate number four | where are you i am waiting at gate number 4 | name=arjun | send a message to arjun where are you i am waiting at gate number four
+c84 | send_text | message | set the alarm for five thirty i will wake you | set the alarm for 5:30 i will wake you | name=kabir | text kabir set the alarm for five thirty i will wake you
+c85 | add_reminder | text | papa ko station lene jaana hai | - | - | kal subah saat baje yaad dilana papa ko station lene jaana hai
+c86 | send_text | message | main nikal gaya hoon aadhe ghante mein aa jaunga | - | name=mummy | mummy ko message bhejo main nikal gaya hoon aadhe ghante mein aa jaunga
+c87 | create_note | text | pintu ke school ki fees teen hazaar paanch sau | pintu ke school ki fees 3500 | - | note karo pintu ke school ki fees teen hazaar paanch sau
+c88 | add_to_list | items | doodh, dahi, paneer | - | list=shopping | shopping list mein doodh dahi aur paneer add kar do
+c89 | add_reminder | text | gaadi ki service karwani hai | - | - | agle mangalvaar ko yaad dilana gaadi ki service karwani hai
+c90 | send_text | message | flashlight on karke rakhna light chali gayi hai | - | name=chotu | chotu ko message karo flashlight on karke rakhna light chali gayi hai
+c91 | create_note | text | rent ke liye bees hazaar aur maintenance ke do hazaar | rent ke liye 20000 aur maintenance ke 2000 | - | note kar lo rent ke liye bees hazaar aur maintenance ke do hazaar
+c92 | add_event | title | doctor ke paas checkup | - | - | parso subah das baje doctor ke paas checkup add karo calendar mein
+c93 | set_alarm | label | medicine | - | - | set an alarm at nine pm for medicine
+c94 | send_text | message | uh bhaiya maine paise bhej diye hain | bhaiya maine paise bhej diye hain | name=ramesh | ramesh ko message bhejo uh bhaiya maine paise bhej diye hain
