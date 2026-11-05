@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- With Gemini Nano, voice waits 2.2 s after its last words, not 2 s, so a pause mid-sentence doesn't send the request early.
+
 ## 0.1.1
 
 - Voice waits for your pauses: a spoken request is sent after 1.8 s of silence (2.5 s while you're starting), not 1 s, and short words after a pause keep it listening. With Gemini Nano, 2 s after its last words.

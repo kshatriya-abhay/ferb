@@ -67,8 +67,15 @@ class Endpoint(
          * period, 1 at most (EndpointReplayTest). It was 2 s until 2026-10-25.
          */
         const val SILENCE_MS = 1_800L
-        /** Gemini Nano: 2 s after its last response, as its partials lag the speech and come in bursts. */
-        const val NANO_SILENCE_MS = 2_000L
+        /**
+         * Gemini Nano: 2.2 s after its last response (2026-11-06, from 2 s). The voice bench's 81
+         * clips through Nano (the content probe's GapProbeTest, build/voice/gaps.jsonl): during
+         * speech a response came about every 1.1 s (median 1097 ms, 90th 1198 ms), but one clip's
+         * mid-sentence pause left 1997 ms between them, 3 ms inside 2 s. Repeated responses count
+         * as speech: without them two clips go over 2 s. After the speech Nano repeats for up to
+         * 1.2 s, then is silent until stopped.
+         */
+        const val NANO_SILENCE_MS = 2_200L
         /** The silence allowed while less than [GRACE_UNTIL_MS] of speech has been heard. */
         const val GRACE_MS = 2_500L
         const val GRACE_UNTIL_MS = 1_500L

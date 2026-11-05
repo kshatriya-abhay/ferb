@@ -99,14 +99,25 @@ class EndpointerTest {
         endpoint.speech(1_400) // a newer response: 0.9 s heard, so the 2.5 s grace period
         assertThat(endpoint.decide(3_800)).isEqualTo(Decision.Continue)
         assertThat(endpoint.decide(3_900)).isEqualTo(Decision.End)
-        endpoint.speech(2_500) // 2 s heard: 2 s now
-        assertThat(endpoint.decide(4_400)).isEqualTo(Decision.Continue)
-        assertThat(endpoint.decide(4_500)).isEqualTo(Decision.End)
+        endpoint.speech(2_500) // 2 s heard: 2.2 s now
+        assertThat(endpoint.decide(4_600)).isEqualTo(Decision.Continue)
+        assertThat(endpoint.decide(4_700)).isEqualTo(Decision.End)
         // ✓'s progress: nothing in a short pause, then filling over the window.
         assertThat(endpoint.sending(2_600)).isNull()
-        assertThat(endpoint.sending(3_500)).isWithin(0.01f).of(0.5f)
+        assertThat(endpoint.sending(3_600)).isWithin(0.01f).of(0.5f)
         assertThat(endpoint.sending(9_000)).isEqualTo(1f)
         assertThat(Endpoint().decide(8_000)).isEqualTo(Decision.NoSpeech)
+    }
+
+    @Test
+    fun geminiNanoWaitsThroughTheLongestPauseSeen() {
+        // e1793297678356 in build/voice/gaps.jsonl: responses at 4918 and 6915 ms, a pause mid-sentence.
+        val endpoint = Endpoint(silenceMs = Endpoint.NANO_SILENCE_MS)
+        for (at in listOf(1_119L, 2_222L, 3_023L, 4_113L, 4_918L)) endpoint.speech(at)
+        // Real requests pause longer than read-aloud cards: 100 ms more than that still waits.
+        assertThat(endpoint.decide(4_918 + 1_997 + 100)).isEqualTo(Decision.Continue)
+        endpoint.speech(6_915)
+        assertThat(endpoint.decide(6_915 + Endpoint.NANO_SILENCE_MS)).isEqualTo(Decision.End)
     }
 
     @Test
