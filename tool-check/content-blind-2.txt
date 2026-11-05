@@ -65,7 +65,7 @@ d42 | add_reminder | text | gaas ka bill pachchis sau | gas ka bill pachchis sau
 #
 # Control rows: no content; scored on the tool call and "other" only
 d43 | set_timer | - | - | - | - | set a timer for 12 minutes
-d44 | set_alarm | - | - | - | - | kal subah 6 baje ka alarm laga do
+d44 | set_alarm | - | - | - | - | parso 5:15 ka alarm set karo
 d45 | set_volume | - | - | - | percent=40 | volume 40 percent kar do
 d46 | set_flashlight | - | - | - | on=true | torch on karo
 d47 | control_media | - | - | - | action=pause | gaana rok do
