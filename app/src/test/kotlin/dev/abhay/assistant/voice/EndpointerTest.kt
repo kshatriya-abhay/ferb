@@ -7,7 +7,7 @@ import kotlin.math.sin
 import kotlin.random.Random
 import org.junit.Test
 
-/** Auto-send: speech, then 1 s of silence, ends a request; no speech in 8 s gives up; a shorter pause, a click don't. */
+/** Auto-send: speech, then 1.8 s of silence (2.5 s near the start), ends a request; no speech in 8 s gives up; a shorter pause, a click don't. */
 class EndpointerTest {
     private val rate = 16_000
     private val random = Random(7)
@@ -45,18 +45,42 @@ class EndpointerTest {
     }
 
     @Test
-    fun speechThenASecondOfSilenceEnds() {
-        val decisions = run(noise(500), speech(1_200), noise(2_500))
+    fun speechThenSilenceEnds() {
+        val decisions = run(noise(500), speech(2_000), noise(3_000))
         val end = decisions.first { it.second != Decision.Continue }
         assertThat(end.second).isEqualTo(Decision.End)
-        // About 1 s after the speech stopped (at 1.7 s).
-        assertThat(end.first).isIn(com.google.common.collect.Range.closed(2_600L, 2_900L))
+        // About 1.8 s after the speech stopped (at 2.5 s).
+        assertThat(end.first).isIn(com.google.common.collect.Range.closed(4_300L, 4_500L))
     }
 
     @Test
-    fun aPauseShorterThanASecondKeepsListening() {
-        val decisions = run(noise(500), speech(1_000), noise(700), speech(1_000), noise(600))
+    fun aShortStartGetsTheGracePeriod() {
+        // 1 s of speech (under 1.5 s heard), then quiet: 2.5 s, not 1.8 s.
+        val decisions = run(noise(500), speech(1_000), noise(3_500))
+        val end = decisions.first { it.second != Decision.Continue }
+        assertThat(end.second).isEqualTo(Decision.End)
+        assertThat(end.first).isIn(com.google.common.collect.Range.closed(4_000L, 4_200L))
+    }
+
+    @Test
+    fun aPauseShorterThanTheWindowKeepsListening() {
+        val decisions = run(noise(500), speech(2_000), noise(1_600), speech(1_000), noise(1_500))
         assertThat(decisions.map { it.second }.toSet()).containsExactly(Decision.Continue)
+    }
+
+    @Test
+    fun aShortWordAfterAPauseKeepsListening() {
+        // A 150 ms word ("uh") 1.2 s into a pause: under the 300 ms onset, but speech has been heard.
+        val decisions = run(noise(500), speech(2_000), noise(1_200), speech(150), noise(1_200), speech(1_000), noise(500))
+        assertThat(decisions.map { it.second }.toSet()).containsExactly(Decision.Continue)
+    }
+
+    @Test
+    fun aShortSoundFirstIsNotSpeech() {
+        // The first onset still needs 300 ms: 150 ms alone isn't speech.
+        val vad = EnergyVad(rate)
+        vad.feed(noise(500) + speech(150) + noise(2_000))
+        assertThat(vad.endpoint.heardSpeech).isFalse()
     }
 
     @Test
@@ -67,17 +91,20 @@ class EndpointerTest {
     }
 
     @Test
-    fun geminiNanosPartialResultsAreItsSpeech() {
-        val endpoint = Endpoint()
+    fun geminiNanosResponsesAreItsSpeech() {
+        val endpoint = Endpoint(silenceMs = Endpoint.NANO_SILENCE_MS)
         assertThat(endpoint.decide(7_900)).isEqualTo(Decision.Continue)
         assertThat(endpoint.sending(1_000)).isNull()
         endpoint.speech(500)
-        endpoint.speech(1_400) // a newer partial result
-        assertThat(endpoint.decide(2_300)).isEqualTo(Decision.Continue)
-        assertThat(endpoint.decide(2_400)).isEqualTo(Decision.End)
-        // ✓'s progress: nothing in a short pause, then filling over the second.
-        assertThat(endpoint.sending(1_500)).isNull()
-        assertThat(endpoint.sending(1_900)).isWithin(0.01f).of(0.5f)
+        endpoint.speech(1_400) // a newer response: 0.9 s heard, so the 2.5 s grace period
+        assertThat(endpoint.decide(3_800)).isEqualTo(Decision.Continue)
+        assertThat(endpoint.decide(3_900)).isEqualTo(Decision.End)
+        endpoint.speech(2_500) // 2 s heard: 2 s now
+        assertThat(endpoint.decide(4_400)).isEqualTo(Decision.Continue)
+        assertThat(endpoint.decide(4_500)).isEqualTo(Decision.End)
+        // ✓'s progress: nothing in a short pause, then filling over the window.
+        assertThat(endpoint.sending(2_600)).isNull()
+        assertThat(endpoint.sending(3_500)).isWithin(0.01f).of(0.5f)
         assertThat(endpoint.sending(9_000)).isEqualTo(1f)
         assertThat(Endpoint().decide(8_000)).isEqualTo(Decision.NoSpeech)
     }

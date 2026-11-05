@@ -323,7 +323,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     private fun startPhoneRecording() {
         val startedAt = SystemClock.elapsedRealtime()
         _state.update { it.copy(voice = Voice.Recording(startedAt, onPhone = true), notice = null) }
-        // Auto-send: speech, then 1 s of silence ([Endpoint.SILENCE_MS]), sends it; no speech in 8 s stops it, sending nothing.
+        // Auto-send: speech, then 1.8 s of silence ([Endpoint.SILENCE_MS]; 2.5 s near the start), sends it; no speech in 8 s stops it, sending nothing.
         val vad = EnergyVad()
         var decided = false
         val job = viewModelScope.async {
@@ -381,7 +381,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         else s.copy(voice = r.copy(sendingIn = sending))
     }
 
-    /** The endpointer's call: a second of silence after speech sends it, as ✓ would; no speech, nothing. */
+    /** The endpointer's call: silence after speech ([Endpoint]) sends it, as ✓ would; no speech, nothing. */
     private fun autoStop(decision: Endpoint.Decision) {
         if (_state.value.voice !is Voice.Recording) return
         when (decision) {
@@ -420,13 +420,12 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             val listening = SystemClock.elapsedRealtime()
             var firstWords = -1L
             var failed = false
-            // Auto-send: a new partial result is speech; a second without one after speech sends it, none in 8 s stops it.
-            val endpoint = Endpoint()
-            var shown = ""
+            // Auto-send: every response with words is speech, even one that repeats the last (partials lag the
+            // speech and come in bursts); 2 s without one after speech sends it (2.5 s near the start), none in 8 s stops it.
+            val endpoint = Endpoint(silenceMs = Endpoint.NANO_SILENCE_MS)
             fun heard(text: String) {
                 live(text)
-                if (text.isNotBlank() && text != shown) endpoint.speech(SystemClock.elapsedRealtime() - listening)
-                shown = text
+                if (text.isNotBlank()) endpoint.speech(SystemClock.elapsedRealtime() - listening)
             }
             val ticker = launch {
                 while (isActive) {
