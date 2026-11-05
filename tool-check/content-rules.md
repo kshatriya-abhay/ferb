@@ -94,7 +94,8 @@ The rows follow these, so arms are judged the same way:
 Rows with "-" in `field` and `keep` carry no content: alarms, timers, volume, flashlight and media. They
 check that a fix for content doesn't hurt plain commands. Such a row passes when Ferb would run exactly
 one tool call, to the row's `tool`, with its `other` arguments matching (`percent=40`, `on=true`,
-`action=pause`). Times and lengths aren't scored here. Report control rows apart from content rows.
+`action=pause`), and, for the alarm rows, the time check under Time (`at=`). Timer lengths aren't
+scored. Report control rows apart from content rows.
 
 ## Alarm labels
 
