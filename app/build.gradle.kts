@@ -15,8 +15,8 @@ android {
         applicationId = "dev.abhay.assistant"
         minSdk = 33
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1"
+        versionCode = 2
+        versionName = "0.1.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // The Needle engine is only linked for 64-bit ARM (Pixel, Poco F5); no x86 emulators.
