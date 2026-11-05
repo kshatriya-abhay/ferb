@@ -132,4 +132,7 @@
     <string name="privacy_remove_title">Removing your data</string>
     <string name="privacy_remove_body">Uninstalling Ferb removes what it keeps. Notes in your folder stay: they\'re your files.</string>
     <string name="ui_privacy">Privacy</string>
+    <string name="battery_saver_voice">Battery Saver is on. Gemini Nano voice doesn\'t work until you turn it off.</string>
+    <string name="battery_saver_settings">Settings</string>
+    <string name="battery_limits_voice">Android\'s battery limits stopped Gemini Nano voice. Try again later.</string>
 </resources>

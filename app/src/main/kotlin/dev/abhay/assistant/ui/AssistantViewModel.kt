@@ -23,6 +23,7 @@ import dev.abhay.assistant.pipeline.RewriteStep
 import dev.abhay.assistant.pipeline.ToolStep
 import dev.abhay.assistant.voice.AacEncoder
 import dev.abhay.assistant.voice.EnergyVad
+import dev.abhay.assistant.voice.BatterySaver
 import dev.abhay.assistant.voice.Endpoint
 import dev.abhay.assistant.voice.Part
 import dev.abhay.assistant.link.Transcript
@@ -464,7 +465,9 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             } catch (e: Exception) {
                 failed = true
                 Log.w(NanoEars.TAG, "${dev.abhay.assistant.voice.NanoSpeech.LOCALE}: recognition failed", e)
-                _state.update { it.copy(notice = "Gemini Nano couldn't hear it: ${e.message ?: e}") }
+                // Battery limits (Battery Saver on): a plain message, not AICore's error.
+                val notice = BatterySaver.notice(e, BatterySaver.isOn(app))?.let(app::getString) ?: "Gemini Nano couldn't hear it: ${e.message ?: e}"
+                _state.update { it.copy(notice = notice) }
             } finally {
                 ticker.cancel()
                 if (nanoJob === self) nanoJob = null

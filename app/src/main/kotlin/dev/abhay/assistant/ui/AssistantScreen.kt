@@ -258,6 +258,8 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
                             }
                         })
             }
+            // Battery Saver on with Gemini Nano voice: it can't hear, so say so above the box.
+            BatterySaverBanner(pipeline.audio, rememberPowerSave(), Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
             // A tip about the box, the toggle or the mic, above them.
             tip?.takeIf { it.exchange == null }?.let {
                 TipCard(it.tip, onDismiss = { seen(it.tip) }, Modifier.padding(horizontal = 16.dp, vertical = 4.dp),

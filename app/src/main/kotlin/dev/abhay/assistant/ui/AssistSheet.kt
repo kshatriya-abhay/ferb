@@ -52,6 +52,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.abhay.assistant.R
 import dev.abhay.assistant.engine.AssistantEngine
 import dev.abhay.assistant.pipeline.AudioStep
+import dev.abhay.assistant.voice.BatterySaver
 import dev.abhay.assistant.voice.Mic
 
 /** What the sheet shows of the conversation: the requests made since it opened, the newest last. */
@@ -91,13 +92,14 @@ fun AssistSheet(viewModel: AssistantViewModel, opened: Int, onOpenChat: () -> Un
         if (granted) viewModel.startRecording() else focus++
     }
     val ready = engine is AssistantEngine.State.Ready
-    // Each invocation: listen at once, or focus the box.
+    val powerSave = rememberPowerSave()
+    // Each invocation: listen at once, or focus the box (and with Battery Saver stopping Gemini Nano, the box).
     LaunchedEffect(opened, ready) {
         if (opened == 0) return@LaunchedEffect
         if (since == Long.MAX_VALUE) since = (state.history.lastOrNull()?.id ?: -1) + 1
         if (!ready || state.busy || state.voice != null) return@LaunchedEffect
         when {
-            !Mic.shows(pipeline.audio) -> focus++
+            !Mic.shows(pipeline.audio) || BatterySaver.warns(powerSave, pipeline.audio) -> focus++
             context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED -> viewModel.startRecording()
             else -> askMic.launch(Manifest.permission.RECORD_AUDIO)
         }
@@ -174,6 +176,7 @@ fun AssistSheet(viewModel: AssistantViewModel, opened: Int, onOpenChat: () -> Un
                     Thinking(state.asking, still = state.transcribing)
                 }
             }
+            BatterySaverBanner(pipeline.audio, powerSave, Modifier.padding(horizontal = 16.dp))
             Spacer(Modifier.padding(4.dp))
             // The bar, pinned under the conversation, above the keyboard.
             val clip = state.voice
