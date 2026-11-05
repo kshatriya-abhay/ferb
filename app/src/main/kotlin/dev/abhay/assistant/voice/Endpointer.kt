@@ -7,15 +7,17 @@ import kotlin.math.log10
  * ends after [silenceMs] without it, or [graceMs] while less than [GRACE_UNTIL_MS] of speech has
  * been heard (an opening pause: "Remind me… um…"); with no speech at all by [noSpeechMs], it gives
  * up (nothing is sent). Time is in ms on the recording's own clock ([EnergyVad] for PCM) or the
- * wall clock (Gemini Nano, whose responses are its speech: [NANO_SILENCE_MS]). ✓ and ✕ still
- * finish it at once.
+ * wall clock (Gemini Nano, whose responses are its speech: [NANO_SILENCE_MS]). At [maxMs], when
+ * given, it stops and waits for Send ([Decision.Limit]), as the PCM recorder does at its 30 s.
+ * ✓ and ✕ still finish it at once.
  */
 class Endpoint(
     val silenceMs: Long = SILENCE_MS,
     val noSpeechMs: Long = NO_SPEECH_MS,
     val graceMs: Long = GRACE_MS,
+    val maxMs: Long? = null,
 ) {
-    enum class Decision { Continue, End, NoSpeech }
+    enum class Decision { Continue, End, NoSpeech, Limit }
 
     private var firstSpeech: Long? = null
     private var lastSpeech: Long? = null
@@ -40,6 +42,11 @@ class Endpoint(
     }
 
     fun decide(nowMs: Long): Decision {
+        val ended = decideBySpeech(nowMs)
+        return if (ended == Decision.Continue && maxMs != null && nowMs >= maxMs) Decision.Limit else ended
+    }
+
+    private fun decideBySpeech(nowMs: Long): Decision {
         val last = lastSpeech ?: return if (nowMs >= noSpeechMs) Decision.NoSpeech else Decision.Continue
         return if (nowMs - last >= window()) Decision.End else Decision.Continue
     }
@@ -66,6 +73,8 @@ class Endpoint(
         const val GRACE_MS = 2_500L
         const val GRACE_UNTIL_MS = 1_500L
         const val NO_SPEECH_MS = 8_000L
+        /** Gemini Nano's most, as Whistle's and Ferb Link's ([PcmRecorder.MAX_SAMPLES]): repeated partials can't keep it listening. */
+        const val NANO_MAX_MS = 30_000L
         const val SHOW_AFTER_MS = 300L
     }
 }

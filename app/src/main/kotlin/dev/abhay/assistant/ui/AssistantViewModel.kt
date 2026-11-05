@@ -390,7 +390,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
                 heardNothing = true
                 stopRecording()
             }
-            Endpoint.Decision.Continue -> {}
+            // The recorder stops itself at its 30 s and waits for Send.
+            Endpoint.Decision.Continue, Endpoint.Decision.Limit -> {}
         }
     }
 
@@ -422,7 +423,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             var failed = false
             // Auto-send: every response with words is speech, even one that repeats the last (partials lag the
             // speech and come in bursts); 2 s without one after speech sends it (2.5 s near the start), none in 8 s stops it.
-            val endpoint = Endpoint(silenceMs = Endpoint.NANO_SILENCE_MS)
+            // At 30 s it stops and waits for Send, as Whistle and Ferb Link do.
+            val endpoint = Endpoint(silenceMs = Endpoint.NANO_SILENCE_MS, maxMs = Endpoint.NANO_MAX_MS)
             fun heard(text: String) {
                 live(text)
                 if (text.isNotBlank()) endpoint.speech(SystemClock.elapsedRealtime() - listening)
@@ -436,6 +438,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
                         Endpoint.Decision.Continue -> {}
                         Endpoint.Decision.End -> { finishRecording(); break }
                         Endpoint.Decision.NoSpeech -> { heardNothing = true; stopRecording(); break }
+                        Endpoint.Decision.Limit -> { stopRecording(); break }
                     }
                 }
             }

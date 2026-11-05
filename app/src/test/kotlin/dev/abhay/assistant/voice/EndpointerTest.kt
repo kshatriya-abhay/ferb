@@ -108,4 +108,28 @@ class EndpointerTest {
         assertThat(endpoint.sending(9_000)).isEqualTo(1f)
         assertThat(Endpoint().decide(8_000)).isEqualTo(Decision.NoSpeech)
     }
+
+    @Test
+    fun geminiNanoStopsAtThirtySecondsWhateverItHears() {
+        val endpoint = Endpoint(silenceMs = Endpoint.NANO_SILENCE_MS, maxMs = Endpoint.NANO_MAX_MS)
+        // A response every half second, as repeated partials would: never silent.
+        for (at in 500L..29_500L step 500) {
+            endpoint.speech(at)
+            assertThat(endpoint.decide(at + 100)).isEqualTo(Decision.Continue)
+        }
+        endpoint.speech(30_000)
+        assertThat(endpoint.decide(30_000)).isEqualTo(Decision.Limit)
+        // Silence that has run its course at 30 s still sends it.
+        val quiet = Endpoint(silenceMs = Endpoint.NANO_SILENCE_MS, maxMs = Endpoint.NANO_MAX_MS)
+        quiet.speech(25_000)
+        quiet.speech(27_000)
+        assertThat(quiet.decide(30_500)).isEqualTo(Decision.End)
+    }
+
+    @Test
+    fun withoutAMaxItNeverStopsForLength() {
+        val endpoint = Endpoint()
+        endpoint.speech(59_900)
+        assertThat(endpoint.decide(60_000)).isEqualTo(Decision.Continue)
+    }
 }
