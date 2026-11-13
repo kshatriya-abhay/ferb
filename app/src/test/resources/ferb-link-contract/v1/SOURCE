@@ -1,1 +1,1 @@
-03392d7 2026-10-24 Review fixes: request cap, context overflow, audio limits, Jev cap under lock
+6a645bd 2026-11-06 Rewrite: optional json_schema for Ferb's own prompt, and truncated on every instructed reply

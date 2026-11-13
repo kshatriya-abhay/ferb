@@ -61,9 +61,16 @@ object LinkContract {
     const val EXTRA_TOOLS = "tools"
     /** How long Ferb Link may wait for the computer (1–60 s); an older Ferb Link ignores it and waits 30 s. */
     const val EXTRA_TIMEOUT_MS = "timeout_ms"
-    /** `rewrite`: the caller's own system prompt (at most 16000 characters), and the answer's most tokens (1–256, 40 by default). */
+    /** `rewrite`: the caller's own system prompt (at most 16000 characters), and the answer's most tokens (1–512; 40 by default, 160 with a schema). */
     const val EXTRA_INSTRUCTIONS = "instructions"
     const val EXTRA_MAX_TOKENS = "max_tokens"
+    /**
+     * `rewrite`, with [EXTRA_INSTRUCTIONS]: a JSON schema (a JSON object as a string, at most 8000
+     * characters) that the answer must follow; the reply then has `schema` true and the answer
+     * parsed as `output` (6a645bd). An older Ferb Link ignores it: [RESULT_JSON_SCHEMA] in `status`
+     * says whether this one takes it, and a reply without `schema` true didn't use it.
+     */
+    const val EXTRA_JSON_SCHEMA = "json_schema"
     /** For `transcribe`: the recording (byte[], at most 30 s and about 512 KB) and its type. */
     const val EXTRA_AUDIO = "audio"
     const val EXTRA_AUDIO_MIME = "audio_mime"
@@ -95,6 +102,8 @@ object LinkContract {
     const val RESULT_JEV = "jev"
     /** In `status`, when Jev is off: "cap" when it turned itself off at its spending limit; missing when the user turned it off. */
     const val RESULT_JEV_OFF_REASON = "jev_off_reason"
+    /** In `status`: whether `rewrite` takes [EXTRA_JSON_SCHEMA]; missing (false) in an older Ferb Link. */
+    const val RESULT_JSON_SCHEMA = "json_schema"
 }
 
 /** Whether Ferb can use Ferb Link now, as its settings page shows it. */
@@ -111,12 +120,14 @@ sealed interface LinkStatus {
     /** [model]: the computer's model as Ferb Link last saw it, when it says; [audio]: whether it takes voice. */
     /** [asleep]: the computer's model isn't loaded (asleep or unloaded, as last seen), so the next request waits for it to load. */
     /** [jev]: Jev is on in Ferb Link ([LinkContract.METHOD_DECIDE]); [jevCapped]: it turned itself off at its spending limit. */
+    /** [jsonSchema]: its rewrite takes a JSON schema ([LinkContract.EXTRA_JSON_SCHEMA]). */
     data class Ready(
         val model: String? = null,
         val audio: Boolean = false,
         val asleep: Boolean = false,
         val jev: Boolean = false,
         val jevCapped: Boolean = false,
+        val jsonSchema: Boolean = false,
     ) : LinkStatus
     data class Failed(val reason: String) : LinkStatus
 }
@@ -238,10 +249,12 @@ class FerbLink(private val context: Context) : LinkCalls {
      * [request] rewritten by the computer's model ([LinkContract.METHOD_REWRITE]) with Ferb's own
      * prompt ([instructions], Gemini Nano's rewrite prompt, as the system message; at most
      * [maxTokens]): its answer comes back as [RewriteReply.raw], for Ferb to read as it reads Gemini
-     * Nano's. An older Ferb Link ignores the prompt ([RewriteReply.instructed] false). Never throws:
-     * a failure is a [RewriteReply] with its error set.
+     * Nano's. An older Ferb Link ignores the prompt ([RewriteReply.instructed] false). With
+     * [jsonSchema], the answer follows it and comes back parsed ([RewriteReply.output]), when this
+     * Ferb Link takes one ([RewriteReply.schema]). Never throws: a failure is a [RewriteReply] with
+     * its error set.
      */
-    override suspend fun rewrite(request: String, instructions: String, maxTokens: Int, timeoutMs: Int): RewriteReply = withContext(Dispatchers.IO) {
+    override suspend fun rewrite(request: String, instructions: String, maxTokens: Int, timeoutMs: Int, jsonSchema: String?): RewriteReply = withContext(Dispatchers.IO) {
         val result = try {
             lowLatency { timed(LinkContract.METHOD_REWRITE) {
                 provider(LinkContract.METHOD_REWRITE, null, bundleOf(
@@ -249,7 +262,7 @@ class FerbLink(private val context: Context) : LinkCalls {
                     LinkContract.EXTRA_INSTRUCTIONS to instructions,
                     LinkContract.EXTRA_MAX_TOKENS to maxTokens,
                     LinkContract.EXTRA_TIMEOUT_MS to timeoutMs,
-                ))
+                ).apply { jsonSchema?.let { putString(LinkContract.EXTRA_JSON_SCHEMA, it) } })
             } }
         } catch (e: IllegalArgumentException) {
             return@withContext RewriteReply.failed("update Ferb Link", "This Ferb Link is too old to rewrite requests")
@@ -346,7 +359,7 @@ class FerbLink(private val context: Context) : LinkCalls {
                 !result.bool(LinkContract.RESULT_CONFIGURED) -> LinkStatus.NotSetUp
                 else -> LinkStatus.Ready(result.text(LinkContract.RESULT_MODEL), result.bool(LinkContract.RESULT_AUDIO),
                     asleep = asleep(result.text(LinkContract.RESULT_MODEL_STATE)), jev = result.bool(LinkContract.RESULT_JEV),
-                    jevCapped = result.text(LinkContract.RESULT_JEV_OFF_REASON) == "cap")
+                    jevCapped = result.text(LinkContract.RESULT_JEV_OFF_REASON) == "cap", jsonSchema = result.bool(LinkContract.RESULT_JSON_SCHEMA))
             }
         }
 
@@ -566,8 +579,20 @@ data class RewriteReply(
     val error: String? = null,
     val errorDetail: String? = null,
     val errorKind: String? = null,
+    /** Whether Ferb Link used the JSON schema it was sent; an older one ignores it and doesn't say so. */
+    val schema: Boolean = false,
+    /** With [schema]: the answer, parsed (a JSON object); null when it failed. */
+    val output: JSONObject? = null,
+    /** The answer stopped at max_tokens (with the schema, that always fails). */
+    val truncated: Boolean = false,
 ) {
+    /** A failure because the computer's server can't use the schema (bad_request, "schema not supported"). */
+    val schemaUnsupported get() = errorKind == "bad_request" && error == SCHEMA_NOT_SUPPORTED
+
     companion object {
+        /** Ferb Link's error when the computer's server can't turn the schema into a grammar. */
+        const val SCHEMA_NOT_SUPPORTED = "bad request: schema not supported"
+
         fun parse(json: String): RewriteReply = try {
             val o = JSONObject(json)
             fun strings(key: String) = o.optJSONArray(key)?.let { a -> (0 until a.length()).map { a.get(it).toString() } }.orEmpty()
@@ -581,6 +606,9 @@ data class RewriteReply(
                 error = if (o.optBoolean("success", false)) null else o.optString("error").ifBlank { "rewrite failed" },
                 errorDetail = o.optString("error_detail").ifBlank { null },
                 errorKind = o.optString("error_kind").ifBlank { null },
+                schema = o.optBoolean("schema", false),
+                output = o.optJSONObject("output"),
+                truncated = o.optBoolean("truncated", false),
             )
         } catch (e: Exception) {
             failed("unexpected answer", "The rewrite couldn't be read: ${e.message}")
@@ -593,6 +621,6 @@ data class RewriteReply(
 /** What answering needs from Ferb Link ([FerbLink]), so [dev.abhay.assistant.ui.AnswerFlow] runs in tests with a fake. */
 interface LinkCalls {
     fun status(): LinkStatus
-    suspend fun rewrite(request: String, instructions: String, maxTokens: Int, timeoutMs: Int = FerbLink.REWRITE_TIMEOUT_MS): RewriteReply
+    suspend fun rewrite(request: String, instructions: String, maxTokens: Int, timeoutMs: Int = FerbLink.REWRITE_TIMEOUT_MS, jsonSchema: String? = null): RewriteReply
     suspend fun decide(request: String, toolsJson: String, timeoutMs: Int = FerbLink.JEV_TIMEOUT_MS): JevReply
 }

@@ -57,7 +57,7 @@ class LinkContractTest {
         // Every key Ferb puts in a call's extras is one Ferb Link's examples take (some take more,
         // optional ones Ferb doesn't send, such as facts).
         val sent = mapOf(
-            "rewrite" to setOf(LinkContract.EXTRA_REQUEST, LinkContract.EXTRA_INSTRUCTIONS, LinkContract.EXTRA_MAX_TOKENS, LinkContract.EXTRA_TIMEOUT_MS),
+            "rewrite" to setOf(LinkContract.EXTRA_REQUEST, LinkContract.EXTRA_INSTRUCTIONS, LinkContract.EXTRA_MAX_TOKENS, LinkContract.EXTRA_TIMEOUT_MS, LinkContract.EXTRA_JSON_SCHEMA),
             "transcribe" to setOf(LinkContract.EXTRA_AUDIO, LinkContract.EXTRA_AUDIO_MIME, LinkContract.EXTRA_TIMEOUT_MS),
             "decide" to setOf(LinkContract.EXTRA_REQUEST, LinkContract.EXTRA_TOOLS, LinkContract.EXTRA_TIMEOUT_MS),
         )
@@ -78,7 +78,7 @@ class LinkContractTest {
                 !r.optBoolean("configured") -> assertThat(status).isEqualTo(LinkStatus.NotSetUp)
                 else -> assertThat(status).isEqualTo(LinkStatus.Ready(r.optString("model").ifBlank { null }, r.optBoolean("audio"),
                     asleep = FerbLink.asleep(r.optString("model_state").ifEmpty { null }),
-                    jev = r.optBoolean("jev"), jevCapped = r.optString("jev_off_reason") == "cap"))
+                    jev = r.optBoolean("jev"), jevCapped = r.optString("jev_off_reason") == "cap", jsonSchema = r.optBoolean("json_schema")))
             }
         }
         // model_state: asleep (or unloaded) means the next request waits longer; loaded or missing doesn't.
@@ -176,6 +176,42 @@ class LinkContractTest {
         val old = replies.getValue("rewrite-gemini-old")
         assertThat(old.instructed).isFalse()
         assertThat(old.raw).isNull()
+    }
+
+    @Test
+    fun statusSaysWhetherTheRewriteTakesAJsonSchema() {
+        val status = { name: String -> FerbLink.statusOf(values(cases.single { it.name == name }.result)) as LinkStatus.Ready }
+        assertThat(status("status").jsonSchema).isTrue()
+        // An older Ferb Link doesn't say: Ferb uses its line prompt there.
+        assertThat(status("status-no-json-schema").jsonSchema).isFalse()
+    }
+
+    @Test
+    fun aRewriteWithAJsonSchemaIsItsOutputOrAShortError() {
+        val replies = of("rewrite").filter { it.extras.has(LinkContract.EXTRA_JSON_SCHEMA) }.associate { it.name to FerbLink.rewriteOf(values(it.result)) }
+        assertThat(replies).isNotEmpty()
+        replies.getValue("rewrite-json").let {
+            assertThat(it.error).isNull()
+            assertThat(it.schema).isTrue()
+            assertThat(it.output!!.getString("command")).isEqualTo("Send a text to Rahul")
+            assertThat(it.output!!.getString("content")).isEqualTo("kal shaam ko milte hain")
+        }
+        // Cut off: always a failure with a schema, the half-written answer kept but no output.
+        replies.getValue("rewrite-json-cut").let {
+            assertShort(it.error)
+            assertThat(it.truncated).isTrue()
+            assertThat(it.output).isNull()
+        }
+        // The server can't use the schema: a failure Ferb tells apart, to use its line prompt.
+        assertThat(replies.getValue("rewrite-json-unsupported").schemaUnsupported).isTrue()
+        listOf("rewrite-json-cut", "rewrite-json-not-json", "rewrite-json-too_long").forEach { assertThat(replies.getValue(it).schemaUnsupported).isFalse() }
+        // An older Ferb Link ignores the schema: no "schema" in its reply, so Ferb treats it as unsupported.
+        replies.getValue("rewrite-json-old").let {
+            assertThat(it.error).isNull()
+            assertThat(it.schema).isFalse()
+            assertThat(it.output).isNull()
+        }
+        replies.filterKeys { it != "rewrite-json" && it != "rewrite-json-old" }.values.forEach { assertShort(it.error) }
     }
 
     @Test

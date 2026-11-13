@@ -13,7 +13,7 @@ class InventsReport {
         assumeTrue(path != null)
         val flow = AnswerFlow(link = object : dev.abhay.assistant.link.LinkCalls {
             override fun status() = error("unused")
-            override suspend fun rewrite(request: String, instructions: String, maxTokens: Int, timeoutMs: Int) = error("unused")
+            override suspend fun rewrite(request: String, instructions: String, maxTokens: Int, timeoutMs: Int, jsonSchema: String?) = error("unused")
             override suspend fun decide(request: String, toolsJson: String, timeoutMs: Int) = error("unused")
         }, needle = { _, _ -> error("unused") }, gemini = { error("unused") })
         val pairs = File(path!!).readLines().filter { '\t' in it }.map { it.substringBefore('\t') to it.substringAfter('\t') }

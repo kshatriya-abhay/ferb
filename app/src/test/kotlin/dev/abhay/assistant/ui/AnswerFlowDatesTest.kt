@@ -32,7 +32,7 @@ class AnswerFlowDatesTest {
 
     private val link = object : LinkCalls {
         override fun status() = LinkStatus.NotSetUp
-        override suspend fun rewrite(request: String, instructions: String, maxTokens: Int, timeoutMs: Int) = RewriteReply.failed("unused", "")
+        override suspend fun rewrite(request: String, instructions: String, maxTokens: Int, timeoutMs: Int, jsonSchema: String?) = RewriteReply.failed("unused", "")
         override suspend fun decide(request: String, toolsJson: String, timeoutMs: Int) = JevReply.failed("unused", "")
     }
 

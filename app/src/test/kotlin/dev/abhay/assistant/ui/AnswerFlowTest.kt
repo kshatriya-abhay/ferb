@@ -43,7 +43,7 @@ class AnswerFlowTest {
     ) : LinkCalls {
         val asked = mutableListOf<String>()
         override fun status() = status
-        override suspend fun rewrite(request: String, instructions: String, maxTokens: Int, timeoutMs: Int): RewriteReply {
+        override suspend fun rewrite(request: String, instructions: String, maxTokens: Int, timeoutMs: Int, jsonSchema: String?): RewriteReply {
             asked += "rewrite: $request"
             assertThat(instructions).isEqualTo(GeminiRewrite.PROMPT)
             assertThat(maxTokens).isEqualTo(GeminiRewrite.MAX_TOKENS)
