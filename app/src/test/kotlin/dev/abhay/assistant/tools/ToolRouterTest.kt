@@ -39,6 +39,21 @@ class ToolRouterTest {
     }
 
     @Test
+    fun hinglishTellGoesToMessagesOnlyAfterAPerson() {
+        assertThat(route("papa ko bolo khana ready hai")).containsExactly("send_text")
+        assertThat(route("Rahul ko bol do meeting 5 baje hai")).contains("send_text") // and the calendar, for "meeting"
+        assertThat(route("mummy ko bata do ki main late hoon")).containsExactly("send_text")
+        assertThat(route("didi ko batao main pahunch gayi")).containsExactly("send_text")
+        // Not telling anyone: no tool, or the tool meant.
+        assertThat(route("kuch bolo")).isEmpty()
+        assertThat(route("batao kya hua")).isEmpty()
+        assertThat(route("mujhe batao time kya hai")).doesNotContain("send_text")
+        assertThat(route("india gate ka rasta batao")).isEmpty()
+        assertThat(route("kisi ko mat batana")).isEmpty()
+        assertThat(route("usko mat batao")).isEmpty()
+    }
+
+    @Test
     fun onlyToolsTurnedOnAreRouted() {
         assertThat(ToolRouter.route("set an alarm and show my alarms", listOf(SetAlarm), configs).map { it.name }).containsExactly("set_alarm")
     }

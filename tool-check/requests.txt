@@ -328,3 +328,12 @@ set_alarm time=14:00 | dopahar 2 baje utha dena
 none | utha ke rakh do
 none | phone utha
 none | main jaag gaya
+# Hinglish "tell X" (2026-11-13): send_text's "ko bolo", "ko batao" and the like, only after a person.
+send_text name=papa | papa ko bolo khana ready hai
+send_text name=rahul | Rahul ko bol do meeting 5 baje hai
+send_text name=mummy | mummy ko bata do ki main late hoon
+none | kuch bolo
+none | batao kya hua
+none | mujhe batao time kya hai
+none | kisi ko mat batana
+none | usko mat batao

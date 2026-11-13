@@ -925,7 +925,10 @@ object SendText : Tool(
 
     override val whyAsk = WRONG_PERSON
 
-    override val keywords = listOf("text", "message", "sms", "msg", "tell")
+    // Hinglish "tell X" (2026-11-13): "papa ko bolo khana ready hai" named no tool, so the content
+    // guard couldn't see a rewrite that made it a call. Only after a person ("X ko …"): a bare "batao"
+    // ("india gate ka rasta batao", "mujhe batao") would take requests from the tools they mean.
+    override val keywords = listOf("text", "message", "sms", "msg", "tell", "ko bolo", "ko bol do", "ko bol dena", "ko batao", "ko bata do", "ko bata dena")
 
     override val schema = """
         {"name": "send_text",

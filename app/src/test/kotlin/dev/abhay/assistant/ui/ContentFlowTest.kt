@@ -126,6 +126,10 @@ class ContentFlowTest {
             "content not found in the words as said" to AnswerFlow.Guard.NotSaid,
             "the words as said give a time, the command none" to AnswerFlow.Guard.TimeDropped,
         )
+        // Asks the frozen code didn't have: Messages' Hinglish "ko bolo" (2026-11-13) lets the
+        // other-tool guard see that "papa ko bolo khana ready hai" asked for a text, not the call
+        // Gemini Nano's command made of it. Nothing else changed.
+        val sinceFrozen = mapOf("dev.txt:4 nano typed" to AnswerFlow.Guard.OtherTool)
         var n = 0
         for (k in 0 until cases.length()) {
             val c = cases.getJSONObject(k)
@@ -149,7 +153,7 @@ class ContentFlowTest {
             }
             val wantAsks = c.getJSONArray("asks").let { a -> (0 until a.length()).map { a.getString(it) } }.map { why ->
                 guards[why] ?: AnswerFlow.Guard.OtherTool.also { assertWithMessage(name).that(why).startsWith("the words as said name ") }
-            }
+            } + listOfNotNull(sinceFrozen[name])
             assertWithMessage(name).that(got.asks).containsExactlyElementsIn(wantAsks.map { it.why })
             n++
         }
