@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    // ML Kit's schema compiler writes the typed rewrite's schema (ContentRewrite, HCommand).
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -82,6 +84,8 @@ dependencies {
     implementation(libs.material.components)
     implementation(libs.mlkit.genai.speech)
     implementation(libs.mlkit.genai.prompt)
+    implementation(libs.mlkit.genai.schema)
+    ksp(libs.mlkit.genai.schema.compiler)
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)

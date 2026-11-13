@@ -8,3 +8,9 @@
 # is null, and every Gemini Nano status check threw (release 0.1, 2026-10-30). scripts/check-release.sh
 # checks the built APK for this.
 -keep class * implements com.google.firebase.components.ComponentRegistrar { public <init>(); }
+
+# Gemini Nano's typed output (ContentRewrite, 0.2): ML Kit finds each @Generable class's schema
+# through META-INF/services (GenerableProvider, written by KSP) and builds the class from the answer
+# by reflection over its constructor and fields, which R8 can't see; keep both whole.
+-keep class * implements com.google.mlkit.genai.schema.guided.GenerableProvider { *; }
+-keep @com.google.mlkit.genai.schema.annotations.Generable class * { *; }

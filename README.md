@@ -131,6 +131,7 @@ Ferb has no internet access, analytics, ads or accounts. What stays on the phone
 | [Needle engine](https://github.com/cactus-compute/needle) by Cactus Compute | Apache-2.0 | Runs Needle 3 and Whistle (`libneedle.a`, linked prebuilt) |
 | [ML Kit GenAI Speech Recognition](https://developers.google.com/ml-kit/genai/speech-recognition/android) by Google (`genai-speech-recognition`) | [ML Kit Terms](https://developers.google.com/ml-kit/terms) | Gemini Nano speech to text through AICore (audio processing: English and Hindi, on Pixel 10 and 11). Its network permissions are removed from Ferb |
 | [ML Kit GenAI Prompt API](https://developers.google.com/ml-kit/genai/prompt/android) by Google (`genai-prompt`), with Gemini Nano | [ML Kit Terms](https://developers.google.com/ml-kit/terms) | The prompt rewrite with Gemini Nano, through AICore: each request as one English command for Needle 3, or none |
+| [ML Kit GenAI Schema](https://developers.google.com/ml-kit/genai/prompt/android) by Google (`genai-schema`) | [ML Kit Terms](https://developers.google.com/ml-kit/terms) | Gemini Nano's typed answer for the prompt rewrite: the command and, apart, the words to keep as said |
 | [AndroidX](https://developer.android.com/jetpack/androidx) (Compose, Material 3, Lifecycle) | Apache-2.0 | UI |
 | [Material Components for Android](https://github.com/material-components/material-components-android) | Apache-2.0 | The Material 3 window theme behind Compose |
 | [Kotlin coroutines](https://github.com/Kotlin/kotlinx.coroutines) | Apache-2.0 | Background work |

@@ -42,6 +42,7 @@ internal val LICENCES = listOf(
     Licence("Needle engine", "Cactus Compute", APACHE),
     Licence("ML Kit GenAI Speech Recognition", "Google", "ML Kit Terms", MLKIT_TERMS),
     Licence("ML Kit GenAI Prompt API", "Google", "ML Kit Terms", MLKIT_TERMS),
+    Licence("ML Kit GenAI Schema", "Google", "ML Kit Terms", MLKIT_TERMS),
     Licence("AndroidX", "Google", APACHE),
     Licence("Material Components for Android", "Google", APACHE),
     Licence("Kotlin coroutines", "JetBrains", APACHE),

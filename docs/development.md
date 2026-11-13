@@ -116,3 +116,4 @@ Used on the computer for tuning and comparing; none of it is in the app. What th
 | [Qwen3.5-0.8B, Qwen3.5-2B](https://huggingface.co/Qwen) by Alibaba (GGUF by Unsloth) | Apache-2.0 | Compared in `mise run bench` |
 | [Hammer2.1-0.5b](https://huggingface.co/MadeAgents/Hammer2.1-0.5b) by MadeAgents (GGUF by mradermacher) | CC-BY-NC-4.0 | Compared in `mise run bench` |
 | [ICU4J](https://github.com/unicode-org/icu) by the Unicode Consortium | Unicode-3.0 | Stands in for Android's ICU in the content mapping's unit tests |
+| [KSP](https://github.com/google/ksp) by Google, with ML Kit's `genai-schema-compiler` | Apache-2.0 (KSP); ML Kit Terms | Writes the schema of Gemini Nano's typed rewrite (`HCommand`) at build time; nothing of it runs in the app |
