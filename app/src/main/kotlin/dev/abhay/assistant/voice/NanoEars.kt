@@ -16,6 +16,7 @@ import com.google.mlkit.genai.prompt.ModelReleaseStage
 import com.google.mlkit.genai.prompt.SystemInstruction
 import com.google.mlkit.genai.prompt.TextPart
 import com.google.mlkit.genai.prompt.generateContentRequest
+import com.google.mlkit.genai.prompt.generateTypedContentRequest
 import com.google.mlkit.genai.prompt.generationConfig
 import com.google.mlkit.genai.prompt.modelConfig
 import com.google.mlkit.genai.speechrecognition.SpeechRecognition
@@ -213,14 +214,22 @@ class NanoEars(inFront: StateFlow<Boolean>, private val now: () -> Long = System
 
     suspend fun stop() = listener(NanoSpeech.LOCALE).stopRecognition()
 
-    /** [said] (typed or heard) as one English command for Needle 3, or none ([GeminiRewrite]). */
+    /**
+     * [said] (typed or heard) as one English command for Needle 3, the words to keep quoted in it,
+     * or none: H2's typed answer ([ContentRewrite], [HCommand]). An answer cut off at the limit
+     * fails, as Ferb Link's does with a schema.
+     */
     suspend fun rewrite(said: String): Rewritten {
         val started = SystemClock.elapsedRealtime()
-        val candidate = writer().generateContent(rewriteRequest(said)).candidates.firstOrNull()
-        val answer = candidate?.text.orEmpty()
+        val candidate = writer().generateContent(generateTypedContentRequest(rewriteRequest(said, ContentRewrite.PROMPT, ContentRewrite.MAX_TOKENS), HCommand::class))
+            .candidates.firstOrNull()
+        val answer = candidate?.response
         val cut = candidate?.finishReason == Candidate.FinishReason.MAX_TOKENS
-        Log.i(TAG, "rewrite ($writerName) in ${SystemClock.elapsedRealtime() - started} ms: ${Private.text(said)} -> ${Private.text(answer.trim())}")
-        return GeminiRewrite.parse(said, answer, cut)
+        Log.i(TAG, "rewrite ($writerName, ${ContentRewrite.VERSION}) in ${SystemClock.elapsedRealtime() - started} ms: ${Private.text(said)} -> " +
+            (answer?.let { "${Private.text(it.command)} | ${Private.text(it.content)}" } ?: "nothing"))
+        require(!cut) { GeminiRewrite.CUT_OFF }
+        requireNotNull(answer) { "Gemini Nano wrote nothing" }
+        return ContentRewrite.merged(said, ContentRewrite.Typed(answer.command, answer.content))
     }
 
     companion object {

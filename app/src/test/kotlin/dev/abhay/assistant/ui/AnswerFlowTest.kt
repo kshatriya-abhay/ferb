@@ -17,6 +17,7 @@ import dev.abhay.assistant.tools.Flashlight
 import dev.abhay.assistant.tools.SetAlarm
 import dev.abhay.assistant.tools.Tool
 import dev.abhay.assistant.tools.ToolConfig
+import dev.abhay.assistant.voice.ContentRewrite
 import dev.abhay.assistant.voice.GeminiRewrite
 import dev.abhay.assistant.voice.Rewritten
 import kotlinx.coroutines.runBlocking
@@ -40,13 +41,23 @@ class AnswerFlowTest {
         var status: LinkStatus = LinkStatus.Ready(model = "gemma-4-e2b", jev = true),
         val rewrite: RewriteReply = RewriteReply(listOf("Set an alarm for 7:15 am"), raw = "Set an alarm for 7:15 am", instructed = true, ms = 41),
         val picks: Map<String, JevReply> = emptyMap(),
+        /** The reply to a rewrite with the JSON schema (H2); [rewrite] answers the line prompt. */
+        val typed: RewriteReply? = null,
     ) : LinkCalls {
         val asked = mutableListOf<String>()
         override fun status() = status
         override suspend fun rewrite(request: String, instructions: String, maxTokens: Int, timeoutMs: Int, jsonSchema: String?): RewriteReply {
-            asked += "rewrite: $request"
-            assertThat(instructions).isEqualTo(GeminiRewrite.PROMPT)
-            assertThat(maxTokens).isEqualTo(GeminiRewrite.MAX_TOKENS)
+            asked += if (jsonSchema == null) "rewrite: $request" else "rewrite (schema): $request"
+            // Without a schema, A as one line; with one, H2.
+            if (jsonSchema == null) {
+                assertThat(instructions).isEqualTo(ContentRewrite.PROMPT_A)
+                assertThat(maxTokens).isEqualTo(ContentRewrite.MAX_TOKENS_A)
+            } else {
+                assertThat(jsonSchema).isEqualTo(ContentRewrite.SCHEMA)
+                assertThat(instructions).isEqualTo(ContentRewrite.PROMPT)
+                assertThat(maxTokens).isEqualTo(ContentRewrite.MAX_TOKENS)
+                return typed ?: error("no typed reply scripted")
+            }
             return rewrite
         }
         override suspend fun decide(request: String, toolsJson: String, timeoutMs: Int): JevReply {
@@ -73,7 +84,7 @@ class AnswerFlowTest {
         gemini: suspend (String) -> Rewritten = geminiSays("Set an alarm for 7:15 am"),
         heardBy: List<Step>? = null,
         geminiUsable: Boolean = true,
-    ) = runBlocking { AnswerFlow(link, needle(), gemini, now = { NOW }).answer(said, enabled, configs, pipeline, heardBy, geminiUsable) }
+    ) = runBlocking { AnswerFlow(link, needle(), gemini, now = { NOW }, content = dev.abhay.assistant.tools.ContentMapTest.icu()).answer(said, enabled, configs, pipeline, heardBy, geminiUsable) }
 
     private fun Answer.chain() = Step.chain(path)
 
@@ -144,7 +155,8 @@ class AnswerFlowTest {
     fun ferbLinksRewriteUsesFerbsPromptAndRules() {
         val link = FakeLink()
         val got = answer("kal subah sava saat baje", pipeline = steps(RewriteStep.Link), link = link)
-        assertThat(got.chain()).isEqualTo("Typed → Rewrite: Ferb Link (41 ms) → Needle 3 (0.81) → Dates: Ferb (Fri 9 Oct, 7:15)")
+        // This Ferb Link takes no JSON schema: A, one line.
+        assertThat(got.chain()).isEqualTo("Typed → Rewrite: Ferb Link (one line, 41 ms) → Needle 3 (0.81) → Dates: Ferb (Fri 9 Oct, 7:15)")
         assertThat(link.asked).containsExactly("rewrite: kal subah sava saat baje")
         assertThat(got.fallbacks).isEmpty()
         // NONE from the computer, read by Ferb's own rules.
@@ -153,11 +165,43 @@ class AnswerFlowTest {
     }
 
     @Test
+    fun aFerbLinkThatTakesASchemaGetsH2AndOneThatIgnoresItTheLine() {
+        val json = LinkStatus.Ready(model = "gemma-4-e2b", jsonSchema = true)
+        val output = org.json.JSONObject("""{"command": "Set an alarm for 7:15 am tomorrow", "content": ""}""")
+        val typed = FakeLink(status = json, typed = RewriteReply(emptyList(), raw = output.toString(), instructed = true, ms = 52, schema = true, output = output))
+        val got = answer("kal subah sava saat baje", pipeline = steps(RewriteStep.Link), link = typed)
+        assertThat(got.chain()).isEqualTo("Typed → Rewrite: Ferb Link (52 ms) → Needle 3 (0.81) → Dates: Ferb (Fri 9 Oct, 7:15)")
+        assertThat(got.command).isEqualTo("Set an alarm for 7:15 am tomorrow")
+        assertThat(typed.asked).containsExactly("rewrite (schema): kal subah sava saat baje")
+        // A reply without schema true didn't use it (an older Ferb Link): the line prompt, then.
+        val ignored = FakeLink(status = json, typed = RewriteReply(listOf("```json"), raw = "```json\n{}\n```", instructed = true))
+        val line = answer("kal subah sava saat baje", pipeline = steps(RewriteStep.Link), link = ignored)
+        assertThat(ignored.asked).containsExactly("rewrite (schema): kal subah sava saat baje", "rewrite: kal subah sava saat baje").inOrder()
+        assertThat(line.chain()).startsWith("Typed → Rewrite: Ferb Link (one line, 41 ms)")
+        assertThat(line.fallbacks).isEmpty()
+        // The computer's server can't use the schema: the line prompt too.
+        val unsupported = FakeLink(status = json, typed = RewriteReply(emptyList(), error = RewriteReply.SCHEMA_NOT_SUPPORTED, errorKind = "bad_request", instructed = true, schema = true))
+        answer("kal subah sava saat baje", pipeline = steps(RewriteStep.Link), link = unsupported)
+        assertThat(unsupported.asked).hasSize(2)
+        // Cut off with the schema: a failure, Gemini Nano instead.
+        val cut = FakeLink(status = json, typed = RewriteReply(emptyList(), error = "answer cut off", errorKind = "bad_reply", instructed = true, schema = true, truncated = true))
+        val viaGemini = answer("kal subah sava saat baje", pipeline = steps(RewriteStep.Link), link = cut)
+        assertThat(viaGemini.fallbacks.single().line).isEqualTo("Rewrite: Gemini Nano instead (Ferb Link: answer cut off)")
+        assertThat(cut.asked).hasSize(1)
+        // NONE, typed.
+        val noneOut = org.json.JSONObject("""{"command": "NONE", "content": ""}""")
+        val none = answer("the alarm woke the baby", pipeline = steps(RewriteStep.Link),
+            link = FakeLink(status = json, typed = RewriteReply(emptyList(), raw = noneOut.toString(), instructed = true, schema = true, output = noneOut)))
+        assertThat(none.nothingAsked).isTrue()
+    }
+
+    @Test
     fun aFailedFerbLinkRewriteFallsBackToGeminiNanoOrTheWords() {
         // An older Ferb Link (its own prompt, no echo): Gemini Nano instead.
         val old = FakeLink(rewrite = RewriteReply(listOf("Turn on the flashlight", "Turn the volume up")))
         val viaGemini = answer("torch on karo", pipeline = steps(RewriteStep.Link), link = old)
-        assertThat(viaGemini.chain()).isEqualTo("Typed → Rewrite: Gemini Nano instead → Needle 3 (0.81) → Dates: Ferb (asks: your words don't say when; the rewrite says Fri 9 Oct, 7:15)")
+        // (Gemini Nano, scripted, wrote an alarm for the torch: the words as said name the flashlight, so Ferb asks.)
+        assertThat(viaGemini.chain()).isEqualTo("Typed → Rewrite: Gemini Nano instead → Needle 3 (0.81) → Dates: Ferb (asks: your words don't say when; the rewrite says Fri 9 Oct, 7:15) → Asks first (what you said names another action)")
         assertThat(viaGemini.fallbacks.single().line).isEqualTo("Rewrite: Gemini Nano instead (Ferb Link: too old, update it)")
         // The computer away, and Gemini Nano not set up: the words as they are.
         val away = answer("torch on karo", pipeline = steps(RewriteStep.Link), link = FakeLink(status = LinkStatus.NotSetUp), geminiUsable = false)

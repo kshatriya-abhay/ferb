@@ -5,7 +5,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.common.truth.Truth.assertThat
 import dev.abhay.assistant.link.LinkStatus
-import dev.abhay.assistant.voice.GeminiRewrite
+import dev.abhay.assistant.voice.ContentRewrite
 import dev.abhay.assistant.ui.VoiceOutcome
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
@@ -38,12 +38,18 @@ class FerbLinkDeviceTest {
         assertThat(check).isNotNull()
         assumeTrue("the computer answers: ${check?.error} / ${check?.errorDetail}", check!!.reachable)
 
-        // The rewrite step on the computer: Ferb's own prompt, read by Ferb's own rules.
-        val reply = app.link.rewrite("kal subah 7 baje utha dena", GeminiRewrite.PROMPT, GeminiRewrite.MAX_TOKENS)
-        Log.i(TAG, "rewrite: raw='${reply.raw}' instructed=${reply.instructed} ${reply.error} ${reply.ms} ms")
+        // The rewrite step on the computer: Ferb's own prompt, read by Ferb's own rules (H2 with the
+        // JSON schema where this Ferb Link takes one, else A as one line).
+        val said = "kal subah 7 baje utha dena"
+        val typed = (status as LinkStatus.Ready).jsonSchema
+        val reply = if (typed) app.link.rewrite(said, ContentRewrite.PROMPT, ContentRewrite.MAX_TOKENS, jsonSchema = ContentRewrite.SCHEMA)
+            else app.link.rewrite(said, ContentRewrite.PROMPT_A, ContentRewrite.MAX_TOKENS_A)
+        Log.i(TAG, "rewrite: raw='${reply.raw}' instructed=${reply.instructed} schema=${reply.schema} ${reply.error} ${reply.ms} ms")
         assertThat(reply.error).isNull()
         assertThat(reply.instructed).isTrue()
-        assertThat(GeminiRewrite.parse("kal subah 7 baje utha dena", reply.raw!!).command?.lowercase()).contains("7")
+        assertThat(reply.schema).isEqualTo(typed)
+        val command = if (typed) ContentRewrite.parse(said, reply.output!!).command else ContentRewrite.parseLine(said, reply.raw!!).command
+        assertThat(command?.lowercase()).contains("7")
 
         val silence = app.link.transcribe(silentWav(2), "audio/wav")
         Log.i(TAG, "transcribe (silence): heard='${silence.heard}' text='${silence.text}' error=${silence.error}")

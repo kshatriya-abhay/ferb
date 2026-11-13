@@ -12,5 +12,7 @@
 # Gemini Nano's typed output (ContentRewrite, 0.2): ML Kit finds each @Generable class's schema
 # through META-INF/services (GenerableProvider, written by KSP) and builds the class from the answer
 # by reflection over its constructor and fields, which R8 can't see; keep both whole.
+# The schema library itself is small: kept as it is, so the services file keeps its own name.
+-keep class com.google.mlkit.genai.schema.** { *; }
 -keep class * implements com.google.mlkit.genai.schema.guided.GenerableProvider { *; }
 -keep @com.google.mlkit.genai.schema.annotations.Generable class * { *; }

@@ -52,6 +52,19 @@ class ContentRewriteTest {
     }
 
     @Test
+    fun aLineAnswerKeepsItsQuotes() {
+        assertThat(ContentRewrite.parseLine("s", "Send a text to meera: \"the door is open\"\nmore").command).isEqualTo("Send a text to meera: \"the door is open\"")
+        assertThat(ContentRewrite.parseLine("s", "tell meera -> Send a text to meera: \"hi\"").command).isEqualTo("Send a text to meera: \"hi\"")
+        assertThat(ContentRewrite.parseLine("s", "NONE.").command).isNull()
+        assertThat(runCatching { ContentRewrite.parseLine("s", "  \n ") }.isFailure).isTrue()
+        // The golden line answers, as the frozen code read them.
+        val cases = ContentMapTest.golden().getJSONArray("cases")
+        val lines = (0 until cases.length()).map { cases.getJSONObject(it) }.filter { it.getString("mode") == "line" && it.optString("raw").isNotBlank() }
+        assertThat(lines.size).isGreaterThan(60)
+        lines.forEach { assertThat(ContentRewrite.parseLine(it.getString("said"), it.getString("raw")).command).isEqualTo(it.optString("command").ifEmpty { null }) }
+    }
+
+    @Test
     fun theGoldenAnswersMergeAsTheFrozenCodeMergedThem() {
         val cases = ContentMapTest.golden().getJSONArray("cases")
         var n = 0

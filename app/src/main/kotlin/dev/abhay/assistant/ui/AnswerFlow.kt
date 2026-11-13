@@ -12,6 +12,7 @@ import dev.abhay.assistant.pipeline.Fallback
 import dev.abhay.assistant.pipeline.Pipeline
 import dev.abhay.assistant.pipeline.RewriteStep
 import dev.abhay.assistant.pipeline.ToolStep
+import dev.abhay.assistant.tools.ContentMap
 import dev.abhay.assistant.tools.DateGate
 import dev.abhay.assistant.tools.DateResolver
 import dev.abhay.assistant.tools.SaidNumbers
@@ -21,6 +22,7 @@ import dev.abhay.assistant.tools.ToolConfig
 import dev.abhay.assistant.tools.ToolRouter
 import dev.abhay.assistant.tools.Tools
 import dev.abhay.assistant.tools.Verdict
+import dev.abhay.assistant.voice.ContentRewrite
 import dev.abhay.assistant.voice.GeminiRewrite
 import dev.abhay.assistant.voice.Rewritten
 import java.time.ZonedDateTime
@@ -56,13 +58,18 @@ data class Answer(
     val nothingAsked: Boolean = false,
     val fallbacks: List<Fallback> = emptyList(),
     val jev: JevReply? = null,
+    /** Why Ferb asks before running the calls, from the content fix's guards ([AnswerFlow.Guard]); empty when none does. */
+    val asks: List<String> = emptyList(),
 )
 
 /**
  * A request through the steps the user set (Settings → How Ferb understands you): the rewrite into
  * one plain English command (Gemini Nano on the phone, or Gemma 4 on the computer through Ferb Link,
- * with the same prompt, [GeminiRewrite]), the tool selection (Jev, through Ferb Link), then Needle 3,
- * which always makes the call. Hearing comes before, in the view model. A Ferb-Link step that fails
+ * with the same prompt, [ContentRewrite]), the tool selection (Jev, through Ferb Link), then Needle 3,
+ * which always makes the call. A rewritten request keeps the words to write down or send as said:
+ * the rewrite quotes them, Needle 3 sees them in Latin letters and the router not at all, and the
+ * content argument is mapped back to the words as said ([ContentMap]); guards ask first when it
+ * can't be, or when the words as said name another tool or give a time the command doesn't ([Guard]). Hearing comes before, in the view model. A Ferb-Link step that fails
  * falls back for this request (the rewrite to Gemini Nano when it can be used, else the words as
  * they are; the tool selection to none), and a failed Gemini Nano rewrite to the words as they are;
  * [Answer.fallbacks] says so. Every step is recorded as it runs ([Step]).
@@ -82,7 +89,18 @@ class AnswerFlow(
     private val gemini: suspend (String) -> Rewritten,
     private val asking: (String?) -> Unit = {},
     private val now: () -> ZonedDateTime = ZonedDateTime::now,
+    private val content: ContentMap = ContentMap.android(),
 ) {
+    /** Why the content fix's guards ask first (0.2, as frozen in build/content/frozen-2). */
+    enum class Guard(val why: String) {
+        /** Neither the content argument nor the command's quote is in the words as said. */
+        NotSaid("the words to keep aren't in what you said"),
+        /** The words as said name tools, but not the one called ("note: call Ravi" called). */
+        OtherTool("what you said names another action"),
+        /** The words as said give a time and the command none (it was dropped). */
+        TimeDropped("what you said gives a time the command doesn't"),
+    }
+
     /**
      * [said]: typed, or the words a spoken request was heard as; [heardBy]: the hearing step(s),
      * null for a typed one. [geminiUsable]: Gemini Nano's rewrite can stand in for Ferb Link's.
@@ -127,16 +145,36 @@ class AnswerFlow(
             RewriteStep.Link -> when (val status = link.status()) {
                 is LinkStatus.Ready -> {
                     asking(if (status.asleep) "Waking your computer…" else "Your computer is rewriting it…")
-                    val reply = link.rewrite(said, GeminiRewrite.PROMPT, GeminiRewrite.MAX_TOKENS)
-                    val raw = reply.raw
-                    val error = reply.error
-                    when {
-                        error != null -> linkFailed(error)
-                        // An older Ferb Link answered with its own prompt: not this step's rewrite.
-                        !reply.instructed || raw == null -> linkFailed("too old, update it")
-                        else -> runCatching { GeminiRewrite.parse(said, raw) }
-                            .onSuccess { rewritten = it; path += Step("Rewrite: Ferb Link", reply.ms?.let { ms -> "$ms ms" }) }
-                            .onFailure { linkFailed("unreadable answer") }
+                    // A, one line with the content quoted, for a Ferb Link that can't use a schema: an
+                    // older one, one that ignored it, or a server that can't make it a grammar.
+                    suspend fun line() {
+                        val reply = link.rewrite(said, ContentRewrite.PROMPT_A, ContentRewrite.MAX_TOKENS_A)
+                        val raw = reply.raw
+                        val error = reply.error
+                        when {
+                            error != null -> linkFailed(error)
+                            // An older Ferb Link answered with its own prompt: not this step's rewrite.
+                            !reply.instructed || raw == null -> linkFailed("too old, update it")
+                            else -> runCatching { ContentRewrite.parseLine(said, raw) }
+                                .onSuccess { rewritten = it; path += Step("Rewrite: Ferb Link", listOfNotNull("one line", reply.ms?.let { ms -> "$ms ms" }).joinToString(", ")) }
+                                .onFailure { linkFailed("unreadable answer") }
+                        }
+                    }
+                    if (!status.jsonSchema) line() else {
+                        val reply = link.rewrite(said, ContentRewrite.PROMPT, ContentRewrite.MAX_TOKENS, jsonSchema = ContentRewrite.SCHEMA)
+                        val output = reply.output
+                        val error = reply.error
+                        when {
+                            reply.schemaUnsupported -> line()
+                            error != null -> linkFailed(error)
+                            !reply.instructed -> linkFailed("too old, update it")
+                            // A reply without schema true didn't use it: unsupported, so the line prompt.
+                            !reply.schema -> line()
+                            output == null -> linkFailed("unreadable answer")
+                            else -> runCatching { ContentRewrite.parse(said, output) }
+                                .onSuccess { rewritten = it; path += Step("Rewrite: Ferb Link", reply.ms?.let { ms -> "$ms ms" }) }
+                                .onFailure { linkFailed("unreadable answer") }
+                        }
                     }
                 }
                 else -> linkFailed(brief(status))
@@ -147,10 +185,12 @@ class AnswerFlow(
             return Answer(NO_TOOL, Verdict.of(NO_TOOL, configs, said), emptyList(), path, nothingAsked = true, fallbacks = fallbacks)
         }
         val command = rewritten?.command
-        val text = command ?: said
+        // Needle 3 reads the command with its quoted words in Latin letters; the router never reads them.
+        val text = command?.let(content::forNeedle) ?: said
+        val routedBy = command?.let { ContentMap.masked(text) } ?: text
 
         // The tool selection: Jev narrows the tools to its pick.
-        val routed = ToolRouter.route(text, enabled, configs)
+        val routed = ToolRouter.route(routedBy, enabled, configs)
         var needleTools = routed
         var jev: JevReply? = null
         if (pipeline.tools == ToolStep.Link && enabled.isNotEmpty()) {
@@ -194,8 +234,23 @@ class AnswerFlow(
         // Timed calls (2026-10-25, the blind date round): the engine held one back but the router
         // names that timed tool alone, so it comes back to be weighed (gate E).
         fun timedRouted(t: String) = ToolRouter.route(t, enabled, configs).map { it.name }.filter(DateGate::timed)
-        val heldBack = reply.suppressed.firstOrNull { DateGate.timed(it.name) && timedRouted(text) == listOf(it.name) }
-        val calls = if (reply.calls.isEmpty() && heldBack != null) listOf(heldBack) else reply.calls
+        val heldBack = reply.suppressed.firstOrNull { DateGate.timed(it.name) && timedRouted(routedBy) == listOf(it.name) }
+        val needled = if (reply.calls.isEmpty() && heldBack != null) listOf(heldBack) else reply.calls
+        // The words to keep, as said (a rewritten request only).
+        val asks = mutableListOf<Guard>()
+        val calls = if (command == null) needled else needled.map { call ->
+            val field = ContentMap.CONTENT[call.name] ?: return@map call
+            val c = content.contentOf(call.arguments[field]?.toString(), ContentMap.quoted(command),
+                call.arguments.filterKeys { it != field && !it.startsWith("_") }, said)
+            if (!c.mapped && Guard.NotSaid !in asks) asks += Guard.NotSaid
+            call.copy(arguments = call.arguments + (field to c.text))
+        }
+        if (command != null && calls.isNotEmpty()) {
+            val named = ToolRouter.route(said, enabled, configs).map { it.name }
+            if (named.isNotEmpty() && calls.first().name !in named) asks += Guard.OtherTool
+            val time = DateGate.apply(TIME_GUARD_TOOL, emptyMap(), said, command, now())
+            if (time.said !is DateGate.Read.Ask && time.rewritten is DateGate.Read.Ask) asks += Guard.TimeDropped
+        }
         // Ferb's own time: the words as said and the rewrite read alike ([DateGate]); Needle 3's never decides.
         val gated = calls.map { call -> if (DateGate.timed(call.name)) DateGate.apply(call.name, call.arguments, said, command, now()) else null }
         val shown = reply.copy(
@@ -208,9 +263,12 @@ class AnswerFlow(
         // The words as said name other timed tools, not this one ("remind me" rewritten as an alarm): ask (gate H).
         val saidTimed = timedRouted(said)
         val otherTool = calls.any { DateGate.timed(it.name) && saidTimed.isNotEmpty() && it.name !in saidTimed }
-        val verdict = Verdict.of(shown, configs, text).let { v ->
+        asks.forEach { path += Step("Asks first", it.why) }
+        // The content is the words as said, so they ground it too; the command grounds the rest.
+        val verdict = Verdict.of(shown, configs, if (command == null) text else "$text\n$said").let { v ->
             when {
                 v.decision == Decision.Refuse || shown.calls.isEmpty() -> v
+                asks.isNotEmpty() -> v.copy(decision = Decision.Confirm, ungrounded = true)
                 otherTool -> v.copy(decision = Decision.Confirm, ungrounded = true)
                 // A number the rewrite brought in that the request never said ("wake me up early" as
                 // "6 am"): its calls ask first, as a value the request doesn't say does.
@@ -229,6 +287,7 @@ class AnswerFlow(
             command = command.differentFrom(said),
             fallbacks = fallbacks,
             jev = jev,
+            asks = asks.map { it.why },
         )
     }
 
@@ -256,6 +315,9 @@ class AnswerFlow(
     }
 
     companion object {
+        /** The tool the time guard reads the two texts as (the frozen code's: a reminder's time and date). */
+        private const val TIME_GUARD_TOOL = "add_reminder"
+
         /** The answer when no tool is on, Jev says none fits, or the rewrite says nothing is asked. */
         val NO_TOOL = NeedleReply(
             calls = emptyList(), suppressed = emptyList(), reasoning = "", confidence = null, ungrounded = emptyList(),

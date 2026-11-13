@@ -43,7 +43,7 @@ class AnswerFlowDatesTest {
 
     private fun answer(said: String, command: String?, needle: NeedleReply): Answer = runBlocking {
         val steps = Pipeline(AudioStep.Whistle, if (command != null) RewriteStep.Gemini else RewriteStep.Off, ToolStep.Off)
-        AnswerFlow(link, needle = { _, _ -> needle }, gemini = { Rewritten(it, command) }, now = { now })
+        AnswerFlow(link, needle = { _, _ -> needle }, gemini = { Rewritten(it, command) }, now = { now }, content = dev.abhay.assistant.tools.ContentMapTest.icu())
             .answer(said, enabled, configs, steps, null, geminiUsable = true)
     }
 
@@ -51,8 +51,11 @@ class AnswerFlowDatesTest {
 
     @Test
     fun agreeingReadingsRunWhateverNeedlesConfidence() {
-        val got = answer("kal subah 9 baje bank ko call karna yaad dilana", "Remind me tomorrow at 9 am to call the bank", reply(0.12, listOf(remind("tomorrow"))))
+        // As H2 writes it: the words to keep quoted, as said.
+        val got = answer("kal subah 9 baje bank ko call karna yaad dilana", "Remind me tomorrow at 9 am: \"bank ko call karna\"",
+            reply(0.12, listOf(ToolCall(AddReminder.name, mapOf("text" to "bank ko call karna", "time" to "tomorrow")))))
         assertThat(got.verdict.decision).isEqualTo(Decision.Run)
+        assertThat(got.asks).isEmpty()
         val args = got.shown.calls.single().arguments
         assertThat(args[TimeArgs.AT]).isEqualTo("2026-10-09T09:00")
         assertThat(args[TimeArgs.ASK]).isNull()
