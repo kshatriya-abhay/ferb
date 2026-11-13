@@ -1,0 +1,5560 @@
+{
+ "note": "Golden cases for Ferb's Kotlin port of the content fix (H2), from the frozen code (frozen-2), on\ndev.txt and dev2.txt only (never the blind sets). Writes app/src/test/resources/content/golden-dev.json.\n\nEach case: the words as said, the rewrite's answer (H2 typed JSON, Gemma's and Nano's; and A's line,\nFerb Link's fallback), the command, what Needle 3 sees, the tools routed (quotes masked), Needle 3's\nrecorded answer, and what the frozen code makes of it: the calls with the content mapped back,\nand the guards that ask first. Plus ICU's Latin for each text (uconv 78.3), to check ICU4J's.",
+ "now": "2026-10-06T10:00",
+ "latin": {
+  "1,850 rupees": "1,850 rupees",
+  "2 kg basmati rice": "2 kg basmati rice",
+  "Bittu ki fees 4500 jama karni hai": "Bittu ki fees 4500 jama karni hai",
+  "Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week": "Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week",
+  "I'll pick up the kids at 5": "I'll pick up the kids at 5",
+  "Meera's farewell dinner": "Meera's farewell dinner",
+  "Neha ko message bhejo ki main 10 minute mein pahunch rahi hoon": "Neha ko message bhejo ki main 10 minute mein pahunch rahi hoon",
+  "Prof. Iyer about the 3rd chapter": "Prof. Iyer about the 3rd chapter",
+  "Ritu ki birthday party": "Ritu ki birthday party",
+  "Rohan को message करो कि meeting cancel हो गई है": "Rohan ko message karo ki meeting cancel ho ga'i hai",
+  "add 2 kg basmati rice to the groceries list": "add 2 kg basmati rice to the groceries list",
+  "add Meera's farewell dinner to my calendar on saturday at 8": "add Meera's farewell dinner to my calendar on saturday at 8",
+  "add oat milk to my shopping list": "add oat milk to my shopping list",
+  "aloo aur tamatar": "aloo aur tamatar",
+  "ask Prof. Iyer about the 3rd chapter": "ask Prof. Iyer about the 3rd chapter",
+  "call the plumber": "call the plumber",
+  "daawai leni hai": "daawai leni hai",
+  "dawai leni hai": "dawai leni hai",
+  "dentist": "dentist",
+  "dentist ke paas jana hai": "dentist ke paas jana hai",
+  "don't forget the keys": "don't forget the keys",
+  "doodh lana hai": "doodh lana hai",
+  "gaadi ki service agle hafte karwani hai": "gaadi ki service agle hafte karwani hai",
+  "groceries": "groceries",
+  "kal 10 baje yaad dilana ki Bittu ki fees 4500 jama karni hai": "kal 10 baje yaad dilana ki Bittu ki fees 4500 jama karni hai",
+  "kal shaam 6 baje yaad dilana dawai leni hai": "kal shaam 6 baje yaad dilana dawai leni hai",
+  "kal subah 6 baje ka alarm laga do": "kal subah 6 baje ka alarm laga do",
+  "khana ready hai": "khana ready hai",
+  "lol no way": "lol no way",
+  "main 10 minute mein pahunch rahi hoon": "main 10 minute mein pahunch rahi hoon",
+  "main 7 baje tak pahunch jaungi, khana mat banana": "main 7 baje tak pahunch jaungi, khana mat banana",
+  "main raat ko der se aaunga": "main raat ko der se aaunga",
+  "make a note order 3 more chairs for the balcony": "make a note order 3 more chairs for the balcony",
+  "make a note the wifi password is on the fridge": "make a note the wifi password is on the fridge",
+  "meeting cancel ho gayi hai": "meeting cancel ho gayi hai",
+  "meeting cancel हो गई है": "meeting cancel ho ga'i hai",
+  "note kar lo gaadi ki service agle hafte karwani hai": "note kar lo gaadi ki service agle hafte karwani hai",
+  "note the spare key is with Mrs. D'Souza in flat 4B": "note the spare key is with Mrs. D'Souza in flat 4B",
+  "note: try the new ramen place on 5th street": "note: try the new ramen place on 5th street",
+  "oat milk": "oat milk",
+  "order 3 more chairs for the balcony": "order 3 more chairs for the balcony",
+  "papa ko bolo khana ready hai": "papa ko bolo khana ready hai",
+  "passport ki photo leni hai": "passport ki photo leni hai",
+  "pay the gas bill of 1,850 rupees": "pay the gas bill of 1,850 rupees",
+  "practice is moved to 6:30 on Thursday": "practice is moved to 6:30 on Thursday",
+  "put team lunch on my calendar friday at 1": "put team lunch on my calendar friday at 1",
+  "remind me at 7 that the cake needs to come out of the oven": "remind me at 7 that the cake needs to come out of the oven",
+  "remind me on monday to pay the gas bill of 1,850 rupees": "remind me on monday to pay the gas bill of 1,850 rupees",
+  "remind me tomorrow at 8 to call the plumber": "remind me tomorrow at 8 to call the plumber",
+  "remind me tomorrow to ask Prof. Iyer about the 3rd chapter": "remind me tomorrow to ask Prof. Iyer about the 3rd chapter",
+  "send a message to Coach saying practice is moved to 6:30 on Thursday": "send a message to Coach saying practice is moved to 6:30 on Thursday",
+  "send a message to dad saying don't forget the keys": "send a message to dad saying don't forget the keys",
+  "set a timer for 10 minutes": "set a timer for 10 minutes",
+  "shopping list mein aloo aur tamatar daal do": "shopping list mein aloo aur tamatar daal do",
+  "shukravaar ko 4 baje calendar mein Ritu ki birthday party daal do": "shukravaar ko 4 baje calendar mein Ritu ki birthday party daal do",
+  "team lunch": "team lunch",
+  "tell Sam lol no way": "tell Sam lol no way",
+  "text Priya I'll pick up the kids at 5": "text Priya I'll pick up the kids at 5",
+  "text my landlord Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week": "text my landlord Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week",
+  "the cake needs to come out of the oven": "the cake needs to come out of the oven",
+  "the spare key is with Mrs. D'Souza in flat 4B": "the spare key is with Mrs. D'Souza in flat 4B",
+  "the wifi password is on the fridge": "the wifi password is on the fridge",
+  "try the new ramen place on 5th street": "try the new ramen place on 5th street",
+  "what's the weather like in Pune": "what's the weather like in Pune",
+  "एक नोट बनाओ बिजली का बिल भरना है": "eka nota bana'o bijali ka bila bharana hai",
+  "कल दोपहर 2 बजे डेंटिस्ट के पास जाना है, कैलेंडर में डाल दो": "kala dopahara 2 baje dentista ke pasa jana hai, kailendara mem dala do",
+  "किराने की लिस्ट": "kirane ki lista",
+  "किराने की लिस्ट में चीनी और चायपत्ती जोड़ दो": "kirane ki lista mem cini aura cayapatti jora do",
+  "चीनी और चायपत्ती": "cini aura cayapatti",
+  "डेंटिस्ट के पास जाना है": "dentista ke pasa jana hai",
+  "दीदी को मैसेज करो कि मैं 7 बजे तक पहुँच जाऊँगी, खाना मत बनाना": "didi ko maiseja karo ki maim 7 baje taka pahumca ja'umgi, khana mata banana",
+  "परसों सुबह 9 बजे याद दिलाना कि पासपोर्ट की फोटो लेनी है": "parasom subaha 9 baje yada dilana ki pasaporta ki photo leni hai",
+  "पासपोर्ट की फोटो लेनी है": "pasaporta ki photo leni hai",
+  "बिजली का बिल भरना है": "bijali ka bila bharana hai",
+  "माँ को मैसेज करो कि मैं रात को देर से आऊँगा": "mam ko maiseja karo ki maim rata ko dera se a'umga",
+  "मैं 7 बजे तक पहुँच जाऊँगी, खाना मत बनाना": "maim 7 baje taka pahumca ja'umgi, khana mata banana",
+  "मैं रात को देर से आऊँगा": "maim rata ko dera se a'umga",
+  "शाम 5 बजे याद दिलाना कि doodh lana hai": "sama 5 baje yada dilana ki doodh lana hai"
+ },
+ "cases": [
+  {
+   "set": "dev.txt",
+   "row": 0,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "text Priya I'll pick up the kids at 5",
+   "raw": "{\n  \"command\": \"Send a text to Priya: \\\"I'll pick up the kids at 5\\\"\",\n  \"content\": \"I'll pick up the kids at 5\"\n}",
+   "command": "Send a text to Priya: \"I'll pick up the kids at 5\"",
+   "seen": "Send a text to Priya: \"I'll pick up the kids at 5\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "Priya",
+       "message": "I'll pick up the kids at 5"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8306
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "Priya",
+      "message": "I'll pick up the kids at 5"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 0,
+   "source": "nano",
+   "mode": "typed",
+   "said": "text Priya I'll pick up the kids at 5",
+   "raw": "{\"command\":\"Send a text to Priya: \\\"I'll pick up the kids at 5\\\"\",\"content\":\"I'll pick up the kids at 5\"}",
+   "command": "Send a text to Priya: \"I'll pick up the kids at 5\"",
+   "seen": "Send a text to Priya: \"I'll pick up the kids at 5\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "Priya",
+       "message": "I'll pick up the kids at 5"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8306
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "Priya",
+      "message": "I'll pick up the kids at 5"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 0,
+   "source": "gemma",
+   "mode": "line",
+   "said": "text Priya I'll pick up the kids at 5",
+   "raw": "Send a text to Priya: \"I'll pick up the kids at 5\"",
+   "command": "Send a text to Priya: \"I'll pick up the kids at 5\"",
+   "seen": "Send a text to Priya: \"I'll pick up the kids at 5\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "Priya",
+       "message": "I'll pick up the kids at 5"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8306
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "Priya",
+      "message": "I'll pick up the kids at 5"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 0,
+   "source": "nano",
+   "mode": "line",
+   "said": "text Priya I'll pick up the kids at 5",
+   "raw": "Send a text to Priya: \"I'll pick up the kids at 5\"",
+   "command": "Send a text to Priya: \"I'll pick up the kids at 5\"",
+   "seen": "Send a text to Priya: \"I'll pick up the kids at 5\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "Priya",
+       "message": "I'll pick up the kids at 5"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8306
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "Priya",
+      "message": "I'll pick up the kids at 5"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 1,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "send a message to dad saying don't forget the keys",
+   "raw": "{\n  \"command\": \"Send a text to dad: \\\"don't forget the keys\\\"\",\n  \"content\": \"don't forget the keys\"\n}",
+   "command": "Send a text to dad: \"don't forget the keys\"",
+   "seen": "Send a text to dad: \"don't forget the keys\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "dad",
+       "message": "Don't forget the keys"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8219
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "dad",
+      "message": "don't forget the keys"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 1,
+   "source": "nano",
+   "mode": "typed",
+   "said": "send a message to dad saying don't forget the keys",
+   "raw": "{\"command\":\"Send a text to dad: \\\"don't forget the keys\\\"\",\"content\":\"don't forget the keys\"}",
+   "command": "Send a text to dad: \"don't forget the keys\"",
+   "seen": "Send a text to dad: \"don't forget the keys\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "dad",
+       "message": "Don't forget the keys"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8219
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "dad",
+      "message": "don't forget the keys"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 1,
+   "source": "gemma",
+   "mode": "line",
+   "said": "send a message to dad saying don't forget the keys",
+   "raw": "Send a text to dad: \"don't forget the keys\"",
+   "command": "Send a text to dad: \"don't forget the keys\"",
+   "seen": "Send a text to dad: \"don't forget the keys\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "dad",
+       "message": "Don't forget the keys"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8219
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "dad",
+      "message": "don't forget the keys"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 1,
+   "source": "nano",
+   "mode": "line",
+   "said": "send a message to dad saying don't forget the keys",
+   "raw": "Send a text to dad: \"don't forget the keys\"",
+   "command": "Send a text to dad: \"don't forget the keys\"",
+   "seen": "Send a text to dad: \"don't forget the keys\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "dad",
+       "message": "Don't forget the keys"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8219
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "dad",
+      "message": "don't forget the keys"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 2,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "tell Sam lol no way",
+   "raw": "{\n  \"command\": \"Send a text to Sam: \\\"lol no way\\\"\",\n  \"content\": \"lol no way\"\n}",
+   "command": "Send a text to Sam: \"lol no way\"",
+   "seen": "Send a text to Sam: \"lol no way\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "Sam",
+       "message": "Lol no way"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8785
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "Sam",
+      "message": "lol no way"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 2,
+   "source": "nano",
+   "mode": "typed",
+   "said": "tell Sam lol no way",
+   "raw": "{\"command\":\"NONE\",\"content\":\"tell Sam lol no way\"}",
+   "command": null,
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 2,
+   "source": "gemma",
+   "mode": "line",
+   "said": "tell Sam lol no way",
+   "raw": "Send a text to Sam: \"lol no way\"",
+   "command": "Send a text to Sam: \"lol no way\"",
+   "seen": "Send a text to Sam: \"lol no way\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "Sam",
+       "message": "Lol no way"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8785
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "Sam",
+      "message": "lol no way"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 2,
+   "source": "nano",
+   "mode": "line",
+   "said": "tell Sam lol no way",
+   "raw": "Send a text to Sam: \"lol no way\"",
+   "command": "Send a text to Sam: \"lol no way\"",
+   "seen": "Send a text to Sam: \"lol no way\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "Sam",
+       "message": "Lol no way"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8785
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "Sam",
+      "message": "lol no way"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 3,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "Neha ko message bhejo ki main 10 minute mein pahunch rahi hoon",
+   "raw": "{\n  \"command\": \"Send a text to Neha: \\\"main 10 minute mein pahunch rahi hoon\\\"\",\n  \"content\": \"main 10 minute mein pahunch rahi hoon\"\n}",
+   "command": "Send a text to Neha: \"main 10 minute mein pahunch rahi hoon\"",
+   "seen": "Send a text to Neha: \"main 10 minute mein pahunch rahi hoon\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "Neha",
+       "message": "Main 10 minute mein pahunch rahi hoon"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.9092
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "Neha",
+      "message": "main 10 minute mein pahunch rahi hoon"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 3,
+   "source": "nano",
+   "mode": "typed",
+   "said": "Neha ko message bhejo ki main 10 minute mein pahunch rahi hoon",
+   "raw": "{\"command\":\"Send a text to Neha: \\\"main 10 minute mein pahunch rahi hoon\\\"\",\"content\":\"main 10 minute mein pahunch rahi hoon\"}",
+   "command": "Send a text to Neha: \"main 10 minute mein pahunch rahi hoon\"",
+   "seen": "Send a text to Neha: \"main 10 minute mein pahunch rahi hoon\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "Neha",
+       "message": "Main 10 minute mein pahunch rahi hoon"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.9092
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "Neha",
+      "message": "main 10 minute mein pahunch rahi hoon"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 3,
+   "source": "gemma",
+   "mode": "line",
+   "said": "Neha ko message bhejo ki main 10 minute mein pahunch rahi hoon",
+   "raw": "Send a text to Neha: \"main 10 minute mein pahunch rahi hoon\"",
+   "command": "Send a text to Neha: \"main 10 minute mein pahunch rahi hoon\"",
+   "seen": "Send a text to Neha: \"main 10 minute mein pahunch rahi hoon\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "Neha",
+       "message": "Main 10 minute mein pahunch rahi hoon"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.9092
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "Neha",
+      "message": "main 10 minute mein pahunch rahi hoon"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 3,
+   "source": "nano",
+   "mode": "line",
+   "said": "Neha ko message bhejo ki main 10 minute mein pahunch rahi hoon",
+   "raw": "Send a text to Neha: \"main 10 minute mein pahunch rahi hoon\"",
+   "command": "Send a text to Neha: \"main 10 minute mein pahunch rahi hoon\"",
+   "seen": "Send a text to Neha: \"main 10 minute mein pahunch rahi hoon\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "Neha",
+       "message": "Main 10 minute mein pahunch rahi hoon"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.9092
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "Neha",
+      "message": "main 10 minute mein pahunch rahi hoon"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 4,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "papa ko bolo khana ready hai",
+   "raw": "{\n  \"command\": \"Send a text to papa: \\\"khana ready hai\\\"\",\n  \"content\": \"khana ready hai\"\n}",
+   "command": "Send a text to papa: \"khana ready hai\"",
+   "seen": "Send a text to papa: \"khana ready hai\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "papa",
+       "message": "Khana ready hai"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8228
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "papa",
+      "message": "khana ready hai"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 4,
+   "source": "nano",
+   "mode": "typed",
+   "said": "papa ko bolo khana ready hai",
+   "raw": "{\"command\":\"Call papa\",\"content\":\"khana ready hai\"}",
+   "command": "Call papa: \"khana ready hai\"",
+   "seen": "Call papa: \"khana ready hai\"",
+   "routed": [
+    "make_call"
+   ],
+   "tools": [
+    "make_call"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "make_call",
+      "arguments": {
+       "name": "papa"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8291
+   },
+   "calls": [
+    {
+     "name": "make_call",
+     "arguments": {
+      "name": "papa"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 4,
+   "source": "gemma",
+   "mode": "line",
+   "said": "papa ko bolo khana ready hai",
+   "raw": "Send a text to papa: \"khana ready hai\"",
+   "command": "Send a text to papa: \"khana ready hai\"",
+   "seen": "Send a text to papa: \"khana ready hai\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "papa",
+       "message": "Khana ready hai"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8228
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "papa",
+      "message": "khana ready hai"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 4,
+   "source": "nano",
+   "mode": "line",
+   "said": "papa ko bolo khana ready hai",
+   "raw": "Send a text to papa: \"khana ready hai\"",
+   "command": "Send a text to papa: \"khana ready hai\"",
+   "seen": "Send a text to papa: \"khana ready hai\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "papa",
+       "message": "Khana ready hai"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8228
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "papa",
+      "message": "khana ready hai"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 5,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "माँ को मैसेज करो कि मैं रात को देर से आऊँगा",
+   "raw": "{\n  \"command\": \"Send a text to maa: \\\"main raat ko der se aaunga\\\"\",\n  \"content\": \"मैं रात को देर से आऊँगा\"\n}",
+   "command": "Send a text to maa: \"main raat ko der se aaunga\": \"मैं रात को देर से आऊँगा\"",
+   "seen": "Send a text to maa: \"main raat ko der se aaunga\": \"maim rata ko dera se a'umga\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "maa",
+       "message": "Main raat ko der se a'umga"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8268
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "maa",
+      "message": "मैं रात को देर से आऊँगा"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 5,
+   "source": "nano",
+   "mode": "typed",
+   "said": "माँ को मैसेज करो कि मैं रात को देर से आऊँगा",
+   "raw": "{\"command\":\"Send a text to Maa: \\\"main raat ko der se aaunga\\\"\",\"content\":\"main raat ko der se aaunga\"}",
+   "command": "Send a text to Maa: \"main raat ko der se aaunga\"",
+   "seen": "Send a text to Maa: \"main raat ko der se aaunga\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "Maa",
+       "message": "Main raat ko der se aaunga"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.7782
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "Maa",
+      "message": "मैं रात को देर से आऊँगा"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 5,
+   "source": "gemma",
+   "mode": "line",
+   "said": "माँ को मैसेज करो कि मैं रात को देर से आऊँगा",
+   "raw": "Send a text to माँ: \"main raat ko der se aaunga\"",
+   "command": "Send a text to माँ: \"main raat ko der se aaunga\"",
+   "seen": "Send a text to माँ: \"main raat ko der se aaunga\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "माँ",
+       "message": "Main raat ko der se aaunga"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.7147
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "माँ",
+      "message": "मैं रात को देर से आऊँगा"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 5,
+   "source": "nano",
+   "mode": "line",
+   "said": "माँ को मैसेज करो कि मैं रात को देर से आऊँगा",
+   "raw": "Send a text to Maa: \"main raat ko der se aaunga\"",
+   "command": "Send a text to Maa: \"main raat ko der se aaunga\"",
+   "seen": "Send a text to Maa: \"main raat ko der se aaunga\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "Maa",
+       "message": "Main raat ko der se aaunga"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.7782
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "Maa",
+      "message": "मैं रात को देर से आऊँगा"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 6,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "Rohan को message करो कि meeting cancel हो गई है",
+   "raw": "{\n  \"command\": \"Send a text to Rohan: \\\"meeting cancel हो गई है\\\"\",\n  \"content\": \"meeting cancel हो गई है\"\n}",
+   "command": "Send a text to Rohan: \"meeting cancel हो गई है\"",
+   "seen": "Send a text to Rohan: \"meeting cancel ho ga'i hai\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "Rohan",
+       "message": "Meeting cancel ho ga'i hai"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.731
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "Rohan",
+      "message": "meeting cancel हो गई है"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 6,
+   "source": "nano",
+   "mode": "typed",
+   "said": "Rohan को message करो कि meeting cancel हो गई है",
+   "raw": "{\"command\":\"Send a text to Rohan: \\\"meeting cancel ho gayi hai\\\"\",\"content\":\"meeting cancel ho gayi hai\"}",
+   "command": "Send a text to Rohan: \"meeting cancel ho gayi hai\"",
+   "seen": "Send a text to Rohan: \"meeting cancel ho gayi hai\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "Rohan",
+       "message": "Meeting cancel ho gayi hai"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8794
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "Rohan",
+      "message": "meeting cancel हो गई है"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 6,
+   "source": "gemma",
+   "mode": "line",
+   "said": "Rohan को message करो कि meeting cancel हो गई है",
+   "raw": "Send a text to Rohan: \"meeting cancel ho gayi hai\"",
+   "command": "Send a text to Rohan: \"meeting cancel ho gayi hai\"",
+   "seen": "Send a text to Rohan: \"meeting cancel ho gayi hai\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "Rohan",
+       "message": "Meeting cancel ho gayi hai"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8794
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "Rohan",
+      "message": "meeting cancel हो गई है"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 6,
+   "source": "nano",
+   "mode": "line",
+   "said": "Rohan को message करो कि meeting cancel हो गई है",
+   "raw": "Send a text to Rohan: \"meeting cancel ho gayi hai\"",
+   "command": "Send a text to Rohan: \"meeting cancel ho gayi hai\"",
+   "seen": "Send a text to Rohan: \"meeting cancel ho gayi hai\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "Rohan",
+       "message": "Meeting cancel ho gayi hai"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8794
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "Rohan",
+      "message": "meeting cancel हो गई है"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 7,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "make a note the wifi password is on the fridge",
+   "raw": "{\n  \"command\": \"Make a note: \\\"the wifi password is on the fridge\\\"\",\n  \"content\": \"the wifi password is on the fridge\"\n}",
+   "command": "Make a note: \"the wifi password is on the fridge\"",
+   "seen": "Make a note: \"the wifi password is on the fridge\"",
+   "routed": [
+    "create_note"
+   ],
+   "tools": [
+    "create_note"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "create_note",
+      "arguments": {
+       "text": "the wifi password is on the fridge"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8885
+   },
+   "calls": [
+    {
+     "name": "create_note",
+     "arguments": {
+      "text": "the wifi password is on the fridge"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 7,
+   "source": "nano",
+   "mode": "typed",
+   "said": "make a note the wifi password is on the fridge",
+   "raw": "{\"command\":\"Make a note\",\"content\":\"the wifi password is on the fridge\"}",
+   "command": "Make a note: \"the wifi password is on the fridge\"",
+   "seen": "Make a note: \"the wifi password is on the fridge\"",
+   "routed": [
+    "create_note"
+   ],
+   "tools": [
+    "create_note"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "create_note",
+      "arguments": {
+       "text": "the wifi password is on the fridge"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8885
+   },
+   "calls": [
+    {
+     "name": "create_note",
+     "arguments": {
+      "text": "the wifi password is on the fridge"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 7,
+   "source": "gemma",
+   "mode": "line",
+   "said": "make a note the wifi password is on the fridge",
+   "raw": "Make a note: \"the wifi password is on the fridge\"",
+   "command": "Make a note: \"the wifi password is on the fridge\"",
+   "seen": "Make a note: \"the wifi password is on the fridge\"",
+   "routed": [
+    "create_note"
+   ],
+   "tools": [
+    "create_note"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "create_note",
+      "arguments": {
+       "text": "the wifi password is on the fridge"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8885
+   },
+   "calls": [
+    {
+     "name": "create_note",
+     "arguments": {
+      "text": "the wifi password is on the fridge"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 7,
+   "source": "nano",
+   "mode": "line",
+   "said": "make a note the wifi password is on the fridge",
+   "raw": "Make a note: \"the wifi password is on the fridge\"",
+   "command": "Make a note: \"the wifi password is on the fridge\"",
+   "seen": "Make a note: \"the wifi password is on the fridge\"",
+   "routed": [
+    "create_note"
+   ],
+   "tools": [
+    "create_note"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "create_note",
+      "arguments": {
+       "text": "the wifi password is on the fridge"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8885
+   },
+   "calls": [
+    {
+     "name": "create_note",
+     "arguments": {
+      "text": "the wifi password is on the fridge"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 8,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "note: try the new ramen place on 5th street",
+   "raw": "{\n  \"command\": \"Make a note: \\\"try the new ramen place on 5th street\\\"\",\n  \"content\": \"try the new ramen place on 5th street\"\n}",
+   "command": "Make a note: \"try the new ramen place on 5th street\"",
+   "seen": "Make a note: \"try the new ramen place on 5th street\"",
+   "routed": [
+    "create_note"
+   ],
+   "tools": [
+    "create_note"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "create_note",
+      "arguments": {
+       "text": "try the new ramen place on 5th street"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.9042
+   },
+   "calls": [
+    {
+     "name": "create_note",
+     "arguments": {
+      "text": "try the new ramen place on 5th street"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 8,
+   "source": "nano",
+   "mode": "typed",
+   "said": "note: try the new ramen place on 5th street",
+   "raw": "{\"command\":\"Make a note: \\\"try the new ramen place on 5th street\\\"\",\"content\":\"try the new ramen place on 5th street\"}",
+   "command": "Make a note: \"try the new ramen place on 5th street\"",
+   "seen": "Make a note: \"try the new ramen place on 5th street\"",
+   "routed": [
+    "create_note"
+   ],
+   "tools": [
+    "create_note"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "create_note",
+      "arguments": {
+       "text": "try the new ramen place on 5th street"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.9042
+   },
+   "calls": [
+    {
+     "name": "create_note",
+     "arguments": {
+      "text": "try the new ramen place on 5th street"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 8,
+   "source": "gemma",
+   "mode": "line",
+   "said": "note: try the new ramen place on 5th street",
+   "raw": "Add \"try the new ramen place on 5th street\" to my notes.",
+   "command": "Add \"try the new ramen place on 5th street\" to my notes.",
+   "seen": "Add \"try the new ramen place on 5th street\" to my notes.",
+   "routed": [
+    "create_note"
+   ],
+   "tools": [
+    "create_note"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "create_note",
+      "arguments": {
+       "text": "try the new ramen place on 5th street"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8528
+   },
+   "calls": [
+    {
+     "name": "create_note",
+     "arguments": {
+      "text": "try the new ramen place on 5th street"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 8,
+   "source": "nano",
+   "mode": "line",
+   "said": "note: try the new ramen place on 5th street",
+   "raw": "Make a note: \"try the new ramen place on 5th street\"",
+   "command": "Make a note: \"try the new ramen place on 5th street\"",
+   "seen": "Make a note: \"try the new ramen place on 5th street\"",
+   "routed": [
+    "create_note"
+   ],
+   "tools": [
+    "create_note"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "create_note",
+      "arguments": {
+       "text": "try the new ramen place on 5th street"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.9042
+   },
+   "calls": [
+    {
+     "name": "create_note",
+     "arguments": {
+      "text": "try the new ramen place on 5th street"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 9,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "note kar lo gaadi ki service agle hafte karwani hai",
+   "raw": "{\n  \"command\": \"Make a note: \\\"gaadi ki service agle hafte karwani hai\\\"\",\n  \"content\": \"gaadi ki service agle hafte karwani hai\"\n}",
+   "command": "Make a note: \"gaadi ki service agle hafte karwani hai\"",
+   "seen": "Make a note: \"gaadi ki service agle hafte karwani hai\"",
+   "routed": [
+    "create_note"
+   ],
+   "tools": [
+    "create_note"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "create_note",
+      "arguments": {
+       "text": "gaadi ki service agle hafte karwani hai"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.7677
+   },
+   "calls": [
+    {
+     "name": "create_note",
+     "arguments": {
+      "text": "gaadi ki service agle hafte karwani hai"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 9,
+   "source": "nano",
+   "mode": "typed",
+   "said": "note kar lo gaadi ki service agle hafte karwani hai",
+   "raw": "{\"command\":\"Make a note: \\\"gaadi ki service agle hafte karwani hai\\\"\",\"content\":\"gaadi ki service agle hafte karwani hai\"}",
+   "command": "Make a note: \"gaadi ki service agle hafte karwani hai\"",
+   "seen": "Make a note: \"gaadi ki service agle hafte karwani hai\"",
+   "routed": [
+    "create_note"
+   ],
+   "tools": [
+    "create_note"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "create_note",
+      "arguments": {
+       "text": "gaadi ki service agle hafte karwani hai"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.7677
+   },
+   "calls": [
+    {
+     "name": "create_note",
+     "arguments": {
+      "text": "gaadi ki service agle hafte karwani hai"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 9,
+   "source": "gemma",
+   "mode": "line",
+   "said": "note kar lo gaadi ki service agle hafte karwani hai",
+   "raw": "Add \"gaadi ki service agle hafte karwani hai\" to my notes.",
+   "command": "Add \"gaadi ki service agle hafte karwani hai\" to my notes.",
+   "seen": "Add \"gaadi ki service agle hafte karwani hai\" to my notes.",
+   "routed": [
+    "create_note"
+   ],
+   "tools": [
+    "create_note"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "create_note",
+      "arguments": {
+       "text": "gaadi ki service agle hafte karwani hai"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.595
+   },
+   "calls": [
+    {
+     "name": "create_note",
+     "arguments": {
+      "text": "gaadi ki service agle hafte karwani hai"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 9,
+   "source": "nano",
+   "mode": "line",
+   "said": "note kar lo gaadi ki service agle hafte karwani hai",
+   "raw": "Add \"gaadi ki service agle hafte karwani hai\" to my list",
+   "command": "Add \"gaadi ki service agle hafte karwani hai\" to my list",
+   "seen": "Add \"gaadi ki service agle hafte karwani hai\" to my list",
+   "routed": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "tools": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_to_list",
+      "arguments": {
+       "list": "my list",
+       "items": "gaadi ki service agle hafte karwani hai"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.1785
+   },
+   "calls": [
+    {
+     "name": "add_to_list",
+     "arguments": {
+      "list": "my list",
+      "items": "gaadi ki service agle hafte karwani hai"
+     }
+    }
+   ],
+   "asks": [
+    "the words as said name create_note"
+   ],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 10,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "एक नोट बनाओ बिजली का बिल भरना है",
+   "raw": "{\n  \"command\": \"Make a note: \\\"बिजली का बिल भरना है\\\"\",\n  \"content\": \"बिजली का बिल भरना है\"\n}",
+   "command": "Make a note: \"बिजली का बिल भरना है\"",
+   "seen": "Make a note: \"bijali ka bila bharana hai\"",
+   "routed": [
+    "create_note"
+   ],
+   "tools": [
+    "create_note"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "create_note",
+      "arguments": {
+       "text": "bijali ka bila bharana hai"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.844
+   },
+   "calls": [
+    {
+     "name": "create_note",
+     "arguments": {
+      "text": "बिजली का बिल भरना है"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 10,
+   "source": "nano",
+   "mode": "typed",
+   "said": "एक नोट बनाओ बिजली का बिल भरना है",
+   "raw": "{\"command\":\"Make a note: \\\"बिजली का बिल भरना है\\\"\",\"content\":\"बिजली का बिल भरना है\"}",
+   "command": "Make a note: \"बिजली का बिल भरना है\"",
+   "seen": "Make a note: \"bijali ka bila bharana hai\"",
+   "routed": [
+    "create_note"
+   ],
+   "tools": [
+    "create_note"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "create_note",
+      "arguments": {
+       "text": "bijali ka bila bharana hai"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.844
+   },
+   "calls": [
+    {
+     "name": "create_note",
+     "arguments": {
+      "text": "बिजली का बिल भरना है"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 10,
+   "source": "gemma",
+   "mode": "line",
+   "said": "एक नोट बनाओ बिजली का बिल भरना है",
+   "raw": "Make a note: \"बिजली का बिल भरना है\"",
+   "command": "Make a note: \"बिजली का बिल भरना है\"",
+   "seen": "Make a note: \"bijali ka bila bharana hai\"",
+   "routed": [
+    "create_note"
+   ],
+   "tools": [
+    "create_note"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "create_note",
+      "arguments": {
+       "text": "bijali ka bila bharana hai"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.844
+   },
+   "calls": [
+    {
+     "name": "create_note",
+     "arguments": {
+      "text": "बिजली का बिल भरना है"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 10,
+   "source": "nano",
+   "mode": "line",
+   "said": "एक नोट बनाओ बिजली का बिल भरना है",
+   "raw": "Make a note: \"बिजली का बिल भरना है\"",
+   "command": "Make a note: \"बिजली का बिल भरना है\"",
+   "seen": "Make a note: \"bijali ka bila bharana hai\"",
+   "routed": [
+    "create_note"
+   ],
+   "tools": [
+    "create_note"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "create_note",
+      "arguments": {
+       "text": "bijali ka bila bharana hai"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.844
+   },
+   "calls": [
+    {
+     "name": "create_note",
+     "arguments": {
+      "text": "बिजली का बिल भरना है"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 11,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "remind me tomorrow at 8 to call the plumber",
+   "raw": "{\n  \"command\": \"Remind me tomorrow at 8 to call the plumber\",\n  \"content\": \"call the plumber\"\n}",
+   "command": "Remind me tomorrow at 8 to \"call the plumber\"",
+   "seen": "Remind me tomorrow at 8 to \"call the plumber\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "call the plumber",
+       "time": "tomorrow at 8"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.5439
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "call the plumber",
+      "time": "tomorrow at 8"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 11,
+   "source": "nano",
+   "mode": "typed",
+   "said": "remind me tomorrow at 8 to call the plumber",
+   "raw": "{\"command\":\"Remind me tomorrow at 8 to call the plumber\",\"content\":\"call the plumber\"}",
+   "command": "Remind me tomorrow at 8 to \"call the plumber\"",
+   "seen": "Remind me tomorrow at 8 to \"call the plumber\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "call the plumber",
+       "time": "tomorrow at 8"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.5439
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "call the plumber",
+      "time": "tomorrow at 8"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 11,
+   "source": "gemma",
+   "mode": "line",
+   "said": "remind me tomorrow at 8 to call the plumber",
+   "raw": "Remind me tomorrow at 8:00 to \"call the plumber\"",
+   "command": "Remind me tomorrow at 8:00 to \"call the plumber\"",
+   "seen": "Remind me tomorrow at 8:00 to \"call the plumber\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "call the plumber",
+       "time": "tomorrow at 8:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.586
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "call the plumber",
+      "time": "tomorrow at 8:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 11,
+   "source": "nano",
+   "mode": "line",
+   "said": "remind me tomorrow at 8 to call the plumber",
+   "raw": "Remind me tomorrow at 8:00 to call the plumber",
+   "command": "Remind me tomorrow at 8:00 to call the plumber",
+   "seen": "Remind me tomorrow at 8:00 to call the plumber",
+   "routed": [
+    "add_reminder",
+    "make_call"
+   ],
+   "tools": [
+    "add_reminder",
+    "make_call"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "call the plumber",
+       "time": "tomorrow at 8:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.5709
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "call the plumber",
+      "time": "tomorrow at 8:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 12,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "remind me at 7 that the cake needs to come out of the oven",
+   "raw": "{\n  \"command\": \"Remind me at 7: \\\"the cake needs to come out of the oven\\\"\",\n  \"content\": \"the cake needs to come out of the oven\"\n}",
+   "command": "Remind me at 7: \"the cake needs to come out of the oven\"",
+   "seen": "Remind me at 7: \"the cake needs to come out of the oven\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "the cake needs to come out of the oven",
+       "time": "7:"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.1808
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "the cake needs to come out of the oven",
+      "time": "7:"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 12,
+   "source": "nano",
+   "mode": "typed",
+   "said": "remind me at 7 that the cake needs to come out of the oven",
+   "raw": "{\"command\":\"Remind me at 7: \\\"the cake needs to come out of the oven\\\"\",\"content\":\"the cake needs to come out of the oven\"}",
+   "command": "Remind me at 7: \"the cake needs to come out of the oven\"",
+   "seen": "Remind me at 7: \"the cake needs to come out of the oven\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "the cake needs to come out of the oven",
+       "time": "7:"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.1808
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "the cake needs to come out of the oven",
+      "time": "7:"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 12,
+   "source": "gemma",
+   "mode": "line",
+   "said": "remind me at 7 that the cake needs to come out of the oven",
+   "raw": "Remind me at 7:00 that \"the cake needs to come out of the oven\"",
+   "command": "Remind me at 7:00 that \"the cake needs to come out of the oven\"",
+   "seen": "Remind me at 7:00 that \"the cake needs to come out of the oven\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "the cake needs to come out of the oven",
+       "time": "7:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.6411
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "the cake needs to come out of the oven",
+      "time": "7:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 12,
+   "source": "nano",
+   "mode": "line",
+   "said": "remind me at 7 that the cake needs to come out of the oven",
+   "raw": "Remind me at 7:00 that \"the cake needs to come out of the oven\"",
+   "command": "Remind me at 7:00 that \"the cake needs to come out of the oven\"",
+   "seen": "Remind me at 7:00 that \"the cake needs to come out of the oven\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "the cake needs to come out of the oven",
+       "time": "7:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.6411
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "the cake needs to come out of the oven",
+      "time": "7:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 13,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "kal shaam 6 baje yaad dilana dawai leni hai",
+   "raw": "{\n  \"command\": \"Remind me tomorrow at 6 pm: \\\"daawai leni hai\\\"\",\n  \"content\": \"daawai leni hai\"\n}",
+   "command": "Remind me tomorrow at 6 pm: \"daawai leni hai\"",
+   "seen": "Remind me tomorrow at 6 pm: \"daawai leni hai\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "daawai leni hai",
+       "time": "18:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.2091
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "dawai leni hai",
+      "time": "18:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 13,
+   "source": "nano",
+   "mode": "typed",
+   "said": "kal shaam 6 baje yaad dilana dawai leni hai",
+   "raw": "{\"command\":\"Remind me tomorrow at 6 pm: \\\"dawai leni hai\\\"\",\"content\":\"dawai leni hai\"}",
+   "command": "Remind me tomorrow at 6 pm: \"dawai leni hai\"",
+   "seen": "Remind me tomorrow at 6 pm: \"dawai leni hai\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "dawai leni hai",
+       "time": "18:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.2212
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "dawai leni hai",
+      "time": "18:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 13,
+   "source": "gemma",
+   "mode": "line",
+   "said": "kal shaam 6 baje yaad dilana dawai leni hai",
+   "raw": "Remind me tomorrow at 6 pm: \"dawai leni hai\"",
+   "command": "Remind me tomorrow at 6 pm: \"dawai leni hai\"",
+   "seen": "Remind me tomorrow at 6 pm: \"dawai leni hai\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "dawai leni hai",
+       "time": "18:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.2212
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "dawai leni hai",
+      "time": "18:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 13,
+   "source": "nano",
+   "mode": "line",
+   "said": "kal shaam 6 baje yaad dilana dawai leni hai",
+   "raw": "Remind me tomorrow at 6 pm: \"dawai leni hai\"",
+   "command": "Remind me tomorrow at 6 pm: \"dawai leni hai\"",
+   "seen": "Remind me tomorrow at 6 pm: \"dawai leni hai\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "dawai leni hai",
+       "time": "18:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.2212
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "dawai leni hai",
+      "time": "18:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 14,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "परसों सुबह 9 बजे याद दिलाना कि पासपोर्ट की फोटो लेनी है",
+   "raw": "{\n  \"command\": \"Remind me in 2 days at 9 am: \\\"पासपोर्ट की फोटो लेनी है\\\"\",\n  \"content\": \"पासपोर्ट की फोटो लेनी है\"\n}",
+   "command": "Remind me in 2 days at 9 am: \"पासपोर्ट की फोटो लेनी है\"",
+   "seen": "Remind me in 2 days at 9 am: \"pasaporta ki photo leni hai\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [],
+    "suppressed_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "pasaporta ki photo leni hai",
+       "time": "2 days"
+      }
+     }
+    ],
+    "confidence": 0.0525
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "पासपोर्ट की फोटो लेनी है",
+      "time": "2 days"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 14,
+   "source": "nano",
+   "mode": "typed",
+   "said": "परसों सुबह 9 बजे याद दिलाना कि पासपोर्ट की फोटो लेनी है",
+   "raw": "{\"command\":\"Remind me in 2 days at 9 am: \\\"पासपोर्ट की फोटो लेनी है\\\"\",\"content\":\"पासपोर्ट की फोटो लेनी है\"}",
+   "command": "Remind me in 2 days at 9 am: \"पासपोर्ट की फोटो लेनी है\"",
+   "seen": "Remind me in 2 days at 9 am: \"pasaporta ki photo leni hai\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [],
+    "suppressed_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "pasaporta ki photo leni hai",
+       "time": "2 days"
+      }
+     }
+    ],
+    "confidence": 0.0525
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "पासपोर्ट की फोटो लेनी है",
+      "time": "2 days"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 14,
+   "source": "gemma",
+   "mode": "line",
+   "said": "परसों सुबह 9 बजे याद दिलाना कि पासपोर्ट की फोटो लेनी है",
+   "raw": "Remind me in 2 days at 9 am: \"passport ki photo leni hai\"",
+   "command": "Remind me in 2 days at 9 am: \"passport ki photo leni hai\"",
+   "seen": "Remind me in 2 days at 9 am: \"passport ki photo leni hai\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [],
+    "suppressed_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "passport ki photo leni hai",
+       "time": "9 am"
+      }
+     }
+    ],
+    "confidence": 0.0631
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "पासपोर्ट की फोटो लेनी है",
+      "time": "9 am"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 14,
+   "source": "nano",
+   "mode": "line",
+   "said": "परसों सुबह 9 बजे याद दिलाना कि पासपोर्ट की फोटो लेनी है",
+   "raw": "Remind me in 2 days at 9 am: \"पासपोर्ट की फोटो लेनी है\"",
+   "command": "Remind me in 2 days at 9 am: \"पासपोर्ट की फोटो लेनी है\"",
+   "seen": "Remind me in 2 days at 9 am: \"pasaporta ki photo leni hai\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [],
+    "suppressed_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "pasaporta ki photo leni hai",
+       "time": "2 days"
+      }
+     }
+    ],
+    "confidence": 0.0525
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "पासपोर्ट की फोटो लेनी है",
+      "time": "2 days"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 15,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "शाम 5 बजे याद दिलाना कि doodh lana hai",
+   "raw": "{\n  \"command\": \"Remind me at 5 pm: \\\"doodh lana hai\\\"\",\n  \"content\": \"doodh lana hai\"\n}",
+   "command": "Remind me at 5 pm: \"doodh lana hai\"",
+   "seen": "Remind me at 5 pm: \"doodh lana hai\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "doodh lana hai",
+       "time": "17:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.4598
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "doodh lana hai",
+      "time": "17:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 15,
+   "source": "nano",
+   "mode": "typed",
+   "said": "शाम 5 बजे याद दिलाना कि doodh lana hai",
+   "raw": "{\"command\":\"Remind me at 5 pm to get milk\",\"content\":\"doodh lana hai\"}",
+   "command": "Remind me at 5 pm to get milk: \"doodh lana hai\"",
+   "seen": "Remind me at 5 pm to get milk: \"doodh lana hai\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "doodh lana hai",
+       "time": "17:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.4539
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "doodh lana hai",
+      "time": "17:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 15,
+   "source": "gemma",
+   "mode": "line",
+   "said": "शाम 5 बजे याद दिलाना कि doodh lana hai",
+   "raw": "Remind me at 5 pm: \"doodh lana hai\"",
+   "command": "Remind me at 5 pm: \"doodh lana hai\"",
+   "seen": "Remind me at 5 pm: \"doodh lana hai\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "doodh lana hai",
+       "time": "17:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.4598
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "doodh lana hai",
+      "time": "17:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 15,
+   "source": "nano",
+   "mode": "line",
+   "said": "शाम 5 बजे याद दिलाना कि doodh lana hai",
+   "raw": "Remind me at 5 pm: \"doodh lana hai\"",
+   "command": "Remind me at 5 pm: \"doodh lana hai\"",
+   "seen": "Remind me at 5 pm: \"doodh lana hai\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "doodh lana hai",
+       "time": "17:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.4598
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "doodh lana hai",
+      "time": "17:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 16,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "add oat milk to my shopping list",
+   "raw": "{\n  \"command\": \"Add oat milk to my shopping list\",\n  \"content\": \"oat milk\"\n}",
+   "command": "Add \"oat milk\" to my shopping list",
+   "seen": "Add \"oat milk\" to my shopping list",
+   "routed": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "tools": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_to_list",
+      "arguments": {
+       "list": "shopping list",
+       "items": "oat milk"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.6994
+   },
+   "calls": [
+    {
+     "name": "add_to_list",
+     "arguments": {
+      "list": "shopping list",
+      "items": "oat milk"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 16,
+   "source": "nano",
+   "mode": "typed",
+   "said": "add oat milk to my shopping list",
+   "raw": "{\"command\":\"Add oat milk to my shopping list\",\"content\":\"oat milk\"}",
+   "command": "Add \"oat milk\" to my shopping list",
+   "seen": "Add \"oat milk\" to my shopping list",
+   "routed": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "tools": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_to_list",
+      "arguments": {
+       "list": "shopping list",
+       "items": "oat milk"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.6994
+   },
+   "calls": [
+    {
+     "name": "add_to_list",
+     "arguments": {
+      "list": "shopping list",
+      "items": "oat milk"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 16,
+   "source": "gemma",
+   "mode": "line",
+   "said": "add oat milk to my shopping list",
+   "raw": "Add \"oat milk\" to my shopping list",
+   "command": "Add \"oat milk\" to my shopping list",
+   "seen": "Add \"oat milk\" to my shopping list",
+   "routed": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "tools": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_to_list",
+      "arguments": {
+       "list": "shopping list",
+       "items": "oat milk"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.6994
+   },
+   "calls": [
+    {
+     "name": "add_to_list",
+     "arguments": {
+      "list": "shopping list",
+      "items": "oat milk"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 16,
+   "source": "nano",
+   "mode": "line",
+   "said": "add oat milk to my shopping list",
+   "raw": "Add \"oat milk\" to my shopping list",
+   "command": "Add \"oat milk\" to my shopping list",
+   "seen": "Add \"oat milk\" to my shopping list",
+   "routed": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "tools": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_to_list",
+      "arguments": {
+       "list": "shopping list",
+       "items": "oat milk"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.6994
+   },
+   "calls": [
+    {
+     "name": "add_to_list",
+     "arguments": {
+      "list": "shopping list",
+      "items": "oat milk"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 17,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "shopping list mein aloo aur tamatar daal do",
+   "raw": "{\n  \"command\": \"Add aloo aur tamatar to my shopping list\",\n  \"content\": \"aloo aur tamatar\"\n}",
+   "command": "Add \"aloo aur tamatar\" to my shopping list",
+   "seen": "Add \"aloo aur tamatar\" to my shopping list",
+   "routed": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "tools": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_to_list",
+      "arguments": {
+       "list": "shopping list",
+       "items": "aloo aur tamatar"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.5925
+   },
+   "calls": [
+    {
+     "name": "add_to_list",
+     "arguments": {
+      "list": "shopping list",
+      "items": "aloo aur tamatar"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 17,
+   "source": "nano",
+   "mode": "typed",
+   "said": "shopping list mein aloo aur tamatar daal do",
+   "raw": "{\"command\":\"Add \\\"aloo aur tamatar\\\" to my shopping list\",\"content\":\"aloo aur tamatar\"}",
+   "command": "Add \"aloo aur tamatar\" to my shopping list",
+   "seen": "Add \"aloo aur tamatar\" to my shopping list",
+   "routed": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "tools": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_to_list",
+      "arguments": {
+       "list": "shopping list",
+       "items": "aloo aur tamatar"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.5925
+   },
+   "calls": [
+    {
+     "name": "add_to_list",
+     "arguments": {
+      "list": "shopping list",
+      "items": "aloo aur tamatar"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 17,
+   "source": "gemma",
+   "mode": "line",
+   "said": "shopping list mein aloo aur tamatar daal do",
+   "raw": "Add \"aloo aur tamatar\" to my shopping list",
+   "command": "Add \"aloo aur tamatar\" to my shopping list",
+   "seen": "Add \"aloo aur tamatar\" to my shopping list",
+   "routed": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "tools": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_to_list",
+      "arguments": {
+       "list": "shopping list",
+       "items": "aloo aur tamatar"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.5925
+   },
+   "calls": [
+    {
+     "name": "add_to_list",
+     "arguments": {
+      "list": "shopping list",
+      "items": "aloo aur tamatar"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 17,
+   "source": "nano",
+   "mode": "line",
+   "said": "shopping list mein aloo aur tamatar daal do",
+   "raw": "Add \"aloo aur tamatar\" to my shopping list",
+   "command": "Add \"aloo aur tamatar\" to my shopping list",
+   "seen": "Add \"aloo aur tamatar\" to my shopping list",
+   "routed": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "tools": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_to_list",
+      "arguments": {
+       "list": "shopping list",
+       "items": "aloo aur tamatar"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.5925
+   },
+   "calls": [
+    {
+     "name": "add_to_list",
+     "arguments": {
+      "list": "shopping list",
+      "items": "aloo aur tamatar"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 18,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "किराने की लिस्ट में चीनी और चायपत्ती जोड़ दो",
+   "raw": "{\n  \"command\": \"Add चीनी और चायपत्ती to my kirane ki list\",\n  \"content\": \"चीनी और चायपत्ती\"\n}",
+   "command": "Add \"चीनी और चायपत्ती\" to my kirane ki list",
+   "seen": "Add \"cini aura cayapatti\" to my kirane ki list",
+   "routed": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "tools": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_to_list",
+      "arguments": {
+       "list": "kirane ki",
+       "items": "cini aura cayapatti"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.6787
+   },
+   "calls": [
+    {
+     "name": "add_to_list",
+     "arguments": {
+      "list": "kirane ki",
+      "items": "चीनी और चायपत्ती"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 18,
+   "source": "nano",
+   "mode": "typed",
+   "said": "किराने की लिस्ट में चीनी और चायपत्ती जोड़ दो",
+   "raw": "{\"command\":\"Add \\\"चीनी और चायपत्ती\\\" to my grocery list\",\"content\":\"चीनी और चायपत्ती\"}",
+   "command": "Add \"चीनी और चायपत्ती\" to my grocery list",
+   "seen": "Add \"cini aura cayapatti\" to my grocery list",
+   "routed": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "tools": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_to_list",
+      "arguments": {
+       "list": "grocery",
+       "items": "cini aura cayapatti"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.7414
+   },
+   "calls": [
+    {
+     "name": "add_to_list",
+     "arguments": {
+      "list": "grocery",
+      "items": "चीनी और चायपत्ती"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 18,
+   "source": "gemma",
+   "mode": "line",
+   "said": "किराने की लिस्ट में चीनी और चायपत्ती जोड़ दो",
+   "raw": "Add \"चीनी और चायपत्ती\" to my \"किराने की लिस्ट\" list.",
+   "command": "Add \"चीनी और चायपत्ती\" to my \"किराने की लिस्ट\" list.",
+   "seen": "Add \"cini aura cayapatti\" to my \"kirane ki lista\" list.",
+   "routed": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "tools": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_to_list",
+      "arguments": {
+       "list": "kirane ki lista",
+       "items": "cini aura cayapatti"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.7247
+   },
+   "calls": [
+    {
+     "name": "add_to_list",
+     "arguments": {
+      "list": "kirane ki lista",
+      "items": "चीनी और चायपत्ती"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 18,
+   "source": "nano",
+   "mode": "line",
+   "said": "किराने की लिस्ट में चीनी और चायपत्ती जोड़ दो",
+   "raw": "Add \"चीनी और चायपत्ती\" to my \"किराने की लिस्ट\" list.",
+   "command": "Add \"चीनी और चायपत्ती\" to my \"किराने की लिस्ट\" list.",
+   "seen": "Add \"cini aura cayapatti\" to my \"kirane ki lista\" list.",
+   "routed": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "tools": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_to_list",
+      "arguments": {
+       "list": "kirane ki lista",
+       "items": "cini aura cayapatti"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.7247
+   },
+   "calls": [
+    {
+     "name": "add_to_list",
+     "arguments": {
+      "list": "kirane ki lista",
+      "items": "चीनी और चायपत्ती"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 19,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "put team lunch on my calendar friday at 1",
+   "raw": "{\n  \"command\": \"Add team lunch to my calendar on Friday at 1\",\n  \"content\": \"team lunch\"\n}",
+   "command": "Add \"team lunch\" to my calendar on Friday at 1",
+   "seen": "Add \"team lunch\" to my calendar on Friday at 1",
+   "routed": [
+    "show_agenda",
+    "add_event"
+   ],
+   "tools": [
+    "show_agenda",
+    "add_event"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_event",
+      "arguments": {
+       "title": "Team lunch",
+       "when": "2026-10-09T13:00:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.2255
+   },
+   "calls": [
+    {
+     "name": "add_event",
+     "arguments": {
+      "title": "team lunch",
+      "when": "2026-10-09T13:00:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 19,
+   "source": "nano",
+   "mode": "typed",
+   "said": "put team lunch on my calendar friday at 1",
+   "raw": "{\"command\":\"Add team lunch to my calendar on Friday at 1\",\"content\":\"team lunch\"}",
+   "command": "Add \"team lunch\" to my calendar on Friday at 1",
+   "seen": "Add \"team lunch\" to my calendar on Friday at 1",
+   "routed": [
+    "show_agenda",
+    "add_event"
+   ],
+   "tools": [
+    "show_agenda",
+    "add_event"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_event",
+      "arguments": {
+       "title": "Team lunch",
+       "when": "2026-10-09T13:00:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.2255
+   },
+   "calls": [
+    {
+     "name": "add_event",
+     "arguments": {
+      "title": "team lunch",
+      "when": "2026-10-09T13:00:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 19,
+   "source": "gemma",
+   "mode": "line",
+   "said": "put team lunch on my calendar friday at 1",
+   "raw": "Add \"team lunch\" to my calendar on Friday at 1 pm",
+   "command": "Add \"team lunch\" to my calendar on Friday at 1 pm",
+   "seen": "Add \"team lunch\" to my calendar on Friday at 1 pm",
+   "routed": [
+    "show_agenda",
+    "add_event"
+   ],
+   "tools": [
+    "show_agenda",
+    "add_event"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_event",
+      "arguments": {
+       "title": "Team lunch",
+       "when": "2026-10-09 13:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.2495
+   },
+   "calls": [
+    {
+     "name": "add_event",
+     "arguments": {
+      "title": "team lunch",
+      "when": "2026-10-09 13:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 19,
+   "source": "nano",
+   "mode": "line",
+   "said": "put team lunch on my calendar friday at 1",
+   "raw": "Add \"team lunch\" to my calendar on Friday at 1.",
+   "command": "Add \"team lunch\" to my calendar on Friday at 1.",
+   "seen": "Add \"team lunch\" to my calendar on Friday at 1.",
+   "routed": [
+    "show_agenda",
+    "add_event"
+   ],
+   "tools": [
+    "show_agenda",
+    "add_event"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_event",
+      "arguments": {
+       "title": "Team lunch",
+       "when": "2026-10-09T13:00:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.2732
+   },
+   "calls": [
+    {
+     "name": "add_event",
+     "arguments": {
+      "title": "team lunch",
+      "when": "2026-10-09T13:00:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 20,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "shukravaar ko 4 baje calendar mein Ritu ki birthday party daal do",
+   "raw": "{\n  \"command\": \"Add Ritu ki birthday party to my calendar on Friday at 4\",\n  \"content\": \"Ritu ki birthday party\"\n}",
+   "command": "Add \"Ritu ki birthday party\" to my calendar on Friday at 4",
+   "seen": "Add \"Ritu ki birthday party\" to my calendar on Friday at 4",
+   "routed": [
+    "show_agenda",
+    "add_event"
+   ],
+   "tools": [
+    "show_agenda",
+    "add_event"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_event",
+      "arguments": {
+       "title": "Ritu ki birthday party",
+       "when": "2026-10-08 16:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.1822
+   },
+   "calls": [
+    {
+     "name": "add_event",
+     "arguments": {
+      "title": "Ritu ki birthday party",
+      "when": "2026-10-08 16:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 20,
+   "source": "nano",
+   "mode": "typed",
+   "said": "shukravaar ko 4 baje calendar mein Ritu ki birthday party daal do",
+   "raw": "{\"command\":\"Add Ritu's birthday party to my calendar on Friday at 4\",\"content\":\"Ritu ki birthday party\"}",
+   "command": "Add Ritu's birthday party to my calendar on Friday at 4: \"Ritu ki birthday party\"",
+   "seen": "Add Ritu's birthday party to my calendar on Friday at 4: \"Ritu ki birthday party\"",
+   "routed": [
+    "show_agenda",
+    "add_event"
+   ],
+   "tools": [
+    "show_agenda",
+    "add_event"
+   ],
+   "needle": {
+    "function_calls": [],
+    "suppressed_calls": [
+     {
+      "name": "add_event",
+      "arguments": {
+       "title": "Ritu's birthday party",
+       "when": "Friday at 4: 'Ritu ki birthday party'"
+      }
+     }
+    ],
+    "confidence": 0.0979
+   },
+   "calls": [],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 20,
+   "source": "gemma",
+   "mode": "line",
+   "said": "shukravaar ko 4 baje calendar mein Ritu ki birthday party daal do",
+   "raw": "Add \"Ritu ki birthday party\" to my calendar on Friday at 4 pm",
+   "command": "Add \"Ritu ki birthday party\" to my calendar on Friday at 4 pm",
+   "seen": "Add \"Ritu ki birthday party\" to my calendar on Friday at 4 pm",
+   "routed": [
+    "show_agenda",
+    "add_event"
+   ],
+   "tools": [
+    "show_agenda",
+    "add_event"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_event",
+      "arguments": {
+       "title": "Ritu ki birthday party",
+       "when": "2026-10-08 16:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.2236
+   },
+   "calls": [
+    {
+     "name": "add_event",
+     "arguments": {
+      "title": "Ritu ki birthday party",
+      "when": "2026-10-08 16:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 20,
+   "source": "nano",
+   "mode": "line",
+   "said": "shukravaar ko 4 baje calendar mein Ritu ki birthday party daal do",
+   "raw": "Add \"Ritu ki birthday party\" to my calendar on Friday at 4",
+   "command": "Add \"Ritu ki birthday party\" to my calendar on Friday at 4",
+   "seen": "Add \"Ritu ki birthday party\" to my calendar on Friday at 4",
+   "routed": [
+    "show_agenda",
+    "add_event"
+   ],
+   "tools": [
+    "show_agenda",
+    "add_event"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_event",
+      "arguments": {
+       "title": "Ritu ki birthday party",
+       "when": "2026-10-08 16:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.1822
+   },
+   "calls": [
+    {
+     "name": "add_event",
+     "arguments": {
+      "title": "Ritu ki birthday party",
+      "when": "2026-10-08 16:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 21,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "कल दोपहर 2 बजे डेंटिस्ट के पास जाना है, कैलेंडर में डाल दो",
+   "raw": "{\n  \"command\": \"Add dentist appointment to calendar tomorrow at 2 pm\",\n  \"content\": \"dentist ke paas jana hai\"\n}",
+   "command": "Add dentist appointment to calendar tomorrow at 2 pm: \"dentist ke paas jana hai\"",
+   "seen": "Add dentist appointment to calendar tomorrow at 2 pm: \"dentist ke paas jana hai\"",
+   "routed": [
+    "show_agenda",
+    "add_event"
+   ],
+   "tools": [
+    "show_agenda",
+    "add_event"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_event",
+      "arguments": {
+       "title": "Dentist ke paas jana hai",
+       "when": "2026-10-07 14:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.709
+   },
+   "calls": [
+    {
+     "name": "add_event",
+     "arguments": {
+      "title": "डेंटिस्ट के पास जाना है",
+      "when": "2026-10-07 14:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 21,
+   "source": "nano",
+   "mode": "typed",
+   "said": "कल दोपहर 2 बजे डेंटिस्ट के पास जाना है, कैलेंडर में डाल दो",
+   "raw": "{\"command\":\"Add dentist appointment to my calendar for tomorrow at 2 pm\",\"content\":\"डेंटिस्ट के पास जाना है\"}",
+   "command": "Add dentist appointment to my calendar for tomorrow at 2 pm: \"डेंटिस्ट के पास जाना है\"",
+   "seen": "Add dentist appointment to my calendar for tomorrow at 2 pm: \"dentista ke pasa jana hai\"",
+   "routed": [
+    "show_agenda",
+    "add_event"
+   ],
+   "tools": [
+    "show_agenda",
+    "add_event"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_event",
+      "arguments": {
+       "title": "Dentista ke pasa jana hai",
+       "when": "2026-10-07 14:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.7124
+   },
+   "calls": [
+    {
+     "name": "add_event",
+     "arguments": {
+      "title": "डेंटिस्ट के पास जाना है",
+      "when": "2026-10-07 14:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 21,
+   "source": "gemma",
+   "mode": "line",
+   "said": "कल दोपहर 2 बजे डेंटिस्ट के पास जाना है, कैलेंडर में डाल दो",
+   "raw": "Add \"dentist\" to my calendar for tomorrow at 2 pm",
+   "command": "Add \"dentist\" to my calendar for tomorrow at 2 pm",
+   "seen": "Add \"dentist\" to my calendar for tomorrow at 2 pm",
+   "routed": [
+    "show_agenda",
+    "add_event"
+   ],
+   "tools": [
+    "show_agenda",
+    "add_event"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_event",
+      "arguments": {
+       "title": "Dentist",
+       "when": "2026-10-07 14:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.6446
+   },
+   "calls": [
+    {
+     "name": "add_event",
+     "arguments": {
+      "title": "डेंटिस्ट",
+      "when": "2026-10-07 14:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 21,
+   "source": "nano",
+   "mode": "line",
+   "said": "कल दोपहर 2 बजे डेंटिस्ट के पास जाना है, कैलेंडर में डाल दो",
+   "raw": "Add \"dentist\" to my calendar tomorrow at 2 pm",
+   "command": "Add \"dentist\" to my calendar tomorrow at 2 pm",
+   "seen": "Add \"dentist\" to my calendar tomorrow at 2 pm",
+   "routed": [
+    "show_agenda",
+    "add_event"
+   ],
+   "tools": [
+    "show_agenda",
+    "add_event"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_event",
+      "arguments": {
+       "title": "Dentist",
+       "when": "2026-10-07 14:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.7958
+   },
+   "calls": [
+    {
+     "name": "add_event",
+     "arguments": {
+      "title": "डेंटिस्ट",
+      "when": "2026-10-07 14:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 22,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "set a timer for 10 minutes",
+   "raw": "{\n  \"command\": \"Set a timer for 10 minutes\",\n  \"content\": \"\"\n}",
+   "command": "Set a timer for 10 minutes",
+   "seen": "Set a timer for 10 minutes",
+   "routed": [
+    "set_timer"
+   ],
+   "tools": [
+    "set_timer"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "set_timer",
+      "arguments": {
+       "duration": "10 minutes"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.9335
+   },
+   "calls": [
+    {
+     "name": "set_timer",
+     "arguments": {
+      "duration": "10 minutes"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 22,
+   "source": "nano",
+   "mode": "typed",
+   "said": "set a timer for 10 minutes",
+   "raw": "{\"command\":\"Set a timer for 10 minutes\",\"content\":\"\"}",
+   "command": "Set a timer for 10 minutes",
+   "seen": "Set a timer for 10 minutes",
+   "routed": [
+    "set_timer"
+   ],
+   "tools": [
+    "set_timer"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "set_timer",
+      "arguments": {
+       "duration": "10 minutes"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.9335
+   },
+   "calls": [
+    {
+     "name": "set_timer",
+     "arguments": {
+      "duration": "10 minutes"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 22,
+   "source": "gemma",
+   "mode": "line",
+   "said": "set a timer for 10 minutes",
+   "raw": "Set a timer for 10 minutes",
+   "command": "Set a timer for 10 minutes",
+   "seen": "Set a timer for 10 minutes",
+   "routed": [
+    "set_timer"
+   ],
+   "tools": [
+    "set_timer"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "set_timer",
+      "arguments": {
+       "duration": "10 minutes"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.9335
+   },
+   "calls": [
+    {
+     "name": "set_timer",
+     "arguments": {
+      "duration": "10 minutes"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 22,
+   "source": "nano",
+   "mode": "line",
+   "said": "set a timer for 10 minutes",
+   "raw": "Set a timer for 10 minutes",
+   "command": "Set a timer for 10 minutes",
+   "seen": "Set a timer for 10 minutes",
+   "routed": [
+    "set_timer"
+   ],
+   "tools": [
+    "set_timer"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "set_timer",
+      "arguments": {
+       "duration": "10 minutes"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.9335
+   },
+   "calls": [
+    {
+     "name": "set_timer",
+     "arguments": {
+      "duration": "10 minutes"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 23,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "kal subah 6 baje ka alarm laga do",
+   "raw": "{\n  \"command\": \"Set an alarm for tomorrow at 6 am\",\n  \"content\": \"\"\n}",
+   "command": "Set an alarm for tomorrow at 6 am",
+   "seen": "Set an alarm for tomorrow at 6 am",
+   "routed": [
+    "set_alarm",
+    "show_alarms"
+   ],
+   "tools": [
+    "set_alarm",
+    "show_alarms"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "set_alarm",
+      "arguments": {
+       "time": "6:00 AM"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.4146
+   },
+   "calls": [
+    {
+     "name": "set_alarm",
+     "arguments": {
+      "time": "6:00 AM"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 23,
+   "source": "nano",
+   "mode": "typed",
+   "said": "kal subah 6 baje ka alarm laga do",
+   "raw": "{\"command\":\"Set an alarm for tomorrow at 6 am\",\"content\":\"\"}",
+   "command": "Set an alarm for tomorrow at 6 am",
+   "seen": "Set an alarm for tomorrow at 6 am",
+   "routed": [
+    "set_alarm",
+    "show_alarms"
+   ],
+   "tools": [
+    "set_alarm",
+    "show_alarms"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "set_alarm",
+      "arguments": {
+       "time": "6:00 AM"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.4146
+   },
+   "calls": [
+    {
+     "name": "set_alarm",
+     "arguments": {
+      "time": "6:00 AM"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 23,
+   "source": "gemma",
+   "mode": "line",
+   "said": "kal subah 6 baje ka alarm laga do",
+   "raw": "Set an alarm for tomorrow at 6 am.",
+   "command": "Set an alarm for tomorrow at 6 am.",
+   "seen": "Set an alarm for tomorrow at 6 am.",
+   "routed": [
+    "set_alarm",
+    "show_alarms"
+   ],
+   "tools": [
+    "set_alarm",
+    "show_alarms"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "set_alarm",
+      "arguments": {
+       "time": "6:00 AM"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.5694
+   },
+   "calls": [
+    {
+     "name": "set_alarm",
+     "arguments": {
+      "time": "6:00 AM"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 23,
+   "source": "nano",
+   "mode": "line",
+   "said": "kal subah 6 baje ka alarm laga do",
+   "raw": "Set an alarm for tomorrow at 6 am",
+   "command": "Set an alarm for tomorrow at 6 am",
+   "seen": "Set an alarm for tomorrow at 6 am",
+   "routed": [
+    "set_alarm",
+    "show_alarms"
+   ],
+   "tools": [
+    "set_alarm",
+    "show_alarms"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "set_alarm",
+      "arguments": {
+       "time": "6:00 AM"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.4146
+   },
+   "calls": [
+    {
+     "name": "set_alarm",
+     "arguments": {
+      "time": "6:00 AM"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 24,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "what's the weather like in Pune",
+   "raw": "",
+   "command": null,
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 24,
+   "source": "nano",
+   "mode": "typed",
+   "said": "what's the weather like in Pune",
+   "raw": "{\"command\":\"NONE\",\"content\":\"\"}",
+   "command": null,
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 24,
+   "source": "gemma",
+   "mode": "line",
+   "said": "what's the weather like in Pune",
+   "raw": null,
+   "command": null,
+   "time_dropped": false
+  },
+  {
+   "set": "dev.txt",
+   "row": 24,
+   "source": "nano",
+   "mode": "line",
+   "said": "what's the weather like in Pune",
+   "raw": "NONE",
+   "command": null,
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 0,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "remind me on monday to pay the gas bill of 1,850 rupees",
+   "raw": "{\n  \"command\": \"Remind me on Monday to pay the gas bill of 1,850 rupees\",\n  \"content\": \"pay the gas bill of 1,850 rupees\"\n}",
+   "command": "Remind me on Monday to \"pay the gas bill of 1,850 rupees\"",
+   "seen": "Remind me on Monday to \"pay the gas bill of 1,850 rupees\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "pay the gas bill of 1,850 rupees",
+       "time": "2026-10-12"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.1229
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "pay the gas bill of 1,850 rupees",
+      "time": "2026-10-12"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 0,
+   "source": "nano",
+   "mode": "typed",
+   "said": "remind me on monday to pay the gas bill of 1,850 rupees",
+   "raw": "{\"command\":\"Remind me on Monday to pay the gas bill\",\"content\":\"pay the gas bill of 1,850 rupees\"}",
+   "command": "Remind me on Monday to pay the gas bill: \"pay the gas bill of 1,850 rupees\"",
+   "seen": "Remind me on Monday to pay the gas bill: \"pay the gas bill of 1,850 rupees\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "pay the gas bill of 1,850 rupees",
+       "time": "2026-10-12"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.1091
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "pay the gas bill of 1,850 rupees",
+      "time": "2026-10-12"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 0,
+   "source": "gemma",
+   "mode": "line",
+   "said": "remind me on monday to pay the gas bill of 1,850 rupees",
+   "raw": "Remind me on Monday to pay the gas bill of \"1,850 rupees\"",
+   "command": "Remind me on Monday to pay the gas bill of \"1,850 rupees\"",
+   "seen": "Remind me on Monday to pay the gas bill of \"1,850 rupees\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [],
+    "suppressed_calls": [],
+    "confidence": 0.0942
+   },
+   "calls": [],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 0,
+   "source": "nano",
+   "mode": "line",
+   "said": "remind me on monday to pay the gas bill of 1,850 rupees",
+   "raw": "Remind me on Monday to pay the gas bill of 1,850 rupees",
+   "command": "Remind me on Monday to pay the gas bill of 1,850 rupees",
+   "seen": "Remind me on Monday to pay the gas bill of 1,850 rupees",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [],
+    "suppressed_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "pay the gas bill of 1,850 rupees",
+       "time": "2026-10-12"
+      }
+     }
+    ],
+    "confidence": 0.0755
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "pay the gas bill of 1,850 rupees",
+      "time": "2026-10-12"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 1,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "remind me tomorrow to ask Prof. Iyer about the 3rd chapter",
+   "raw": "{\n  \"command\": \"Remind me tomorrow to ask Prof. Iyer about the 3rd chapter\",\n  \"content\": \"ask Prof. Iyer about the 3rd chapter\"\n}",
+   "command": "Remind me tomorrow to \"ask Prof. Iyer about the 3rd chapter\"",
+   "seen": "Remind me tomorrow to \"ask Prof. Iyer about the 3rd chapter\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "ask Prof. Iyer about the 3rd chapter",
+       "time": "2026-10-07"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.3162
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "ask Prof. Iyer about the 3rd chapter",
+      "time": "2026-10-07"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 1,
+   "source": "nano",
+   "mode": "typed",
+   "said": "remind me tomorrow to ask Prof. Iyer about the 3rd chapter",
+   "raw": "{\"command\":\"Remind me tomorrow to ask Prof. Iyer about the 3rd chapter\",\"content\":\"ask Prof. Iyer about the 3rd chapter\"}",
+   "command": "Remind me tomorrow to \"ask Prof. Iyer about the 3rd chapter\"",
+   "seen": "Remind me tomorrow to \"ask Prof. Iyer about the 3rd chapter\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "ask Prof. Iyer about the 3rd chapter",
+       "time": "2026-10-07"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.3162
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "ask Prof. Iyer about the 3rd chapter",
+      "time": "2026-10-07"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 1,
+   "source": "gemma",
+   "mode": "line",
+   "said": "remind me tomorrow to ask Prof. Iyer about the 3rd chapter",
+   "raw": "Remind me tomorrow to ask \"Prof. Iyer about the 3rd chapter\".",
+   "command": "Remind me tomorrow to ask \"Prof. Iyer about the 3rd chapter\".",
+   "seen": "Remind me tomorrow to ask \"Prof. Iyer about the 3rd chapter\".",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "Prof. Iyer about the 3rd chapter",
+       "time": "2026-10-07"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.3152
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "Prof. Iyer about the 3rd chapter",
+      "time": "2026-10-07"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 1,
+   "source": "nano",
+   "mode": "line",
+   "said": "remind me tomorrow to ask Prof. Iyer about the 3rd chapter",
+   "raw": "Remind me tomorrow to ask Prof. Iyer about the 3rd chapter",
+   "command": "Remind me tomorrow to ask Prof. Iyer about the 3rd chapter",
+   "seen": "Remind me tomorrow to ask Prof. Iyer about the 3rd chapter",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "ask Prof. Iyer about the 3rd chapter",
+       "time": "2026-10-07"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.1693
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "ask Prof. Iyer about the 3rd chapter",
+      "time": "2026-10-07"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 2,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "text my landlord Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week",
+   "raw": "{\n  \"command\": \"Send a text to landlord: \\\"Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week\\\"\",\n  \"content\": \"Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week\"\n}",
+   "command": "Send a text to landlord: \"Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week\"",
+   "seen": "Send a text to landlord: \"Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "landlord",
+       "message": "Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.6404
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "landlord",
+      "message": "Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 2,
+   "source": "nano",
+   "mode": "typed",
+   "said": "text my landlord Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week",
+   "raw": "{\"command\":\"Send a text to landlord: \\\"Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week\\\"\",\"content\":\"Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week\"}",
+   "command": "Send a text to landlord: \"Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week\"",
+   "seen": "Send a text to landlord: \"Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "landlord",
+       "message": "Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.6404
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "landlord",
+      "message": "Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 2,
+   "source": "gemma",
+   "mode": "line",
+   "said": "text my landlord Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week",
+   "raw": "Send a text to landlord: \"Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week\"",
+   "command": "Send a text to landlord: \"Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week\"",
+   "seen": "Send a text to landlord: \"Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "landlord",
+       "message": "Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.6404
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "landlord",
+      "message": "Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 2,
+   "source": "nano",
+   "mode": "line",
+   "said": "text my landlord Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week",
+   "raw": "Send a text to landlord: \"Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week\"",
+   "command": "Send a text to landlord: \"Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week\"",
+   "seen": "Send a text to landlord: \"Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "landlord",
+       "message": "Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.6404
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "landlord",
+      "message": "Hello Sir, the water heater in the bathroom has stopped working since Sunday, please send someone this week"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 3,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "send a message to Coach saying practice is moved to 6:30 on Thursday",
+   "raw": "{\n  \"command\": \"Send a text to Coach: \\\"practice is moved to 6:30 on Thursday\\\"\",\n  \"content\": \"practice is moved to 6:30 on Thursday\"\n}",
+   "command": "Send a text to Coach: \"practice is moved to 6:30 on Thursday\"",
+   "seen": "Send a text to Coach: \"practice is moved to 6:30 on Thursday\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "Coach",
+       "message": "Practice is moved to 6:30 on Thursday"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8724
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "Coach",
+      "message": "practice is moved to 6:30 on Thursday"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 3,
+   "source": "nano",
+   "mode": "typed",
+   "said": "send a message to Coach saying practice is moved to 6:30 on Thursday",
+   "raw": "{\"command\":\"Send a text to Coach: \\\"practice is moved to 6:30 on Thursday\\\"\",\"content\":\"practice is moved to 6:30 on Thursday\"}",
+   "command": "Send a text to Coach: \"practice is moved to 6:30 on Thursday\"",
+   "seen": "Send a text to Coach: \"practice is moved to 6:30 on Thursday\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "Coach",
+       "message": "Practice is moved to 6:30 on Thursday"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8724
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "Coach",
+      "message": "practice is moved to 6:30 on Thursday"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 3,
+   "source": "gemma",
+   "mode": "line",
+   "said": "send a message to Coach saying practice is moved to 6:30 on Thursday",
+   "raw": "Send a text to Coach: \"practice is moved to 6:30 on Thursday\"",
+   "command": "Send a text to Coach: \"practice is moved to 6:30 on Thursday\"",
+   "seen": "Send a text to Coach: \"practice is moved to 6:30 on Thursday\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "Coach",
+       "message": "Practice is moved to 6:30 on Thursday"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8724
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "Coach",
+      "message": "practice is moved to 6:30 on Thursday"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 3,
+   "source": "nano",
+   "mode": "line",
+   "said": "send a message to Coach saying practice is moved to 6:30 on Thursday",
+   "raw": "Send a text to Coach: \"practice is moved to 6:30 on Thursday\"",
+   "command": "Send a text to Coach: \"practice is moved to 6:30 on Thursday\"",
+   "seen": "Send a text to Coach: \"practice is moved to 6:30 on Thursday\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "Coach",
+       "message": "Practice is moved to 6:30 on Thursday"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8724
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "Coach",
+      "message": "practice is moved to 6:30 on Thursday"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 4,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "note the spare key is with Mrs. D'Souza in flat 4B",
+   "raw": "{\n  \"command\": \"Make a note: \\\"the spare key is with Mrs. D'Souza in flat 4B\\\"\",\n  \"content\": \"the spare key is with Mrs. D'Souza in flat 4B\"\n}",
+   "command": "Make a note: \"the spare key is with Mrs. D'Souza in flat 4B\"",
+   "seen": "Make a note: \"the spare key is with Mrs. D'Souza in flat 4B\"",
+   "routed": [
+    "create_note"
+   ],
+   "tools": [
+    "create_note"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "create_note",
+      "arguments": {
+       "text": "the spare key is with Mrs. D'Souza in flat 4B"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.7118
+   },
+   "calls": [
+    {
+     "name": "create_note",
+     "arguments": {
+      "text": "the spare key is with Mrs. D'Souza in flat 4B"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 4,
+   "source": "nano",
+   "mode": "typed",
+   "said": "note the spare key is with Mrs. D'Souza in flat 4B",
+   "raw": "{\"command\":\"Make a note: \\\"the spare key is with Mrs. D'Souza in flat 4B\\\"\",\"content\":\"the spare key is with Mrs. D'Souza in flat 4B\"}",
+   "command": "Make a note: \"the spare key is with Mrs. D'Souza in flat 4B\"",
+   "seen": "Make a note: \"the spare key is with Mrs. D'Souza in flat 4B\"",
+   "routed": [
+    "create_note"
+   ],
+   "tools": [
+    "create_note"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "create_note",
+      "arguments": {
+       "text": "the spare key is with Mrs. D'Souza in flat 4B"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.7118
+   },
+   "calls": [
+    {
+     "name": "create_note",
+     "arguments": {
+      "text": "the spare key is with Mrs. D'Souza in flat 4B"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 4,
+   "source": "gemma",
+   "mode": "line",
+   "said": "note the spare key is with Mrs. D'Souza in flat 4B",
+   "raw": "Add \"the spare key is with Mrs. D'Souza in flat 4B\" to my notes.",
+   "command": "Add \"the spare key is with Mrs. D'Souza in flat 4B\" to my notes.",
+   "seen": "Add \"the spare key is with Mrs. D'Souza in flat 4B\" to my notes.",
+   "routed": [
+    "create_note"
+   ],
+   "tools": [
+    "create_note"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "create_note",
+      "arguments": {
+       "text": "the spare key is with Mrs. D'Souza in flat 4B"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.6219
+   },
+   "calls": [
+    {
+     "name": "create_note",
+     "arguments": {
+      "text": "the spare key is with Mrs. D'Souza in flat 4B"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 4,
+   "source": "nano",
+   "mode": "line",
+   "said": "note the spare key is with Mrs. D'Souza in flat 4B",
+   "raw": "Make a note: \"the spare key is with Mrs. D'Souza in flat 4B\"",
+   "command": "Make a note: \"the spare key is with Mrs. D'Souza in flat 4B\"",
+   "seen": "Make a note: \"the spare key is with Mrs. D'Souza in flat 4B\"",
+   "routed": [
+    "create_note"
+   ],
+   "tools": [
+    "create_note"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "create_note",
+      "arguments": {
+       "text": "the spare key is with Mrs. D'Souza in flat 4B"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.7118
+   },
+   "calls": [
+    {
+     "name": "create_note",
+     "arguments": {
+      "text": "the spare key is with Mrs. D'Souza in flat 4B"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 5,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "kal 10 baje yaad dilana ki Bittu ki fees 4500 jama karni hai",
+   "raw": "{\n  \"command\": \"Remind me tomorrow at 10 am: \\\"Bittu ki fees 4500 jama karni hai\\\"\",\n  \"content\": \"Bittu ki fees 4500 jama karni hai\"\n}",
+   "command": "Remind me tomorrow at 10 am: \"Bittu ki fees 4500 jama karni hai\"",
+   "seen": "Remind me tomorrow at 10 am: \"Bittu ki fees 4500 jama karni hai\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "Bittu ki fees 4500 jama karni hai",
+       "time": "10:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.1451
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "Bittu ki fees 4500 jama karni hai",
+      "time": "10:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 5,
+   "source": "nano",
+   "mode": "typed",
+   "said": "kal 10 baje yaad dilana ki Bittu ki fees 4500 jama karni hai",
+   "raw": "{\"command\":\"Remind me tomorrow at 10:00: \\\"Bittu ki fees 4500 jama karni hai\\\"\",\"content\":\"Bittu ki fees 4500 jama karni hai\"}",
+   "command": "Remind me tomorrow at 10:00: \"Bittu ki fees 4500 jama karni hai\"",
+   "seen": "Remind me tomorrow at 10:00: \"Bittu ki fees 4500 jama karni hai\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "Bittu ki fees 4500 jama karni hai",
+       "time": "10:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.2473
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "Bittu ki fees 4500 jama karni hai",
+      "time": "10:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 5,
+   "source": "gemma",
+   "mode": "line",
+   "said": "kal 10 baje yaad dilana ki Bittu ki fees 4500 jama karni hai",
+   "raw": "Remind me tomorrow at 10 am: \"Bittu ki fees 4500 jama karni hai\"",
+   "command": "Remind me tomorrow at 10 am: \"Bittu ki fees 4500 jama karni hai\"",
+   "seen": "Remind me tomorrow at 10 am: \"Bittu ki fees 4500 jama karni hai\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "Bittu ki fees 4500 jama karni hai",
+       "time": "10:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.1451
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "Bittu ki fees 4500 jama karni hai",
+      "time": "10:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 5,
+   "source": "nano",
+   "mode": "line",
+   "said": "kal 10 baje yaad dilana ki Bittu ki fees 4500 jama karni hai",
+   "raw": "Remind me tomorrow at 10 am: \"Bittu ki fees 4500 jama karni hai\"",
+   "command": "Remind me tomorrow at 10 am: \"Bittu ki fees 4500 jama karni hai\"",
+   "seen": "Remind me tomorrow at 10 am: \"Bittu ki fees 4500 jama karni hai\"",
+   "routed": [
+    "add_reminder"
+   ],
+   "tools": [
+    "add_reminder"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_reminder",
+      "arguments": {
+       "text": "Bittu ki fees 4500 jama karni hai",
+       "time": "10:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.1451
+   },
+   "calls": [
+    {
+     "name": "add_reminder",
+     "arguments": {
+      "text": "Bittu ki fees 4500 jama karni hai",
+      "time": "10:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 6,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "दीदी को मैसेज करो कि मैं 7 बजे तक पहुँच जाऊँगी, खाना मत बनाना",
+   "raw": "{\n  \"command\": \"Send a text to didi: \\\"main 7 baje tak pahunch jaungi, khana mat banana\\\"\",\n  \"content\": \"मैं 7 बजे तक पहुँच जाऊँगी, खाना मत बनाना\"\n}",
+   "command": "Send a text to didi: \"main 7 baje tak pahunch jaungi, khana mat banana\": \"मैं 7 बजे तक पहुँच जाऊँगी, खाना मत बनाना\"",
+   "seen": "Send a text to didi: \"main 7 baje tak pahunch jaungi, khana mat banana\": \"maim 7 baje taka pahumca ja'umgi, khana mata banana\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "didi",
+       "message": "Main 7 baje taka pahumca ja'umgi, khana mat banana"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.672
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "didi",
+      "message": "मैं 7 बजे तक पहुँच जाऊँगी, खाना मत बनाना"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 6,
+   "source": "nano",
+   "mode": "typed",
+   "said": "दीदी को मैसेज करो कि मैं 7 बजे तक पहुँच जाऊँगी, खाना मत बनाना",
+   "raw": "{\"command\":\"Send a text to didi: \\\"main 7 baje tak pahunch jaungi, khana mat banana\\\"\",\"content\":\"main 7 baje tak pahunch jaungi, khana mat banana\"}",
+   "command": "Send a text to didi: \"main 7 baje tak pahunch jaungi, khana mat banana\"",
+   "seen": "Send a text to didi: \"main 7 baje tak pahunch jaungi, khana mat banana\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "didi",
+       "message": "Main 7 baje tak pahunch jaungi, khana mat banana"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.7937
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "didi",
+      "message": "मैं 7 बजे तक पहुँच जाऊँगी, खाना मत बनाना"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 6,
+   "source": "gemma",
+   "mode": "line",
+   "said": "दीदी को मैसेज करो कि मैं 7 बजे तक पहुँच जाऊँगी, खाना मत बनाना",
+   "raw": "Send a text to didi: \"main 7 baje tak pahunch jaungi, khana mat banana\"",
+   "command": "Send a text to didi: \"main 7 baje tak pahunch jaungi, khana mat banana\"",
+   "seen": "Send a text to didi: \"main 7 baje tak pahunch jaungi, khana mat banana\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "didi",
+       "message": "Main 7 baje tak pahunch jaungi, khana mat banana"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.7937
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "didi",
+      "message": "मैं 7 बजे तक पहुँच जाऊँगी, खाना मत बनाना"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 6,
+   "source": "nano",
+   "mode": "line",
+   "said": "दीदी को मैसेज करो कि मैं 7 बजे तक पहुँच जाऊँगी, खाना मत बनाना",
+   "raw": "Send a text to didi: \"main 7 baje tak pahunch jaungi, khana mat banana\"",
+   "command": "Send a text to didi: \"main 7 baje tak pahunch jaungi, khana mat banana\"",
+   "seen": "Send a text to didi: \"main 7 baje tak pahunch jaungi, khana mat banana\"",
+   "routed": [
+    "send_text"
+   ],
+   "tools": [
+    "send_text"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "send_text",
+      "arguments": {
+       "name": "didi",
+       "message": "Main 7 baje tak pahunch jaungi, khana mat banana"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.7937
+   },
+   "calls": [
+    {
+     "name": "send_text",
+     "arguments": {
+      "name": "didi",
+      "message": "मैं 7 बजे तक पहुँच जाऊँगी, खाना मत बनाना"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 7,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "add 2 kg basmati rice to the groceries list",
+   "raw": "{\n  \"command\": \"Add 2 kg basmati rice to my groceries list\",\n  \"content\": \"2 kg basmati rice\"\n}",
+   "command": "Add \"2 kg basmati rice\" to my groceries list",
+   "seen": "Add \"2 kg basmati rice\" to my groceries list",
+   "routed": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "tools": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_to_list",
+      "arguments": {
+       "list": "groceries",
+       "items": "2 kg basmati rice"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.858
+   },
+   "calls": [
+    {
+     "name": "add_to_list",
+     "arguments": {
+      "list": "groceries",
+      "items": "2 kg basmati rice"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 7,
+   "source": "nano",
+   "mode": "typed",
+   "said": "add 2 kg basmati rice to the groceries list",
+   "raw": "{\"command\":\"Add 2 kg basmati rice to my groceries list\",\"content\":\"2 kg basmati rice\"}",
+   "command": "Add \"2 kg basmati rice\" to my groceries list",
+   "seen": "Add \"2 kg basmati rice\" to my groceries list",
+   "routed": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "tools": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_to_list",
+      "arguments": {
+       "list": "groceries",
+       "items": "2 kg basmati rice"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.858
+   },
+   "calls": [
+    {
+     "name": "add_to_list",
+     "arguments": {
+      "list": "groceries",
+      "items": "2 kg basmati rice"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 7,
+   "source": "gemma",
+   "mode": "line",
+   "said": "add 2 kg basmati rice to the groceries list",
+   "raw": "Add \"2 kg basmati rice\" to my \"groceries\" list",
+   "command": "Add \"2 kg basmati rice\" to my \"groceries\" list",
+   "seen": "Add \"2 kg basmati rice\" to my \"groceries\" list",
+   "routed": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "tools": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_to_list",
+      "arguments": {
+       "list": "groceries",
+       "items": "2 kg basmati rice"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.8929
+   },
+   "calls": [
+    {
+     "name": "add_to_list",
+     "arguments": {
+      "list": "groceries",
+      "items": "2 kg basmati rice"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 7,
+   "source": "nano",
+   "mode": "line",
+   "said": "add 2 kg basmati rice to the groceries list",
+   "raw": "Add \"2 kg basmati rice\" to my groceries list",
+   "command": "Add \"2 kg basmati rice\" to my groceries list",
+   "seen": "Add \"2 kg basmati rice\" to my groceries list",
+   "routed": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "tools": [
+    "add_to_list",
+    "show_list",
+    "check_off"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_to_list",
+      "arguments": {
+       "list": "groceries",
+       "items": "2 kg basmati rice"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.858
+   },
+   "calls": [
+    {
+     "name": "add_to_list",
+     "arguments": {
+      "list": "groceries",
+      "items": "2 kg basmati rice"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 8,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "make a note order 3 more chairs for the balcony",
+   "raw": "{\n  \"command\": \"Make a note: \\\"order 3 more chairs for the balcony\\\"\",\n  \"content\": \"order 3 more chairs for the balcony\"\n}",
+   "command": "Make a note: \"order 3 more chairs for the balcony\"",
+   "seen": "Make a note: \"order 3 more chairs for the balcony\"",
+   "routed": [
+    "create_note"
+   ],
+   "tools": [
+    "create_note"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "create_note",
+      "arguments": {
+       "text": "order 3 more chairs for the balcony"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.732
+   },
+   "calls": [
+    {
+     "name": "create_note",
+     "arguments": {
+      "text": "order 3 more chairs for the balcony"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 8,
+   "source": "nano",
+   "mode": "typed",
+   "said": "make a note order 3 more chairs for the balcony",
+   "raw": "{\"command\":\"Make a note: \\\"order 3 more chairs for the balcony\\\"\",\"content\":\"order 3 more chairs for the balcony\"}",
+   "command": "Make a note: \"order 3 more chairs for the balcony\"",
+   "seen": "Make a note: \"order 3 more chairs for the balcony\"",
+   "routed": [
+    "create_note"
+   ],
+   "tools": [
+    "create_note"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "create_note",
+      "arguments": {
+       "text": "order 3 more chairs for the balcony"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.732
+   },
+   "calls": [
+    {
+     "name": "create_note",
+     "arguments": {
+      "text": "order 3 more chairs for the balcony"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 8,
+   "source": "gemma",
+   "mode": "line",
+   "said": "make a note order 3 more chairs for the balcony",
+   "raw": "Make a note: \"order 3 more chairs for the balcony\"",
+   "command": "Make a note: \"order 3 more chairs for the balcony\"",
+   "seen": "Make a note: \"order 3 more chairs for the balcony\"",
+   "routed": [
+    "create_note"
+   ],
+   "tools": [
+    "create_note"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "create_note",
+      "arguments": {
+       "text": "order 3 more chairs for the balcony"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.732
+   },
+   "calls": [
+    {
+     "name": "create_note",
+     "arguments": {
+      "text": "order 3 more chairs for the balcony"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 8,
+   "source": "nano",
+   "mode": "line",
+   "said": "make a note order 3 more chairs for the balcony",
+   "raw": "Make a note: \"order 3 more chairs for the balcony\"",
+   "command": "Make a note: \"order 3 more chairs for the balcony\"",
+   "seen": "Make a note: \"order 3 more chairs for the balcony\"",
+   "routed": [
+    "create_note"
+   ],
+   "tools": [
+    "create_note"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "create_note",
+      "arguments": {
+       "text": "order 3 more chairs for the balcony"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.732
+   },
+   "calls": [
+    {
+     "name": "create_note",
+     "arguments": {
+      "text": "order 3 more chairs for the balcony"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 9,
+   "source": "gemma",
+   "mode": "typed",
+   "said": "add Meera's farewell dinner to my calendar on saturday at 8",
+   "raw": "{\n  \"command\": \"Add Meera's farewell dinner to my calendar on Saturday at 8\",\n  \"content\": \"Meera's farewell dinner\"\n}",
+   "command": "Add \"Meera's farewell dinner\" to my calendar on Saturday at 8",
+   "seen": "Add \"Meera's farewell dinner\" to my calendar on Saturday at 8",
+   "routed": [
+    "show_agenda",
+    "add_event"
+   ],
+   "tools": [
+    "show_agenda",
+    "add_event"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_event",
+      "arguments": {
+       "title": "Meera's farewell dinner",
+       "when": "2026-10-10T20:00:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.4033
+   },
+   "calls": [
+    {
+     "name": "add_event",
+     "arguments": {
+      "title": "Meera's farewell dinner",
+      "when": "2026-10-10T20:00:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 9,
+   "source": "nano",
+   "mode": "typed",
+   "said": "add Meera's farewell dinner to my calendar on saturday at 8",
+   "raw": "{\"command\":\"Add Meera's farewell dinner to my calendar on Saturday at 8\",\"content\":\"Meera's farewell dinner\"}",
+   "command": "Add \"Meera's farewell dinner\" to my calendar on Saturday at 8",
+   "seen": "Add \"Meera's farewell dinner\" to my calendar on Saturday at 8",
+   "routed": [
+    "show_agenda",
+    "add_event"
+   ],
+   "tools": [
+    "show_agenda",
+    "add_event"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_event",
+      "arguments": {
+       "title": "Meera's farewell dinner",
+       "when": "2026-10-10T20:00:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.4033
+   },
+   "calls": [
+    {
+     "name": "add_event",
+     "arguments": {
+      "title": "Meera's farewell dinner",
+      "when": "2026-10-10T20:00:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 9,
+   "source": "gemma",
+   "mode": "line",
+   "said": "add Meera's farewell dinner to my calendar on saturday at 8",
+   "raw": "Add \"Meera's farewell dinner\" to my calendar on Saturday at 8.",
+   "command": "Add \"Meera's farewell dinner\" to my calendar on Saturday at 8.",
+   "seen": "Add \"Meera's farewell dinner\" to my calendar on Saturday at 8.",
+   "routed": [
+    "show_agenda",
+    "add_event"
+   ],
+   "tools": [
+    "show_agenda",
+    "add_event"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_event",
+      "arguments": {
+       "title": "Meera's farewell dinner",
+       "when": "2026-10-10T20:00:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.412
+   },
+   "calls": [
+    {
+     "name": "add_event",
+     "arguments": {
+      "title": "Meera's farewell dinner",
+      "when": "2026-10-10T20:00:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  },
+  {
+   "set": "dev2.txt",
+   "row": 9,
+   "source": "nano",
+   "mode": "line",
+   "said": "add Meera's farewell dinner to my calendar on saturday at 8",
+   "raw": "Add \"Meera's farewell dinner\" to my calendar on Saturday at 8",
+   "command": "Add \"Meera's farewell dinner\" to my calendar on Saturday at 8",
+   "seen": "Add \"Meera's farewell dinner\" to my calendar on Saturday at 8",
+   "routed": [
+    "show_agenda",
+    "add_event"
+   ],
+   "tools": [
+    "show_agenda",
+    "add_event"
+   ],
+   "needle": {
+    "function_calls": [
+     {
+      "name": "add_event",
+      "arguments": {
+       "title": "Meera's farewell dinner",
+       "when": "2026-10-10T20:00:00"
+      }
+     }
+    ],
+    "suppressed_calls": [],
+    "confidence": 0.4033
+   },
+   "calls": [
+    {
+     "name": "add_event",
+     "arguments": {
+      "title": "Meera's farewell dinner",
+      "when": "2026-10-10T20:00:00"
+     }
+    }
+   ],
+   "asks": [],
+   "time_dropped": false
+  }
+ ]
+}

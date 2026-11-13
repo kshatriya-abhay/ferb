@@ -96,6 +96,7 @@ dependencies {
     testImplementation(libs.truth)
     testImplementation(libs.natural.date.parser)
     testImplementation(libs.org.json)
+    testImplementation(libs.icu4j)
     testImplementation(libs.kotlinx.coroutines.test)
 
     androidTestImplementation(libs.androidx.test.runner)
