@@ -267,7 +267,7 @@ class AnswerFlow(
             suppressed = reply.suppressed.filter { it !== heldBack },
         )
         gated.filterNotNull().firstOrNull()?.let { g ->
-            path += Step("Dates: Ferb", if (g.agreed) DateGate.shown(g.said) else "asks: ${g.arguments[TimeArgs.ASK]}")
+            path += Step("Dates: Ferb", if (g.agreed) DateGate.shown(g.said) else "asks: ${TimeArgs.of(g.arguments)?.ask}")
         }
         // The words as said name other timed tools, not this one ("remind me" rewritten as an alarm): ask (gate H).
         val saidTimed = timedRouted(said)

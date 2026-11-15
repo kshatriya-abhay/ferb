@@ -57,8 +57,8 @@ class AnswerFlowDatesTest {
         assertThat(got.verdict.decision).isEqualTo(Decision.Run)
         assertThat(got.asks).isEmpty()
         val args = got.shown.calls.single().arguments
-        assertThat(args[TimeArgs.AT]).isEqualTo("2026-10-09T09:00")
-        assertThat(args[TimeArgs.ASK]).isNull()
+        assertThat(TimeArgs.of(args)?.at?.toString()).isEqualTo("2026-10-09T09:00")
+        assertThat(TimeArgs.of(args)?.ask).isNull()
         assertThat(Step.chain(got.path)).endsWith("Dates: Ferb (Fri 9 Oct, 9:00)")
     }
 
@@ -66,7 +66,7 @@ class AnswerFlowDatesTest {
     fun needlesOwnTimeNeverWins() {
         // Needle 3 says 3 pm; the words and the rewrite say 9 am tomorrow.
         val got = answer("remind me tomorrow at 9 am to call the bank", "Remind me tomorrow at 9 am to call the bank", reply(0.9, listOf(remind("3 pm"))))
-        assertThat(got.shown.calls.single().arguments[TimeArgs.AT]).isEqualTo("2026-10-09T09:00")
+        assertThat(TimeArgs.of(got.shown.calls.single().arguments)?.at?.toString()).isEqualTo("2026-10-09T09:00")
     }
 
     @Test
@@ -75,8 +75,8 @@ class AnswerFlowDatesTest {
         val got = answer("kal 6 baje yaad dilana bank", "Remind me at 6 pm to call the bank", reply(0.9, listOf(remind("6 pm"))))
         assertThat(got.verdict.decision).isEqualTo(Decision.Confirm)
         val args = got.shown.calls.single().arguments
-        assertThat(args[TimeArgs.AT]).isEqualTo("2026-10-09T18:00")
-        assertThat(args[TimeArgs.ASK] as String).contains("Fri 9 Oct, 18:00")
+        assertThat(TimeArgs.of(args)?.at?.toString()).isEqualTo("2026-10-09T18:00")
+        assertThat(TimeArgs.of(args)?.ask).contains("Fri 9 Oct, 18:00")
     }
 
     @Test

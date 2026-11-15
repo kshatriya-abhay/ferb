@@ -42,7 +42,7 @@ object AddReminder : Tool(
     /** What to be reminded of must be the request's words, and the time's numbers too. */
     override fun grounded(arguments: Map<String, Any?>, request: String) =
         Tools.mostlySaid(arguments.text("text"), request) &&
-            (arguments[TimeArgs.RESOLVED] == true || arguments.text("time")?.let { SaidNumbers.grounded(it, request) } ?: true)
+            (TimeArgs.of(arguments) != null || arguments.text("time")?.let { SaidNumbers.grounded(it, request) } ?: true)
 
     /** "Pay the rent": the words of the reminder, without "remind me to" or the time. */
     fun title(text: String): String = When.strip(text)
@@ -59,16 +59,17 @@ object AddReminder : Tool(
         if (text.isBlank()) return Prepared.Invalid("Remind you of what?")
         val now = env.now.toLocalDateTime()
         // The request's own words first, then Needle 3's "time".
-        val resolved = arguments[TimeArgs.RESOLVED] == true
+        val ferb = TimeArgs.of(arguments)
+        val resolved = ferb != null
         // Resolved by Ferb ([DateGate], [TimeArgs]): that, before the words.
-        val at = arguments.text(TimeArgs.AT)?.let { java.time.LocalDateTime.parse(it) }
+        val at = ferb?.at
             ?: arguments.text(SAID)?.takeIf { !resolved }?.let { ReminderTime.read(it, now) }
             ?: arguments.text("time")?.takeIf { !resolved }?.let { ReminderTime.read(it, now) }
-            ?: return Prepared.Invalid(arguments.text(TimeArgs.ASK)?.replaceFirstChar { it.uppercase() } ?: "When? Say a time, such as in 20 minutes or tomorrow at 9")
+            ?: return Prepared.Invalid(ferb?.ask?.replaceFirstChar { it.uppercase() } ?: "When? Say a time, such as in 20 minutes or tomorrow at 9")
         if (!at.isAfter(now)) return Prepared.Invalid("That's in the past")
         // The request's words decide the repeat; Needle 3's only counts when the request says one too.
         val said = arguments.text(SAID)
-        val repeat = if (resolved) Repeat.of(arguments.text(TimeArgs.REPEAT))
+        val repeat = if (resolved) Repeat.of(ferb?.repeat)
             else said?.let(Repeat::said) ?: Repeat.of(arguments.text("repeat")).takeIf { said == null }
         // Without notifications a reminder can't remind: ask first, then the request runs again.
         if (!env.granted(Manifest.permission.POST_NOTIFICATIONS)) {

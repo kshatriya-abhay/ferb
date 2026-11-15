@@ -58,11 +58,11 @@ object ShowAgenda : Tool(
      * day "G20 summit", and "what is a calendar year" as "year" (0.52 and 0.70 on tool-check).
      */
     override fun grounded(arguments: Map<String, Any?>, request: String) =
-        arguments[TimeArgs.RESOLVED] == true || arguments.text("day")?.let { When.day(it, LocalDate.now()) != null } ?: true
+        TimeArgs.of(arguments) != null || arguments.text("day")?.let { When.day(it, LocalDate.now()) != null } ?: true
 
     /** The day Ferb resolved ([DateGate]), else the day [request] names, else the one Needle 3 gave, else today. */
     fun dayFor(arguments: Map<String, Any?>, today: LocalDate): LocalDate =
-        arguments.text(TimeArgs.DAY)?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+        TimeArgs.of(arguments)?.day
             ?: arguments.text(REQUEST)?.let { When.day(it, today) } ?: arguments.text("day")?.let { When.day(it, today) } ?: today
 
     override fun prepare(arguments: Map<String, Any?>, env: PrepareEnv): Prepared {
@@ -167,7 +167,7 @@ object AddEvent : Tool(
         val whenSaid = arguments.text("when")
         val requestSays = !When.read(request, LocalDateTime.now()).isEmpty
         return Tools.mostlySaid(title, request) &&
-            (arguments[TimeArgs.RESOLVED] == true || requestSays || whenSaid == null || SaidNumbers.grounded(whenSaid, request))
+            (TimeArgs.of(arguments) != null || requestSays || whenSaid == null || SaidNumbers.grounded(whenSaid, request))
     }
 
     /** An event worked out from a request: [begin] and [end] in epoch milliseconds (UTC midnights when [allDay]). */
@@ -182,11 +182,11 @@ object AddEvent : Tool(
      */
     fun plan(title: String, arguments: Map<String, Any?>, now: LocalDateTime, zone: ZoneId): Planned? {
         // Resolved by Ferb ([DateGate], [TimeArgs]): that, before the words.
-        val resolved = arguments.text(TimeArgs.AT)?.let { LocalDateTime.parse(it) }
-            ?.let { When.Said(it.toLocalDate(), it.toLocalTime(), length = (arguments[TimeArgs.LENGTH] as? Number)?.toInt()) }
-            ?: arguments.text(TimeArgs.DAY)?.let { When.Said(LocalDate.parse(it), null) }
-        val fromRequest = arguments.text(REQUEST)?.takeIf { arguments[TimeArgs.RESOLVED] != true }?.let { When.read(it, now) }
-        val said = resolved ?: fromRequest?.takeUnless { it.isEmpty } ?: arguments.text("when")?.takeIf { arguments[TimeArgs.RESOLVED] != true }
+        val ferb = TimeArgs.of(arguments)
+        val resolved = ferb?.at?.let { When.Said(it.toLocalDate(), it.toLocalTime(), length = ferb.lengthMinutes) }
+            ?: ferb?.day?.let { When.Said(it, null) }
+        val fromRequest = arguments.text(REQUEST)?.takeIf { ferb == null }?.let { When.read(it, now) }
+        val said = resolved ?: fromRequest?.takeUnless { it.isEmpty } ?: arguments.text("when")?.takeIf { ferb == null }
             ?.let { When.read(it, now) }?.takeUnless { it.isEmpty } ?: return null
         val time = if (said.allDay) null else said.time
         val day = said.day ?: if (time != null && time.isBefore(now.toLocalTime())) now.toLocalDate().plusDays(1) else now.toLocalDate()

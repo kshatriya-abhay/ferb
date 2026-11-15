@@ -27,8 +27,8 @@ class DateGateTest {
         val call = mapOf<String, Any?>("title" to "dinner", "when" to "tomorrow 6 pm")
         val got = DateGate.apply(AddEvent.name, call, "dinner tomorrow from 6 to 8 pm", "Add dinner tomorrow from 6 to 8 pm", zoned)
         assertThat(got.agreed).isTrue()
-        assertThat(got.arguments[TimeArgs.AT]).isEqualTo("2026-11-05T18:00")
-        assertThat(got.arguments[TimeArgs.LENGTH]).isEqualTo(120)
+        assertThat(TimeArgs.of(got.arguments)?.at?.toString()).isEqualTo("2026-11-05T18:00")
+        assertThat(TimeArgs.of(got.arguments)?.lengthMinutes).isEqualTo(120)
         val planned = AddEvent.plan("Dinner", got.arguments, now, ZoneId.of("Asia/Kolkata"))!!
         assertThat(planned.start.toString() to planned.endTime.toString()).isEqualTo("18:00" to "20:00")
         // No span said: an hour, as before.
@@ -44,7 +44,7 @@ class DateGateTest {
         val command = "Remind me at 6 pm to \"tell Priya the bus comes at 8:40 tomorrow\""
         val got = DateGate.apply(AddReminder.name, mapOf("text" to content), said, command, zoned, content)
         assertThat(got.agreed).isTrue()
-        assertThat(got.arguments[TimeArgs.AT]).isEqualTo("2026-11-04T18:00")
+        assertThat(TimeArgs.of(got.arguments)?.at?.toString()).isEqualTo("2026-11-04T18:00")
         // A message with a time in it: no time outside it, so none is read (the time guard stays quiet).
         val text = DateGate.apply(AddReminder.name, emptyMap(), "text Arjun I'm leaving at 5", "Send a text to Arjun: \"I'm leaving at 5\"", zoned, "I'm leaving at 5")
         assertThat(text.said).isInstanceOf(DateGate.Read.Ask::class.java)
@@ -62,6 +62,6 @@ class DateGateTest {
         assertThat(DateGate.outside(said, "feed the dog")).isEqualTo(said)
         assertThat(DateGate.outside(said, "water the plants")).isEqualTo("remind me tomorrow at 7 to")
         val got = DateGate.apply(AddReminder.name, emptyMap(), said, null, zoned)
-        assertThat(got.arguments[TimeArgs.AT]).isEqualTo("2026-11-05T07:00")
+        assertThat(TimeArgs.of(got.arguments)?.at?.toString()).isEqualTo("2026-11-05T07:00")
     }
 }

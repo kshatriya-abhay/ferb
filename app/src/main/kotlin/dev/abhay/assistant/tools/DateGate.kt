@@ -11,8 +11,7 @@ import java.util.Locale
  * round): [DateResolver] reads the words as said, and the rewritten command (the rewrite prompt) too when
  * there is one; the call runs only when the two agree, else it asks, showing what Ferb read. Needle
  * 3's own time arguments never decide. The resolved value goes in the tool's arguments as
- * [TimeArgs] has them ([TimeArgs.RESOLVED], [TimeArgs.AT], [TimeArgs.DAY], [TimeArgs.REPEAT],
- * [TimeArgs.ASK], [TimeArgs.WANTED]), so the tools use it as they did the computer's.
+ * one typed value ([TimeArgs.FerbTime]), which the tools read with [TimeArgs.of].
  * On the blind set (154 lines, tool from Needle 3 on R): 105 right, 9 wrong; the words alone 111/14.
  */
 object DateGate {
@@ -102,10 +101,10 @@ object DateGate {
     data class Gated(val arguments: Map<String, Any?>, val agreed: Boolean, val said: Read, val rewritten: Read?)
 
     /**
-     * [arguments] of a [tool] call with Ferb's time: read from [saidAll], and from [commandAll] (the
+     * [arguments] of a [tool] call with Ferb's time ([TimeArgs.FerbTime]): read from [saidAll], and from [commandAll] (the
      * rewrite) when there is one, outside the call's [content] when it has one ([outside]). Agreeing, the value is set and the call may run; else the value
      * read from the words as said (or the rewrite's, when the words say nothing) is shown, and the
-     * call asks first ([TimeArgs.ASK]); with neither, the time is left out and the tool asks when.
+     * call asks first ([TimeArgs.FerbTime.ask]); with neither, the time is left out and the tool asks when.
      */
     fun apply(tool: String, arguments: Map<String, Any?>, saidAll: String, commandAll: String?, now: ZonedDateTime, content: String? = null): Gated {
         val param = TIMED[tool] ?: return Gated(arguments, true, Read.Ask(""), null)
@@ -120,9 +119,13 @@ object DateGate {
         val pick = if (fromSaid !is Read.Ask) fromSaid else fromCommand?.takeIf { it !is Read.Ask }
         val out = arguments.toMutableMap()
         out.remove(param)
-        out[TimeArgs.RESOLVED] = true
+        var time = TimeArgs.FerbTime()
+        fun done(agreed: Boolean): Gated {
+            out[TimeArgs.KEY] = time
+            return Gated(out, agreed && time.ask == null, fromSaid, fromCommand)
+        }
         when (pick) {
-            null -> { out[TimeArgs.ASK] = (fromSaid as Read.Ask).why; return Gated(out, false, fromSaid, fromCommand) }
+            null -> { time = time.copy(ask = (fromSaid as Read.Ask).why); return done(false) }
             is Read.At -> when (tool) {
                 SetAlarm.name -> {
                     out[param] = pick.at.toLocalTime().toString()
@@ -130,29 +133,27 @@ object DateGate {
                     // offering that ring or a reminder on the day asked for.
                     val ring = local.toLocalDate().atTime(pick.at.toLocalTime()).let { if (it.isAfter(local)) it else it.plusDays(1) }
                     if (ring.toLocalDate() != pick.at.toLocalDate()) {
-                        out[TimeArgs.WANTED] = pick.at.toString()
-                        out[TimeArgs.ASK] = "the Clock app can only set the next ${pick.at.toLocalTime()} (${ring.format(DAY)})"
+                        time = time.copy(wanted = pick.at, ask = "the Clock app can only set the next ${pick.at.toLocalTime()} (${ring.format(DAY)})")
                     }
-                    if (pick.rule != null) out[TimeArgs.ASK] = "repeating alarms aren't supported yet"
+                    if (pick.rule != null) time = time.copy(ask = "repeating alarms aren't supported yet")
                 }
                 // Reminders repeat daily, weekly, monthly or yearly; not on weekdays only, yet.
                 else -> if (pick.rule == DateResolver.Rule.Weekdays) {
-                    out[TimeArgs.AT] = pick.at.toString(); out[param] = shown(pick)
-                    out[TimeArgs.ASK] = "reminders can't repeat on weekdays only yet"
+                    time = time.copy(at = pick.at, ask = "reminders can't repeat on weekdays only yet"); out[param] = shown(pick)
                 } else {
-                    out[TimeArgs.AT] = pick.at.toString(); pick.rule?.let { out[TimeArgs.REPEAT] = it.key }; out[param] = shown(pick)
+                    time = time.copy(at = pick.at, repeat = pick.rule?.key); out[param] = shown(pick)
                 }
             }
-            is Read.Day -> { out[TimeArgs.DAY] = pick.day.toString(); out[param] = pick.day.toString() }
+            is Read.Day -> { time = time.copy(day = pick.day); out[param] = pick.day.toString() }
             is Read.Length -> out[param] = "${pick.seconds} seconds"
             is Read.Ask -> {}
         }
         // An event's span: its length, from the words as said or the rewrite, put on the agreed start.
-        if (tool == AddEvent.name && pick is Read.At) (span(said, local) ?: command?.let { span(it, local) })?.let { out[TimeArgs.LENGTH] = it }
-        if (!agreed) out[TimeArgs.ASK] = when {
+        if (tool == AddEvent.name && pick is Read.At) (span(said, local) ?: command?.let { span(it, local) })?.let { time = time.copy(lengthMinutes = it) }
+        if (!agreed) time = time.copy(ask = when {
             fromSaid is Read.Ask -> "your words don't say when; the rewrite says ${shown(pick)}"
             else -> "your words say ${shown(fromSaid)}, the rewrite ${shown(fromCommand!!)}"
-        }
-        return Gated(out, agreed && out[TimeArgs.ASK] == null, fromSaid, fromCommand)
+        })
+        return done(agreed)
     }
 }

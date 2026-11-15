@@ -107,7 +107,7 @@ object SetAlarm : Tool(
     """.trimIndent()
 
     override fun prepare(arguments: Map<String, Any?>, env: PrepareEnv): Prepared {
-        val said = arguments.text("time") ?: return Prepared.Invalid(arguments.text(TimeArgs.ASK)?.replaceFirstChar { it.uppercase() } ?: "No time given")
+        val said = arguments.text("time") ?: return Prepared.Invalid(TimeArgs.of(arguments)?.ask?.replaceFirstChar { it.uppercase() } ?: "No time given")
         val (hour, minute) = TimeOfDay.parse(said) ?: return Prepared.Invalid("\"$said\" isn't a time of day")
         val time = String.format(Locale.US, "%02d:%02d", hour, minute)
         fun set(context: android.content.Context) = Tools.start(context, Intent(AlarmClock.ACTION_SET_ALARM)
@@ -117,11 +117,11 @@ object SetAlarm : Tool(
             .withActions(SHOW_ALARMS)
         // Asked for on another day than its next ring (the Clock app can't take a date): offer
         // the next ring, or a reminder at the time asked for (the user's decision, 2026-10-16).
-        val wanted = arguments.text(TimeArgs.WANTED)?.let { runCatching { java.time.LocalDateTime.parse(it) }.getOrNull() }
+        val wanted = TimeArgs.of(arguments)?.wanted
         val reminders = env.reminders
         if (wanted != null && reminders != null) {
             val day = wanted.format(java.time.format.DateTimeFormatter.ofPattern("EEE d MMM", Locale.US))
-            return Prepared.Ready("Set an alarm for $time?", detail = arguments.text(TimeArgs.ASK)?.replaceFirstChar { it.uppercase() },
+            return Prepared.Ready("Set an alarm for $time?", detail = TimeArgs.of(arguments)?.ask?.replaceFirstChar { it.uppercase() },
                 choices = listOf(
                     Choice("Alarm at the next $time") { set(it) },
                     Choice("Reminder on $day at $time") { _ ->
@@ -136,7 +136,7 @@ object SetAlarm : Tool(
     }
 
     override fun grounded(arguments: Map<String, Any?>, request: String) =
-        arguments[TimeArgs.RESOLVED] == true || arguments.text("time")?.let { SaidNumbers.grounded(it, request) } ?: true
+        TimeArgs.of(arguments) != null || arguments.text("time")?.let { SaidNumbers.grounded(it, request) } ?: true
 
     private val SHOW_ALARMS = FollowUp("Show alarms") { Tools.start(it.context, Intent(AlarmClock.ACTION_SHOW_ALARMS), "Opened the alarms") }
 
@@ -305,7 +305,7 @@ object SetTimer : Tool(
     }
 
     override fun grounded(arguments: Map<String, Any?>, request: String) =
-        arguments[TimeArgs.RESOLVED] == true || arguments.text("duration")?.let { SaidNumbers.grounded(it, request) } ?: true
+        TimeArgs.of(arguments) != null || arguments.text("duration")?.let { SaidNumbers.grounded(it, request) } ?: true
 
     /** "1 h 5 min", "90 s" → "1 min 30 s". */
     fun duration(seconds: Int): String = listOfNotNull(
