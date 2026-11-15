@@ -20,6 +20,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -42,6 +43,29 @@ class AssistantViewModelTest {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T = AssistantViewModel(app) as T
     })[AssistantViewModel::class.java]
+
+    @Test
+    fun aScreenClosedWhileItsVoiceRequestIsHeardLeavesTheConversationFree() {
+        // Review P2-18: the screen's scope was cancelled mid-transcription, and busy stayed set for both screens.
+        val app = FakeApp.create()
+        // Whistle busy with another clip: this request waits for the engine.
+        (FakeApp.field(app.engine, "lock") as Mutex).tryLock()
+        val sheet = ViewModelStore()
+        val vm = viewModel(app, sheet)
+        main.scheduler.advanceUntilIdle()
+
+        ChatSession.state.value = AssistantViewModel.UiState(voice = AssistantViewModel.Voice.Recorded(1_000, speechLike()))
+        vm.send()
+        main.scheduler.advanceUntilIdle()
+        assertThat(ChatSession.state.value.busy).isTrue()
+
+        sheet.clear() // the sheet swiped away: AssistActivity finishes
+        main.scheduler.advanceUntilIdle()
+        val after = ChatSession.state.value
+        assertThat(after.busy).isFalse()
+        assertThat(after.pending).isNull()
+        assertThat(after.transcribing).isFalse()
+    }
 
     @Test
     fun clearingTheChatWhileItsCallsRunDoesntCrash() {
@@ -72,4 +96,6 @@ class AssistantViewModelTest {
         assertThat(ran).isEqualTo(2)
         store.clear()
     }
+
+    private fun speechLike() = FloatArray(16_000) { i -> if (i < 8_000) 0f else if (i % 2 == 0) 0.5f else -0.5f }
 }

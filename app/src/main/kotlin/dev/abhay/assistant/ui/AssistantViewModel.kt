@@ -51,6 +51,7 @@ import dev.abhay.assistant.voice.NanoEars
 import dev.abhay.assistant.voice.PcmRecorder
 import dev.abhay.assistant.voice.PhoneVoice
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -567,7 +568,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
      */
     private fun sendLinkVoice(clip: Voice.Recorded, pcm: FloatArray) {
         _state.update { it.copy(busy = true, voice = null, notice = null, pending = voiceLabel(clip.ms), asking = "Your computer is listening…") }
-        viewModelScope.launch {
+        voiceRequest {
             val why: String = when (val status = withContext(Dispatchers.IO) { assistant.link.status() }) {
                 is LinkStatus.Ready -> {
                     if (status.asleep) _state.update { it.copy(asking = "Waking your computer…") }
@@ -581,11 +582,11 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
                         is VoiceOutcome.Answer -> {
                             val said = if (pipeline.value.rewrite == RewriteStep.Off) next.request else next.heard ?: next.request
                             _state.update { it.copy(pending = said, asking = null) }
-                            return@launch answer(said, heardBy = listOf(Step("Voice: Ferb Link")))
+                            return@voiceRequest answer(said, heardBy = listOf(Step("Voice: Ferb Link")))
                         }
                         is VoiceOutcome.Failed -> if (!next.keepClip) {
                             // No words: not the computer's failure, so no Whistle either.
-                            return@launch _state.update { it.copy(busy = false, pending = null, asking = null, notice = next.notice) }
+                            return@voiceRequest _state.update { it.copy(busy = false, pending = null, asking = null, notice = next.notice) }
                         } else next.notice.removePrefix("Your computer couldn't hear it: ")
                     }
                 }
@@ -597,12 +598,25 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     /**
+     * Runs a spoken request in this screen's scope. However it ends, cancelled included (the screen
+     * closed while it was heard), the shared conversation is left free for the next request:
+     * [answer] clears it too, but the hearing before it can be cancelled first.
+     */
+    private fun voiceRequest(block: suspend CoroutineScope.() -> Unit) = viewModelScope.launch {
+        try {
+            block()
+        } finally {
+            _state.update { it.copy(busy = false, pending = null, asking = null, transcribing = false) }
+        }
+    }
+
+    /**
      * Whistle transcribes the recording on the phone, in English, then its text is answered like a
      * typed request ("Voice: Whistle → …"). A clip without speech never reaches the model.
      */
     private fun sendPhoneVoice(clip: Voice.Recorded, pcm: FloatArray) {
         _state.update { it.copy(busy = true, voice = null, notice = null, pending = voiceLabel(clip.ms), asking = "Transcribing…", transcribing = true) }
-        viewModelScope.launch { whistle(clip, pcm, emptyList()) }
+        voiceRequest { whistle(clip, pcm, emptyList()) }
     }
 
     private suspend fun whistle(clip: Voice.Recorded, pcm: FloatArray, fallbacks: List<Fallback>) {
