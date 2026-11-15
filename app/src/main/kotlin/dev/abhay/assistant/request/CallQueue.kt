@@ -58,7 +58,7 @@ class CallQueue(
                     opensApp = { (it.value.prepared as? Prepared.Ready)?.opensApp == true },
                     execute = {
                         when (val p = it.value.prepared) {
-                            is Prepared.Ready -> p.run(context())
+                            is Prepared.Ready -> outcomeOf { p.run(context()) }
                             is Prepared.Invalid -> Outcome.Failed(p.reason)
                         }
                     },
@@ -72,14 +72,16 @@ class CallQueue(
     fun followUp(action: FollowUp, set: (Status) -> Unit): Job {
         set(Status.Queued)
         return scope.launch {
-            val outcome = try {
-                action.run(FollowUpEnv(context(), awaitBack = runner::awaitBack))
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Outcome.Failed(e.message ?: e.toString())
-            }
-            set(Status.Finished(outcome))
+            set(Status.Finished(outcomeOf { action.run(FollowUpEnv(context(), awaitBack = runner::awaitBack)) }))
         }
+    }
+
+    /** A tool's run reaches outside the app (an intent, a file, a provider): what it throws fails that call alone. */
+    private inline fun outcomeOf(run: () -> Outcome): Outcome = try {
+        run()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Outcome.Failed(e.message ?: e.toString())
     }
 }

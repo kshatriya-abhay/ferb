@@ -57,6 +57,19 @@ class CallQueueTest {
     }
 
     @Test
+    fun aCallThatThrowsFailsAndTheRestStillRun() = runBlocking {
+        // Review P2-4: the exception escaped the queue and left every call Queued.
+        val e = Exchange(
+            CallState(ToolCall("add_reminder", emptyMap()), Prepared.Ready("Remind you", opensApp = false) { throw java.io.IOException("No space left on device") }, Status.Waiting),
+            ready("torch"),
+        )
+        queue().run(e.calls, e::set)!!.join()
+        assertThat(e.calls.map { it.status }).containsExactly(
+            Status.Finished(Outcome.Failed("No space left on device")), Status.Finished(Outcome.Done("torch done")),
+        ).inOrder()
+    }
+
+    @Test
     fun nothingWaitingRunsNothing() {
         val e = Exchange(ready("torch").copy(status = Status.Skipped))
         assertThat(queue().run(e.calls, e::set)).isNull()
