@@ -110,7 +110,7 @@ class NanoVoiceTest {
             // The request is the last field (requests.txt: tool | request; the date sets: now | tool | expected | request).
             .filter { "|" in it && !it.startsWith("#") }.map { it.substringAfterLast("|").trim().lowercase() }.toSet()
         assertThat(bench).isNotEmpty()
-        for (prompt in listOf(GeminiRewrite.PROMPT_V1, GeminiRewrite.PROMPT_V2, GeminiRewrite.PROMPT_R, GeminiRewrite.PROMPT_R2)) {
+        for (prompt in listOf(GeminiRewrite.PROMPT_V2, GeminiRewrite.PROMPT_R, GeminiRewrite.PROMPT_R2)) {
             val examples = prompt.substringAfter("Examples:\n").lines().map { it.substringBefore(" -> ").trim().lowercase() }
             assertThat(examples).isNotEmpty()
             assertThat(examples.filter { it in bench }).isEmpty()

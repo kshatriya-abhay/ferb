@@ -48,16 +48,7 @@ data class NeedleReply(
     val peakRamMb: Double,
     /** Set when the engine reports a failure instead of an answer; for Ferb Link's, a few words that fit in the chat. */
     val error: String?,
-    /** Where the answer came from: null for Needle 3 on the phone, "laptop" for Ferb Link ([dev.abhay.assistant.link.FerbLink]). */
-    val source: String? = null,
-    /** Ferb Link's: the model that answered, its first token's probability, and how long the computer took. */
-    val model: String? = null,
-    val first: Double? = null,
-    val ms: Long? = null,
-    /** Ferb Link's: the failure at length, for the details ([error] is the short form); null from an older Ferb Link. */
-    val errorDetail: String? = null,
 ) {
-    val fromLaptop get() = source != null
 
     companion object {
         fun parse(json: String): NeedleReply {
@@ -74,11 +65,6 @@ data class NeedleReply(
                 decodeTps = o.optDouble("decode_tps", 0.0),
                 peakRamMb = o.optDouble("peak_ram_mb", 0.0),
                 error = if (o.optBoolean("success", true)) null else o.optString("error").ifEmpty { "Engine error" },
-                source = o.optString("source").ifEmpty { null },
-                model = o.optString("model").ifEmpty { null },
-                first = if (o.has("first") && !o.isNull("first")) o.optDouble("first") else null,
-                ms = if (o.has("ms") && !o.isNull("ms")) o.optLong("ms") else null,
-                errorDetail = o.optString("error_detail").ifEmpty { null },
             )
         }
 

@@ -28,7 +28,6 @@ object LinkContract {
     const val VERSION = 1
 
     const val METHOD_STATUS = "status"
-    const val METHOD_COMPLETE = "complete"
     /** Added after version 1 without a bump: an older Ferb Link throws IllegalArgumentException. */
     const val METHOD_CHECK = "check"
     /**
@@ -46,10 +45,9 @@ object LinkContract {
      */
     const val METHOD_DECIDE = "decide"
     /**
-     * The computer's model turning a typed request into plain English commands, for Jev and
-     * Needle 3: for Hinglish, which neither understands. Ferb doesn't use it yet: a "comprehend"
-     * step (the computer deciding whether a request needs it) is being benched first. Ferb Link resolves times
-     * and dates against the phone's clock. Added after version 1: an older Ferb Link throws
+     * The computer's model turning a request into one plain English command (the rewrite step,
+     * [dev.abhay.assistant.request.AnswerFlow]), for Needle 3: for Hinglish, which it doesn't
+     * understand. Ferb Link resolves times and dates against the phone's clock. Added after version 1: an older Ferb Link throws
      * IllegalArgumentException.
      */
     const val METHOD_REWRITE = "rewrite"
@@ -399,21 +397,6 @@ class FerbLink(private val context: Context) : LinkCalls {
             return Transcript.parse(result.text(LinkContract.RESULT_REPLY) ?: return Transcript.failed("Ferb Link sent no reply"))
         }
 
-        /**
-         * Ferb Link's reply, shaped like Needle 3's. The computer's model has no calibrated
-         * confidence like Needle 3's, and no stand-in for one held back every wrong call in Ferb's
-         * bench (Gemma 4 E2B's first token: 20 wrong calls even at 1.00), so whether its answer
-         * runs doesn't depend on one ([LinkPolicy.verdict]). The first token's probability is kept
-         * as the confidence, for the details.
-         */
-        fun parse(json: String): NeedleReply = try {
-            val reply = NeedleReply.parse(json)
-            reply.copy(confidence = reply.first ?: reply.confidence, source = reply.source ?: SOURCE)
-        } catch (e: Exception) {
-            failed("unexpected answer", "Ferb Link's reply couldn't be read: ${e.message}")
-        }
-
-        const val SOURCE = "laptop"
         private const val TAG = "FerbLink"
         /** After a wake (the box tapped, the mic started), how long Wi-Fi stays low latency for the request to come. */
         private const val WAKE_LOW_LATENCY_MS = 30_000L
@@ -454,11 +437,6 @@ class FerbLink(private val context: Context) : LinkCalls {
         /** Whether a `model_state` means the model has to load first. */
         fun asleep(state: String?) = state == "asleep" || state == "unloaded"
 
-        /** A failure: [reason] in a few words, for the chat, and at length in [detail], for the details. */
-        private fun failed(reason: String, detail: String) = NeedleReply(
-            calls = emptyList(), suppressed = emptyList(), reasoning = "", confidence = null, ungrounded = emptyList(),
-            negation = false, prefillTps = 0.0, decodeTps = 0.0, peakRamMb = 0.0, error = reason, source = SOURCE, errorDetail = detail,
-        )
     }
 }
 

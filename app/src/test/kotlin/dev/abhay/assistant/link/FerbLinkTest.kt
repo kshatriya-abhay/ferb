@@ -28,37 +28,6 @@ class FerbLinkTest {
     private fun alarm(time: String) = ToolCall(SetAlarm.name, mapOf("time" to time))
 
     @Test
-    fun aLaptopReplyReadsLikeNeedle3sWithItsModelAndFirstToken() {
-        val reply = FerbLink.parse(laptopAlarm)
-        assertThat(reply.calls).containsExactly(alarm("6:45 am"))
-        assertThat(reply.fromLaptop).isTrue()
-        assertThat(reply.model).isEqualTo("gemma-4-E2B-it-Q4_K_M")
-        assertThat(reply.ms).isEqualTo(1480L)
-        // The first token's probability stands in for the confidence (for the details only).
-        assertThat(reply.confidence).isWithin(1e-9).of(0.99994)
-        assertThat(reply.error).isNull()
-    }
-
-    @Test
-    fun aFailedOrUnreadableLaptopReplyIsAnError() {
-        assertThat(FerbLink.parse(laptopFailed).error).isEqualTo("The laptop took too long to answer")
-        val garbled = FerbLink.parse("not json")
-        // A few words for the chat, the reason at length for the details.
-        assertThat(garbled.error).isEqualTo("unexpected answer")
-        assertThat(garbled.errorDetail).contains("couldn't be read")
-        assertThat(garbled.fromLaptop).isTrue()
-        // Needle 3's own replies have no source.
-        assertThat(NeedleReply.parse("""{"success":true,"function_calls":[],"confidence":0.5}""").fromLaptop).isFalse()
-    }
-
-    @Test
-    fun ferbLinksShortErrorAndItsDetailAreKeptApart() {
-        val reply = FerbLink.parse("""{"success":false,"error":"timed out","error_detail":"Your computer took longer than 10 s to answer"}""")
-        assertThat(reply.error).isEqualTo("timed out")
-        assertThat(reply.errorDetail).isEqualTo("Your computer took longer than 10 s to answer")
-    }
-
-    @Test
     fun aTranscriptHasWhatWasHeardAndTheEnglishCommand() {
         val heard = Transcript.parse("""{"heard":"subah 5 baje ka alarm laga do","text":"Set an alarm for 5 am","model":"gemma-4-e2b","ms":640}""")
         assertThat(heard.heard).isEqualTo("subah 5 baje ka alarm laga do")

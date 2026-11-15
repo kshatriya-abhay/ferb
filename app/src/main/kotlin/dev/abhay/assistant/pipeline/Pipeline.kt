@@ -12,9 +12,6 @@ enum class AudioStep(val id: String, val title: String, val hint: String) {
     Gemini("gemini", "Gemini Nano", "On this phone, English and Hindi"),
     Link("link", "Ferb Link (Gemma 4)", "On your computer, English and Hindi");
 
-    /** For this request, when this step fails: Ferb Link's falls back to Whistle (the phone has its recording). */
-    val fallback: AudioStep? get() = if (this == Link) Whistle else null
-
     companion object {
         fun of(id: String?) = entries.firstOrNull { it.id == id }
         const val TITLE = "Audio processing"
@@ -135,11 +132,6 @@ data class Abilities(
     val linkInstalled get() = linkApp || link
 
     internal val phoneRewrite get() = if (geminiRewrite == true) RewriteStep.Gemini else RewriteStep.Off
-    internal val bestRewrite get() = when {
-        geminiRewrite == true -> RewriteStep.Gemini
-        link -> RewriteStep.Link
-        else -> RewriteStep.Off
-    }
 }
 
 /**

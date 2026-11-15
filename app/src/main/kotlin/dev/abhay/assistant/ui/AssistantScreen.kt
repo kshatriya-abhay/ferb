@@ -696,7 +696,7 @@ internal fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () -
             reply.confidence?.let { confidence ->
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row {
-                        Text(if (reply.fromLaptop) "Your computer's first-token probability" else "Confidence",
+                        Text("Confidence",
                             style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
                         Text(String.format(Locale.US, "%.2f", confidence), style = MaterialTheme.typography.labelLarge)
                     }
@@ -707,7 +707,6 @@ internal fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () -
                                 exchange.alwaysConfirm -> "Asked first: this tool always asks."
                                 exchange.unmentioned -> "Asked first: the request doesn't name this tool."
                                 exchange.ungrounded -> "Asked first: you didn't say these numbers."
-                                reply.fromLaptop -> "Ran without asking: your computer's answer passed the checks."
                                 exchange.decision == Decision.Run -> String.format(Locale.US, "Ran without asking: needed %.2f.", exchange.runAt)
                                 else -> String.format(Locale.US, "Asked first: runs without asking from %.2f.", exchange.runAt)
                             },
@@ -758,8 +757,7 @@ internal fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () -
                 Text(it.line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Text(
-                if (reply.fromLaptop) String.format(Locale.US, "%d ms in all · %s took %d ms on your computer", exchange.wallMs, reply.model ?: "the model", reply.ms ?: 0L)
-                else String.format(Locale.US, "%d ms on this phone · prefill %.0f tok/s · decode %.0f tok/s", exchange.wallMs, reply.prefillTps, reply.decodeTps),
+                String.format(Locale.US, "%d ms on this phone · prefill %.0f tok/s · decode %.0f tok/s", exchange.wallMs, reply.prefillTps, reply.decodeTps),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

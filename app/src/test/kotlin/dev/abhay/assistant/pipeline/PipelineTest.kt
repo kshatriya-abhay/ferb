@@ -151,8 +151,6 @@ class PipelineTest {
 
     @Test
     fun aFailedStepSaysWhatWasUsed() {
-        assertThat(AudioStep.Link.fallback).isEqualTo(AudioStep.Whistle)
-        assertThat(AudioStep.Gemini.fallback).isNull()
         assertThat(Fallback("Rewrite", "Gemini Nano", "computer away").line).isEqualTo("Rewrite: Gemini Nano instead (computer away)")
         assertThat(RewriteStep.HINT).isEqualTo("Helps with Hindi and accuracy.")
         assertThat(ToolStep.HINT).isEqualTo("Narrows the tool choice.")

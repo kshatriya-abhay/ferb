@@ -22,17 +22,6 @@ class JevTest {
     }
 
     @Test
-    fun theComputerAlsoGetsJevsNextToolsForRequestsForTwoThings() {
-        // "turn on the torch and open the camera": the flashlight first, the camera too.
-        val two = jev(Flashlight.name, 0.6, TakePhoto.name to 0.3, MediaControl.name to 0.05, JevReply.NONE to 0.05)
-        assertThat(LinkPolicy.select(two, on)).isEqualTo(JevPick.Tool(Flashlight.name, listOf(TakePhoto.name)))
-        // Three tools at most, never "none" or a tool that's off.
-        val many = jev(Flashlight.name, 0.5, TakePhoto.name to 0.4, MediaControl.name to 0.3, SetAlarm.name to 0.28,
-            JevReply.NONE to 0.35, SetTimer.name to 0.3)
-        assertThat(LinkPolicy.select(many, on)).isEqualTo(JevPick.Tool(Flashlight.name, listOf(TakePhoto.name, MediaControl.name)))
-    }
-
-    @Test
     fun withoutAPickItGoesOnWithoutJevSayingWhyInAFewWords() {
         val unsure = LinkPolicy.select(jev(SetAlarm.name, 0.49), on) as JevPick.Fallback
         assertThat(unsure.reason).isEqualTo("Jev wasn't sure")

@@ -17,17 +17,8 @@ object LinkPolicy {
     const val JEV_BAR = 0.5
 
     /**
-     * For the computer, Jev's other tools from this probability join its pick ([JEV_MORE_TOOLS] in
-     * all), so a request for two things can still get both: in the bench it brought back "turn on
-     * the torch and open the camera" without giving back any of the wrong runs Jev's pick saved.
-     * Needle 3 gets Jev's pick alone, whose bar is set for one tool.
-     */
-    const val JEV_ALSO = 0.25
-    const val JEV_MORE_TOOLS = 3
-
-    /**
-     * What Jev's [jev] reply means for the answer, among the tools turned on ([enabled]): its tool
-     * (and, for the computer, the next ones it rates), no tool, or going on without Jev.
+     * What Jev's [jev] reply means for the answer, among the tools turned on ([enabled]): its tool,
+     * no tool, or going on without Jev.
      */
     fun select(jev: JevReply, enabled: Collection<String>): JevPick {
         val p = jev.p ?: return JevPick.Fallback(
@@ -36,9 +27,7 @@ object LinkPolicy {
         return when {
             p < JEV_BAR -> JevPick.Fallback("Jev wasn't sure", String.format(Locale.US, "Jev's best pick had %.2f, below %.2f", p, JEV_BAR))
             jev.choice == JevReply.NONE -> JevPick.NoTool
-            jev.choice in enabled -> JevPick.Tool(jev.choice!!, jev.probabilities.entries
-                .filter { (name, q) -> name != jev.choice && name in enabled && q >= JEV_ALSO }
-                .sortedByDescending { it.value }.map { it.key }.take(JEV_MORE_TOOLS - 1))
+            jev.choice in enabled -> JevPick.Tool(jev.choice!!)
             else -> JevPick.Fallback("Jev: unknown tool", "Jev picked ${jev.choice}, which isn't turned on")
         }
     }
@@ -63,7 +52,7 @@ object LinkPolicy {
 /** What happens after Jev answers ([LinkPolicy.select]). */
 sealed interface JevPick {
     /** The answering model makes the call with only [name]; the computer also gets [also]. */
-    data class Tool(val name: String, val also: List<String> = emptyList()) : JevPick
+    data class Tool(val name: String) : JevPick
     /** Jev says no tool fits. */
     data object NoTool : JevPick
     /** As without Jev: [reason] in a few words, for the chat, and [detail] at length. */
