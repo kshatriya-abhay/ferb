@@ -43,25 +43,26 @@ class CallQueue(
     /**
      * Runs the waiting calls among [calls], one at a time ([CallRunner]): each is marked queued, then
      * finished with its outcome, through [set], as soon as it's known. A call that failed its checks
-     * reports why. [calls] is read again for each call, so a choice made meanwhile counts. Null when
-     * none was waiting.
+     * reports why. [calls] is the reply's calls as they were when it was queued: queued calls can't
+     * change, and the reply may be cleared from the chat meanwhile, so nothing is read back. Null
+     * when none was waiting.
      */
-    fun run(calls: () -> List<CallState>, set: (index: Int, status: Status) -> Unit): Job? {
-        val waiting = calls().indices.filter { calls()[it].status == Status.Waiting }
+    fun run(calls: List<CallState>, set: (index: Int, status: Status) -> Unit): Job? {
+        val waiting = calls.withIndex().filter { it.value.status == Status.Waiting }
         if (waiting.isEmpty()) return null
-        waiting.forEach { set(it, Status.Queued) }
+        waiting.forEach { set(it.index, Status.Queued) }
         return scope.launch {
             running.withLock {
                 runner.run(
                     calls = waiting,
-                    opensApp = { i -> (calls()[i].prepared as? Prepared.Ready)?.opensApp == true },
-                    execute = { i ->
-                        when (val p = calls()[i].prepared) {
+                    opensApp = { (it.value.prepared as? Prepared.Ready)?.opensApp == true },
+                    execute = {
+                        when (val p = it.value.prepared) {
                             is Prepared.Ready -> p.run(context())
                             is Prepared.Invalid -> Outcome.Failed(p.reason)
                         }
                     },
-                    report = { i, outcome -> set(i, Status.Finished(outcome)) },
+                    report = { call, outcome -> set(call.index, Status.Finished(outcome)) },
                 )
             }
         }

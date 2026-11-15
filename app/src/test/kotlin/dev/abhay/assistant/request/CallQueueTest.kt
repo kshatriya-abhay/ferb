@@ -35,7 +35,7 @@ class CallQueueTest {
             CallState(ToolCall("alarm", emptyMap()), Prepared.Invalid("No time given"), Status.Waiting),
             ready("volume"),
         )
-        queue().run({ e.calls }, e::set)!!.join()
+        queue().run(e.calls, e::set)!!.join()
         assertThat(ran).containsExactly("torch", "volume").inOrder()
         assertThat(e.calls.map { it.status }).containsExactly(
             Status.Finished(Outcome.Done("torch done")), Status.Skipped,
@@ -47,9 +47,19 @@ class CallQueueTest {
     }
 
     @Test
+    fun aChatClearedWhileItsCallsRunDoesntStopTheBatch() = runBlocking {
+        // Review P2-19: the queue read the exchange back for each call, and threw once Clear had emptied it.
+        val e = Exchange(ready("torch"), ready("volume"))
+        var cleared = false
+        val set = { i: Int, status: Status -> if (!cleared) { e.set(i, status); if (status is Status.Finished) cleared = true } }
+        queue().run(e.calls, set)!!.join()
+        assertThat(ran).containsExactly("torch", "volume").inOrder()
+    }
+
+    @Test
     fun nothingWaitingRunsNothing() {
         val e = Exchange(ready("torch").copy(status = Status.Skipped))
-        assertThat(queue().run({ e.calls }, e::set)).isNull()
+        assertThat(queue().run(e.calls, e::set)).isNull()
         assertThat(e.seen).isEmpty()
     }
 
@@ -58,7 +68,7 @@ class CallQueueTest {
         val q = queue()
         val first = Exchange(ready("a1"), ready("a2"), ready("a3"))
         val second = Exchange(ready("b1"), ready("b2"))
-        listOfNotNull(q.run({ first.calls }, first::set), q.run({ second.calls }, second::set)).joinAll()
+        listOfNotNull(q.run(first.calls, first::set), q.run(second.calls, second::set)).joinAll()
         // One batch, then the other, never mixed.
         assertThat(ran.joinToString(" ")).isAnyOf("a1 a2 a3 b1 b2", "b1 b2 a1 a2 a3")
     }

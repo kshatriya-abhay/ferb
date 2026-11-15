@@ -652,7 +652,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     /** Runs an exchange's waiting calls, one at a time ([CallQueue]); each outcome shows as soon as it's known. */
     fun run(exchangeId: Long) {
         assistant.callQueue.run(
-            calls = { _state.value.history.first { it.id == exchangeId }.calls },
+            calls = _state.value.history.firstOrNull { it.id == exchangeId }?.calls.orEmpty(),
             set = { i, status -> updateExchange(exchangeId) { e -> e.copy(calls = e.calls.mapIndexed { j, c -> if (j == i) c.copy(status = status) else c }) } },
         )
     }
