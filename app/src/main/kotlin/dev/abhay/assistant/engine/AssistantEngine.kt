@@ -41,7 +41,10 @@ class AssistantEngine(private val context: Context) {
     private var lastTools: Pair<List<String>, String>? = null
 
     /** Loads the model if it isn't yet, then gives it [toolsJson] (the tools named [names]). */
-    suspend fun configure(names: List<String>, toolsJson: String) = lock.withLock {
+    suspend fun configure(names: List<String>, toolsJson: String) = lock.withLock { configureLocked(names, toolsJson) }
+
+    /** [configure]'s work, with [lock] held. */
+    private suspend fun configureLocked(names: List<String>, toolsJson: String) {
         try {
             if (loadMs == null) {
                 _state.value = State.Loading
@@ -65,12 +68,14 @@ class AssistantEngine(private val context: Context) {
      * when they aren't the tools it has (requests are routed to different tools), or the date has
      * changed since, so "today" stays right.
      */
-    suspend fun complete(request: String, names: List<String>, toolsJson: String): String {
+    suspend fun complete(request: String, names: List<String>, toolsJson: String): String = lock.withLock {
+        // One lock section for the check, the re-init and the call: two screens' requests (the chat
+        // and the assistant sheet) can't swap the tools between another's check and its call.
         if (lastTools?.first != names || factsDate != LocalDate.now()) {
-            configure(names, toolsJson)
+            configureLocked(names, toolsJson)
             (_state.value as? State.Failed)?.let { throw IllegalStateException(it.message) }
         }
-        return lock.withLock { Needle.complete(request) }
+        Needle.complete(request)
     }
 
     private var whistleLoadMs: Long? = null
