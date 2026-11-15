@@ -1,4 +1,4 @@
-package dev.abhay.assistant.ui
+package dev.abhay.assistant.request
 
 import dev.abhay.assistant.engine.Decision
 import dev.abhay.assistant.engine.NeedleReply
@@ -78,8 +78,6 @@ data class Answer(
  * they are; the tool selection to none), and a failed Gemini Nano rewrite to the words as they are;
  * [Answer.fallbacks] says so. Every step is recorded as it runs ([Step]).
  */
-/** Hindi number words, as the numbers they say (dedh is one and a half: 1 and 30). */
-private val HINDI_NUMBERS = NumberWords.HINDI.mapValues { listOf(it.value) } + NumberWords.HINDI_HALVES
 
 class AnswerFlow(
     private val link: LinkCalls,
@@ -281,7 +279,7 @@ class AnswerFlow(
                 otherTool -> v.copy(decision = Decision.Confirm, ungrounded = true)
                 // A number the rewrite brought in that the request never said ("wake me up early" as
                 // "6 am"): its calls ask first, as a value the request doesn't say does.
-                command != null && invents(command, said) -> v.copy(decision = Decision.Confirm, ungrounded = true)
+                command != null && SaidNumbers.invents(command, said) -> v.copy(decision = Decision.Confirm, ungrounded = true)
                 // Timed calls whose two readings agree run, whatever Needle 3's confidence (gate E),
                 // unless the tool always asks or the request doesn't mention it.
                 gated.all { it?.agreed == true } && !v.alwaysConfirm && !v.unmentioned && !v.ungrounded -> v.copy(decision = Decision.Run)
@@ -298,21 +296,6 @@ class AnswerFlow(
             jev = jev,
             asks = asks.map { it.why },
         )
-    }
-
-    /** Whether [command] has a number [said] doesn't: digits, or English or Hindi number words (saade 5 is 5:30). */
-    internal fun invents(command: String, said: String): Boolean {
-        val words = said.lowercase()
-        val hindi = Regex("""[a-z]+""").findAll(words).flatMap { HINDI_NUMBERS[it.value].orEmpty() }.joinToString(" ")
-        // "a" and "an" count as 1 for a said length ("an hour"), but a command has them everywhere ("Set an alarm").
-        val numbers = command.replace(Regex("""(?i)\b(a|an)\b(?!\s+(hour|minute|min|second|sec|day|week|half|quarter)s?\b)"""), " ")
-        // Arithmetic the words imply: quarter to 8 is 7:45, three quarters 45 minutes or 75 percent, 0600 is 6:00.
-        val implied = buildList {
-            Regex("""quarter to (\d{1,2}|[a-z]+)""").findAll(words).forEach { m -> (m.groupValues[1].toIntOrNull() ?: SaidNumbers.WORDS[m.groupValues[1]])?.let { add(it - 1); add(45) } }
-            if ("quarter" in words) addAll(listOf(25, 45, 75))
-            Regex("""\b(\d{2})(\d{2})\b""").findAll(words).forEach { m -> add(m.groupValues[1].toInt()); add(m.groupValues[2].toInt()) }
-        }.joinToString(" ")
-        return !SaidNumbers.grounded(numbers, "$said ${DateResolver.normalise(said)} $hindi $implied")
     }
 
     private fun String?.differentFrom(said: String) = this?.takeUnless { it.equals(said.trim(), ignoreCase = true) }

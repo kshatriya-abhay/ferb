@@ -1,6 +1,6 @@
 package dev.abhay.assistant.eval
 
-import dev.abhay.assistant.ui.AnswerFlow
+import dev.abhay.assistant.tools.SaidNumbers
 import java.io.File
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -11,13 +11,8 @@ class InventsReport {
     fun report() {
         val path = System.getenv("FERB_EVAL_INVENTS")
         assumeTrue(path != null)
-        val flow = AnswerFlow(link = object : dev.abhay.assistant.link.LinkCalls {
-            override fun status() = error("unused")
-            override suspend fun rewrite(request: String, instructions: String, maxTokens: Int, timeoutMs: Int, jsonSchema: String?) = error("unused")
-            override suspend fun decide(request: String, toolsJson: String, timeoutMs: Int) = error("unused")
-        }, needle = { _, _ -> error("unused") }, gemini = { error("unused") })
         val pairs = File(path!!).readLines().filter { '\t' in it }.map { it.substringBefore('\t') to it.substringAfter('\t') }
-        val flagged = pairs.filter { (said, command) -> flow.invents(command, said) }
+        val flagged = pairs.filter { (said, command) -> SaidNumbers.invents(command, said) }
         println("INVENTS ${flagged.size} of ${pairs.size}")
         flagged.forEach { println("INVENTS  ${it.first}  ->  ${it.second}") }
     }

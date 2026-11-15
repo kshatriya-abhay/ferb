@@ -195,6 +195,24 @@ object SaidNumbers {
         val said = of(request)
         return of(argument).all { it == 0 || it in said || (it in 13..23 && it - 12 in said) }
     }
+
+    /** Hindi number words, as the numbers they say (dedh is one and a half: 1 and 30). */
+    private val HINDI_NUMBERS = NumberWords.HINDI.mapValues { listOf(it.value) } + NumberWords.HINDI_HALVES
+
+    /** Whether [command] has a number [said] doesn't: digits, or English or Hindi number words (saade 5 is 5:30). */
+    fun invents(command: String, said: String): Boolean {
+        val words = said.lowercase()
+        val hindi = Regex("""[a-z]+""").findAll(words).flatMap { HINDI_NUMBERS[it.value].orEmpty() }.joinToString(" ")
+        // "a" and "an" count as 1 for a said length ("an hour"), but a command has them everywhere ("Set an alarm").
+        val numbers = command.replace(Regex("""(?i)\b(a|an)\b(?!\s+(hour|minute|min|second|sec|day|week|half|quarter)s?\b)"""), " ")
+        // Arithmetic the words imply: quarter to 8 is 7:45, three quarters 45 minutes or 75 percent, 0600 is 6:00.
+        val implied = buildList {
+            Regex("""quarter to (\d{1,2}|[a-z]+)""").findAll(words).forEach { m -> (m.groupValues[1].toIntOrNull() ?: WORDS[m.groupValues[1]])?.let { add(it - 1); add(45) } }
+            if ("quarter" in words) addAll(listOf(25, 45, 75))
+            Regex("""\b(\d{2})(\d{2})\b""").findAll(words).forEach { m -> add(m.groupValues[1].toInt()); add(m.groupValues[2].toInt()) }
+        }.joinToString(" ")
+        return !grounded(numbers, "$said ${DateResolver.normalise(said)} $hindi $implied")
+    }
 }
 
 /**

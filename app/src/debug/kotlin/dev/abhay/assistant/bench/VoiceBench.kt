@@ -22,8 +22,8 @@ import dev.abhay.assistant.pipeline.RewriteStep
 import dev.abhay.assistant.pipeline.ToolStep
 import dev.abhay.assistant.tools.ToolSettings
 import dev.abhay.assistant.tools.Tools
-import dev.abhay.assistant.ui.AnswerFlow
-import dev.abhay.assistant.ui.Step
+import dev.abhay.assistant.request.AnswerFlow
+import dev.abhay.assistant.request.Step
 import dev.abhay.assistant.voice.GeminiRewrite
 import dev.abhay.assistant.voice.NanoEars
 import dev.abhay.assistant.voice.NanoSpeech

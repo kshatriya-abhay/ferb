@@ -1,5 +1,6 @@
-package dev.abhay.assistant.ui
+package dev.abhay.assistant.request
 
+import dev.abhay.assistant.tools.SaidNumbers
 import com.google.common.truth.Truth.assertThat
 import dev.abhay.assistant.engine.Decision
 import dev.abhay.assistant.engine.NeedleReply
@@ -156,12 +157,12 @@ class AnswerFlowTest {
         assertThat(early.verdict.decision).isEqualTo(Decision.Confirm)
         assertThat(early.verdict.ungrounded).isTrue()
         val flow = AnswerFlow(FakeLink(), needle(), geminiSays(null))
-        assertThat(flow.invents("Set an alarm for 5:30", "saade paanch baje ka alarm")).isFalse()
-        assertThat(flow.invents("Set a timer for 1 hour 30 minutes", "dedh ghante ka timer")).isFalse()
-        assertThat(flow.invents("Set a timer for 10 minutes", "das minute ka timer")).isFalse()
-        assertThat(flow.invents("Remind me at 9 to call mum", "remind me to call mum")).isTrue()
-        assertThat(flow.invents("Set a timer for an hour", "ek ghante ka timer")).isFalse()
-        assertThat(flow.invents("Set a timer for an hour", "timer lagao")).isTrue()
+        assertThat(SaidNumbers.invents("Set an alarm for 5:30", "saade paanch baje ka alarm")).isFalse()
+        assertThat(SaidNumbers.invents("Set a timer for 1 hour 30 minutes", "dedh ghante ka timer")).isFalse()
+        assertThat(SaidNumbers.invents("Set a timer for 10 minutes", "das minute ka timer")).isFalse()
+        assertThat(SaidNumbers.invents("Remind me at 9 to call mum", "remind me to call mum")).isTrue()
+        assertThat(SaidNumbers.invents("Set a timer for an hour", "ek ghante ka timer")).isFalse()
+        assertThat(SaidNumbers.invents("Set a timer for an hour", "timer lagao")).isTrue()
     }
 
     @Test

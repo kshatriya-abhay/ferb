@@ -626,7 +626,7 @@ data class RewriteReply(
     }
 }
 
-/** What answering needs from Ferb Link ([FerbLink]), so [dev.abhay.assistant.ui.AnswerFlow] runs in tests with a fake. */
+/** What answering needs from Ferb Link ([FerbLink]), so [dev.abhay.assistant.request.AnswerFlow] runs in tests with a fake. */
 interface LinkCalls {
     fun status(): LinkStatus
     suspend fun rewrite(request: String, instructions: String, maxTokens: Int, timeoutMs: Int = FerbLink.REWRITE_TIMEOUT_MS, jsonSchema: String? = null): RewriteReply

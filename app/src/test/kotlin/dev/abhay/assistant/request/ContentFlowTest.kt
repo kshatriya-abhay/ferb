@@ -1,4 +1,4 @@
-package dev.abhay.assistant.ui
+package dev.abhay.assistant.request
 
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
