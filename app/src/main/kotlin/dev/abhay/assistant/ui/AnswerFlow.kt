@@ -2,6 +2,7 @@ package dev.abhay.assistant.ui
 
 import dev.abhay.assistant.engine.Decision
 import dev.abhay.assistant.engine.NeedleReply
+import dev.abhay.assistant.link.FerbLink
 import dev.abhay.assistant.link.JevPick
 import dev.abhay.assistant.link.JevReply
 import dev.abhay.assistant.link.LinkCalls
@@ -145,10 +146,12 @@ class AnswerFlow(
             RewriteStep.Link -> when (val status = link.status()) {
                 is LinkStatus.Ready -> {
                     asking(if (status.asleep) "Waking your computer…" else "Your computer is rewriting it…")
+                    // A sleeping model loads first (about 30 s cold): the rewrite waits for it, as a transcription does.
+                    val timeoutMs = FerbLink.timeout(FerbLink.REWRITE_TIMEOUT_MS, status.asleep)
                     // A, one line with the content quoted, for a Ferb Link that can't use a schema: an
                     // older one, one that ignored it, or a server that can't make it a grammar.
                     suspend fun line() {
-                        val reply = link.rewrite(said, ContentRewrite.PROMPT_A, ContentRewrite.MAX_TOKENS_A)
+                        val reply = link.rewrite(said, ContentRewrite.PROMPT_A, ContentRewrite.MAX_TOKENS_A, timeoutMs = timeoutMs)
                         val raw = reply.raw
                         val error = reply.error
                         when {
@@ -161,7 +164,7 @@ class AnswerFlow(
                         }
                     }
                     if (!status.jsonSchema) line() else {
-                        val reply = link.rewrite(said, ContentRewrite.PROMPT, ContentRewrite.MAX_TOKENS, jsonSchema = ContentRewrite.SCHEMA)
+                        val reply = link.rewrite(said, ContentRewrite.PROMPT, ContentRewrite.MAX_TOKENS, timeoutMs = timeoutMs, jsonSchema = ContentRewrite.SCHEMA)
                         val output = reply.output
                         val error = reply.error
                         when {

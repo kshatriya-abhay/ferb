@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import dev.abhay.assistant.engine.Decision
 import dev.abhay.assistant.engine.NeedleReply
 import dev.abhay.assistant.engine.ToolCall
+import dev.abhay.assistant.link.FerbLink
 import dev.abhay.assistant.link.JevReply
 import dev.abhay.assistant.link.LinkCalls
 import dev.abhay.assistant.link.LinkStatus
@@ -45,9 +46,12 @@ class AnswerFlowTest {
         val typed: RewriteReply? = null,
     ) : LinkCalls {
         val asked = mutableListOf<String>()
+        /** The timeout each rewrite was given, in order. */
+        val rewriteTimeouts = mutableListOf<Int>()
         override fun status() = status
         override suspend fun rewrite(request: String, instructions: String, maxTokens: Int, timeoutMs: Int, jsonSchema: String?): RewriteReply {
             asked += if (jsonSchema == null) "rewrite: $request" else "rewrite (schema): $request"
+            rewriteTimeouts += timeoutMs
             // Without a schema, A as one line; with one, H2.
             if (jsonSchema == null) {
                 assertThat(instructions).isEqualTo(ContentRewrite.PROMPT_A)
@@ -91,6 +95,21 @@ class AnswerFlowTest {
     /** The clock the answers are worked out at: Thursday 8 October 2026, 10:00 (an alarm at 7:15 rings tomorrow). */
     private val NOW = java.time.ZonedDateTime.of(2026, 10, 8, 10, 0, 0, 0, java.time.ZoneId.of("Asia/Kolkata"))
     private fun steps(rewrite: RewriteStep = RewriteStep.Off, tools: ToolStep = ToolStep.Off) = Pipeline(AudioStep.Whistle, rewrite, tools)
+
+    @Test
+    fun aRewriteWaitsForAComputerThatIsWaking() {
+        // Asleep: the computer's model has to load first (about 30 s cold), so the rewrite waits as long as a waking transcription.
+        val asleep = FakeLink(status = LinkStatus.Ready(model = "gemma-4-e2b", asleep = true))
+        answer("wake me up at 7:15", pipeline = steps(RewriteStep.Link), link = asleep)
+        val asleepSchema = FakeLink(status = LinkStatus.Ready(model = "gemma-4-e2b", asleep = true, jsonSchema = true),
+            typed = RewriteReply(emptyList(), output = org.json.JSONObject("""{"command":"Set an alarm for 7:15 am","content":""}"""), instructed = true, schema = true))
+        answer("wake me up at 7:15", pipeline = steps(RewriteStep.Link), link = asleepSchema)
+        assertThat(asleep.rewriteTimeouts + asleepSchema.rewriteTimeouts).containsExactly(FerbLink.WAKING_TIMEOUT_MS, FerbLink.WAKING_TIMEOUT_MS)
+        // Awake: the usual 10 s.
+        val awake = FakeLink()
+        answer("wake me up at 7:15", pipeline = steps(RewriteStep.Link), link = awake)
+        assertThat(awake.rewriteTimeouts).containsExactly(FerbLink.REWRITE_TIMEOUT_MS)
+    }
 
     @Test
     fun withEveryStepOffNeedle3AnswersTheWordsAsTheyAre() {
