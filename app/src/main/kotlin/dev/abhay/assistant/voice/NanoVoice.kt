@@ -234,7 +234,7 @@ the alarm woke the baby -> NONE"""
      * right and 2 wrong (R: 75 and 13); on datetime-v2, behind the date gate, 122 right and 0
      * wrong (R: 123 and 0). Since 0.2 the app uses [ContentRewrite] (H2, which keeps the words to
      * write down or send as said); R2 stays as the bench's baseline, and its rules are H2's and A's
-     * (the frozen content code reads PROMPT_R and PROMPT_R2 from this file: leave their text be).
+     * (PROMPT_R and PROMPT_R2 are frozen: FrozenPromptsTest says why).
      */
     val PROMPT = PROMPT_R2
     const val VERSION = VERSION_R2

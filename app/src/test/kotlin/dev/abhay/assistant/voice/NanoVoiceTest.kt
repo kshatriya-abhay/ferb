@@ -118,9 +118,7 @@ class NanoVoiceTest {
     }
 
     @Test
-    fun thePromptsExamplesAreShortAndEndInNoneForQuestions() {
-        assertThat(GeminiRewrite.PROMPT).contains("Reply with exactly one line: the command, or NONE.")
-        assertThat(GeminiRewrite.PROMPT).contains("what is the capital of japan -> NONE")
+    fun theRewriteStaysShort() {
         assertThat(GeminiRewrite.MAX_TOKENS).isAtMost(48)
     }
 }
