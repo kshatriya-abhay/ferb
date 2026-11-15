@@ -1,1 +1,1 @@
-6a645bd 2026-11-06 Rewrite: optional json_schema for Ferb's own prompt, and truncated on every instructed reply
+2bf5ee0 2026-11-15 contract: SHA256SUMS beside the fixtures, so Ferb can check its copy
