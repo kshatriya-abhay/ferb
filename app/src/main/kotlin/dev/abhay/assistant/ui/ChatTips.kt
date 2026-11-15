@@ -4,7 +4,7 @@ import dev.abhay.assistant.engine.Decision
 import dev.abhay.assistant.onboarding.Tip
 import dev.abhay.assistant.tools.Outcome
 import dev.abhay.assistant.ui.AssistantViewModel.Exchange
-import dev.abhay.assistant.ui.AssistantViewModel.Status
+import dev.abhay.assistant.request.Status
 
 /** How many replies with no tool, or unsure, before Ferb suggests Ferb Link. */
 internal const val SUGGEST_LINK_AFTER = 3

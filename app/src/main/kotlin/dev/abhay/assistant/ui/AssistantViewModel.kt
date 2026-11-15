@@ -1,5 +1,8 @@
 package dev.abhay.assistant.ui
 
+import dev.abhay.assistant.request.CallQueue
+import dev.abhay.assistant.request.CallState
+import dev.abhay.assistant.request.Status
 import dev.abhay.assistant.request.Answer
 import dev.abhay.assistant.request.AnswerFlow
 import dev.abhay.assistant.request.Step
@@ -71,17 +74,6 @@ import kotlinx.coroutines.withContext
  */
 class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
 
-    /** One call from a reply: checked, and what became of it. */
-    data class CallState(val call: ToolCall, val prepared: Prepared, val status: Status)
-
-    sealed interface Status {
-        /** Waiting for the user's Run or Skip. */
-        data object Waiting : Status
-        /** About to run, after the calls before it. */
-        data object Queued : Status
-        data object Skipped : Status
-        data class Finished(val outcome: Outcome) : Status
-    }
 
     /**
      * [runAt] is the confidence the reply needed to run without asking: the highest bar among the
@@ -654,37 +646,12 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         return tool.prepare(tool.fromRequest(call.arguments, request), env)
     }
 
-    private val runner by lazy { CallRunner(assistant.foreground.inFront) }
-
-    /**
-     * Runs an exchange's waiting calls, one at a time (see [CallRunner]); a call that failed its
-     * checks reports why instead. Each outcome shows as soon as it's known.
-     */
+    /** Runs an exchange's waiting calls, one at a time ([CallQueue]); each outcome shows as soon as it's known. */
     fun run(exchangeId: Long) {
-        val waiting = _state.value.history.firstOrNull { it.id == exchangeId }?.calls?.indices
-            ?.filter { i -> _state.value.history.first { it.id == exchangeId }.calls[i].status == Status.Waiting }.orEmpty()
-        if (waiting.isEmpty()) return
-        updateExchange(exchangeId) { e -> e.copy(calls = e.calls.mapIndexed { i, c -> if (i in waiting) c.copy(status = Status.Queued) else c }) }
-        assistant.calls.launch {
-            assistant.callsRunning.withLock {
-                fun call(i: Int) = _state.value.history.first { it.id == exchangeId }.calls[i]
-                runner.run(
-                    calls = waiting,
-                    opensApp = { i -> (call(i).prepared as? Prepared.Ready)?.opensApp == true },
-                    execute = { i ->
-                        when (val p = call(i).prepared) {
-                            is Prepared.Ready -> p.run(launchContext())
-                            is Prepared.Invalid -> Outcome.Failed(p.reason)
-                        }
-                    },
-                    report = { i, outcome ->
-                        updateExchange(exchangeId) { e ->
-                            e.copy(calls = e.calls.mapIndexed { j, c -> if (j == i) c.copy(status = Status.Finished(outcome)) else c })
-                        }
-                    },
-                )
-            }
-        }
+        assistant.callQueue.run(
+            calls = { _state.value.history.first { it.id == exchangeId }.calls },
+            set = { i, status -> updateExchange(exchangeId) { e -> e.copy(calls = e.calls.mapIndexed { j, c -> if (j == i) c.copy(status = status) else c }) } },
+        )
     }
 
     /**
@@ -692,19 +659,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
      * while it runs (an Undo may wait for another app), then its result becomes the new one.
      */
     fun followUp(exchangeId: Long, callIndex: Int, action: FollowUp) {
-        fun set(status: Status) = updateExchange(exchangeId) { e ->
-            e.copy(calls = e.calls.mapIndexed { i, c -> if (i == callIndex) c.copy(status = status) else c })
-        }
-        set(Status.Queued)
-        assistant.calls.launch {
-            val outcome = try {
-                action.run(FollowUpEnv(launchContext(), awaitBack = runner::awaitBack))
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Outcome.Failed(e.message ?: e.toString())
-            }
-            set(Status.Finished(outcome))
+        assistant.callQueue.followUp(action) { status ->
+            updateExchange(exchangeId) { e -> e.copy(calls = e.calls.mapIndexed { i, c -> if (i == callIndex) c.copy(status = status) else c }) }
         }
     }
 
@@ -731,9 +687,6 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             else c.copy(status = Status.Finished(done.copy(message = watch.describe(value), level = level.copy(value = value))))
         })
     }
-
-    /** The assistant's screen if it's in front (so a quiet request runs in its task), else the app. */
-    private fun launchContext(): Context = assistant.foreground.activity ?: getApplication()
 
     /**
      * The user picked [choice] for a call that asked (a contact, or "Open dialer"): it becomes the

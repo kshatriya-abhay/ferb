@@ -35,12 +35,8 @@ class AssistantApp : Application() {
      */
     val chat by lazy { kotlinx.coroutines.flow.MutableStateFlow(dev.abhay.assistant.ui.AssistantViewModel.UiState()) }
     val exchangeIds = java.util.concurrent.atomic.AtomicLong()
-    /**
-     * Where a request's calls run, for the process, one at a time ([callsRunning]): not a screen's,
-     * so closing the sheet while the clock app is handing back doesn't cancel the calls after it.
-     */
-    val calls = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main.immediate)
-    val callsRunning = kotlinx.coroutines.sync.Mutex()
+    /** Where a request's calls run, for the process ([dev.abhay.assistant.request.CallQueue]), in the assistant's screen if it's in front, else the app. */
+    val callQueue by lazy { dev.abhay.assistant.request.CallQueue(dev.abhay.assistant.tools.CallRunner(foreground.inFront), { foreground.activity ?: this }) }
 
     /** How Ferb understands a request: audio processing, rewrite, tool selection (Settings). */
     val pipeline by lazy {

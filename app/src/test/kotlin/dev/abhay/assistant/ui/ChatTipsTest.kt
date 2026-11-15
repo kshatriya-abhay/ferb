@@ -8,9 +8,9 @@ import dev.abhay.assistant.onboarding.Tip
 import dev.abhay.assistant.tools.FollowUp
 import dev.abhay.assistant.tools.Outcome
 import dev.abhay.assistant.tools.Prepared
-import dev.abhay.assistant.ui.AssistantViewModel.CallState
+import dev.abhay.assistant.request.CallState
 import dev.abhay.assistant.ui.AssistantViewModel.Exchange
-import dev.abhay.assistant.ui.AssistantViewModel.Status
+import dev.abhay.assistant.request.Status
 import org.junit.Test
 
 /** Which tips the chat has on screen, and under which reply. */

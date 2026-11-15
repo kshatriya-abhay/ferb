@@ -1,5 +1,6 @@
 package dev.abhay.assistant.ui
 
+import dev.abhay.assistant.request.CallState
 import dev.abhay.assistant.request.Step
 import android.Manifest
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -139,7 +140,7 @@ import dev.abhay.assistant.tools.Line
 import dev.abhay.assistant.tools.Outcome
 import dev.abhay.assistant.tools.Prepared
 import dev.abhay.assistant.tools.Tools
-import dev.abhay.assistant.ui.AssistantViewModel.Status
+import dev.abhay.assistant.request.Status
 import java.util.Locale
 import kotlinx.coroutines.delay
 import dev.abhay.assistant.tools.LevelWatch
@@ -536,7 +537,7 @@ private fun source(exchange: AssistantViewModel.Exchange): Pair<Int, String>? {
 }
 
 /** The Android permissions a call couldn't do without, if that's why it can't run or didn't work. */
-internal fun AssistantViewModel.CallState.needs(): List<String> =
+internal fun CallState.needs(): List<String> =
     ((status as? Status.Finished)?.outcome as? Outcome.Failed)?.needs?.takeIf { it.isNotEmpty() }
         ?: when (val p = prepared) {
             is Prepared.Invalid -> p.needs
@@ -546,7 +547,7 @@ internal fun AssistantViewModel.CallState.needs(): List<String> =
 /** One call: the tool's icon and what it does or did, then the result's buttons as chips. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun CallLine(state: AssistantViewModel.CallState, onChoose: (Choice) -> Unit, onFollowUp: (FollowUp) -> Unit, onAdjust: (Float) -> Unit, onFollow: (Float) -> Unit = {}, onAllow: (List<String>) -> Unit = {}) {
+private fun CallLine(state: CallState, onChoose: (Choice) -> Unit, onFollowUp: (FollowUp) -> Unit, onAdjust: (Float) -> Unit, onFollow: (Float) -> Unit = {}, onAllow: (List<String>) -> Unit = {}) {
     val tool = Tools.byName(state.call.name)
     val status = state.status
     val (text, failed) = when (status) {
