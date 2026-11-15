@@ -31,6 +31,19 @@ class CallRunnerTest {
     }
 
     @Test
+    fun onceTheAssistantIsntBackInTimeTheRestFailInOrder() = runTest {
+        // Review P2-10: each later call waited afresh, so one could still run after another had failed.
+        val inFront = MutableStateFlow(true)
+        val outcomes = mutableListOf<String>()
+        launch { delay(7_000); inFront.value = true } // the user comes back after the 6 s wait
+        CallRunner(inFront).run(listOf(Call("alarm", true), Call("torch", false), Call("volume", false)), { it.opensApp }, { call ->
+            if (call.opensApp) inFront.value = false
+            Outcome.Done(call.name)
+        }, { call, outcome -> outcomes += "${call.name} ${if (outcome is Outcome.Failed) "failed" else "ran"}" })
+        assertThat(outcomes).containsExactly("alarm ran", "torch failed", "volume failed").inOrder()
+    }
+
+    @Test
     fun callsThatDontOpenAppsRunStraightAfterEachOther() = runTest {
         val inFront = MutableStateFlow(true)
         val outcomes = mutableListOf<Outcome>()

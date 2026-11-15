@@ -29,8 +29,11 @@ class CallRunner(
      */
     suspend fun <T> run(calls: List<T>, opensApp: (T) -> Boolean, execute: (T) -> Outcome, report: (T, Outcome) -> Unit) {
         var mustWaitForReturn = false
+        // Once the assistant wasn't back in time, the rest fail without waiting: run later, they'd run out of order.
+        var gaveUp = false
         for (call in calls) {
-            if (mustWaitForReturn && withTimeoutOrNull(returnTimeoutMs) { inFront.first { it } } == null) {
+            if (gaveUp || mustWaitForReturn && withTimeoutOrNull(returnTimeoutMs) { inFront.first { it } } == null) {
+                gaveUp = true
                 report(call, Outcome.Failed("Not run: the other app was still open"))
                 continue
             }
