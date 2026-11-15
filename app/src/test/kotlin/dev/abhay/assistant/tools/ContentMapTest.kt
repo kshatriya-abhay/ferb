@@ -42,6 +42,29 @@ class ContentMapTest {
     }
 
     @Test
+    fun aWordWithNoConsonantsIsKeptWhenTheContentSaysIt() {
+        // Smoke check, 2026-11-15: "I" has an empty skeleton, so the span without it scored the same and,
+        // being shorter, won: the text read "am running ten minutes late".
+        val said = "Text Priya that I am running ten minutes late"
+        val name = mapOf("name" to "Priya")
+        assertThat(map.contentOf("I am running ten minutes late", listOf("I am running ten minutes late"), name, said))
+            .isEqualTo(ContentMap.Content("I am running ten minutes late", true))
+        // Needle 3 dropped the "I" but the rewrite's quote kept it: the union keeps it.
+        assertThat(map.contentOf("am running ten minutes late", listOf("I am running ten minutes late"), name, said))
+            .isEqualTo(ContentMap.Content("I am running ten minutes late", true))
+        assertThat(map.contentOf("I'll be there by 6", listOf("I'll be there by 6"), name, "Text Priya that I'll be there by 6").text)
+            .isEqualTo("I'll be there by 6")
+        assertThat(map.contentOf("I'm on the train", listOf("I'm on the train"), mapOf("name" to "Mum"), "Message Mum that I'm on the train").text)
+            .isEqualTo("I'm on the train")
+        // Inside the content, such words always were kept.
+        assertThat(map.contentOf("buy a cake and I will pay", listOf("buy a cake and I will pay"), emptyMap(), "remind me to buy a cake and I will pay").text)
+            .isEqualTo("buy a cake and I will pay")
+        // Not wider than the content: a word it doesn't say stays out.
+        assertThat(map.contentOf("bus is late", listOf("bus is late"), mapOf("name" to "Ria"), "text Ria a bus is late").text)
+            .isEqualTo("bus is late")
+    }
+
+    @Test
     fun aQuoteThatIsAnotherArgumentIsNotTheContent() {
         val said = "add milk and eggs to the groceries list"
         val got = map.contentOf("milk and eggs", listOf("milk and eggs", "groceries"), mapOf("list" to "groceries"), said)

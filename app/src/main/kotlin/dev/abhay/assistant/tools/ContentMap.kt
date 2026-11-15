@@ -37,17 +37,26 @@ class ContentMap(private val latin: (String) -> String) {
     /** A span of the words as said: words [from] until [until], matched with [score] (0 to 1). */
     data class Span(val from: Int, val until: Int, val score: Double)
 
-    /** The words of [said] that [text] matches best, across scripts; the shortest of equal matches. */
+    /**
+     * The words of [said] that [text] matches best, across scripts. Of equal matches, the one with
+     * as many words as [text], then the shortest: a word with no consonants ("I", "a") adds nothing
+     * to a skeleton, so without the first rule "I am late" came back as "am late" (2026-11-15).
+     */
     fun spanOf(text: String, said: String): Span? {
         val words = words(said)
         val ts = skeleton(text)
         if (ts.isEmpty()) return null
+        val n = words(text).size
+        fun off(s: Span) = kotlin.math.abs(s.until - s.from - n)
         var best: Span? = null
         for (i in words.indices) {
             for (j in i + 1..words.size) {
                 val r = Similarity.ratio(ts, skeleton(words.subList(i, j).joinToString(" ")))
                 val b = best?.score ?: 0.0
-                if (r > b + 1e-9 || (best != null && kotlin.math.abs(r - b) < 1e-9 && j - i < best.until - best.from)) best = Span(i, j, r)
+                val s = Span(i, j, r)
+                val tie = best != null && kotlin.math.abs(r - b) < 1e-9 &&
+                    (off(s) < off(best) || (off(s) == off(best) && j - i < best.until - best.from))
+                if (r > b + 1e-9 || tie) best = s
             }
         }
         return best
