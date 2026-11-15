@@ -73,13 +73,19 @@ import kotlinx.coroutines.withContext
 
 /** Each way to use Ferb Link, in words: its name and what it does. */
 
-/** Ferb Link's status now, refreshed whenever the screen comes back (e.g. from Ferb Link or installing it). */
+/**
+ * Ferb Link's status, read off the main thread whenever the screen comes back (e.g. from Ferb Link
+ * or installing it); until then, as last read ([FerbLink.last]).
+ */
 @Composable
 internal fun rememberLinkStatus(link: FerbLink): LinkStatus {
-    var status by remember { mutableStateOf(link.status()) }
+    var resumed by remember { mutableIntStateOf(0) }
     LifecycleResumeEffect(Unit) {
-        status = link.status()
+        resumed++
         onPauseOrDispose { }
+    }
+    val status by produceState(link.last ?: LinkStatus.Off, resumed) {
+        value = withContext(Dispatchers.IO) { link.status() }
     }
     return status
 }

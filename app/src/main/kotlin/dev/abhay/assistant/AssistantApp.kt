@@ -34,7 +34,16 @@ class AssistantApp : Application() {
 
     /** How Ferb understands a request: audio processing, rewrite, tool selection (Settings). */
     val pipeline by lazy {
-        dev.abhay.assistant.pipeline.PipelineSettings(this) { linkState(link.status()) }
+        dev.abhay.assistant.pipeline.PipelineSettings(this)
+    }
+
+    /**
+     * Reads Ferb Link's status again, off the main thread (a call into another app: about 250 ms
+     * when its process was killed), and tells the pipeline. [heard]: as [dev.abhay.assistant.pipeline.PipelineSettings.linkChanged].
+     */
+    suspend fun refreshLink(heard: Boolean? = null) {
+        val status = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { link.status() }
+        pipeline.linkChanged(linkState(status), heard)
     }
 
     /** Ferb Link's [status] as the pipeline sees it. */
@@ -67,6 +76,10 @@ class AssistantApp : Application() {
         scope.launch {
             // Coming back, not the resume that's on now (its screen has just checked).
             foreground.inFront.drop(1).filter { it }.collect { nanoEars.resumed() }
+        }
+        scope.launch {
+            // Ferb Link may have been set up, paired or turned off meanwhile: on this resume and each one after.
+            foreground.inFront.filter { it }.collect { refreshLink() }
         }
     }
     val reminders by lazy { ReminderBook(FileReminderStore(java.io.File(filesDir, "reminders.json"))) { java.time.LocalDateTime.now() } }

@@ -205,8 +205,18 @@ class FerbLink(private val context: Context) : LinkCalls {
         false
     }
 
-    /** No network: whether Ferb Link is installed, on and set up. Quick; fine on the main thread. */
-    override fun status(): LinkStatus {
+    /** The status as last read, for a screen to show while it reads it again; null before the first read. */
+    @Volatile
+    var last: LinkStatus? = null
+        private set
+
+    /**
+     * No network: whether Ferb Link is installed, on and set up. A call into another app, so off the
+     * main thread: usually a few ms, about 250 ms when Ferb Link's process had been killed.
+     */
+    override fun status(): LinkStatus = read().also { last = it }
+
+    private fun read(): LinkStatus {
         if (!installed()) return LinkStatus.NotInstalled
         val result = try {
             timed(LinkContract.METHOD_STATUS) { provider(LinkContract.METHOD_STATUS, null, null) }

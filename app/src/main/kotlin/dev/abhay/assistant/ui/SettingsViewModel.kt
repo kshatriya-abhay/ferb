@@ -41,7 +41,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         steps.setModel(model)
         if (download && model.waitsForGemini(steps.abilities.value) && nano.setup.value.needsSetUp) nano.setUp()
     }
-    fun linkChanged(heard: Boolean? = null) = steps.linkChanged(heard)
+    fun linkChanged(status: dev.abhay.assistant.link.LinkStatus, heard: Boolean? = null) = steps.linkChanged(getApplication<AssistantApp>().linkState(status), heard)
     fun setAudio(step: AudioStep) = steps.setAudio(step)
     fun setRewrite(step: RewriteStep) = steps.setRewrite(step)
     fun setTools(step: ToolStep) = steps.setTools(step)

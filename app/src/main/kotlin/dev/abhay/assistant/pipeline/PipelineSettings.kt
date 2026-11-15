@@ -9,11 +9,11 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * The model choice, or the three steps as the user chose them under Advanced ([Saved]), saved at
  * once, and the [pipeline] in use, resolved against what this phone can use now ([Abilities]):
- * Gemini Nano once AICore has answered ([geminiChecked]), Ferb Link as [linkState] says
- * ([linkChanged]). The first time, the settings from before the steps are carried over
+ * Gemini Nano once AICore has answered ([geminiChecked]), Ferb Link as its caller last read it
+ * ([linkChanged]: read off the main thread, as it's a call into another app). The first time, the settings from before the steps are carried over
  * ([Pipeline.migrate]), and later steps that are exactly a model's become it ([Pipeline.toModel]).
  */
-class PipelineSettings(context: Context, private val linkState: () -> LinkState = { LinkState() }) {
+class PipelineSettings(context: Context) {
     /** Ferb Link as last read: installed; paired and on ([ready]); and the computer hears ([audio]). */
     data class LinkState(val installed: Boolean = false, val ready: Boolean = false, val audio: Boolean = false)
 
@@ -75,21 +75,18 @@ class PipelineSettings(context: Context, private val linkState: () -> LinkState 
 
     /**
      * AICore's answer (each part ready now, or not; [here]: whether it can run on this phone at
-     * all). Ferb Link's state is read again too.
+     * all).
      */
     fun geminiChecked(speech: Boolean, rewrite: Boolean, here: Boolean = true) {
-        val link = linkState()
-        _abilities.value = _abilities.value.copy(geminiSpeech = speech, geminiRewrite = rewrite, link = link.ready, linkAudio = link.audio,
-            linkApp = link.installed, geminiHere = here)
+        _abilities.value = _abilities.value.copy(geminiSpeech = speech, geminiRewrite = rewrite, geminiHere = here)
         update()
     }
 
     /**
-     * Ferb Link's state, read again (on resume, and before a request). [heard]: whether the
-     * computer's model takes audio, when a live check has just said so (its status may not know yet).
-     * [state]: Ferb Link's state, when the caller has just read it.
+     * Ferb Link's [state], as the caller has just read it (on resume, and before a request). [heard]:
+     * whether the computer's model takes audio, when a live check has just said so (its status may not know yet).
      */
-    fun linkChanged(heard: Boolean? = null, state: LinkState = linkState()) {
+    fun linkChanged(state: LinkState, heard: Boolean? = null) {
         val link = state.ready
         val audio = link && (heard ?: state.audio)
         val now = _abilities.value

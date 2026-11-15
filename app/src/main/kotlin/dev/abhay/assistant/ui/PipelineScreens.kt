@@ -213,7 +213,7 @@ internal fun rememberAbilities(settings: SettingsViewModel): Abilities {
     LaunchedEffect(Unit) { settings.checkGemini() }
     val status = rememberLinkStatus(settings.link)
     val hears = rememberVoiceAvailable(settings.link, active = status is LinkStatus.Ready)
-    LaunchedEffect(status, hears) { settings.linkChanged(hears.takeIf { it }) }
+    LaunchedEffect(status, hears) { settings.linkChanged(status, hears.takeIf { it }) }
     val can by settings.abilities.collectAsStateWithLifecycle()
     return can
 }

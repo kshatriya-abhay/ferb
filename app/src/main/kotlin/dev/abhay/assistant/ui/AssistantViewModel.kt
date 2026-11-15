@@ -265,7 +265,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             // Ferb Link's status, once for the request and off the main thread (a call into another app).
             val link = withContext(Dispatchers.IO) { assistant.link.status() }
             // The model choice follows Ferb Link: paired or not, as of now.
-            if (heardBy == null) assistant.pipeline.linkChanged(state = assistant.linkState(link))
+            if (heardBy == null) assistant.pipeline.linkChanged(assistant.linkState(link))
             val answer = flow.answer(said, enabled, configs, pipeline.value, heardBy,
                 geminiUsable = assistant.nanoEars.setup.value.rewrite == Part.Ready, linkStatus = link)
             // Which step refused: tool names only, never the request's words.
@@ -273,7 +273,9 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             val shown = answer.shown
             val verdict = answer.verdict
             val text = answer.command ?: said
-            val calls = shown.calls.map { call -> CallState(call, prepare(call, text), Status.Waiting) }
+            // Checking calls queries contacts, the calendar and the app list: off the main thread.
+            val calls = withContext(Dispatchers.IO) { shown.calls.map { call -> CallState(call, prepare(call, text), Status.Waiting) } }
+            val heldBack = withContext(Dispatchers.IO) { shown.suppressed.map { call -> (prepare(call, text) as? Prepared.Ready)?.summary } }
             val spoken = heardBy != null
             val exchange = Exchange(ChatSession.exchangeIds.getAndIncrement(), if (spoken) text else said, shown, verdict.decision, verdict.runAt, verdict.alwaysConfirm, verdict.unmentioned, verdict.ungrounded,
                 answer.checked, calls, SystemClock.elapsedRealtime() - started,
@@ -284,7 +286,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
                 turnOn = if (shown.calls.isEmpty() && shown.error == null && !answer.nothingAsked) ToolRouter.off(text, configs).map { it.name } else emptyList(),
                 jev = answer.jev,
                 path = answer.path,
-                heldBack = shown.suppressed.map { call -> (prepare(call, text) as? Prepared.Ready)?.summary })
+                heldBack = heldBack)
             _state.update { it.copy(history = it.history + exchange, pending = null, asking = null) }
             if (verdict.decision == Decision.Run) run(exchange.id)
         } catch (e: CancellationException) {
@@ -310,7 +312,9 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     fun startRecording() {
         if (_state.value.busy || pcmRecorder.recording || pcmRecording != null || nanoJob != null) return
         sendWhenStopped = false
-        assistant.pipeline.linkChanged()
+        // The step as last known (on resume, and before each typed request); read again for next time,
+        // off the main thread. A Ferb Link gone meanwhile falls back to Whistle when the clip is sent.
+        viewModelScope.launch { assistant.refreshLink() }
         when (pipeline.value.audio) {
             // Off: there's no mic, so this is only a guard.
             AudioStep.Off -> return
