@@ -48,7 +48,9 @@ class AnswerFlowTest {
         val asked = mutableListOf<String>()
         /** The timeout each rewrite was given, in order. */
         val rewriteTimeouts = mutableListOf<Int>()
-        override fun status() = status
+        /** How many times Ferb Link's status was asked (a call into another app). */
+        var statusAsked = 0
+        override fun status() = status.also { statusAsked++ }
         override suspend fun rewrite(request: String, instructions: String, maxTokens: Int, timeoutMs: Int, jsonSchema: String?): RewriteReply {
             asked += if (jsonSchema == null) "rewrite: $request" else "rewrite (schema): $request"
             rewriteTimeouts += timeoutMs
@@ -95,6 +97,15 @@ class AnswerFlowTest {
     /** The clock the answers are worked out at: Thursday 8 October 2026, 10:00 (an alarm at 7:15 rings tomorrow). */
     private val NOW = java.time.ZonedDateTime.of(2026, 10, 8, 10, 0, 0, 0, java.time.ZoneId.of("Asia/Kolkata"))
     private fun steps(rewrite: RewriteStep = RewriteStep.Off, tools: ToolStep = ToolStep.Off) = Pipeline(AudioStep.Whistle, rewrite, tools)
+
+    @Test
+    fun ferbLinksStatusIsAskedOncePerRequest() {
+        // The rewrite and Jev both use the computer: one status for the request, not one per step.
+        val link = FakeLink(picks = mapOf("Set an alarm for 7:15 am" to jev(SetAlarm.name, 0.9)))
+        answer("wake me up at 7:15", pipeline = steps(RewriteStep.Link, ToolStep.Link), link = link)
+        assertThat(link.asked).containsExactly("rewrite: wake me up at 7:15", "decide: Set an alarm for 7:15 am").inOrder()
+        assertThat(link.statusAsked).isEqualTo(1)
+    }
 
     @Test
     fun aRewriteWaitsForAComputerThatIsWaking() {

@@ -29,6 +29,8 @@ import dev.abhay.assistant.voice.Rewritten
 import java.time.ZonedDateTime
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * One step a request took, recorded as it ran, for the details' path ("Voice: Gemini Nano →
@@ -105,6 +107,7 @@ class AnswerFlow(
     /**
      * [said]: typed, or the words a spoken request was heard as; [heardBy]: the hearing step(s),
      * null for a typed one. [geminiUsable]: Gemini Nano's rewrite can stand in for Ferb Link's.
+     * [linkStatus]: Ferb Link's status, when the caller has just asked it; else asked when a step needs it.
      */
     suspend fun answer(
         said: String,
@@ -113,8 +116,12 @@ class AnswerFlow(
         pipeline: Pipeline,
         heardBy: List<Step>? = null,
         geminiUsable: Boolean = false,
+        linkStatus: LinkStatus? = null,
     ): Answer {
         val path = (heardBy ?: listOf(Step("Typed"))).toMutableList()
+        // Ferb Link's status is a call into another app: asked at most once per request, off the main thread.
+        var known = linkStatus
+        suspend fun status(): LinkStatus = known ?: withContext(Dispatchers.IO) { link.status() }.also { known = it }
         val fallbacks = mutableListOf<Fallback>()
 
         // The rewrite: one command, or NONE.
@@ -143,7 +150,7 @@ class AnswerFlow(
         when (pipeline.rewrite) {
             RewriteStep.Off -> {}
             RewriteStep.Gemini -> viaGemini()
-            RewriteStep.Link -> when (val status = link.status()) {
+            RewriteStep.Link -> when (val status = status()) {
                 is LinkStatus.Ready -> {
                     asking(if (status.asleep) "Waking your computer…" else "Your computer is rewriting it…")
                     // A sleeping model loads first (about 30 s cold): the rewrite waits for it, as a transcription does.
@@ -197,7 +204,7 @@ class AnswerFlow(
         var needleTools = routed
         var jev: JevReply? = null
         if (pipeline.tools == ToolStep.Link && enabled.isNotEmpty()) {
-            val status = link.status()
+            val status = status()
             when {
                 status !is LinkStatus.Ready -> {
                     fallbacks += Fallback("Tool selection", "Needle 3 alone", "Ferb Link: ${brief(status)}")

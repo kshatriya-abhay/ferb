@@ -87,9 +87,9 @@ class PipelineSettings(context: Context, private val linkState: () -> LinkState 
     /**
      * Ferb Link's state, read again (on resume, and before a request). [heard]: whether the
      * computer's model takes audio, when a live check has just said so (its status may not know yet).
+     * [state]: Ferb Link's state, when the caller has just read it.
      */
-    fun linkChanged(heard: Boolean? = null) {
-        val state = linkState()
+    fun linkChanged(heard: Boolean? = null, state: LinkState = linkState()) {
         val link = state.ready
         val audio = link && (heard ?: state.audio)
         val now = _abilities.value

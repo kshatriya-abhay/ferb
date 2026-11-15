@@ -46,6 +46,7 @@ import dev.abhay.assistant.voice.PcmRecorder
 import dev.abhay.assistant.voice.PhoneVoice
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -56,6 +57,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 /**
  * The assistant: loads Needle 3 with the tools turned on in settings, sends each request to it,
@@ -263,10 +265,12 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             val started = SystemClock.elapsedRealtime()
             val enabled = enabledTools.value.mapNotNull(Tools::byName)
             val configs = assistant.toolSettings.configs.value
+            // Ferb Link's status, once for the request and off the main thread (a call into another app).
+            val link = withContext(Dispatchers.IO) { assistant.link.status() }
             // The model choice follows Ferb Link: paired or not, as of now.
-            if (heardBy == null) assistant.pipeline.linkChanged()
+            if (heardBy == null) assistant.pipeline.linkChanged(state = assistant.linkState(link))
             val answer = flow.answer(said, enabled, configs, pipeline.value, heardBy,
-                geminiUsable = assistant.nanoEars.setup.value.rewrite == Part.Ready)
+                geminiUsable = assistant.nanoEars.setup.value.rewrite == Part.Ready, linkStatus = link)
             val shown = answer.shown
             val verdict = answer.verdict
             val text = answer.command ?: said
@@ -566,7 +570,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     private fun sendLinkVoice(clip: Voice.Recorded, pcm: FloatArray) {
         _state.update { it.copy(busy = true, voice = null, notice = null, pending = voiceLabel(clip.ms), asking = "Your computer is listening…") }
         viewModelScope.launch {
-            val why: String = when (val status = assistant.link.status()) {
+            val why: String = when (val status = withContext(Dispatchers.IO) { assistant.link.status() }) {
                 is LinkStatus.Ready -> {
                     if (status.asleep) _state.update { it.copy(asking = "Waking your computer…") }
                     val audio = try {

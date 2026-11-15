@@ -44,12 +44,14 @@ class AssistantApp : Application() {
 
     /** How Ferb understands a request: audio processing, rewrite, tool selection (Settings). */
     val pipeline by lazy {
-        dev.abhay.assistant.pipeline.PipelineSettings(this) {
-            val status = link.status()
-            val ready = status as? dev.abhay.assistant.link.LinkStatus.Ready
-            dev.abhay.assistant.pipeline.PipelineSettings.LinkState(
-                installed = status != dev.abhay.assistant.link.LinkStatus.NotInstalled, ready = ready != null, audio = ready?.audio == true)
-        }
+        dev.abhay.assistant.pipeline.PipelineSettings(this) { linkState(link.status()) }
+    }
+
+    /** Ferb Link's [status] as the pipeline sees it. */
+    fun linkState(status: dev.abhay.assistant.link.LinkStatus): dev.abhay.assistant.pipeline.PipelineSettings.LinkState {
+        val ready = status as? dev.abhay.assistant.link.LinkStatus.Ready
+        return dev.abhay.assistant.pipeline.PipelineSettings.LinkState(
+            installed = status != dev.abhay.assistant.link.LinkStatus.NotInstalled, ready = ready != null, audio = ready?.audio == true)
     }
     /** Gemini Nano's speech recognition (POC), when picked in Settings. */
     val nanoEars by lazy { dev.abhay.assistant.voice.NanoEars(foreground.inFront) }
