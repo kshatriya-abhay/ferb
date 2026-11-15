@@ -29,12 +29,6 @@ class AssistantApp : Application() {
     val link by lazy { FerbLink(this) }
     val onboarding by lazy { Onboarding.from(this) }
     val notes by lazy { SafNotes(this) }
-    /**
-     * The chat, for the process: the full chat and the assistant's sheet over another app show the
-     * same conversation, so opening the chat from the sheet carries it on.
-     */
-    val chat by lazy { kotlinx.coroutines.flow.MutableStateFlow(dev.abhay.assistant.ui.AssistantViewModel.UiState()) }
-    val exchangeIds = java.util.concurrent.atomic.AtomicLong()
     /** Where a request's calls run, for the process ([dev.abhay.assistant.request.CallQueue]), in the assistant's screen if it's in front, else the app. */
     val callQueue by lazy { dev.abhay.assistant.request.CallQueue(dev.abhay.assistant.tools.CallRunner(foreground.inFront), { foreground.activity ?: this }) }
 
@@ -56,9 +50,9 @@ class AssistantApp : Application() {
     /**
      * From the first check on, the steps follow Gemini Nano's state: each part counts once AICore
      * has answered, so Ferb works on what's there while a download runs and switches to Gemini
-     * Nano the moment it's ready. Each time Ferb comes back to the front it checks again, and when
-     * a download it waited for is ready, the chat says so ([GEMINI_READY]). Started by the first
-     * screen that checks it; once per process.
+     * Nano the moment it's ready. Each time Ferb comes back to the front it checks again (the
+     * chat's own note when a download is ready: [dev.abhay.assistant.ui.ChatSession]). Started by
+     * the first screen that checks it; once per process.
      */
     fun followGemini() {
         if (!geminiFollow.compareAndSet(false, true)) return
@@ -73,10 +67,6 @@ class AssistantApp : Application() {
         scope.launch {
             // Coming back, not the resume that's on now (its screen has just checked).
             foreground.inFront.drop(1).filter { it }.collect { nanoEars.resumed() }
-        }
-        scope.launch {
-            nanoEars.watch.drop(1).filter { it == dev.abhay.assistant.voice.GeminiWatch.Ready }
-                .collect { chat.update { it.copy(notice = GEMINI_READY) } }
         }
     }
     val reminders by lazy { ReminderBook(FileReminderStore(java.io.File(filesDir, "reminders.json"))) { java.time.LocalDateTime.now() } }
@@ -133,6 +123,3 @@ class AssistantApp : Application() {
 }
 
 private const val FROM_NOTES = "imported_from_notes"
-
-/** The chat's note when a Gemini Nano download Ferb waited for is ready. */
-const val GEMINI_READY = "Gemini Nano is ready"

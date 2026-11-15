@@ -52,7 +52,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     val geminiWatch: StateFlow<dev.abhay.assistant.voice.GeminiWatch> = nano.watch
     fun checkGemini() {
         viewModelScope.launch {
-            (getApplication<Application>() as AssistantApp).followGemini()
+            (getApplication<Application>() as AssistantApp).let { app -> app.followGemini(); ChatSession.followGemini(app.nanoEars.watch) }
             nano.refresh()
         }
     }

@@ -75,7 +75,7 @@ private val DRAG_UP_TO_OPEN = 80.dp
  * or the microphone refused, the box takes focus with the keyboard up), shows what's heard as it
  * comes, then the reply and any "Shall I do this?", with ✕ and ✓ as in the chat. Tapping the
  * conversation, its open button, or dragging the sheet up opens the full chat, which carries the
- * same conversation ([dev.abhay.assistant.AssistantApp.chat]). Swiping down, a tap outside or back
+ * same conversation ([ChatSession]). Swiping down, a tap outside or back
  * (with predictive back) dismisses it, dropping a recording. [opened] counts the assist invocations.
  */
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)

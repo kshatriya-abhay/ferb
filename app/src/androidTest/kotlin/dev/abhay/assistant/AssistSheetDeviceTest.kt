@@ -77,10 +77,10 @@ class AssistSheetDeviceTest {
         val intent = Intent(Intent.ACTION_ASSIST).setClass(app, AssistActivity::class.java)
         ActivityScenario.launch<AssistActivity>(intent).use { scenario ->
             // Opened as the assistant, it starts listening at once.
-            compose.waitUntil(5_000) { app.chat.value.voice is dev.abhay.assistant.ui.AssistantViewModel.Voice.Recording }
+            compose.waitUntil(5_000) { dev.abhay.assistant.ui.ChatSession.state.value.voice is dev.abhay.assistant.ui.AssistantViewModel.Voice.Recording }
             scenario.moveToState(Lifecycle.State.CREATED)
-            compose.waitUntil(5_000) { app.chat.value.voice == null }
-            assertThat(app.chat.value.busy).isFalse()
+            compose.waitUntil(5_000) { dev.abhay.assistant.ui.ChatSession.state.value.voice == null }
+            assertThat(dev.abhay.assistant.ui.ChatSession.state.value.busy).isFalse()
         }
     }
 }

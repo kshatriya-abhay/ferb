@@ -212,8 +212,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { assistant.link.wake() }
     }
 
-    /** Shared by the chat and the assistant's sheet ([AssistantApp.chat]). */
-    private val _state = assistant.chat
+    /** Shared by the chat and the assistant's sheet ([ChatSession]). */
+    private val _state = ChatSession.state
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     init {
@@ -226,6 +226,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         // front now, which AICore needs.
         viewModelScope.launch {
             assistant.followGemini()
+            ChatSession.followGemini(assistant.nanoEars.watch)
             assistant.nanoEars.refresh()
         }
     }
@@ -271,7 +272,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             val text = answer.command ?: said
             val calls = shown.calls.map { call -> CallState(call, prepare(call, text), Status.Waiting) }
             val spoken = heardBy != null
-            val exchange = Exchange(assistant.exchangeIds.getAndIncrement(), if (spoken) text else said, shown, verdict.decision, verdict.runAt, verdict.alwaysConfirm, verdict.unmentioned, verdict.ungrounded,
+            val exchange = Exchange(ChatSession.exchangeIds.getAndIncrement(), if (spoken) text else said, shown, verdict.decision, verdict.runAt, verdict.alwaysConfirm, verdict.unmentioned, verdict.ungrounded,
                 answer.checked, calls, SystemClock.elapsedRealtime() - started,
                 heard = said.takeIf { spoken && answer.command != null },
                 understood = answer.command.takeIf { !spoken },
