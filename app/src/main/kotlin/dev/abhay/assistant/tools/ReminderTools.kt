@@ -1,5 +1,6 @@
 package dev.abhay.assistant.tools
 
+import dev.abhay.assistant.engine.FerbTime
 import android.Manifest
 import dev.abhay.assistant.R
 import dev.abhay.assistant.reminders.Repeat
@@ -40,9 +41,9 @@ object AddReminder : Tool(
     override fun fromRequest(arguments: Map<String, Any?>, request: String) = arguments + (SAID to request)
 
     /** What to be reminded of must be the request's words, and the time's numbers too. */
-    override fun grounded(arguments: Map<String, Any?>, request: String) =
+    override fun grounded(arguments: Map<String, Any?>, request: String, time: FerbTime?) =
         Tools.mostlySaid(arguments.text("text"), request) &&
-            (TimeArgs.of(arguments) != null || arguments.text("time")?.let { SaidNumbers.grounded(it, request) } ?: true)
+            (time != null || arguments.text("time")?.let { SaidNumbers.grounded(it, request) } ?: true)
 
     /** "Pay the rent": the words of the reminder, without "remind me to" or the time. */
     fun title(text: String): String = When.strip(text)
@@ -59,9 +60,9 @@ object AddReminder : Tool(
         if (text.isBlank()) return Prepared.Invalid("Remind you of what?")
         val now = env.now.toLocalDateTime()
         // The request's own words first, then Needle 3's "time".
-        val ferb = TimeArgs.of(arguments)
+        val ferb = env.time
         val resolved = ferb != null
-        // Resolved by Ferb ([DateGate], [TimeArgs]): that, before the words.
+        // Resolved by Ferb ([DateGate], the call's time): that, before the words.
         val at = ferb?.at
             ?: arguments.text(SAID)?.takeIf { !resolved }?.let { ReminderTime.read(it, now) }
             ?: arguments.text("time")?.takeIf { !resolved }?.let { ReminderTime.read(it, now) }

@@ -1,5 +1,6 @@
 package dev.abhay.assistant.tools
 
+import dev.abhay.assistant.engine.FerbTime
 import dev.abhay.assistant.notes.NoteRef
 import dev.abhay.assistant.notes.NoteStore
 import dev.abhay.assistant.reminders.ReminderBook
@@ -145,7 +146,7 @@ abstract class Tool(
      * Whether [arguments] come from [request], e.g. an alarm's time is one the request says. A call
      * that isn't asks first, whatever its confidence. True when the tool doesn't check.
      */
-    open fun grounded(arguments: Map<String, Any?>, request: String): Boolean = true
+    open fun grounded(arguments: Map<String, Any?>, request: String, time: FerbTime? = null): Boolean = true
 
     /**
      * [arguments] with what the app reads from [request] itself, before [prepare]: arguments Needle 3
@@ -180,6 +181,8 @@ class PrepareEnv(
     val openReminders: () -> Unit = {},
     /** Whether Ferb holds an Android permission (notifications for reminders). */
     val granted: (String) -> Boolean = { true },
+    /** Ferb's reading of the call's time, when it's a timed call ([DateGate]). */
+    val time: FerbTime? = null,
 )
 
 /** Reads an integer argument, whether the engine gave it as a number or a numeric string. */

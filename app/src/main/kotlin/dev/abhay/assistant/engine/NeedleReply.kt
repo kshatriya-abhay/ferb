@@ -1,10 +1,31 @@
 package dev.abhay.assistant.engine
 
 import org.json.JSONArray
+import java.time.LocalDate
+import java.time.LocalDateTime
 import org.json.JSONObject
 
-/** One call Needle 3 asked for: a tool name and its arguments as the engine returned them. */
-data class ToolCall(val name: String, val arguments: Map<String, Any?>) {
+/**
+ * Ferb's reading of a call's time ([dev.abhay.assistant.tools.DateGate]); it wins over the model's
+ * own value and the request's words. [at]: an event's or reminder's date and time; [day]: the
+ * agenda's or an all-day event's date; [repeat]: a reminder's repeat key; [lengthMinutes]: an
+ * event's length from a span said ("6 to 8 pm"); [wanted]: for an alarm on another day than its
+ * next ring, when it was wanted (a reminder could do that); [ask]: why to ask first, or null to run.
+ */
+data class FerbTime(
+    val at: LocalDateTime? = null,
+    val day: LocalDate? = null,
+    val repeat: String? = null,
+    val lengthMinutes: Int? = null,
+    val wanted: LocalDateTime? = null,
+    val ask: String? = null,
+)
+
+/**
+ * One call Needle 3 asked for: a tool name and its arguments as the engine returned them, and
+ * [time], Ferb's own reading of its time ([dev.abhay.assistant.tools.DateGate]) when it's a timed call.
+ */
+data class ToolCall(val name: String, val arguments: Map<String, Any?>, val time: FerbTime? = null) {
     /** `name(key = value, …)` with strings quoted, for display. */
     fun signature(): String = arguments.entries.joinToString(prefix = "$name(", postfix = ")") { (key, value) ->
         "$key = " + if (value is String) "\"$value\"" else value.toString()

@@ -637,7 +637,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     private fun prepare(call: ToolCall, request: String): Prepared {
         val tool = Tools.byName(call.name)?.takeIf { it.name in enabledTools.value }
             ?: return Prepared.Invalid("No tool called ${call.name} is turned on")
-        val env = PrepareEnv(assistant.apps, assistant.contacts, assistant.calendar, notes = assistant.notes,
+        val env = PrepareEnv(apps = assistant.apps, contacts = assistant.contacts, calendar = assistant.calendar, notes = assistant.notes, time = call.time,
             reminders = assistant.reminders, remindersChanged = assistant::syncReminders,
             openNote = { context, note -> context.startActivity(dev.abhay.assistant.ChatActivity.openNote(context, note)) },
             openReminders = { screens.trySend(dev.abhay.assistant.ChatActivity.REMINDERS) },

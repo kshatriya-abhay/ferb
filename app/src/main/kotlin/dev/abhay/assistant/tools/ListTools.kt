@@ -1,5 +1,6 @@
 package dev.abhay.assistant.tools
 
+import dev.abhay.assistant.engine.FerbTime
 import dev.abhay.assistant.R
 import dev.abhay.assistant.notes.NoteRef
 import dev.abhay.assistant.notes.NoteStore
@@ -74,7 +75,7 @@ object AddToList : Tool(
            "required": ["list", "items"]}}
     """.trimIndent()
 
-    override fun grounded(arguments: Map<String, Any?>, request: String) = Tools.mostlySaid(arguments.text("items"), request)
+    override fun grounded(arguments: Map<String, Any?>, request: String, time: FerbTime?) = Tools.mostlySaid(arguments.text("items"), request)
 
     override fun prepare(arguments: Map<String, Any?>, env: PrepareEnv): Prepared {
         val list = arguments.text("list") ?: return Prepared.Invalid("Which list?")
@@ -148,7 +149,7 @@ object CheckOff : Tool(
            "required": ["item"]}}
     """.trimIndent()
 
-    override fun grounded(arguments: Map<String, Any?>, request: String) = Tools.mostlySaid(arguments.text("item"), request)
+    override fun grounded(arguments: Map<String, Any?>, request: String, time: FerbTime?) = Tools.mostlySaid(arguments.text("item"), request)
 
     override fun prepare(arguments: Map<String, Any?>, env: PrepareEnv): Prepared {
         val item = arguments.text("item") ?: return Prepared.Invalid("Which item?")

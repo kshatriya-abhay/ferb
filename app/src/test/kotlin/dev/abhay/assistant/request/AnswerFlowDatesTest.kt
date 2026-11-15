@@ -15,7 +15,6 @@ import dev.abhay.assistant.pipeline.ToolStep
 import dev.abhay.assistant.tools.AddReminder
 import dev.abhay.assistant.tools.SetAlarm
 import dev.abhay.assistant.tools.SetTimer
-import dev.abhay.assistant.tools.TimeArgs
 import dev.abhay.assistant.tools.ToolConfig
 import dev.abhay.assistant.voice.Rewritten
 import java.time.ZoneId
@@ -56,9 +55,9 @@ class AnswerFlowDatesTest {
             reply(0.12, listOf(ToolCall(AddReminder.name, mapOf("text" to "bank ko call karna", "time" to "tomorrow")))))
         assertThat(got.verdict.decision).isEqualTo(Decision.Run)
         assertThat(got.asks).isEmpty()
-        val args = got.shown.calls.single().arguments
-        assertThat(TimeArgs.of(args)?.at?.toString()).isEqualTo("2026-10-09T09:00")
-        assertThat(TimeArgs.of(args)?.ask).isNull()
+        val time = got.shown.calls.single().time
+        assertThat(time?.at?.toString()).isEqualTo("2026-10-09T09:00")
+        assertThat(time?.ask).isNull()
         assertThat(Step.chain(got.path)).endsWith("Dates: Ferb (Fri 9 Oct, 9:00)")
     }
 
@@ -66,7 +65,7 @@ class AnswerFlowDatesTest {
     fun needlesOwnTimeNeverWins() {
         // Needle 3 says 3 pm; the words and the rewrite say 9 am tomorrow.
         val got = answer("remind me tomorrow at 9 am to call the bank", "Remind me tomorrow at 9 am to call the bank", reply(0.9, listOf(remind("3 pm"))))
-        assertThat(TimeArgs.of(got.shown.calls.single().arguments)?.at?.toString()).isEqualTo("2026-10-09T09:00")
+        assertThat(got.shown.calls.single().time?.at?.toString()).isEqualTo("2026-10-09T09:00")
     }
 
     @Test
@@ -74,9 +73,9 @@ class AnswerFlowDatesTest {
         // The rewrite lost the day: tomorrow in the words, today in the command.
         val got = answer("kal 6 baje yaad dilana bank", "Remind me at 6 pm to call the bank", reply(0.9, listOf(remind("6 pm"))))
         assertThat(got.verdict.decision).isEqualTo(Decision.Confirm)
-        val args = got.shown.calls.single().arguments
-        assertThat(TimeArgs.of(args)?.at?.toString()).isEqualTo("2026-10-09T18:00")
-        assertThat(TimeArgs.of(args)?.ask).contains("Fri 9 Oct, 18:00")
+        val time = got.shown.calls.single().time
+        assertThat(time?.at?.toString()).isEqualTo("2026-10-09T18:00")
+        assertThat(time?.ask).contains("Fri 9 Oct, 18:00")
     }
 
     @Test

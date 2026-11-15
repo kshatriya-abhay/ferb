@@ -1,5 +1,6 @@
 package dev.abhay.assistant.tools
 
+import dev.abhay.assistant.engine.FerbTime
 import android.Manifest
 import dev.abhay.assistant.notes.NoteStore
 import dev.abhay.assistant.notes.NoteText
@@ -107,7 +108,7 @@ object SetAlarm : Tool(
     """.trimIndent()
 
     override fun prepare(arguments: Map<String, Any?>, env: PrepareEnv): Prepared {
-        val said = arguments.text("time") ?: return Prepared.Invalid(TimeArgs.of(arguments)?.ask?.replaceFirstChar { it.uppercase() } ?: "No time given")
+        val said = arguments.text("time") ?: return Prepared.Invalid(env.time?.ask?.replaceFirstChar { it.uppercase() } ?: "No time given")
         val (hour, minute) = TimeOfDay.parse(said) ?: return Prepared.Invalid("\"$said\" isn't a time of day")
         val time = String.format(Locale.US, "%02d:%02d", hour, minute)
         fun set(context: android.content.Context) = Tools.start(context, Intent(AlarmClock.ACTION_SET_ALARM)
@@ -117,11 +118,11 @@ object SetAlarm : Tool(
             .withActions(SHOW_ALARMS)
         // Asked for on another day than its next ring (the Clock app can't take a date): offer
         // the next ring, or a reminder at the time asked for (the user's decision, 2026-10-16).
-        val wanted = TimeArgs.of(arguments)?.wanted
+        val wanted = env.time?.wanted
         val reminders = env.reminders
         if (wanted != null && reminders != null) {
             val day = wanted.format(java.time.format.DateTimeFormatter.ofPattern("EEE d MMM", Locale.US))
-            return Prepared.Ready("Set an alarm for $time?", detail = TimeArgs.of(arguments)?.ask?.replaceFirstChar { it.uppercase() },
+            return Prepared.Ready("Set an alarm for $time?", detail = env.time?.ask?.replaceFirstChar { it.uppercase() },
                 choices = listOf(
                     Choice("Alarm at the next $time") { set(it) },
                     Choice("Reminder on $day at $time") { _ ->
@@ -135,8 +136,8 @@ object SetAlarm : Tool(
         return Prepared.Ready("Set an alarm for $time") { context -> set(context) }
     }
 
-    override fun grounded(arguments: Map<String, Any?>, request: String) =
-        TimeArgs.of(arguments) != null || arguments.text("time")?.let { SaidNumbers.grounded(it, request) } ?: true
+    override fun grounded(arguments: Map<String, Any?>, request: String, time: FerbTime?) =
+        time != null || arguments.text("time")?.let { SaidNumbers.grounded(it, request) } ?: true
 
     private val SHOW_ALARMS = FollowUp("Show alarms") { Tools.start(it.context, Intent(AlarmClock.ACTION_SHOW_ALARMS), "Opened the alarms") }
 
@@ -322,8 +323,8 @@ object SetTimer : Tool(
         }
     }
 
-    override fun grounded(arguments: Map<String, Any?>, request: String) =
-        TimeArgs.of(arguments) != null || arguments.text("duration")?.let { SaidNumbers.grounded(it, request) } ?: true
+    override fun grounded(arguments: Map<String, Any?>, request: String, time: FerbTime?) =
+        time != null || arguments.text("duration")?.let { SaidNumbers.grounded(it, request) } ?: true
 
     /** "1 h 5 min", "90 s" → "1 min 30 s". */
     fun duration(seconds: Int): String = listOfNotNull(
@@ -530,7 +531,7 @@ object SetVolume : Tool(
     /** Other volumes this tool doesn't change: a request naming one asks first rather than change the media volume. */
     private val OTHER_VOLUMES = Regex("""\b(ring(er|tone)?|alarms?|notifications?|calls?)\b""", RegexOption.IGNORE_CASE)
 
-    override fun grounded(arguments: Map<String, Any?>, request: String) = !OTHER_VOLUMES.containsMatchIn(request)
+    override fun grounded(arguments: Map<String, Any?>, request: String, time: FerbTime?) = !OTHER_VOLUMES.containsMatchIn(request)
 
     override fun prepare(arguments: Map<String, Any?>, env: PrepareEnv): Prepared {
         val percent = arguments.int("percent") ?: return Prepared.Invalid("No volume given")
@@ -696,7 +697,7 @@ object CreateNote : Tool(
     """.trimIndent()
 
     /** At least half the note's words must be the request's: a note Needle 3 made up asks first. */
-    override fun grounded(arguments: Map<String, Any?>, request: String) = Tools.mostlySaid(arguments.text("text"), request)
+    override fun grounded(arguments: Map<String, Any?>, request: String, time: FerbTime?) = Tools.mostlySaid(arguments.text("text"), request)
 
     /** Where notes go: the notes app (Google Keep), as before, or `.md` files in a folder of the user's Obsidian vault, opened in Obsidian. */
     const val KEEP = "keep"
@@ -801,7 +802,7 @@ object GetDirections : Tool(
     """.trimIndent()
 
     /** At least half the destination's words must be the request's: a place Needle 3 made up asks first. */
-    override fun grounded(arguments: Map<String, Any?>, request: String) = Tools.mostlySaid(arguments.text("destination"), request)
+    override fun grounded(arguments: Map<String, Any?>, request: String, time: FerbTime?) = Tools.mostlySaid(arguments.text("destination"), request)
 
     /**
      * Google Maps' directions link, which shows the route to check before starting (the
@@ -861,7 +862,7 @@ object MakeCall : Tool(
            "required": ["name"]}}
     """.trimIndent()
 
-    override fun grounded(arguments: Map<String, Any?>, request: String) = Tools.mostlySaid(arguments.text("name"), request)
+    override fun grounded(arguments: Map<String, Any?>, request: String, time: FerbTime?) = Tools.mostlySaid(arguments.text("name"), request)
 
     /** The dialer with [number] typed in (ACTION_DIAL needs no permission; the user presses call). */
     private fun dial(number: String?) = Intent(Intent.ACTION_DIAL, number?.let { Uri.fromParts("tel", it, null) })
@@ -931,7 +932,7 @@ object SendText : Tool(
            "required": ["name", "message"]}}
     """.trimIndent()
 
-    override fun grounded(arguments: Map<String, Any?>, request: String) =
+    override fun grounded(arguments: Map<String, Any?>, request: String, time: FerbTime?) =
         Tools.mostlySaid(arguments.text("name"), request) && Tools.mostlySaid(arguments.text("message"), request)
 
     /**

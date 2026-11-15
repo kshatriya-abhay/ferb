@@ -16,7 +16,6 @@ import dev.abhay.assistant.pipeline.ToolStep
 import dev.abhay.assistant.tools.ContentMap
 import dev.abhay.assistant.tools.DateGate
 import dev.abhay.assistant.tools.SaidNumbers
-import dev.abhay.assistant.tools.TimeArgs
 import dev.abhay.assistant.tools.Tool
 import dev.abhay.assistant.tools.ToolConfig
 import dev.abhay.assistant.tools.ToolRouter
@@ -307,11 +306,11 @@ class AnswerFlow(
         // Ferb's own time: the words as said and the rewrite read alike ([DateGate]); Needle 3's never decides.
         val gated = calls.mapIndexed { i, call -> if (DateGate.timed(call.name)) gate(call.name, call.arguments, said, command, now(), kept[i]) else null }
         val shown = reply.copy(
-            calls = calls.mapIndexed { i, call -> call.copy(arguments = gated[i]?.arguments ?: call.arguments) },
+            calls = calls.mapIndexed { i, call -> gated[i]?.let { g -> call.copy(arguments = g.arguments, time = g.time) } ?: call },
             suppressed = reply.suppressed.filter { it !== heldBack },
         )
         gated.filterNotNull().firstOrNull()?.let { g ->
-            trail.path += Step("Dates: Ferb", if (g.agreed) DateGate.shown(g.said) else "asks: ${TimeArgs.of(g.arguments)?.ask}")
+            trail.path += Step("Dates: Ferb", if (g.agreed) DateGate.shown(g.said) else "asks: ${g.time?.ask}")
         }
         // The words as said name other timed tools, not this one ("remind me" rewritten as an alarm): ask (gate H).
         val saidTimed = timed(saidRouted)

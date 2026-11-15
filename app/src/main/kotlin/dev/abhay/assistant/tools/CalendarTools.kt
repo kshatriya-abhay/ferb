@@ -1,5 +1,6 @@
 package dev.abhay.assistant.tools
 
+import dev.abhay.assistant.engine.FerbTime
 import android.Manifest
 import android.content.Context
 import dev.abhay.assistant.R
@@ -57,17 +58,17 @@ object ShowAgenda : Tool(
      * The day Needle 3 gives must be one: "what's the agenda of the G20 summit" came back as the
      * day "G20 summit", and "what is a calendar year" as "year" (0.52 and 0.70 on tool-check).
      */
-    override fun grounded(arguments: Map<String, Any?>, request: String) =
-        TimeArgs.of(arguments) != null || arguments.text("day")?.let { When.day(it, LocalDate.now()) != null } ?: true
+    override fun grounded(arguments: Map<String, Any?>, request: String, time: FerbTime?) =
+        time != null || arguments.text("day")?.let { When.day(it, LocalDate.now()) != null } ?: true
 
     /** The day Ferb resolved ([DateGate]), else the day [request] names, else the one Needle 3 gave, else today. */
-    fun dayFor(arguments: Map<String, Any?>, today: LocalDate): LocalDate =
-        TimeArgs.of(arguments)?.day
+    fun dayFor(arguments: Map<String, Any?>, today: LocalDate, time: FerbTime? = null): LocalDate =
+        time?.day
             ?: arguments.text(REQUEST)?.let { When.day(it, today) } ?: arguments.text("day")?.let { When.day(it, today) } ?: today
 
     override fun prepare(arguments: Map<String, Any?>, env: PrepareEnv): Prepared {
         val today = env.now.toLocalDate()
-        val day = dayFor(arguments, today)
+        val day = dayFor(arguments, today, env.time)
         val zone = env.now.zone
         // Without the calendar: the calendar app at that day.
         if (env.calendar.calendars() == null) {
@@ -162,12 +163,12 @@ object AddEvent : Tool(
      * The title must be mostly the request's words, and when the request's own words say nothing
      * about when (so Needle 3's "when" is used), its numbers must be ones the request says.
      */
-    override fun grounded(arguments: Map<String, Any?>, request: String): Boolean {
+    override fun grounded(arguments: Map<String, Any?>, request: String, time: FerbTime?): Boolean {
         val title = arguments.text("title")
         val whenSaid = arguments.text("when")
         val requestSays = !When.read(request, LocalDateTime.now()).isEmpty
         return Tools.mostlySaid(title, request) &&
-            (TimeArgs.of(arguments) != null || requestSays || whenSaid == null || SaidNumbers.grounded(whenSaid, request))
+            (time != null || requestSays || whenSaid == null || SaidNumbers.grounded(whenSaid, request))
     }
 
     /** An event worked out from a request: [begin] and [end] in epoch milliseconds (UTC midnights when [allDay]). */
@@ -180,9 +181,9 @@ object AddEvent : Tool(
      * without a day is the next time it comes (today, or tomorrow if it's passed); a day without a
      * time is all day; an hour long unless an end or a length is said. Null if nothing says when.
      */
-    fun plan(title: String, arguments: Map<String, Any?>, now: LocalDateTime, zone: ZoneId): Planned? {
-        // Resolved by Ferb ([DateGate], [TimeArgs]): that, before the words.
-        val ferb = TimeArgs.of(arguments)
+    fun plan(title: String, arguments: Map<String, Any?>, now: LocalDateTime, zone: ZoneId, time: FerbTime? = null): Planned? {
+        // Resolved by Ferb ([DateGate], the call's time): that, before the words.
+        val ferb = time
         val resolved = ferb?.at?.let { When.Said(it.toLocalDate(), it.toLocalTime(), length = ferb.lengthMinutes) }
             ?: ferb?.day?.let { When.Said(it, null) }
         val fromRequest = arguments.text(REQUEST)?.takeIf { ferb == null }?.let { When.read(it, now) }
@@ -211,7 +212,7 @@ object AddEvent : Tool(
             ?: return Prepared.Invalid("No title for the event")
         val now = env.now.toLocalDateTime()
         val zone = env.now.zone
-        val planned = plan(title, arguments, now, zone) ?: return Prepared.Invalid("When? Say a day or a time, such as tomorrow at 5 pm")
+        val planned = plan(title, arguments, now, zone, env.time) ?: return Prepared.Invalid("When? Say a day or a time, such as tomorrow at 5 pm")
         val today = now.toLocalDate()
         val whenText = describe(planned, today)
         val summary = "Add \u201c$title\u201d \u00b7 $whenText"

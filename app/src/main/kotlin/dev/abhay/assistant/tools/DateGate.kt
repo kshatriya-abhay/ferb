@@ -1,5 +1,6 @@
 package dev.abhay.assistant.tools
 
+import dev.abhay.assistant.engine.FerbTime
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZonedDateTime
@@ -11,7 +12,7 @@ import java.util.Locale
  * round): [DateResolver] reads the words as said, and the rewritten command (the rewrite prompt) too when
  * there is one; the call runs only when the two agree, else it asks, showing what Ferb read. Needle
  * 3's own time arguments never decide. The resolved value goes in the tool's arguments as
- * one typed value ([TimeArgs.FerbTime]), which the tools read with [TimeArgs.of].
+ * [FerbTime], which goes on the call ([dev.abhay.assistant.engine.ToolCall.time]).
  * On the blind set (154 lines, tool from Needle 3 on R): 105 right, 9 wrong; the words alone 111/14.
  */
 object DateGate {
@@ -115,13 +116,13 @@ object DateGate {
     }
 
     /** The outcome for one call: its arguments with Ferb's time, and whether the two readings agreed. */
-    data class Gated(val arguments: Map<String, Any?>, val agreed: Boolean, val said: Read, val rewritten: Read?)
+    data class Gated(val arguments: Map<String, Any?>, val agreed: Boolean, val said: Read, val rewritten: Read?, val time: FerbTime? = null)
 
     /**
-     * [arguments] of a [tool] call with Ferb's time ([TimeArgs.FerbTime]): read from [saidAll], and from [commandAll] (the
+     * [arguments] of a [tool] call with Ferb's time ([Gated.time]): read from [saidAll], and from [commandAll] (the
      * rewrite) when there is one, outside the call's [content] when it has one ([outside]). Agreeing, the value is set and the call may run; else the value
      * read from the words as said (or the rewrite's, when the words say nothing) is shown, and the
-     * call asks first ([TimeArgs.FerbTime.ask]); with neither, the time is left out and the tool asks when.
+     * call asks first ([FerbTime.ask]); with neither, the time is left out and the tool asks when.
      */
     fun apply(tool: String, arguments: Map<String, Any?>, saidAll: String, commandAll: String?, now: ZonedDateTime, content: String? = null): Gated {
         val param = TIMED[tool] ?: return Gated(arguments, true, Read.Ask(""), null)
@@ -133,11 +134,8 @@ object DateGate {
         val pick = if (fromSaid !is Read.Ask) fromSaid else fromCommand?.takeIf { it !is Read.Ask }
         val out = arguments.toMutableMap()
         out.remove(param)
-        var time = TimeArgs.FerbTime()
-        fun done(agreed: Boolean): Gated {
-            out[TimeArgs.KEY] = time
-            return Gated(out, agreed && time.ask == null, fromSaid, fromCommand)
-        }
+        var time = FerbTime()
+        fun done(agreed: Boolean) = Gated(out, agreed && time.ask == null, fromSaid, fromCommand, time)
         when (pick) {
             null -> { time = time.copy(ask = (fromSaid as Read.Ask).why); return done(false) }
             is Read.At -> when (tool) {
