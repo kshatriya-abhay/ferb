@@ -100,6 +100,25 @@ class AnswerFlowTest {
     private fun steps(rewrite: RewriteStep = RewriteStep.Off, tools: ToolStep = ToolStep.Off) = Pipeline(AudioStep.Whistle, rewrite, tools)
 
     @Test
+    fun eachTextIsRoutedOnceAndEachTimedCallGatedOnce() {
+        val routedTexts = mutableListOf<String>()
+        val gatedTools = mutableListOf<String>()
+        fun flow() = AnswerFlow(FakeLink(), needle(), geminiSays("Set an alarm for 7:15 am"), now = { NOW }, content = dev.abhay.assistant.tools.ContentMapTest.icu(),
+            route = { text, tools, configs -> routedTexts += text; dev.abhay.assistant.tools.ToolRouter.route(text, tools, configs) },
+            gate = { tool, args, said, command, now, kept -> gatedTools += tool; dev.abhay.assistant.tools.DateGate.apply(tool, args, said, command, now, kept) })
+        // Typed, no rewrite: one text, routed once; one alarm, gated once.
+        val typed = runBlocking { flow().answer("wake me up at 7:15", enabled, configs, steps()) }
+        assertThat(typed.chain()).isEqualTo("Typed → Needle 3 (0.81) → Dates: Ferb (Fri 9 Oct, 7:15)")
+        assertThat(routedTexts).containsExactly("wake me up at 7:15")
+        assertThat(gatedTools).containsExactly(SetAlarm.name)
+        // Rewritten: the command and the words as said, each routed once; the alarm still gated once.
+        routedTexts.clear(); gatedTools.clear()
+        runBlocking { flow().answer("wake me up at 7:15", enabled, configs, steps(RewriteStep.Gemini)) }
+        assertThat(routedTexts).containsExactly("Set an alarm for 7:15 am", "wake me up at 7:15").inOrder()
+        assertThat(gatedTools).containsExactly(SetAlarm.name)
+    }
+
+    @Test
     fun ferbLinksStatusIsAskedOncePerRequest() {
         // The rewrite and Jev both use the computer: one status for the request, not one per step.
         val link = FakeLink(picks = mapOf("Set an alarm for 7:15 am" to jev(SetAlarm.name, 0.9)))

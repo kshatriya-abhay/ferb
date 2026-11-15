@@ -97,6 +97,23 @@ object DateGate {
         return span.find(said)?.let { said.removeRange(it.range).replace(Regex("""\s+"""), " ").trim() } ?: said
     }
 
+    /**
+     * The texts a time is read from: the words as said outside the [content] kept as said, and the
+     * rewrite with its quotes (the content) emptied when there is one.
+     */
+    private fun texts(saidAll: String, commandAll: String?, content: String?): Pair<String, String?> {
+        val said = outside(saidAll, content)
+        val command = if (content.isNullOrBlank() || said == saidAll) commandAll else commandAll?.let { ContentMap.masked(it) }
+        return said to command
+    }
+
+    /** What the words as said and the rewrite each say for [tool], read as [apply] reads them, without a call. */
+    fun readings(tool: String, saidAll: String, commandAll: String?, now: ZonedDateTime, content: String? = null): Pair<Read, Read?> {
+        val local = now.toLocalDateTime().withSecond(0).withNano(0)
+        val (said, command) = texts(saidAll, commandAll, content)
+        return read(tool, said, local) to command?.let { read(tool, it, local) }
+    }
+
     /** The outcome for one call: its arguments with Ferb's time, and whether the two readings agreed. */
     data class Gated(val arguments: Map<String, Any?>, val agreed: Boolean, val said: Read, val rewritten: Read?)
 
@@ -109,10 +126,7 @@ object DateGate {
     fun apply(tool: String, arguments: Map<String, Any?>, saidAll: String, commandAll: String?, now: ZonedDateTime, content: String? = null): Gated {
         val param = TIMED[tool] ?: return Gated(arguments, true, Read.Ask(""), null)
         val local = now.toLocalDateTime().withSecond(0).withNano(0)
-        // With the content kept as said, times are read outside it: in the words as said, the rest of
-        // them; in the rewrite, its quotes (the content) emptied.
-        val said = outside(saidAll, content)
-        val command = if (content.isNullOrBlank() || said == saidAll) commandAll else commandAll?.let { ContentMap.masked(it) }
+        val (said, command) = texts(saidAll, commandAll, content)
         val fromSaid = read(tool, said, local)
         val fromCommand = command?.let { read(tool, it, local) }
         val agreed = fromSaid !is Read.Ask && (fromCommand == null || fromCommand == fromSaid)

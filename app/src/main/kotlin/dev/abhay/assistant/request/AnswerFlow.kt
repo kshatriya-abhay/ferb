@@ -15,8 +15,6 @@ import dev.abhay.assistant.pipeline.RewriteStep
 import dev.abhay.assistant.pipeline.ToolStep
 import dev.abhay.assistant.tools.ContentMap
 import dev.abhay.assistant.tools.DateGate
-import dev.abhay.assistant.tools.DateResolver
-import dev.abhay.assistant.tools.NumberWords
 import dev.abhay.assistant.tools.SaidNumbers
 import dev.abhay.assistant.tools.TimeArgs
 import dev.abhay.assistant.tools.Tool
@@ -87,6 +85,9 @@ class AnswerFlow(
     private val asking: (String?) -> Unit = {},
     private val now: () -> ZonedDateTime = ZonedDateTime::now,
     private val content: ContentMap = ContentMap.android(),
+    /** The keyword router, and Ferb's date gate for a call: injected so tests can see each runs once per text or call. */
+    private val route: (String, List<Tool>, Map<String, ToolConfig>) -> List<Tool> = ToolRouter::route,
+    private val gate: (String, Map<String, Any?>, String, String?, ZonedDateTime, String?) -> DateGate.Gated = DateGate::apply,
 ) {
     /** Why the content fix's guards ask first (0.2, as frozen in build/content/frozen-2). */
     enum class Guard(val why: String) {
@@ -112,59 +113,101 @@ class AnswerFlow(
         geminiUsable: Boolean = false,
         linkStatus: LinkStatus? = null,
     ): Answer {
-        val path = (heardBy ?: listOf(Step("Typed"))).toMutableList()
+        val trail = Trail(heardBy ?: listOf(Step("Typed")))
         // Ferb Link's status is a call into another app: asked at most once per request, off the main thread.
         var known = linkStatus
-        suspend fun status(): LinkStatus = known ?: withContext(Dispatchers.IO) { link.status() }.also { known = it }
-        val fallbacks = mutableListOf<Fallback>()
+        val status: suspend () -> LinkStatus = { known ?: withContext(Dispatchers.IO) { link.status() }.also { known = it } }
 
-        // The rewrite: one command, or NONE.
-        var rewritten: Rewritten? = null
-        suspend fun viaGemini(instead: Boolean = false) {
+        val rewritten = rewrite(said, pipeline.rewrite, geminiUsable, status, trail)
+        if (rewritten != null && rewritten.command == null) {
+            trail.path += Step("Nothing for the phone to do")
+            return Answer(NO_TOOL, Verdict.of(NO_TOOL, configs, said), emptyList(), trail.path, nothingAsked = true, fallbacks = trail.fallbacks)
+        }
+        val command = rewritten?.command
+        // Needle 3 reads the command with its quoted words in Latin letters; the router never reads them.
+        val text = command?.let(content::forNeedle) ?: said
+        val routedBy = command?.let { ContentMap.masked(text) } ?: text
+        // Routed once per text: the text Needle 3 gets, and the words as said when they differ.
+        val routed = route(routedBy, enabled, configs)
+        val saidRouted = if (routedBy == said) routed else route(said, enabled, configs)
+
+        val selection = select(text, routed, enabled, pipeline.tools, status, trail)
+        if (selection is Selection.NoTool) {
+            return Answer(NO_TOOL, Verdict.of(NO_TOOL, configs, text), emptyList(), trail.path, command = command.differentFrom(said), fallbacks = trail.fallbacks, jev = selection.jev)
+        }
+        selection as Selection.Tools
+
+        // Needle 3 makes the call; its times are read from the command, and checked against what was said.
+        asking(null)
+        val reply = askNeedle(text, enabled, selection.tools)
+        if (enabled.isNotEmpty()) trail.path += needleStep(reply)
+        val guarded = guard(reply, said, command, routed, saidRouted, trail)
+        return Answer(
+            shown = guarded.shown,
+            verdict = decide(guarded, configs, text, said, command),
+            checked = selection.tools.map { it.name },
+            path = trail.path,
+            command = command.differentFrom(said),
+            fallbacks = trail.fallbacks,
+            jev = selection.jev,
+            asks = guarded.asks.map { it.why },
+        )
+    }
+
+    /** What a request's steps record as they run: its path, and the fallbacks it took. */
+    private class Trail(start: List<Step>) {
+        val path = start.toMutableList()
+        val fallbacks = mutableListOf<Fallback>()
+    }
+
+    /** The rewrite by the pipeline's step: one command, NONE (a [Rewritten] without one), or null for the words as they are. */
+    private suspend fun rewrite(said: String, step: RewriteStep, geminiUsable: Boolean, status: suspend () -> LinkStatus, trail: Trail): Rewritten? {
+        suspend fun viaGemini(instead: Boolean = false): Rewritten? {
             asking("Gemini Nano is rewriting it…")
-            rewritten = try {
-                gemini(said).also { path += Step(if (instead) "Rewrite: Gemini Nano instead" else "Rewrite: Gemini Nano") }
+            return try {
+                gemini(said).also { trail.path += Step(if (instead) "Rewrite: Gemini Nano instead" else "Rewrite: Gemini Nano") }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                fallbacks += Fallback("Rewrite", "your words as they are", "Gemini Nano: ${e.message ?: e}")
-                path += Step("Rewrite: off (Gemini Nano failed)")
+                trail.fallbacks += Fallback("Rewrite", "your words as they are", "Gemini Nano: ${e.message ?: e}")
+                trail.path += Step("Rewrite: off (Gemini Nano failed)")
                 null
             }
         }
-        suspend fun linkFailed(why: String) {
+        suspend fun linkFailed(why: String): Rewritten? =
             if (geminiUsable) {
-                fallbacks += Fallback("Rewrite", "Gemini Nano", "Ferb Link: $why")
+                trail.fallbacks += Fallback("Rewrite", "Gemini Nano", "Ferb Link: $why")
                 viaGemini(instead = true)
             } else {
-                fallbacks += Fallback("Rewrite", "your words as they are", "Ferb Link: $why")
-                path += Step("Rewrite: off (Ferb Link: $why)")
+                trail.fallbacks += Fallback("Rewrite", "your words as they are", "Ferb Link: $why")
+                trail.path += Step("Rewrite: off (Ferb Link: $why)")
+                null
             }
-        }
-        when (pipeline.rewrite) {
-            RewriteStep.Off -> {}
+        return when (step) {
+            RewriteStep.Off -> null
             RewriteStep.Gemini -> viaGemini()
-            RewriteStep.Link -> when (val status = status()) {
+            RewriteStep.Link -> when (val ready = status()) {
                 is LinkStatus.Ready -> {
-                    asking(if (status.asleep) "Waking your computer…" else "Your computer is rewriting it…")
+                    asking(if (ready.asleep) "Waking your computer…" else "Your computer is rewriting it…")
                     // A sleeping model loads first (about 30 s cold): the rewrite waits for it, as a transcription does.
-                    val timeoutMs = FerbLink.timeout(FerbLink.REWRITE_TIMEOUT_MS, status.asleep)
+                    val timeoutMs = FerbLink.timeout(FerbLink.REWRITE_TIMEOUT_MS, ready.asleep)
                     // A, one line with the content quoted, for a Ferb Link that can't use a schema: an
                     // older one, one that ignored it, or a server that can't make it a grammar.
-                    suspend fun line() {
+                    suspend fun line(): Rewritten? {
                         val reply = link.rewrite(said, ContentRewrite.PROMPT_A, ContentRewrite.MAX_TOKENS_A, timeoutMs = timeoutMs)
                         val raw = reply.raw
                         val error = reply.error
-                        when {
+                        return when {
                             error != null -> linkFailed(error)
                             // An older Ferb Link answered with its own prompt: not this step's rewrite.
                             !reply.instructed || raw == null -> linkFailed("too old, update it")
-                            else -> runCatching { ContentRewrite.parseLine(said, raw) }
-                                .onSuccess { rewritten = it; path += Step("Rewrite: Ferb Link", listOfNotNull("one line", reply.ms?.let { ms -> "$ms ms" }).joinToString(", ")) }
-                                .onFailure { linkFailed("unreadable answer") }
+                            else -> runCatching { ContentRewrite.parseLine(said, raw) }.fold(
+                                { trail.path += Step("Rewrite: Ferb Link", listOfNotNull("one line", reply.ms?.let { ms -> "$ms ms" }).joinToString(", ")); it },
+                                { linkFailed("unreadable answer") },
+                            )
                         }
                     }
-                    if (!status.jsonSchema) line() else {
+                    if (!ready.jsonSchema) line() else {
                         val reply = link.rewrite(said, ContentRewrite.PROMPT, ContentRewrite.MAX_TOKENS, timeoutMs = timeoutMs, jsonSchema = ContentRewrite.SCHEMA)
                         val output = reply.output
                         val error = reply.error
@@ -175,70 +218,73 @@ class AnswerFlow(
                             // A reply without schema true didn't use it: unsupported, so the line prompt.
                             !reply.schema -> line()
                             output == null -> linkFailed("unreadable answer")
-                            else -> runCatching { ContentRewrite.parse(said, output) }
-                                .onSuccess { rewritten = it; path += Step("Rewrite: Ferb Link", reply.ms?.let { ms -> "$ms ms" }) }
-                                .onFailure { linkFailed("unreadable answer") }
+                            else -> runCatching { ContentRewrite.parse(said, output) }.fold(
+                                { trail.path += Step("Rewrite: Ferb Link", reply.ms?.let { ms -> "$ms ms" }); it },
+                                { linkFailed("unreadable answer") },
+                            )
                         }
                     }
                 }
-                else -> linkFailed(brief(status))
+                else -> linkFailed(brief(ready))
             }
         }
-        if (rewritten != null && rewritten?.command == null) {
-            path += Step("Nothing for the phone to do")
-            return Answer(NO_TOOL, Verdict.of(NO_TOOL, configs, said), emptyList(), path, nothingAsked = true, fallbacks = fallbacks)
-        }
-        val command = rewritten?.command
-        // Needle 3 reads the command with its quoted words in Latin letters; the router never reads them.
-        val text = command?.let(content::forNeedle) ?: said
-        val routedBy = command?.let { ContentMap.masked(text) } ?: text
+    }
 
-        // The tool selection: Jev narrows the tools to its pick.
-        val routed = ToolRouter.route(routedBy, enabled, configs)
-        var needleTools = routed
-        var jev: JevReply? = null
-        if (pipeline.tools == ToolStep.Link && enabled.isNotEmpty()) {
-            val status = status()
-            when {
-                status !is LinkStatus.Ready -> {
-                    fallbacks += Fallback("Tool selection", "Needle 3 alone", "Ferb Link: ${brief(status)}")
-                    path += Step("Tool selection: off (Ferb Link: ${brief(status)})")
-                }
-                !status.jev -> {
-                    val why = if (status.jevCapped) "Jev reached its spending limit: raise it in Ferb Link" else "Jev is off in Ferb Link"
-                    fallbacks += Fallback("Tool selection", "Needle 3 alone", why)
-                    path += Step("Tool selection: off (${if (status.jevCapped) "Jev's limit reached" else "Jev off"})")
-                }
-                else -> {
-                    asking("Asking Jev…")
-                    val reply = link.decide(text, Tools.json(routed.ifEmpty { enabled }))
-                    jev = reply
-                    when (val pick = LinkPolicy.select(reply, enabled.map { it.name })) {
-                        is JevPick.Tool -> {
-                            needleTools = listOfNotNull(Tools.byName(pick.name))
-                            path += Step("Tool selection: Jev", pick(reply))
-                        }
-                        JevPick.NoTool -> {
-                            path += Step("Tool selection: Jev", pick(reply))
-                            return Answer(NO_TOOL, Verdict.of(NO_TOOL, configs, text), emptyList(), path, command = command.differentFrom(said), fallbacks = fallbacks, jev = reply)
-                        }
-                        is JevPick.Fallback -> {
-                            fallbacks += Fallback("Tool selection", "Needle 3 alone", pick.detail)
-                            path += Step("Tool selection: off (${pick.reason})")
-                        }
+    /** The tools Needle 3 weighs: the routed ones, or Jev's pick; or no tool, when Jev says none fits. */
+    private sealed interface Selection {
+        val jev: JevReply?
+        data class Tools(val tools: List<Tool>, override val jev: JevReply?) : Selection
+        data class NoTool(override val jev: JevReply) : Selection
+    }
+
+    private suspend fun select(text: String, routed: List<Tool>, enabled: List<Tool>, step: ToolStep, status: suspend () -> LinkStatus, trail: Trail): Selection {
+        if (step != ToolStep.Link || enabled.isEmpty()) return Selection.Tools(routed, null)
+        val ready = status()
+        when {
+            ready !is LinkStatus.Ready -> {
+                trail.fallbacks += Fallback("Tool selection", "Needle 3 alone", "Ferb Link: ${brief(ready)}")
+                trail.path += Step("Tool selection: off (Ferb Link: ${brief(ready)})")
+            }
+            !ready.jev -> {
+                val why = if (ready.jevCapped) "Jev reached its spending limit: raise it in Ferb Link" else "Jev is off in Ferb Link"
+                trail.fallbacks += Fallback("Tool selection", "Needle 3 alone", why)
+                trail.path += Step("Tool selection: off (${if (ready.jevCapped) "Jev's limit reached" else "Jev off"})")
+            }
+            else -> {
+                asking("Asking Jev…")
+                val reply = link.decide(text, Tools.json(routed.ifEmpty { enabled }))
+                return when (val pick = LinkPolicy.select(reply, enabled.map { it.name })) {
+                    is JevPick.Tool -> {
+                        trail.path += Step("Tool selection: Jev", pick(reply))
+                        Selection.Tools(listOfNotNull(Tools.byName(pick.name)), reply)
+                    }
+                    JevPick.NoTool -> {
+                        trail.path += Step("Tool selection: Jev", pick(reply))
+                        Selection.NoTool(reply)
+                    }
+                    is JevPick.Fallback -> {
+                        trail.fallbacks += Fallback("Tool selection", "Needle 3 alone", pick.detail)
+                        trail.path += Step("Tool selection: off (${pick.reason})")
+                        Selection.Tools(routed, reply)
                     }
                 }
             }
         }
+        return Selection.Tools(routed, null)
+    }
 
-        // Needle 3 makes the call; its times are read from the command, and checked against what was said.
-        asking(null)
-        val reply = askNeedle(text, enabled, needleTools)
-        if (enabled.isNotEmpty()) path += needleStep(reply)
+    /**
+     * Needle 3's reply with the guards applied: [shown] (the content as said, Ferb's own times),
+     * [gated] (each call's date gate, null for an untimed one), [asks] (the content guards),
+     * [otherTool] (gate H: the words as said name other timed tools, not this one).
+     */
+    private class Guarded(val shown: NeedleReply, val gated: List<DateGate.Gated?>, val asks: List<Guard>, val otherTool: Boolean)
+
+    private fun guard(reply: NeedleReply, said: String, command: String?, routed: List<Tool>, saidRouted: List<Tool>, trail: Trail): Guarded {
+        fun timed(tools: List<Tool>) = tools.map { it.name }.filter(DateGate::timed)
         // Timed calls (2026-10-25, the blind date round): the engine held one back but the router
         // names that timed tool alone, so it comes back to be weighed (gate E).
-        fun timedRouted(t: String) = ToolRouter.route(t, enabled, configs).map { it.name }.filter(DateGate::timed)
-        val heldBack = reply.suppressed.firstOrNull { DateGate.timed(it.name) && timedRouted(routedBy) == listOf(it.name) }
+        val heldBack = reply.suppressed.firstOrNull { DateGate.timed(it.name) && timed(routed) == listOf(it.name) }
         val needled = if (reply.calls.isEmpty() && heldBack != null) listOf(heldBack) else reply.calls
         // The words to keep, as said (a rewritten request only).
         val asks = mutableListOf<Guard>()
@@ -253,49 +299,44 @@ class AnswerFlow(
             call.copy(arguments = call.arguments + (field to c.text))
         }
         if (command != null && calls.isNotEmpty()) {
-            val named = ToolRouter.route(said, enabled, configs).map { it.name }
+            val named = saidRouted.map { it.name }
             if (named.isNotEmpty() && calls.first().name !in named) asks += Guard.OtherTool
-            val time = DateGate.apply(TIME_GUARD_TOOL, emptyMap(), said, command, now(), kept.firstOrNull { it != null })
-            if (time.said !is DateGate.Read.Ask && time.rewritten is DateGate.Read.Ask) asks += Guard.TimeDropped
+            val (fromSaid, fromCommand) = DateGate.readings(TIME_GUARD_TOOL, said, command, now(), kept.firstOrNull { it != null })
+            if (fromSaid !is DateGate.Read.Ask && fromCommand is DateGate.Read.Ask) asks += Guard.TimeDropped
         }
         // Ferb's own time: the words as said and the rewrite read alike ([DateGate]); Needle 3's never decides.
-        val gated = calls.mapIndexed { i, call -> if (DateGate.timed(call.name)) DateGate.apply(call.name, call.arguments, said, command, now(), kept[i]) else null }
+        val gated = calls.mapIndexed { i, call -> if (DateGate.timed(call.name)) gate(call.name, call.arguments, said, command, now(), kept[i]) else null }
         val shown = reply.copy(
             calls = calls.mapIndexed { i, call -> call.copy(arguments = gated[i]?.arguments ?: call.arguments) },
             suppressed = reply.suppressed.filter { it !== heldBack },
         )
         gated.filterNotNull().firstOrNull()?.let { g ->
-            path += Step("Dates: Ferb", if (g.agreed) DateGate.shown(g.said) else "asks: ${TimeArgs.of(g.arguments)?.ask}")
+            trail.path += Step("Dates: Ferb", if (g.agreed) DateGate.shown(g.said) else "asks: ${TimeArgs.of(g.arguments)?.ask}")
         }
         // The words as said name other timed tools, not this one ("remind me" rewritten as an alarm): ask (gate H).
-        val saidTimed = timedRouted(said)
+        val saidTimed = timed(saidRouted)
         val otherTool = calls.any { DateGate.timed(it.name) && saidTimed.isNotEmpty() && it.name !in saidTimed }
-        asks.forEach { path += Step("Asks first", it.why) }
+        asks.forEach { trail.path += Step("Asks first", it.why) }
+        return Guarded(shown, gated, asks, otherTool)
+    }
+
+    /** The verdict on the guarded calls: the tools' bars, then the guards' asks and the agreed dates. */
+    private fun decide(guarded: Guarded, configs: Map<String, ToolConfig>, text: String, said: String, command: String?): Verdict {
+        val shown = guarded.shown
         // The content is the words as said, so they ground it too; the command grounds the rest.
-        val verdict = Verdict.of(shown, configs, if (command == null) text else "$text\n$said").let { v ->
-            when {
-                v.decision == Decision.Refuse || shown.calls.isEmpty() -> v
-                asks.isNotEmpty() -> v.copy(decision = Decision.Confirm, ungrounded = true)
-                otherTool -> v.copy(decision = Decision.Confirm, ungrounded = true)
-                // A number the rewrite brought in that the request never said ("wake me up early" as
-                // "6 am"): its calls ask first, as a value the request doesn't say does.
-                command != null && SaidNumbers.invents(command, said) -> v.copy(decision = Decision.Confirm, ungrounded = true)
-                // Timed calls whose two readings agree run, whatever Needle 3's confidence (gate E),
-                // unless the tool always asks or the request doesn't mention it.
-                gated.all { it?.agreed == true } && !v.alwaysConfirm && !v.unmentioned && !v.ungrounded -> v.copy(decision = Decision.Run)
-                else -> v
-            }
+        val v = Verdict.of(shown, configs, if (command == null) text else "$text\n$said")
+        return when {
+            v.decision == Decision.Refuse || shown.calls.isEmpty() -> v
+            guarded.asks.isNotEmpty() -> v.copy(decision = Decision.Confirm, ungrounded = true)
+            guarded.otherTool -> v.copy(decision = Decision.Confirm, ungrounded = true)
+            // A number the rewrite brought in that the request never said ("wake me up early" as
+            // "6 am"): its calls ask first, as a value the request doesn't say does.
+            command != null && SaidNumbers.invents(command, said) -> v.copy(decision = Decision.Confirm, ungrounded = true)
+            // Timed calls whose two readings agree run, whatever Needle 3's confidence (gate E),
+            // unless the tool always asks or the request doesn't mention it.
+            guarded.gated.all { it?.agreed == true } && !v.alwaysConfirm && !v.unmentioned && !v.ungrounded -> v.copy(decision = Decision.Run)
+            else -> v
         }
-        return Answer(
-            shown = shown,
-            verdict = verdict,
-            checked = needleTools.map { it.name },
-            path = path,
-            command = command.differentFrom(said),
-            fallbacks = fallbacks,
-            jev = jev,
-            asks = asks.map { it.why },
-        )
     }
 
     private fun String?.differentFrom(said: String) = this?.takeUnless { it.equals(said.trim(), ignoreCase = true) }
