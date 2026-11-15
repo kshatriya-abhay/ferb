@@ -21,10 +21,17 @@ object Keywords {
     fun regex(words: List<String>, ruledOutBy: String? = null): Regex? {
         val alternatives = words.mapNotNull(::clean).distinct().ifEmpty { return null }
             .joinToString("|") { word -> word.split(' ').joinToString("""\s+""") { part -> part.replace(SPECIAL) { """\${it.value}""" } } }
-        val words = """(?<!\w)(?:$alternatives)s?(?!\w)"""
+        val words = """(?<!$WORD)(?:$alternatives)s?(?!$WORD)"""
         // Ruled out: [ruledOutBy] tried at the request's start, so a request it matches has no match.
         return Regex(if (ruledOutBy == null) words else """^(?!$ruledOutBy)[\s\S]*?$words""", RegexOption.IGNORE_CASE)
     }
+
+    /**
+     * What continues a word, spelled out: each engine's `\w` differs (ASCII on the JVM, Unicode in
+     * Python, which still ends a word at a Devanagari vowel sign). Letters and digits in ASCII and
+     * Latin-1 to Latin Extended-B, the underscore, and Devanagari's letters and signs (not its danda).
+     */
+    private const val WORD = """[0-9A-Za-z_\u00C0-\u024F\u0900-\u0963\u0966-\u097F]"""
 
     /** ASCII punctuation, quoted with a backslash, which both Java and Python read as the character. */
     private val SPECIAL = Regex("""[!-/:-@\[-`{-~]""")

@@ -7,6 +7,19 @@ class KeywordsTest {
     private fun matches(words: List<String>, request: String) = Keywords.regex(words)!!.containsMatchIn(request)
 
     @Test
+    fun aDevanagariKeywordMatchesOnlyAsAWholeWord() {
+        // Review P2-9: "whole word" leaned on each engine's \w, which on the JVM is ASCII only, so a
+        // Hindi keyword matched inside a longer word there but not in tool-check's Python.
+        val remind = Keywords.regex(listOf("याद दिला"))!!
+        assertThat(remind.containsMatchIn("मुझे याद दिला देना")).isTrue()
+        assertThat(remind.containsMatchIn("मैं तुम्हें याद दिलाऊँगा")).isFalse()
+        // A vowel sign continues the word too ("दिल", heart, isn't in "दिला").
+        assertThat(Keywords.regex(listOf("दिल"))!!.containsMatchIn("याद दिला")).isFalse()
+        assertThat(Keywords.regex(listOf("alarm"))!!.containsMatchIn("alarms, please")).isTrue()
+        assertThat(Keywords.regex(listOf("alarm"))!!.containsMatchIn("alarmé")).isFalse()
+    }
+
+    @Test
     fun wordsMatchWholeAndWithAnS() {
         assertThat(matches(listOf("alarm"), "Show my Alarms")).isTrue()
         assertThat(matches(listOf("pic"), "send a picture")).isFalse()
