@@ -90,18 +90,34 @@ object DateGate {
         is Read.Ask -> r.why
     }
 
+    /**
+     * [said] without the [content] kept as said (a message, a note, a reminder's or an event's
+     * subject: [ContentMap]'s span), so a time inside it ("text Riya I'll call at 9") isn't read as
+     * the call's (2026-11-15). Unchanged when there is no content or it isn't found in [said].
+     */
+    fun outside(said: String, content: String?): String {
+        val words = content?.let { ContentMap.words(it) }.orEmpty()
+        if (words.isEmpty()) return said
+        val span = Regex(words.joinToString("""\s+""") { Regex.escape(it) }, RegexOption.IGNORE_CASE)
+        return span.find(said)?.let { said.removeRange(it.range).replace(Regex("""\s+"""), " ").trim() } ?: said
+    }
+
     /** The outcome for one call: its arguments with Ferb's time, and whether the two readings agreed. */
     data class Gated(val arguments: Map<String, Any?>, val agreed: Boolean, val said: Read, val rewritten: Read?)
 
     /**
-     * [arguments] of a [tool] call with Ferb's time: read from [said], and from [command] (the
-     * rewrite) when there is one. Agreeing, the value is set and the call may run; else the value
+     * [arguments] of a [tool] call with Ferb's time: read from [saidAll], and from [commandAll] (the
+     * rewrite) when there is one, outside the call's [content] when it has one ([outside]). Agreeing, the value is set and the call may run; else the value
      * read from the words as said (or the rewrite's, when the words say nothing) is shown, and the
      * call asks first ([TimeArgs.ASK]); with neither, the time is left out and the tool asks when.
      */
-    fun apply(tool: String, arguments: Map<String, Any?>, said: String, command: String?, now: ZonedDateTime): Gated {
+    fun apply(tool: String, arguments: Map<String, Any?>, saidAll: String, commandAll: String?, now: ZonedDateTime, content: String? = null): Gated {
         val param = TIMED[tool] ?: return Gated(arguments, true, Read.Ask(""), null)
         val local = now.toLocalDateTime().withSecond(0).withNano(0)
+        // With the content kept as said, times are read outside it: in the words as said, the rest of
+        // them; in the rewrite, its quotes (the content) emptied.
+        val said = outside(saidAll, content)
+        val command = if (content.isNullOrBlank() || said == saidAll) commandAll else commandAll?.let { ContentMap.masked(it) }
         val fromSaid = read(tool, said, local)
         val fromCommand = command?.let { read(tool, it, local) }
         val agreed = fromSaid !is Read.Ask && (fromCommand == null || fromCommand == fromSaid)

@@ -35,4 +35,33 @@ class DateGateTest {
         val hour = DateGate.apply(AddEvent.name, call, "dinner tomorrow at 6 pm", null, zoned)
         assertThat(AddEvent.plan("Dinner", hour.arguments, now, ZoneId.of("Asia/Kolkata"))!!.endTime.toString()).isEqualTo("19:00")
     }
+
+    @Test
+    fun aTimeInsideTheContentIsntTheCalls() {
+        // A reminder for 6 whose subject has a time of its own.
+        val said = "remind me at 6 to tell Priya the bus comes at 8:40 tomorrow"
+        val content = "tell Priya the bus comes at 8:40 tomorrow"
+        val command = "Remind me at 6 pm to \"tell Priya the bus comes at 8:40 tomorrow\""
+        val got = DateGate.apply(AddReminder.name, mapOf("text" to content), said, command, zoned, content)
+        assertThat(got.agreed).isTrue()
+        assertThat(got.arguments[TimeArgs.AT]).isEqualTo("2026-11-04T18:00")
+        // A message with a time in it: no time outside it, so none is read (the time guard stays quiet).
+        val text = DateGate.apply(AddReminder.name, emptyMap(), "text Arjun I'm leaving at 5", "Send a text to Arjun: \"I'm leaving at 5\"", zoned, "I'm leaving at 5")
+        assertThat(text.said).isInstanceOf(DateGate.Read.Ask::class.java)
+        assertThat(text.rewritten).isInstanceOf(DateGate.Read.Ask::class.java)
+        val hindi = DateGate.apply(AddReminder.name, emptyMap(), "Meena ko message karo ki dinner kal 8 baje hai", null, zoned, "dinner kal 8 baje hai")
+        assertThat(hindi.said).isInstanceOf(DateGate.Read.Ask::class.java)
+    }
+
+    @Test
+    fun withoutAContentSpanTimesAreReadAsBefore() {
+        val said = "remind me tomorrow at 7 to water the plants"
+        assertThat(DateGate.outside(said, null)).isEqualTo(said)
+        assertThat(DateGate.outside(said, "")).isEqualTo(said)
+        // Content not found in the words: unchanged.
+        assertThat(DateGate.outside(said, "feed the dog")).isEqualTo(said)
+        assertThat(DateGate.outside(said, "water the plants")).isEqualTo("remind me tomorrow at 7 to")
+        val got = DateGate.apply(AddReminder.name, emptyMap(), said, null, zoned)
+        assertThat(got.arguments[TimeArgs.AT]).isEqualTo("2026-11-05T07:00")
+    }
 }

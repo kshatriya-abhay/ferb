@@ -138,6 +138,12 @@ object DateResolver {
         "ek" to 1, "do" to 2, "teen" to 3, "chaar" to 4, "char" to 4, "paanch" to 5, "panch" to 5, "chhe" to 6, "chhah" to 6, "che" to 6,
         "saat" to 7, "aath" to 8, "nau" to 9, "das" to 10, "gyarah" to 11, "barah" to 12,
     )
+    /** Minutes said in words after an hour ("seven thirty"). */
+    private val MINUTE_WORDS = mapOf(
+        "oh five" to 5, "o five" to 5, "ten" to 10, "fifteen" to 15, "twenty" to 20, "twenty five" to 25, "twenty-five" to 25,
+        "thirty" to 30, "thirty five" to 35, "thirty-five" to 35, "forty" to 40, "forty five" to 45, "forty-five" to 45,
+        "fifty" to 50, "fifty five" to 55, "fifty-five" to 55,
+    )
     private val ENGLISH_NUMBERS = mapOf(
         "one" to 1, "two" to 2, "three" to 3, "four" to 4, "five" to 5, "six" to 6, "seven" to 7, "eight" to 8, "nine" to 9,
         "ten" to 10, "eleven" to 11, "twelve" to 12,
@@ -188,6 +194,12 @@ object DateResolver {
         t = t.replace(Regex("""\bsaa?de\s+($hours)\b""")) { "${hour(it.groupValues[1])}:30" }
             .replace(Regex("""\bsava\s+($hours)\b""")) { "${hour(it.groupValues[1])}:15" }
             .replace(Regex("""\bpaune\s+($hours)\b""")) { val h = hour(it.groupValues[1]) - 1; "${if (h == 0) 12 else h}:45" }
+        // Spelled-out minutes after an hour (2026-11-15): "seven thirty" 7:30, "ten fifteen", "eight forty five",
+        // "six oh five"; not a length ("five ten minutes").
+        val minutes = MINUTE_WORDS.keys.sortedByDescending { it.length }.joinToString("|")
+        t = t.replace(Regex("""\b(${ENGLISH_NUMBERS.keys.joinToString("|")}|\d{1,2}) ($minutes)\b(?! (?:minute|min|hour|hr|second|sec|day|week)s?\b)""")) {
+            "${hour(it.groupValues[1])}:${"%02d".format(MINUTE_WORDS.getValue(it.groupValues[2]))}"
+        }
         // "saat baje": the number words with baje.
         t = t.replace(Regex("""\b(${HINDI_NUMBERS.keys.joinToString("|")})\s+baje\b""")) { "${HINDI_NUMBERS.getValue(it.groupValues[1])} baje" }
         // Lengths: "10 minute mein", "do ghante mein", "3 din mein" as "in 10 minutes".

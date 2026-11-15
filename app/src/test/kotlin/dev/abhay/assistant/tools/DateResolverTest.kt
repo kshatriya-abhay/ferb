@@ -217,4 +217,20 @@ class DateResolverTest {
         assertThat(at("what do I have on saturday", Kind.Agenda)).isEqualTo(Resolved.Day(LocalDate.of(2026, 11, 7)))
         assertThat(at("what's on my calendar", Kind.Agenda)).isEqualTo(Resolved.Day(LocalDate.of(2026, 11, 4)))
     }
+
+    @Test
+    fun spelledOutMinutes() {
+        val four = LocalDateTime.of(2026, 11, 4, 16, 0)
+        assertThat(at("remind me at seven thirty to stretch", clock = four)).isEqualTo(on(11, 4, 19, 30))
+        assertThat(at("wake me up at six fifteen", Kind.Alarm, four)).isEqualTo(on(11, 5, 6, 15))
+        assertThat(at("remind me at ten forty five pm to lock the door", clock = four)).isEqualTo(on(11, 4, 22, 45))
+        assertThat(at("remind me tomorrow at eight oh five to call the bank")).isEqualTo(on(11, 5, 8, 5))
+        assertThat(at("call the bank at 9 thirty tomorrow")).isEqualTo(on(11, 5, 9, 30))
+        // Already read before, unchanged.
+        assertThat(at("remind me at quarter to eight tonight to feed the cat")).isEqualTo(on(11, 4, 19, 45))
+        assertThat(at("remind me at half past six tomorrow evening")).isEqualTo(on(11, 5, 18, 30))
+        assertThat(at("kal saade saat baje yaad dilana")).isEqualTo(on(11, 5, 7, 30))
+        // A length isn't a time.
+        assertThat(at("remind me in twenty minutes to check the oven")).isEqualTo(on(11, 4, 10, 20))
+    }
 }

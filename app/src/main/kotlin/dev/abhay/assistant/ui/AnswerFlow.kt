@@ -238,21 +238,24 @@ class AnswerFlow(
         val needled = if (reply.calls.isEmpty() && heldBack != null) listOf(heldBack) else reply.calls
         // The words to keep, as said (a rewritten request only).
         val asks = mutableListOf<Guard>()
-        val calls = if (command == null) needled else needled.map { call ->
-            val field = ContentMap.CONTENT[call.name] ?: return@map call
+        // Each call's content as said, where it mapped: times are read outside it ([DateGate.outside]).
+        val kept = mutableListOf<String?>()
+        val calls = if (command == null) needled.also { it.forEach { kept += null } } else needled.map { call ->
+            val field = ContentMap.CONTENT[call.name] ?: return@map call.also { kept += null }
             val c = content.contentOf(call.arguments[field]?.toString(), ContentMap.quoted(command),
                 call.arguments.filterKeys { it != field && !it.startsWith("_") }, said)
             if (!c.mapped && Guard.NotSaid !in asks) asks += Guard.NotSaid
+            kept += c.text.takeIf { c.mapped }
             call.copy(arguments = call.arguments + (field to c.text))
         }
         if (command != null && calls.isNotEmpty()) {
             val named = ToolRouter.route(said, enabled, configs).map { it.name }
             if (named.isNotEmpty() && calls.first().name !in named) asks += Guard.OtherTool
-            val time = DateGate.apply(TIME_GUARD_TOOL, emptyMap(), said, command, now())
+            val time = DateGate.apply(TIME_GUARD_TOOL, emptyMap(), said, command, now(), kept.firstOrNull { it != null })
             if (time.said !is DateGate.Read.Ask && time.rewritten is DateGate.Read.Ask) asks += Guard.TimeDropped
         }
         // Ferb's own time: the words as said and the rewrite read alike ([DateGate]); Needle 3's never decides.
-        val gated = calls.map { call -> if (DateGate.timed(call.name)) DateGate.apply(call.name, call.arguments, said, command, now()) else null }
+        val gated = calls.mapIndexed { i, call -> if (DateGate.timed(call.name)) DateGate.apply(call.name, call.arguments, said, command, now(), kept[i]) else null }
         val shown = reply.copy(
             calls = calls.mapIndexed { i, call -> call.copy(arguments = gated[i]?.arguments ?: call.arguments) },
             suppressed = reply.suppressed.filter { it !== heldBack },
