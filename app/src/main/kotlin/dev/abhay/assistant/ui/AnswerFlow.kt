@@ -16,6 +16,7 @@ import dev.abhay.assistant.pipeline.ToolStep
 import dev.abhay.assistant.tools.ContentMap
 import dev.abhay.assistant.tools.DateGate
 import dev.abhay.assistant.tools.DateResolver
+import dev.abhay.assistant.tools.NumberWords
 import dev.abhay.assistant.tools.SaidNumbers
 import dev.abhay.assistant.tools.TimeArgs
 import dev.abhay.assistant.tools.Tool
@@ -77,13 +78,8 @@ data class Answer(
  * they are; the tool selection to none), and a failed Gemini Nano rewrite to the words as they are;
  * [Answer.fallbacks] says so. Every step is recorded as it runs ([Step]).
  */
-/** Hindi number words, as numbers (dedh is one and a half: 1 and 30). */
-private val HINDI_NUMBERS = mapOf(
-    "ek" to listOf(1), "do" to listOf(2), "teen" to listOf(3), "chaar" to listOf(4), "char" to listOf(4), "paanch" to listOf(5),
-    "chhe" to listOf(6), "chhah" to listOf(6), "saat" to listOf(7), "aath" to listOf(8), "nau" to listOf(9), "das" to listOf(10),
-    "gyarah" to listOf(11), "barah" to listOf(12), "pandrah" to listOf(15), "bees" to listOf(20), "tees" to listOf(30),
-    "chalis" to listOf(40), "pachaas" to listOf(50), "dedh" to listOf(1, 30), "dhai" to listOf(2, 30), "aadha" to listOf(30), "aadhe" to listOf(30),
-)
+/** Hindi number words, as the numbers they say (dedh is one and a half: 1 and 30). */
+private val HINDI_NUMBERS = NumberWords.HINDI.mapValues { listOf(it.value) } + NumberWords.HINDI_HALVES
 
 class AnswerFlow(
     private val link: LinkCalls,

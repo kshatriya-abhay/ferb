@@ -53,14 +53,10 @@ object DateGate {
     /** A timer's length in [text] (Hindi too: das minute, dedh ghanta), in seconds. */
     fun length(text: String): Int? {
         val t = DateResolver.normalise(text)
-            .replace(Regex("""\b(${HINDI.keys.joinToString("|")})\s+(minute|minat|ghante|ghanta|second|sekand)\b""")) { "${HINDI.getValue(it.groupValues[1])} ${UNITS.getValue(it.groupValues[2])}" }
+            .replace(Regex("""\b(${NumberWords.HINDI.keys.joinToString("|")})\s+(minute|minat|ghante|ghanta|second|sekand)\b""")) { "${NumberWords.HINDI.getValue(it.groupValues[1])} ${UNITS.getValue(it.groupValues[2])}" }
         return LENGTH.find(t)?.value?.let { Durations.parse(it) }?.takeIf { it > 0 }
     }
 
-    private val HINDI = mapOf(
-        "ek" to 1, "do" to 2, "teen" to 3, "chaar" to 4, "char" to 4, "paanch" to 5, "panch" to 5, "chhe" to 6, "saat" to 7, "aath" to 8,
-        "nau" to 9, "das" to 10, "pandrah" to 15, "bees" to 20, "tees" to 30, "chalis" to 40, "paintalis" to 45, "pachaas" to 50,
-    )
     private val UNITS = mapOf("minute" to "minutes", "minat" to "minutes", "ghante" to "hours", "ghanta" to "hours", "second" to "seconds", "sekand" to "seconds")
 
     /**

@@ -183,11 +183,7 @@ object Durations {
  * "I hate alarms" became an alarm at 6:45 at 0.63, more than most right alarms.
  */
 object SaidNumbers {
-    val WORDS = mapOf(
-        "a" to 1, "an" to 1, "one" to 1, "two" to 2, "three" to 3, "four" to 4, "five" to 5, "six" to 6, "seven" to 7,
-        "eight" to 8, "nine" to 9, "ten" to 10, "eleven" to 11, "twelve" to 12, "fifteen" to 15, "twenty" to 20,
-        "thirty" to 30, "forty" to 40, "fifty" to 50, "sixty" to 60, "ninety" to 90,
-    )
+    val WORDS = mapOf("a" to 1, "an" to 1) + NumberWords.ENGLISH
     private val CLOCK_WORDS = mapOf("half" to 30, "quarter" to 15, "noon" to 12, "midnight" to 12)
     val WORD = Regex("""\b(${WORDS.keys.joinToString("|")})\b""")
 

@@ -134,20 +134,14 @@ object DateResolver {
         // "har weekday", "har mahine", "har din": every.
         Regex("""\bmahine\b""") to "month", Regex("""\bhar (?=(weekdays?|week|month|din|day)\b)""") to "every ", Regex("""\bevery din\b""") to "every day",
     )
-    private val HINDI_NUMBERS = mapOf(
-        "ek" to 1, "do" to 2, "teen" to 3, "chaar" to 4, "char" to 4, "paanch" to 5, "panch" to 5, "chhe" to 6, "chhah" to 6, "che" to 6,
-        "saat" to 7, "aath" to 8, "nau" to 9, "das" to 10, "gyarah" to 11, "barah" to 12,
-    )
+    private val HINDI_NUMBERS = NumberWords.HINDI_HOURS
     /** Minutes said in words after an hour ("seven thirty"). */
     private val MINUTE_WORDS = mapOf(
         "oh five" to 5, "o five" to 5, "ten" to 10, "fifteen" to 15, "twenty" to 20, "twenty five" to 25, "twenty-five" to 25,
         "thirty" to 30, "thirty five" to 35, "thirty-five" to 35, "forty" to 40, "forty five" to 45, "forty-five" to 45,
         "fifty" to 50, "fifty five" to 55, "fifty-five" to 55,
     )
-    private val ENGLISH_NUMBERS = mapOf(
-        "one" to 1, "two" to 2, "three" to 3, "four" to 4, "five" to 5, "six" to 6, "seven" to 7, "eight" to 8, "nine" to 9,
-        "ten" to 10, "eleven" to 11, "twelve" to 12,
-    )
+    private val ENGLISH_NUMBERS = NumberWords.ENGLISH_HOURS
 
     /**
      * Hindi in Devanagari as the same words in Latin letters (A1, 2026-10-24, before the blind set
