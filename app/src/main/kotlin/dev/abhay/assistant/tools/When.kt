@@ -110,7 +110,7 @@ object When {
     private fun dated(day: String, month: String, year: String, today: LocalDate, ahead: Boolean): LocalDate? =
         monthDay(day.toInt(), MONTHS.indexOf(month.take(3)) + 1, year.ifEmpty { null }?.toInt(), today, ahead)
 
-    // --- the rules, shared with [Resolve] (the computer's time structure) ---
+    // --- the rules ---
 
     /** [weekday] from [today]: today itself if it's that day ("Friday" on a Friday), a week on for "next" said on that day, else the coming one. */
     fun weekday(today: LocalDate, weekday: DayOfWeek, next: Boolean): LocalDate {

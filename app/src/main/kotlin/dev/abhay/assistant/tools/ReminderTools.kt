@@ -60,7 +60,7 @@ object AddReminder : Tool(
         val now = env.now.toLocalDateTime()
         // The request's own words first, then Needle 3's "time".
         val resolved = arguments[TimeArgs.RESOLVED] == true
-        // Resolved from the computer's time structure ([TimeArgs]): that, before the words.
+        // Resolved by Ferb ([DateGate], [TimeArgs]): that, before the words.
         val at = arguments.text(TimeArgs.AT)?.let { java.time.LocalDateTime.parse(it) }
             ?: arguments.text(SAID)?.takeIf { !resolved }?.let { ReminderTime.read(it, now) }
             ?: arguments.text("time")?.takeIf { !resolved }?.let { ReminderTime.read(it, now) }

@@ -181,7 +181,7 @@ object AddEvent : Tool(
      * time is all day; an hour long unless an end or a length is said. Null if nothing says when.
      */
     fun plan(title: String, arguments: Map<String, Any?>, now: LocalDateTime, zone: ZoneId): Planned? {
-        // Resolved from the computer's time structure ([TimeArgs]): that, before the words.
+        // Resolved by Ferb ([DateGate], [TimeArgs]): that, before the words.
         val resolved = arguments.text(TimeArgs.AT)?.let { LocalDateTime.parse(it) }
             ?.let { When.Said(it.toLocalDate(), it.toLocalTime(), length = (arguments[TimeArgs.LENGTH] as? Number)?.toInt()) }
             ?: arguments.text(TimeArgs.DAY)?.let { When.Said(LocalDate.parse(it), null) }
