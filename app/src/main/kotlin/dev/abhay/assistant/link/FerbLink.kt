@@ -228,11 +228,7 @@ class FerbLink(private val context: Context) : LinkCalls {
     override suspend fun decide(request: String, toolsJson: String, timeoutMs: Int): JevReply = withContext(Dispatchers.IO) {
         val result = try {
             lowLatency { timed(LinkContract.METHOD_DECIDE) {
-                provider(LinkContract.METHOD_DECIDE, null, bundleOf(
-                    LinkContract.EXTRA_REQUEST to request,
-                    LinkContract.EXTRA_TOOLS to toolsJson,
-                    LinkContract.EXTRA_TIMEOUT_MS to timeoutMs,
-                ))
+                provider(LinkContract.METHOD_DECIDE, null, decideExtras(request, toolsJson, timeoutMs).bundle())
             } }
         } catch (e: IllegalArgumentException) {
             return@withContext JevReply.failed("update Ferb Link", "This Ferb Link is too old for Jev")
@@ -256,12 +252,7 @@ class FerbLink(private val context: Context) : LinkCalls {
     override suspend fun rewrite(request: String, instructions: String, maxTokens: Int, timeoutMs: Int, jsonSchema: String?): RewriteReply = withContext(Dispatchers.IO) {
         val result = try {
             lowLatency { timed(LinkContract.METHOD_REWRITE) {
-                provider(LinkContract.METHOD_REWRITE, null, bundleOf(
-                    LinkContract.EXTRA_REQUEST to request,
-                    LinkContract.EXTRA_INSTRUCTIONS to instructions,
-                    LinkContract.EXTRA_MAX_TOKENS to maxTokens,
-                    LinkContract.EXTRA_TIMEOUT_MS to timeoutMs,
-                ).apply { jsonSchema?.let { putString(LinkContract.EXTRA_JSON_SCHEMA, it) } })
+                provider(LinkContract.METHOD_REWRITE, null, rewriteExtras(request, instructions, maxTokens, timeoutMs, jsonSchema).bundle())
             } }
         } catch (e: IllegalArgumentException) {
             return@withContext RewriteReply.failed("update Ferb Link", "This Ferb Link is too old to rewrite requests")
@@ -315,11 +306,7 @@ class FerbLink(private val context: Context) : LinkCalls {
     suspend fun transcribe(audio: ByteArray, mime: String, waking: Boolean = false): Transcript = withContext(Dispatchers.IO) {
         val result = try {
             lowLatency { timed(LinkContract.METHOD_TRANSCRIBE) {
-                provider(LinkContract.METHOD_TRANSCRIBE, null, bundleOf(
-                    LinkContract.EXTRA_AUDIO to audio,
-                    LinkContract.EXTRA_AUDIO_MIME to mime,
-                    LinkContract.EXTRA_TIMEOUT_MS to timeout(TRANSCRIBE_TIMEOUT_MS, waking),
-                ))
+                provider(LinkContract.METHOD_TRANSCRIBE, null, transcribeExtras(audio, mime, timeout(TRANSCRIBE_TIMEOUT_MS, waking)).bundle())
             } }
         } catch (e: IllegalArgumentException) {
             return@withContext Transcript.failed("Update Ferb Link to use your voice")
@@ -349,6 +336,26 @@ class FerbLink(private val context: Context) : LinkCalls {
     fun openIntent(): Intent? = context.packageManager.getLaunchIntentForPackage(LinkContract.PACKAGE)
 
     companion object {
+        /**
+         * What Ferb sends with each call, as plain values, so the contract test checks the very
+         * extras the calls carry ([LinkContract]): decide, rewrite (the schema only when given) and transcribe.
+         */
+        internal fun decideExtras(request: String, toolsJson: String, timeoutMs: Int): Map<String, Any> = mapOf(
+            LinkContract.EXTRA_REQUEST to request, LinkContract.EXTRA_TOOLS to toolsJson, LinkContract.EXTRA_TIMEOUT_MS to timeoutMs,
+        )
+
+        internal fun rewriteExtras(request: String, instructions: String, maxTokens: Int, timeoutMs: Int, jsonSchema: String?): Map<String, Any> = buildMap {
+            put(LinkContract.EXTRA_REQUEST, request)
+            put(LinkContract.EXTRA_INSTRUCTIONS, instructions)
+            put(LinkContract.EXTRA_MAX_TOKENS, maxTokens)
+            put(LinkContract.EXTRA_TIMEOUT_MS, timeoutMs)
+            jsonSchema?.let { put(LinkContract.EXTRA_JSON_SCHEMA, it) }
+        }
+
+        internal fun transcribeExtras(audio: ByteArray, mime: String, timeoutMs: Int): Map<String, Any> = mapOf(
+            LinkContract.EXTRA_AUDIO to audio, LinkContract.EXTRA_AUDIO_MIME to mime, LinkContract.EXTRA_TIMEOUT_MS to timeoutMs,
+        )
+
         /** A `status` result. */
         fun statusOf(result: LinkResult): LinkStatus {
             val version = result.int(LinkContract.RESULT_VERSION)
@@ -470,6 +477,8 @@ fun interface LinkResult {
 
 @Suppress("DEPRECATION")
 private fun Bundle.values() = LinkResult { get(it) }
+
+private fun Map<String, Any>.bundle(): Bundle = bundleOf(*toList().toTypedArray())
 
 /** What Ferb Link's `check` found: whether the computer answers, its model, or why not. */
 data class Reachability(val reachable: Boolean, val model: String?, val error: String?, val audio: Boolean = false, val errorDetail: String? = null)

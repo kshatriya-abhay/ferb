@@ -1,7 +1,9 @@
 package dev.abhay.assistant.link
 
 import com.google.common.truth.Truth.assertThat
+import com.google.common.truth.Truth.assertWithMessage
 import dev.abhay.assistant.ui.VoiceOutcome
+import dev.abhay.assistant.voice.ContentRewrite
 import java.io.File
 import org.json.JSONObject
 import org.junit.Test
@@ -54,16 +56,34 @@ class LinkContractTest {
 
     @Test
     fun ferbSendsWhatFerbLinkTakes() {
-        // Every key Ferb puts in a call's extras is one Ferb Link's examples take (some take more,
-        // optional ones Ferb doesn't send, such as facts).
+        // The extras Ferb's calls really carry (FerbLink's builders), against Ferb Link's examples:
+        // every key Ferb sends is one an example takes, as the same kind of value, and every key
+        // all of a method's examples send, Ferb sends too.
         val sent = mapOf(
-            "rewrite" to setOf(LinkContract.EXTRA_REQUEST, LinkContract.EXTRA_INSTRUCTIONS, LinkContract.EXTRA_MAX_TOKENS, LinkContract.EXTRA_TIMEOUT_MS, LinkContract.EXTRA_JSON_SCHEMA),
-            "transcribe" to setOf(LinkContract.EXTRA_AUDIO, LinkContract.EXTRA_AUDIO_MIME, LinkContract.EXTRA_TIMEOUT_MS),
-            "decide" to setOf(LinkContract.EXTRA_REQUEST, LinkContract.EXTRA_TOOLS, LinkContract.EXTRA_TIMEOUT_MS),
+            "decide" to FerbLink.decideExtras("wake me up at 7", "[]", FerbLink.JEV_TIMEOUT_MS),
+            "rewrite" to FerbLink.rewriteExtras("wake me up at 7", ContentRewrite.PROMPT, ContentRewrite.MAX_TOKENS, FerbLink.REWRITE_TIMEOUT_MS, ContentRewrite.SCHEMA),
+            "rewrite (no schema)" to FerbLink.rewriteExtras("wake me up at 7", ContentRewrite.PROMPT_A, ContentRewrite.MAX_TOKENS_A, FerbLink.REWRITE_TIMEOUT_MS, null),
+            "transcribe" to FerbLink.transcribeExtras(byteArrayOf(1, 2, 3), "audio/mp4", FerbLink.TRANSCRIBE_TIMEOUT_MS),
         )
-        sent.forEach { (method, keys) ->
-            val taken = of(method).flatMap { it.extras.keys().asSequence().toList() }.toSet()
-            assertThat(taken).containsAtLeastElementsIn(keys)
+        fun kind(v: Any?) = when (v) {
+            is String -> "text"
+            is Int, is Long -> "number"
+            is ByteArray -> "bytes"
+            // A fixture writes bytes as {"bytes": …}.
+            is JSONObject -> if (v.has("bytes")) "bytes" else "object"
+            else -> v?.javaClass?.simpleName ?: "null"
+        }
+        sent.forEach { (label, extras) ->
+            val method = label.substringBefore(" (")
+            val examples = of(method).map { it.extras }
+            assertThat(examples).isNotEmpty()
+            val taken = examples.flatMap { e -> e.keys().asSequence().map { it to kind(e.get(it)) }.toList() }.toMap()
+            extras.forEach { (key, value) ->
+                assertWithMessage("$label: $key").that(taken).containsKey(key)
+                assertWithMessage("$label: $key's kind").that(kind(value)).isEqualTo(taken[key])
+            }
+            val always = examples.map { it.keys().asSequence().toSet() }.reduce { x, y -> x intersect y }
+            assertWithMessage("$label: keys every example sends").that(extras.keys).containsAtLeastElementsIn(always)
         }
     }
 
