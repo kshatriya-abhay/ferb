@@ -61,6 +61,8 @@ data class Answer(
     val jev: JevReply? = null,
     /** Why Ferb asks before running the calls, from the content fix's guards ([AnswerFlow.Guard]); empty when none does. */
     val asks: List<String> = emptyList(),
+    /** For a refusal, which step refused and why, in no words of the user's (for the log); null otherwise. */
+    val refused: String? = null,
 )
 
 /**
@@ -120,19 +122,24 @@ class AnswerFlow(
         val rewritten = rewrite(said, pipeline.rewrite, geminiUsable, status, trail)
         if (rewritten != null && rewritten.command == null) {
             trail.path += Step("Nothing for the phone to do")
-            return Answer(NO_TOOL, Verdict.of(NO_TOOL, configs, said), emptyList(), trail.path, nothingAsked = true, fallbacks = trail.fallbacks)
+            return Answer(NO_TOOL, Verdict.of(NO_TOOL, configs, said), emptyList(), trail.path, nothingAsked = true, fallbacks = trail.fallbacks,
+                refused = "rewrite: nothing for the phone to do")
         }
         val command = rewritten?.command
         // Needle 3 reads the command with its quoted words in Latin letters; the router never reads them.
         val text = command?.let(content::forNeedle) ?: said
         val routedBy = command?.let { ContentMap.masked(text) } ?: text
         // Routed once per text: the text Needle 3 gets, and the words as said when they differ.
-        val routed = route(routedBy, enabled, configs)
-        val saidRouted = if (routedBy == said) routed else route(said, enabled, configs)
+        val masked = route(routedBy, enabled, configs)
+        val saidRouted = if (routedBy == said) masked else route(said, enabled, configs)
+        // A quote can hold the only word that names the tool ("Add \"Meeting with …\" Tuesday 3 to 4 pm",
+        // 2026-11-15): when the command names none, the words as said route it.
+        val routed = masked.ifEmpty { saidRouted }
 
         val selection = select(text, routed, enabled, pipeline.tools, status, trail)
         if (selection is Selection.NoTool) {
-            return Answer(NO_TOOL, Verdict.of(NO_TOOL, configs, text), emptyList(), trail.path, command = command.differentFrom(said), fallbacks = trail.fallbacks, jev = selection.jev)
+            return Answer(NO_TOOL, Verdict.of(NO_TOOL, configs, text), emptyList(), trail.path, command = command.differentFrom(said), fallbacks = trail.fallbacks, jev = selection.jev,
+                refused = "Jev: no tool fits")
         }
         selection as Selection.Tools
 
@@ -141,16 +148,26 @@ class AnswerFlow(
         val reply = askNeedle(text, enabled, selection.tools)
         if (enabled.isNotEmpty()) trail.path += needleStep(reply)
         val guarded = guard(reply, said, command, routed, saidRouted, trail)
+        val verdict = decide(guarded, configs, text, said, command)
         return Answer(
             shown = guarded.shown,
-            verdict = decide(guarded, configs, text, said, command),
+            verdict = verdict,
             checked = selection.tools.map { it.name },
             path = trail.path,
             command = command.differentFrom(said),
             fallbacks = trail.fallbacks,
             jev = selection.jev,
             asks = guarded.asks.map { it.why },
+            refused = if (verdict.decision == Decision.Refuse) refusal(reply, selection.tools, enabled) else null,
         )
+    }
+
+    /** Why Needle 3's step gave nothing to run: tool names only, no words of the request. */
+    private fun refusal(reply: NeedleReply, given: List<Tool>, enabled: List<Tool>): String = when {
+        enabled.isEmpty() -> "no tool is on"
+        reply.error != null -> "Needle 3: engine error"
+        else -> "Needle 3: no call (given ${given.ifEmpty { enabled }.joinToString { it.name }.let { if (given.isEmpty()) "every tool: $it" else it }}; " +
+            "held back ${reply.suppressed.joinToString { it.name }.ifEmpty { "nothing" }})"
     }
 
     /** What a request's steps record as they run: its path, and the fallbacks it took. */

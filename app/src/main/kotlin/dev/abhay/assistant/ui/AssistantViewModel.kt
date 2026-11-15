@@ -267,6 +267,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             if (heardBy == null) assistant.pipeline.linkChanged(state = assistant.linkState(link))
             val answer = flow.answer(said, enabled, configs, pipeline.value, heardBy,
                 geminiUsable = assistant.nanoEars.setup.value.rewrite == Part.Ready, linkStatus = link)
+            // Which step refused: tool names only, never the request's words.
+            answer.refused?.let { Log.d(TAG, "refused: $it") }
             val shown = answer.shown
             val verdict = answer.verdict
             val text = answer.command ?: said
