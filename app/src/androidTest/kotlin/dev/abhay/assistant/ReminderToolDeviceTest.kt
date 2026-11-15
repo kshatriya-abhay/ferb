@@ -46,7 +46,7 @@ class ReminderToolDeviceTest {
         val request = "Remind me in 1 minute about $TITLE every day"
         val env = PrepareEnv(notes = app.notes, reminders = app.reminders, remindersChanged = app::syncReminders,
             granted = { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED })
-        val ready = AddReminder.prepare(AddReminder.fromRequest(mapOf("text" to TITLE, "time" to "in 1 minute", "repeat" to "daily"), request), env)
+        val ready = AddReminder.prepare(mapOf("text" to TITLE, "time" to "in 1 minute", "repeat" to "daily"), env.copy(request = request))
         assertThat(ready).isInstanceOf(Prepared.Ready::class.java)
         val outcome = (ready as Prepared.Ready).run(context)
         log("tool: ${ready.summary} → $outcome")

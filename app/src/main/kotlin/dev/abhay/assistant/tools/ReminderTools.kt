@@ -10,7 +10,6 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /** The request itself, added to the arguments: the time is read from it ([ReminderTime.read]), as Needle 3 doesn't know the date. */
-private const val SAID = "_request"
 
 object AddReminder : Tool(
     name = "add_reminder",
@@ -38,8 +37,6 @@ object AddReminder : Tool(
            "required": ["text", "time"]}}
     """.trimIndent()
 
-    override fun fromRequest(arguments: Map<String, Any?>, request: String) = arguments + (SAID to request)
-
     /** What to be reminded of must be the request's words, and the time's numbers too. */
     override fun grounded(arguments: Map<String, Any?>, request: String, time: FerbTime?) =
         Tools.mostlySaid(arguments.text("text"), request) &&
@@ -64,12 +61,12 @@ object AddReminder : Tool(
         val resolved = ferb != null
         // Resolved by Ferb ([DateGate], the call's time): that, before the words.
         val at = ferb?.at
-            ?: arguments.text(SAID)?.takeIf { !resolved }?.let { ReminderTime.read(it, now) }
+            ?: env.request?.takeIf { !resolved }?.let { ReminderTime.read(it, now) }
             ?: arguments.text("time")?.takeIf { !resolved }?.let { ReminderTime.read(it, now) }
             ?: return Prepared.Invalid(ferb?.ask?.replaceFirstChar { it.uppercase() } ?: "When? Say a time, such as in 20 minutes or tomorrow at 9")
         if (!at.isAfter(now)) return Prepared.Invalid("That's in the past")
         // The request's words decide the repeat; Needle 3's only counts when the request says one too.
-        val said = arguments.text(SAID)
+        val said = env.request
         val repeat = if (resolved) Repeat.of(ferb?.repeat)
             else said?.let(Repeat::said) ?: Repeat.of(arguments.text("repeat")).takeIf { said == null }
         // Without notifications a reminder can't remind: ask first, then the request runs again.

@@ -32,7 +32,10 @@ class CalendarToolsTest {
     private val book = CalendarBook({ calendars }, { from, to -> events.filter { it.begin < to && it.end > from } }, india)
 
     private fun env(calendar: CalendarBook = book, options: Map<String, String> = emptyMap()) = PrepareEnv(calendar = calendar, now = now, options = options)
-    private fun args(request: String, vararg pairs: Pair<String, Any?>) = AddEvent.fromRequest(mapOf(*pairs), request)
+    /** A call's arguments with the request they came from, as the view model gives them ([PrepareEnv.request]). */
+    private class Asked(val arguments: Map<String, Any?>, val request: String)
+    private fun Tool.prepare(asked: Asked, env: PrepareEnv) = prepare(asked.arguments, env.copy(request = asked.request))
+    private fun args(request: String, vararg pairs: Pair<String, Any?>) = Asked(mapOf(*pairs), request)
 
     @Test
     fun allDayEventsAreOnTheirUtcDatesNotTheHoursTheyOverlap() {
@@ -55,12 +58,12 @@ class CalendarToolsTest {
 
     @Test
     fun theAgendaShowsTheRequestsDay() {
-        val tomorrow = ShowAgenda.dayFor(ShowAgenda.fromRequest(mapOf("day" to "today"), "what's on tomorrow"), today)
+        val tomorrow = ShowAgenda.dayFor(mapOf("day" to "today"), today, request = "what's on tomorrow")
         assertThat(tomorrow).isEqualTo(LocalDate.of(2026, 10, 9))
         // The request names no day: Needle 3's, else today.
-        assertThat(ShowAgenda.dayFor(ShowAgenda.fromRequest(mapOf("day" to "Friday"), "am I free then"), today)).isEqualTo(LocalDate.of(2026, 10, 9))
-        assertThat(ShowAgenda.dayFor(ShowAgenda.fromRequest(mapOf("day" to "soon"), "what's on my calendar"), today)).isEqualTo(today)
-        assertThat((ShowAgenda.prepare(ShowAgenda.fromRequest(emptyMap(), "what's on tomorrow"), env()) as Prepared.Ready).summary).isEqualTo("Show Fri 9 Oct")
+        assertThat(ShowAgenda.dayFor(mapOf("day" to "Friday"), today, request = "am I free then")).isEqualTo(LocalDate.of(2026, 10, 9))
+        assertThat(ShowAgenda.dayFor(mapOf("day" to "soon"), today, request = "what's on my calendar")).isEqualTo(today)
+        assertThat((ShowAgenda.prepare(emptyMap(), env().copy(request = "what's on tomorrow")) as Prepared.Ready).summary).isEqualTo("Show Fri 9 Oct")
     }
 
     @Test

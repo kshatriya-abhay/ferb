@@ -55,7 +55,7 @@ class PermissionsDeviceTest {
 
     @Test
     fun notifications() {
-        val r = AddReminder.prepare(AddReminder.fromRequest(mapOf("text" to "stretch", "time" to "in 5 minutes"), "remind me in 5 minutes to stretch"), env)
+        val r = AddReminder.prepare(mapOf("text" to "stretch", "time" to "in 5 minutes"), env.copy(request = "remind me in 5 minutes to stretch"))
         if (granted(Manifest.permission.POST_NOTIFICATIONS)) assertThat(r).isInstanceOf(Prepared.Ready::class.java)
         else assertThat((r as Prepared.Invalid).needs).containsExactly(Manifest.permission.POST_NOTIFICATIONS)
     }

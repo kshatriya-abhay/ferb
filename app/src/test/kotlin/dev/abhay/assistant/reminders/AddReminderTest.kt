@@ -8,6 +8,7 @@ import dev.abhay.assistant.tools.AddReminder
 import dev.abhay.assistant.tools.FollowUpEnv
 import dev.abhay.assistant.tools.Outcome
 import dev.abhay.assistant.tools.PrepareEnv
+import dev.abhay.assistant.tools.Tool
 import dev.abhay.assistant.tools.Prepared
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -26,7 +27,10 @@ class AddReminderTest {
         PrepareEnv(now = now.atZone(ZoneId.of("Asia/Kolkata")), notes = notes, reminders = ReminderBook(store) { now },
             remindersChanged = changed, granted = { granted })
 
-    private fun call(request: String, vararg args: Pair<String, String>) = AddReminder.fromRequest(mapOf(*args), request)
+    /** A call's arguments with the request they came from, as the view model gives them ([PrepareEnv.request]). */
+    private class Asked(val arguments: Map<String, Any?>, val request: String)
+    private fun Tool.prepare(asked: Asked, env: PrepareEnv) = prepare(asked.arguments, env.copy(request = asked.request))
+    private fun call(request: String, vararg args: Pair<String, String>) = Asked(mapOf(*args), request)
 
     @Test
     fun aReminderFromTheRequestsOwnWords() {

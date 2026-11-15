@@ -16,12 +16,6 @@ import java.util.Locale
 /** What the calendar tools say without the permission. */
 private const val NO_CALENDAR = "Ferb needs your calendar to show your day"
 
-/**
- * The request itself, added to the arguments by [Tool.fromRequest]: the calendar tools read the day
- * and time from it ([When]), as Needle 3 doesn't know today's date.
- */
-private const val REQUEST = "_request"
-
 /** "Fri 9 Oct", with the year when it isn't [today]'s. */
 internal fun dayName(day: LocalDate, today: LocalDate): String =
     day.format(DateTimeFormatter.ofPattern(if (day.year == today.year) "EEE d MMM" else "EEE d MMM yyyy", Locale.UK))
@@ -52,8 +46,6 @@ object ShowAgenda : Tool(
            "required": ["day"]}}
     """.trimIndent()
 
-    override fun fromRequest(arguments: Map<String, Any?>, request: String) = arguments + (REQUEST to request)
-
     /**
      * The day Needle 3 gives must be one: "what's the agenda of the G20 summit" came back as the
      * day "G20 summit", and "what is a calendar year" as "year" (0.52 and 0.70 on tool-check).
@@ -62,13 +54,13 @@ object ShowAgenda : Tool(
         time != null || arguments.text("day")?.let { When.day(it, LocalDate.now()) != null } ?: true
 
     /** The day Ferb resolved ([DateGate]), else the day [request] names, else the one Needle 3 gave, else today. */
-    fun dayFor(arguments: Map<String, Any?>, today: LocalDate, time: FerbTime? = null): LocalDate =
+    fun dayFor(arguments: Map<String, Any?>, today: LocalDate, time: FerbTime? = null, request: String? = null): LocalDate =
         time?.day
-            ?: arguments.text(REQUEST)?.let { When.day(it, today) } ?: arguments.text("day")?.let { When.day(it, today) } ?: today
+            ?: request?.let { When.day(it, today) } ?: arguments.text("day")?.let { When.day(it, today) } ?: today
 
     override fun prepare(arguments: Map<String, Any?>, env: PrepareEnv): Prepared {
         val today = env.now.toLocalDate()
-        val day = dayFor(arguments, today, env.time)
+        val day = dayFor(arguments, today, env.time, env.request)
         val zone = env.now.zone
         // Without the calendar: the calendar app at that day.
         if (env.calendar.calendars() == null) {
@@ -157,8 +149,6 @@ object AddEvent : Tool(
            "required": ["title", "when"]}}
     """.trimIndent()
 
-    override fun fromRequest(arguments: Map<String, Any?>, request: String) = arguments + (REQUEST to request)
-
     /**
      * The title must be mostly the request's words, and when the request's own words say nothing
      * about when (so Needle 3's "when" is used), its numbers must be ones the request says.
@@ -181,12 +171,12 @@ object AddEvent : Tool(
      * without a day is the next time it comes (today, or tomorrow if it's passed); a day without a
      * time is all day; an hour long unless an end or a length is said. Null if nothing says when.
      */
-    fun plan(title: String, arguments: Map<String, Any?>, now: LocalDateTime, zone: ZoneId, time: FerbTime? = null): Planned? {
+    fun plan(title: String, arguments: Map<String, Any?>, now: LocalDateTime, zone: ZoneId, time: FerbTime? = null, request: String? = null): Planned? {
         // Resolved by Ferb ([DateGate], the call's time): that, before the words.
         val ferb = time
         val resolved = ferb?.at?.let { When.Said(it.toLocalDate(), it.toLocalTime(), length = ferb.lengthMinutes) }
             ?: ferb?.day?.let { When.Said(it, null) }
-        val fromRequest = arguments.text(REQUEST)?.takeIf { ferb == null }?.let { When.read(it, now) }
+        val fromRequest = request?.takeIf { ferb == null }?.let { When.read(it, now) }
         val said = resolved ?: fromRequest?.takeUnless { it.isEmpty } ?: arguments.text("when")?.takeIf { ferb == null }
             ?.let { When.read(it, now) }?.takeUnless { it.isEmpty } ?: return null
         val time = if (said.allDay) null else said.time
@@ -212,7 +202,7 @@ object AddEvent : Tool(
             ?: return Prepared.Invalid("No title for the event")
         val now = env.now.toLocalDateTime()
         val zone = env.now.zone
-        val planned = plan(title, arguments, now, zone, env.time) ?: return Prepared.Invalid("When? Say a day or a time, such as tomorrow at 5 pm")
+        val planned = plan(title, arguments, now, zone, env.time, env.request) ?: return Prepared.Invalid("When? Say a day or a time, such as tomorrow at 5 pm")
         val today = now.toLocalDate()
         val whenText = describe(planned, today)
         val summary = "Add \u201c$title\u201d \u00b7 $whenText"

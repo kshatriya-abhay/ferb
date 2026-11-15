@@ -164,7 +164,7 @@ abstract class Tool(
  * What [Tool.prepare] can look things up in: the phone's apps, contacts and calendar (each read
  * on lookup), the time [now], and the tool's own [options] ([ToolConfig.options]).
  */
-class PrepareEnv(
+data class PrepareEnv(
     val apps: InstalledApps = InstalledApps { emptyList() },
     val contacts: ContactBook = ContactBook.NONE,
     val calendar: CalendarBook = CalendarBook.NONE,
@@ -183,6 +183,8 @@ class PrepareEnv(
     val granted: (String) -> Boolean = { true },
     /** Ferb's reading of the call's time, when it's a timed call ([DateGate]). */
     val time: FerbTime? = null,
+    /** The request as it was given to Needle 3, for tools that read its words themselves (a reminder's repeat, an event's day). */
+    val request: String? = null,
 )
 
 /** Reads an integer argument, whether the engine gave it as a number or a numeric string. */
