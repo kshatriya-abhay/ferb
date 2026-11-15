@@ -104,15 +104,31 @@ class PipelineSettings(context: Context) {
     /** The model choice, and the steps under Advanced go back to following it. */
     fun setModel(model: ModelChoice) = save { remove(KEY_AUDIO); remove(KEY_REWRITE); remove(KEY_TOOLS); putString(KEY_MODEL, model.id) }
 
-    /** A step changed under Advanced: the other two stay as they are now, and the model choice shows none. */
+    /**
+     * A step changed under Advanced: only that step is pinned, and the model choice shows none. The
+     * other two keep what the choice meant, not what it resolved to now: under Gemini Nano (picked,
+     * or the default) they follow its download, so a step changed while it downloads doesn't make
+     * Whistle a choice; under another model, that model's steps; under Advanced, as saved.
+     */
     private fun setStep(key: String, id: String) {
-        val now = _pipeline.value
+        val saved = _saved.value
+        val meant = when {
+            saved.model != null -> meant(saved.model)
+            saved.custom -> saved
+            else -> meant(ModelChoice.default(_abilities.value))
+        }
         save {
             remove(KEY_MODEL)
-            putString(KEY_AUDIO, now.audio.id); putString(KEY_REWRITE, now.rewrite.id); putString(KEY_TOOLS, now.tools.id)
+            for ((k, step) in listOf(KEY_AUDIO to meant.audio?.id, KEY_REWRITE to meant.rewrite?.id, KEY_TOOLS to meant.tools?.id)) {
+                if (step == null) remove(k) else putString(k, step)
+            }
             putString(key, id)
         }
     }
+
+    /** A model's steps as Advanced keeps them: Gemini Nano's audio and rewrite unset, so they follow the phone. */
+    private fun meant(model: ModelChoice): Saved =
+        if (model == ModelChoice.Gemini) Saved(tools = model.steps.tools) else Saved(model.steps.audio, model.steps.rewrite, model.steps.tools)
 
     /** Puts back what was saved before (device tests). */
     fun restore(saved: Saved) = save {

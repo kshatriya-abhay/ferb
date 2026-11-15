@@ -20,4 +20,25 @@ class PipelineSettingsTest {
         val can = s.abilities.value
         assertThat(listOf(can.link, can.linkAudio, can.linkApp, can.geminiSpeech, can.geminiRewrite)).containsExactly(true, true, true, true, false).inOrder()
     }
+
+    @Test
+    fun aStepChangedWhileGeminiNanoDownloadsPinsOnlyThatStep() {
+        // Review P2-14: setStep saved all three steps as resolved then, so Whistle (a fallback while
+        // Gemini Nano downloaded) became a choice, and Ferb never switched when the download ended.
+        val s = settings()
+        s.setModel(ModelChoice.Gemini)
+        s.geminiChecked(speech = false, rewrite = false)
+        s.setTools(ToolStep.Link)
+        s.geminiChecked(speech = true, rewrite = true)
+        assertThat(s.pipeline.value).isEqualTo(Pipeline(AudioStep.Gemini, RewriteStep.Gemini, ToolStep.Link))
+    }
+
+    @Test
+    fun aStepChangedAfterAFixedModelKeepsThatModelsOtherSteps() {
+        val s = settings()
+        s.setModel(ModelChoice.Whistle)
+        s.setTools(ToolStep.Link)
+        s.geminiChecked(speech = true, rewrite = true)
+        assertThat(s.pipeline.value).isEqualTo(Pipeline(AudioStep.Whistle, RewriteStep.Off, ToolStep.Link))
+    }
 }
