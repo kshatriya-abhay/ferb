@@ -14,6 +14,14 @@ class ToolConfigTest {
     }
 
     @Test
+    fun aBarOfPointThreeChosenOnTheSliderSurvivesARestart() {
+        // Review P2-7: the slider snaps to 0.05, so 0.30 is a choice, not the old default.
+        assertThat(SetAlarm.defaultRunFrom).isNotEqualTo(0.3)
+        val chosen = ToolConfig.defaults(SetAlarm).copy(runFrom = 0.3)
+        assertThat(ToolConfig.fromJson(chosen.toJson(SetAlarm), SetAlarm).runFrom).isEqualTo(0.3)
+    }
+
+    @Test
     fun keywordsNobodyChangedFollowTheDefaults() {
         assertThat(ToolConfig.defaults(Flashlight).toJson(Flashlight)).doesNotContain("keywords")
         assertThat(ToolConfig.fromJson("""{"enabled": true}""", Flashlight).keywords).isEqualTo(Flashlight.keywords)

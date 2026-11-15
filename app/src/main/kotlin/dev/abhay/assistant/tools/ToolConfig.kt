@@ -31,6 +31,7 @@ data class ToolConfig(
 
     /** Leaves out a bar and keywords at [tool]'s defaults, so a later change of the default reaches them. */
     fun toJson(tool: Tool): String = JSONObject()
+        .put("v", VERSION)
         .put("enabled", enabled)
         .put("always_confirm", alwaysConfirm)
         .apply { if (runFrom != tool.defaultRunFrom) put("run_from", runFrom) }
@@ -56,7 +57,7 @@ data class ToolConfig(
             return ToolConfig(
                 enabled = o.optBoolean("enabled", fallback.enabled),
                 alwaysConfirm = o.optBoolean("always_confirm", fallback.alwaysConfirm),
-                runFrom = o.optDouble("run_from", fallback.runFrom).takeIf { !it.isNaN() && it != OLD_DEFAULT }
+                runFrom = o.optDouble("run_from", fallback.runFrom).takeIf { !it.isNaN() && (o.has("v") || it != OLD_DEFAULT) }
                     ?.coerceIn(MIN_RUN_FROM, MAX_RUN_FROM) ?: fallback.runFrom,
                 options = fallback.options + (options?.keys()?.asSequence()?.associateWith { options.getString(it) } ?: emptyMap()),
                 // An empty saved list is the user's choice (no keywords), not a missing one.
@@ -71,10 +72,14 @@ data class ToolConfig(
         const val MAX_RUN_FROM = 1.0
 
         /**
-         * Until 2026-10-07 most tools' default, and saves kept every bar: a saved 0.3 is almost
-         * surely one nobody moved (the slider is continuous), so it means the current default.
+         * Until 2026-10-07 most tools' default, and saves kept every bar: in a save from before
+         * then (without [VERSION]), a 0.3 is almost surely one nobody moved, so it means the
+         * current default. In a later save it's a choice: the slider stops at 0.30.
          */
         private const val OLD_DEFAULT = 0.3
+
+        /** Written in every save since 2026-11-16, so a bar of 0.3 isn't taken for [OLD_DEFAULT]. */
+        private const val VERSION = 2
     }
 }
 
