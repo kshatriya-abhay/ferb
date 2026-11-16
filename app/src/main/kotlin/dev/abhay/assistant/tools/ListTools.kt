@@ -14,9 +14,12 @@ import dev.abhay.assistant.notes.NoteText
 internal object Lists {
     const val NO_FOLDER = "Lists are notes in your notes folder: pick one, in your Obsidian vault for example"
 
-    /** The items a request names: "milk, eggs and bread" → milk, eggs, bread. */
+    /**
+     * The items a request names: "milk, eggs and bread" → milk, eggs, bread. Items are kept as said
+     * (the content fix), so Hindi's "and" separates them too: "chawal aur dal", "चावल और दाल".
+     */
     fun items(text: String): List<String> =
-        text.split(Regex(""",|;|\band\b|\n""")).map { it.trim().trim('.', '"').trim() }.filter { it.isNotEmpty() }
+        text.split(Regex(""",|;|\b(?:and|aur)\b|(?<![\p{L}\p{M}])और(?![\p{L}\p{M}])|\n""")).map { it.trim().trim('.', '"').trim() }.filter { it.isNotEmpty() }
 
     /** A list's name as a note's: "the shopping list" → "Shopping". */
     fun title(list: String): String =

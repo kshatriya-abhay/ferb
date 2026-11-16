@@ -21,6 +21,16 @@ class ListToolsTest {
     private fun follow(action: FollowUp) = runBlocking { action.run(FollowUpEnv(unusedContext()) { true }) }
 
     @Test
+    fun itemsSplitOnHindisAndToo() {
+        // Review P2-25: list items are kept as said, so "aur" and "और" separate them as "and" does.
+        assertThat(dev.abhay.assistant.tools.Lists.items("chawal aur dal")).containsExactly("chawal", "dal").inOrder()
+        assertThat(dev.abhay.assistant.tools.Lists.items("चावल और दाल")).containsExactly("चावल", "दाल").inOrder()
+        assertThat(dev.abhay.assistant.tools.Lists.items("milk, eggs and bread")).containsExactly("milk", "eggs", "bread").inOrder()
+        // Inside a word it's no "and".
+        assertThat(dev.abhay.assistant.tools.Lists.items("aurora lamp")).containsExactly("aurora lamp")
+    }
+
+    @Test
     fun addingAppendsTasksToTheListFoundByName() {
         val notes = folder()
         val done = run(AddToList.prepare(mapOf("list" to "the shopping list", "items" to "bread, tea and rice"), PrepareEnv(notes = notes))) as Outcome.Done

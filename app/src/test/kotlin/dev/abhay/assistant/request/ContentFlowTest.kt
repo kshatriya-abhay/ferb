@@ -72,6 +72,18 @@ class ContentFlowTest {
     }
 
     @Test
+    fun hindiListItemsKeptAsSaidAreStillTwoItems() {
+        // Review P2-25: the H2 prompt's own example. The items are kept as said, "chawal aur dal",
+        // and Lists.items split only on English "and", so they were added as one item.
+        val said = "grocery list mein chawal aur dal daal do"
+        val got = answer(said, typed(said, "Add \"chawal aur dal\" to my grocery list", "chawal aur dal"),
+            reply(0.9, ToolCall("add_to_list", mapOf("list" to "grocery", "items" to "rice and dal"))))
+        val items = got.shown.calls.single().arguments["items"] as String
+        assertThat(items).isEqualTo("chawal aur dal")
+        assertThat(dev.abhay.assistant.tools.Lists.items(items)).containsExactly("chawal", "dal").inOrder()
+    }
+
+    @Test
     fun theRouterDoesntReadTheWordsToKeep() {
         val said = "note: book the alarm system service"
         answer(said, typed(said, "Make a note", "book the alarm system service"),
