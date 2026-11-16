@@ -12,6 +12,17 @@ class DateGateTest {
     private val zoned = ZonedDateTime.of(now, ZoneId.of("Asia/Kolkata"))
 
     @Test
+    fun everyReasonToAskIsKept() {
+        // Review P2-43: the disagreement's reason replaced the earlier one, so a repeating alarm could be
+        // confirmed without the user hearing it won't repeat.
+        val ask = DateGate.apply(SetAlarm.name, emptyMap(), "wake me up every day at 7", "Set an alarm for 8 am every day", zoned).time!!.ask!!
+        assertThat(ask).contains("repeating alarms aren't supported yet")
+        assertThat(ask).contains("your words say")
+        // One reason alone reads as before.
+        assertThat(DateGate.apply(SetAlarm.name, emptyMap(), "wake me up every day at 7", null, zoned).time!!.ask).isEqualTo("repeating alarms aren't supported yet")
+    }
+
+    @Test
     fun anEventsSpanGivesItsStartAndItsLength() {
         // Review P2-33: the start and the length came from two readers; the length was right, the start wasn't.
         fun event(said: String) = DateGate.apply(AddEvent.name, mapOf("title" to "x"), said, null, zoned).time!!.let { it.at to it.lengthMinutes }

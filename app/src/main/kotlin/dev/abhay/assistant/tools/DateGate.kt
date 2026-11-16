@@ -135,9 +135,14 @@ object DateGate {
         val out = arguments.toMutableMap()
         out.remove(param)
         var time = FerbTime()
-        fun done(agreed: Boolean) = Gated(out, agreed && time.ask == null, fromSaid, fromCommand, time)
+        // Every reason to ask, in order; the call asks with all of them (review P2-43: the last one used to win).
+        val asks = mutableListOf<String>()
+        fun done(agreed: Boolean): Gated {
+            val t = time.copy(ask = asks.joinToString("; ").ifEmpty { null })
+            return Gated(out, agreed && t.ask == null, fromSaid, fromCommand, t)
+        }
         when (pick) {
-            null -> { time = time.copy(ask = (fromSaid as Read.Ask).why); return done(false) }
+            null -> { asks += (fromSaid as Read.Ask).why; return done(false) }
             is Read.At -> when (tool) {
                 SetAlarm.name -> {
                     out[param] = pick.at.toLocalTime().toString()
@@ -145,13 +150,14 @@ object DateGate {
                     // offering that ring or a reminder on the day asked for.
                     val ring = local.toLocalDate().atTime(pick.at.toLocalTime()).let { if (it.isAfter(local)) it else it.plusDays(1) }
                     if (ring.toLocalDate() != pick.at.toLocalDate()) {
-                        time = time.copy(wanted = pick.at, ask = "the Clock app can only set the next ${pick.at.toLocalTime()} (${ring.format(DAY)})")
+                        time = time.copy(wanted = pick.at)
+                        asks += "the Clock app can only set the next ${pick.at.toLocalTime()} (${ring.format(DAY)})"
                     }
-                    if (pick.rule != null) time = time.copy(ask = "repeating alarms aren't supported yet")
+                    if (pick.rule != null) asks += "repeating alarms aren't supported yet"
                 }
                 // Reminders repeat daily, weekly, monthly or yearly; not on weekdays only, yet.
                 else -> if (pick.rule == DateResolver.Rule.Weekdays) {
-                    time = time.copy(at = pick.at, ask = "reminders can't repeat on weekdays only yet"); out[param] = shown(pick)
+                    time = time.copy(at = pick.at); asks += "reminders can't repeat on weekdays only yet"; out[param] = shown(pick)
                 } else {
                     time = time.copy(at = pick.at, repeat = pick.rule?.repeat); out[param] = shown(pick)
                 }
@@ -162,7 +168,7 @@ object DateGate {
         }
         // An event's span: its length, from the words as said or the rewrite, put on the agreed start.
         if (tool == AddEvent.name && pick is Read.At) (span(said, local) ?: command?.let { span(it, local) })?.let { time = time.copy(lengthMinutes = it) }
-        if (!agreed) time = time.copy(ask = when {
+        if (!agreed) asks += (when {
             fromSaid is Read.Ask -> "your words don't say when; the rewrite says ${shown(pick)}"
             else -> "your words say ${shown(fromSaid)}, the rewrite ${shown(fromCommand!!)}"
         })
