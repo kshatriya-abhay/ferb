@@ -338,7 +338,7 @@ class AnswerFlow(
         val field = ContentMap.CONTENT[call.name]
         if (command == null || field == null) return Mapped(call, null, false)
         val c = content.contentOf(call.arguments[field]?.toString(), ContentMap.quoted(command),
-            call.arguments.filterKeys { it != field && !it.startsWith("_") }, said)
+            call.arguments.filterKeys { it != field }, said)
         return Mapped(call.copy(arguments = call.arguments + (field to c.text)), c.text.takeIf { c.mapped }, !c.mapped)
     }
 

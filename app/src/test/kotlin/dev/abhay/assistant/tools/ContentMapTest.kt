@@ -145,7 +145,7 @@ class ContentMapTest {
                 val field = ContentMap.CONTENT[call.getString("name")] ?: continue
                 val args = map(call.getJSONObject("arguments"))
                 val got = map.contentOf(args[field] as? String ?: args[field]?.toString(), ContentMap.quoted(command),
-                    args.filterKeys { it != field && !it.startsWith("_") }, c.getString("said"))
+                    args.filterKeys { it != field }, c.getString("said"))
                 val expected = want.getJSONObject(n).getJSONObject("arguments").opt(field).takeUnless { it == JSONObject.NULL }
                 com.google.common.truth.Truth.assertWithMessage("${c.getString("set")}:${c.getInt("row")} ${c.getString("source")} ${c.getString("mode")}").that(got.text).isEqualTo(expected)
                 if (!got.mapped) unmapped = true

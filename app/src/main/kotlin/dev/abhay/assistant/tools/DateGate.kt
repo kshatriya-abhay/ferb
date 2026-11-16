@@ -40,7 +40,15 @@ object DateGate {
             AddEvent.name -> DateResolver.Kind.Event
             else -> DateResolver.Kind.Reminder
         }
-        return when (val r = runCatching { DateResolver.resolve(text, kind, now) }.getOrElse { DateResolver.Resolved.Ask("When?") }) {
+        // A resolver bug still asks rather than set a wrong time, but shows in the log: its kind only,
+        // never the request's words (review P2-47).
+        val resolved = try {
+            DateResolver.resolve(text, kind, now)
+        } catch (e: RuntimeException) {
+            runCatching { android.util.Log.d("FerbDates", "resolver failed: ${e.javaClass.simpleName}") }
+            DateResolver.Resolved.Ask("When?")
+        }
+        return when (val r = resolved) {
             is DateResolver.Resolved.At -> Read.At(r.at, r.rule)
             is DateResolver.Resolved.Day -> Read.Day(r.day)
             is DateResolver.Resolved.Ask -> Read.Ask(r.why)

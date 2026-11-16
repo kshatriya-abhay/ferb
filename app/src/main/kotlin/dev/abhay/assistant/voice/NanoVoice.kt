@@ -153,6 +153,9 @@ data class Rewritten(val said: String, val command: String?)
 object GeminiRewrite {
     const val NONE = "NONE"
 
+    /** Whether a rewrite's [line] is NONE (nothing for the phone to do), a full stop or not: the one rule for every rewrite. */
+    fun isNone(line: String): Boolean = line.trim().trimEnd('.').equals(NONE, ignoreCase = true)
+
     /**
      * v2: the first prompt's misses on the bench (2026-10-24) as general rules, its examples new (in no bench or
      * held-out file): the settings page kept, questions about the user's own calendar, alarms and
@@ -254,7 +257,7 @@ the alarm woke the baby -> NONE"""
         val line = answer.trim().lineSequence().firstOrNull { it.isNotBlank() }.orEmpty().trim()
             .substringAfter("->").removePrefix("Command:").trim().trim('"', '\u201c', '\u201d', '`').trim()
         require(line.isNotEmpty()) { "Gemini Nano wrote nothing" }
-        val none = line.trimEnd('.').equals(NONE, ignoreCase = true)
+        val none = isNone(line)
         require(!cut || none || answer.trimStart().contains('\n')) { CUT_OFF }
         return Rewritten(said, if (none) null else line)
     }

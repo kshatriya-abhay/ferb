@@ -114,7 +114,7 @@ the alarm woke the baby -> NONE"""
     fun merged(said: String, typed: Typed): Rewritten {
         val cmd = typed.command.trim()
         val content = typed.content.trim()
-        if (cmd.isEmpty() || cmd.trimEnd('.').equals(GeminiRewrite.NONE, ignoreCase = true)) return Rewritten(said, null)
+        if (cmd.isEmpty() || GeminiRewrite.isNone(cmd)) return Rewritten(said, null)
         // The content where the command has it as whole words (the last time, as it ends a command),
         // never inside a name ("hi" in "Abhishek").
         val whole = Regex("""(?<![\p{L}\p{N}])${Regex.escape(content)}(?![\p{L}\p{N}])""").findAll(cmd).lastOrNull()
@@ -138,7 +138,7 @@ the alarm woke the baby -> NONE"""
         val arrow = first.lastIndexOf("->", quote)
         val line = (if (arrow >= 0 && arrow < quote) first.substring(arrow + 2) else first).trim()
         require(line.isNotEmpty()) { "the rewrite wrote nothing" }
-        return Rewritten(said, line.takeUnless { it.trimEnd('.').equals(GeminiRewrite.NONE, ignoreCase = true) })
+        return Rewritten(said, line.takeUnless { GeminiRewrite.isNone(it) })
     }
 
     /** [json], an answer as JSON ({"command": ..., "content": ...}): [merged]; throws when it isn't one. */
