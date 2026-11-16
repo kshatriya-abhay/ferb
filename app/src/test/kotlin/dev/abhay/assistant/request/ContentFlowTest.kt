@@ -52,7 +52,7 @@ class ContentFlowTest {
     private fun answer(said: String, rewritten: Rewritten?, needle: NeedleReply, rewrite: RewriteStep = RewriteStep.Gemini): Answer = runBlocking {
         AnswerFlow(link, needle = { request, tools: List<Tool> -> asked += request to tools.map { it.name }; needle },
             gemini = { rewritten ?: error("unused") }, now = { now }, content = ContentMapTest.icu())
-            .answer(said, enabled, configs, Pipeline(AudioStep.Whistle, rewrite, ToolStep.Off), null, geminiUsable = true)
+            .answer(said, enabled, configs, Pipeline(AudioStep.Whistle, rewrite, ToolStep.Off), null, geminiUsable = true, linkStatus = dev.abhay.assistant.link.LinkStatus.NotInstalled)
     }
 
     private fun typed(said: String, command: String, content: String) = ContentRewrite.merged(said, ContentRewrite.Typed(command, content))

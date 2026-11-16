@@ -49,9 +49,7 @@ class AnswerFlowTest {
         val asked = mutableListOf<String>()
         /** The timeout each rewrite was given, in order. */
         val rewriteTimeouts = mutableListOf<Int>()
-        /** How many times Ferb Link's status was asked (a call into another app). */
-        var statusAsked = 0
-        override fun status() = status.also { statusAsked++ }
+        override fun status() = status
         override suspend fun rewrite(request: String, instructions: String, maxTokens: Int, timeoutMs: Int, jsonSchema: String?): RewriteReply {
             asked += if (jsonSchema == null) "rewrite: $request" else "rewrite (schema): $request"
             rewriteTimeouts += timeoutMs
@@ -91,7 +89,7 @@ class AnswerFlowTest {
         gemini: suspend (String) -> Rewritten = geminiSays("Set an alarm for 7:15 am"),
         heardBy: List<Step>? = null,
         geminiUsable: Boolean = true,
-    ) = runBlocking { AnswerFlow(link, needle(), gemini, now = { NOW }, content = dev.abhay.assistant.tools.ContentMapTest.icu()).answer(said, enabled, configs, pipeline, heardBy, geminiUsable) }
+    ) = runBlocking { AnswerFlow(link, needle(), gemini, now = { NOW }, content = dev.abhay.assistant.tools.ContentMapTest.icu()).answer(said, enabled, configs, pipeline, heardBy, geminiUsable, linkStatus = link.status) }
 
     private fun Answer.chain() = Step.chain(path)
 
@@ -107,13 +105,13 @@ class AnswerFlowTest {
             route = { text, tools, configs -> routedTexts += text; dev.abhay.assistant.tools.ToolRouter.route(text, tools, configs) },
             gate = { tool, args, said, command, now, kept -> gatedTools += tool; dev.abhay.assistant.tools.DateGate.apply(tool, args, said, command, now, kept) })
         // Typed, no rewrite: one text, routed once; one alarm, gated once.
-        val typed = runBlocking { flow().answer("wake me up at 7:15", enabled, configs, steps()) }
+        val typed = runBlocking { flow().answer("wake me up at 7:15", enabled, configs, steps(), linkStatus = LinkStatus.NotInstalled) }
         assertThat(typed.chain()).isEqualTo("Typed → Needle 3 (0.81) → Dates: Ferb (Fri 9 Oct, 7:15)")
         assertThat(routedTexts).containsExactly("wake me up at 7:15")
         assertThat(gatedTools).containsExactly(SetAlarm.name)
         // Rewritten: the command and the words as said, each routed once; the alarm still gated once.
         routedTexts.clear(); gatedTools.clear()
-        runBlocking { flow().answer("wake me up at 7:15", enabled, configs, steps(RewriteStep.Gemini)) }
+        runBlocking { flow().answer("wake me up at 7:15", enabled, configs, steps(RewriteStep.Gemini), linkStatus = LinkStatus.NotInstalled) }
         assertThat(routedTexts).containsExactly("Set an alarm for 7:15 am", "wake me up at 7:15").inOrder()
         assertThat(gatedTools).containsExactly(SetAlarm.name)
     }
@@ -127,14 +125,14 @@ class AnswerFlowTest {
         val said = "Add a meeting with the design team on Tuesday from 3 to 4 pm"
         runBlocking {
             AnswerFlow(FakeLink(), needle(reply(null)), geminiSays("Add \"Meeting with the design team\" Tuesday from 3 to 4 pm."), now = { NOW },
-                content = dev.abhay.assistant.tools.ContentMapTest.icu()).answer(said, on, cfg, steps(RewriteStep.Gemini))
+                content = dev.abhay.assistant.tools.ContentMapTest.icu()).answer(said, on, cfg, steps(RewriteStep.Gemini), linkStatus = LinkStatus.NotInstalled)
         }
         assertThat(needleAsked.single().second).containsExactly(dev.abhay.assistant.tools.AddEvent.name)
         // A masked command that names a tool keeps its own routing: the quote's words don't add one.
         needleAsked.clear()
         runBlocking {
             AnswerFlow(FakeLink(), needle(reply(null)), geminiSays("Set an alarm for 3 pm \"meeting\""), now = { NOW },
-                content = dev.abhay.assistant.tools.ContentMapTest.icu()).answer("alarm at 3 pm for the meeting", on, cfg, steps(RewriteStep.Gemini))
+                content = dev.abhay.assistant.tools.ContentMapTest.icu()).answer("alarm at 3 pm for the meeting", on, cfg, steps(RewriteStep.Gemini), linkStatus = LinkStatus.NotInstalled)
         }
         assertThat(needleAsked.single().second).containsExactly(SetAlarm.name)
     }
@@ -144,22 +142,13 @@ class AnswerFlowTest {
         val held = reply(0.09).copy(suppressed = listOf(ToolCall(SetAlarm.name, mapOf("time" to "4:00 PM"))))
         val got = runBlocking {
             AnswerFlow(FakeLink(), needle(held), geminiSays(null), now = { NOW }, content = dev.abhay.assistant.tools.ContentMapTest.icu())
-                .answer("turn the lights on at 4", enabled, configs, steps())
+                .answer("turn the lights on at 4", enabled, configs, steps(), linkStatus = LinkStatus.NotInstalled)
         }
         assertThat(got.verdict.decision).isEqualTo(Decision.Refuse)
         assertThat(got.refused).isEqualTo("Needle 3: no call (given set_flashlight; held back set_alarm)")
         val none = answer("thanks", pipeline = steps(RewriteStep.Gemini), gemini = geminiSays(null))
         assertThat(none.refused).isEqualTo("rewrite: nothing for the phone to do")
         assertThat(answer("wake me up at 7:15").refused).isNull()
-    }
-
-    @Test
-    fun ferbLinksStatusIsAskedOncePerRequest() {
-        // The rewrite and Jev both use the computer: one status for the request, not one per step.
-        val link = FakeLink(picks = mapOf("Set an alarm for 7:15 am" to jev(SetAlarm.name, 0.9)))
-        answer("wake me up at 7:15", pipeline = steps(RewriteStep.Link, ToolStep.Link), link = link)
-        assertThat(link.asked).containsExactly("rewrite: wake me up at 7:15", "decide: Set an alarm for 7:15 am").inOrder()
-        assertThat(link.statusAsked).isEqualTo(1)
     }
 
     @Test

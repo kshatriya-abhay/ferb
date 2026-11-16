@@ -9,9 +9,6 @@ package dev.abhay.assistant.tools
  * seen) and raised the confidence of right calls, e.g. opening apps from 0.38–0.95 to 0.64–0.96.
  */
 object ToolRouter {
-    /** Needle 3 weighs every tool up to this many. */
-    const val MAX_SEEN = 5
-
     /** The tools in [enabled] that [request] mentions (by their keywords in [configs]), in [enabled]'s order. Empty: none. */
     fun route(request: String, enabled: List<Tool>, configs: Map<String, ToolConfig>): List<Tool> =
         enabled.filter { tool -> configs.of(tool).mentionedIn(request) }

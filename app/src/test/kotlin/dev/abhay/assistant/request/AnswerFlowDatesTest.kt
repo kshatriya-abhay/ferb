@@ -43,7 +43,7 @@ class AnswerFlowDatesTest {
     private fun answer(said: String, command: String?, needle: NeedleReply): Answer = runBlocking {
         val steps = Pipeline(AudioStep.Whistle, if (command != null) RewriteStep.Gemini else RewriteStep.Off, ToolStep.Off)
         AnswerFlow(link, needle = { _, _ -> needle }, gemini = { Rewritten(it, command) }, now = { now }, content = dev.abhay.assistant.tools.ContentMapTest.icu())
-            .answer(said, enabled, configs, steps, null, geminiUsable = true)
+            .answer(said, enabled, configs, steps, null, geminiUsable = true, linkStatus = dev.abhay.assistant.link.LinkStatus.NotInstalled)
     }
 
     private fun remind(time: String) = ToolCall(AddReminder.name, mapOf("text" to "call the bank", "time" to time))

@@ -180,7 +180,8 @@ class VoiceBench(private val app: AssistantApp) {
         val started = SystemClock.elapsedRealtime()
         val flow = AnswerFlow(app.link, needle = needle, gemini = { app.nanoEars.rewrite(it) })
         val answer = flow.answer(heard, enabled, configs, Pipeline(AudioStep.Gemini, RewriteStep.Gemini, ToolStep.Off),
-            heardBy = listOf(Step("Voice: Gemini Nano")), geminiUsable = true)
+            heardBy = listOf(Step("Voice: Gemini Nano")), geminiUsable = true,
+            linkStatus = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { app.link.status() })
         entry.put("answer_ms", SystemClock.elapsedRealtime() - started)
         entry.put("rewrite", answer.command ?: if (answer.nothingAsked) "NONE" else heard)
         entry.put("path", Step.chain(answer.path))

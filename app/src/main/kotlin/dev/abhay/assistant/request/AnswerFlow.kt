@@ -28,8 +28,6 @@ import dev.abhay.assistant.voice.Rewritten
 import java.time.ZonedDateTime
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 /**
  * One step a request took, recorded as it ran, for the details' path ("Voice: Gemini Nano →
@@ -104,7 +102,8 @@ class AnswerFlow(
     /**
      * [said]: typed, or the words a spoken request was heard as; [heardBy]: the hearing step(s),
      * null for a typed one. [geminiUsable]: Gemini Nano's rewrite can stand in for Ferb Link's.
-     * [linkStatus]: Ferb Link's status, when the caller has just asked it; else asked when a step needs it.
+     * [linkStatus]: Ferb Link's status, as the caller has just read it, off the main thread (a call into
+     * another app), once for the request.
      */
     suspend fun answer(
         said: String,
@@ -113,12 +112,10 @@ class AnswerFlow(
         pipeline: Pipeline,
         heardBy: List<Step>? = null,
         geminiUsable: Boolean = false,
-        linkStatus: LinkStatus? = null,
+        linkStatus: LinkStatus,
     ): Answer {
         val trail = Trail(heardBy ?: listOf(Step("Typed")))
-        // Ferb Link's status is a call into another app: asked at most once per request, off the main thread.
-        var known = linkStatus
-        val status: suspend () -> LinkStatus = { known ?: withContext(Dispatchers.IO) { link.status() }.also { known = it } }
+        val status = linkStatus
 
         val rewritten = rewrite(said, pipeline.rewrite, geminiUsable, status, trail)
         if (rewritten != null && rewritten.command == null) {
@@ -148,7 +145,8 @@ class AnswerFlow(
         asking(null)
         val reply = askNeedle(text, enabled, selection.tools)
         if (enabled.isNotEmpty()) trail.path += needleStep(reply)
-        val guarded = guard(reply, said, command, routed, saidRouted, trail)
+        // One clock for the request: the time guard and every timed call read the same day.
+        val guarded = guard(reply, said, command, routed, saidRouted, now(), trail)
         val verdict = decide(guarded, configs, text, said, command)
         return Answer(
             shown = guarded.shown,
@@ -178,7 +176,7 @@ class AnswerFlow(
     }
 
     /** The rewrite by the pipeline's step: one command, NONE (a [Rewritten] without one), or null for the words as they are. */
-    private suspend fun rewrite(said: String, step: RewriteStep, geminiUsable: Boolean, status: suspend () -> LinkStatus, trail: Trail): Rewritten? {
+    private suspend fun rewrite(said: String, step: RewriteStep, geminiUsable: Boolean, status: LinkStatus, trail: Trail): Rewritten? {
         suspend fun viaGemini(instead: Boolean = false): Rewritten? {
             asking("Gemini Nano is rewriting it…")
             return try {
@@ -203,7 +201,7 @@ class AnswerFlow(
         return when (step) {
             RewriteStep.Off -> null
             RewriteStep.Gemini -> viaGemini()
-            RewriteStep.Link -> when (val ready = status()) {
+            RewriteStep.Link -> when (val ready = status) {
                 is LinkStatus.Ready -> {
                     asking(if (ready.asleep) "Waking your computer…" else "Your computer is rewriting it…")
                     // A sleeping model loads first (about 30 s cold): the rewrite waits for it, as a transcription does.
@@ -254,9 +252,9 @@ class AnswerFlow(
         data class NoTool(override val jev: JevReply) : Selection
     }
 
-    private suspend fun select(text: String, routed: List<Tool>, enabled: List<Tool>, step: ToolStep, status: suspend () -> LinkStatus, trail: Trail): Selection {
+    private suspend fun select(text: String, routed: List<Tool>, enabled: List<Tool>, step: ToolStep, status: LinkStatus, trail: Trail): Selection {
         if (step != ToolStep.Link || enabled.isEmpty()) return Selection.Tools(routed, null)
-        val ready = status()
+        val ready = status
         when {
             ready !is LinkStatus.Ready -> {
                 trail.fallbacks += Fallback("Tool selection", "Needle 3 alone", "Ferb Link: ${brief(ready)}")
@@ -297,7 +295,7 @@ class AnswerFlow(
      */
     private class Guarded(val shown: NeedleReply, val gated: List<DateGate.Gated?>, val asks: List<Guard>, val otherTool: Boolean)
 
-    private fun guard(reply: NeedleReply, said: String, command: String?, routed: List<Tool>, saidRouted: List<Tool>, trail: Trail): Guarded {
+    private fun guard(reply: NeedleReply, said: String, command: String?, routed: List<Tool>, saidRouted: List<Tool>, at: ZonedDateTime, trail: Trail): Guarded {
         fun timed(tools: List<Tool>) = tools.map { it.name }.filter(DateGate::timed)
         // Timed calls (2026-10-25, the blind date round): the engine held one back but the router
         // names that timed tool alone, so it comes back to be weighed (gate E).
@@ -312,12 +310,12 @@ class AnswerFlow(
             if (command != null && calls.isNotEmpty()) {
                 val named = saidRouted.map { it.name }
                 if (named.isNotEmpty() && calls.first().name !in named) add(Guard.OtherTool)
-                val (fromSaid, fromCommand) = DateGate.readings(TIME_GUARD_TOOL, said, command, now(), kept.firstOrNull { it != null })
+                val (fromSaid, fromCommand) = DateGate.readings(TIME_GUARD_TOOL, said, command, at, kept.firstOrNull { it != null })
                 if (fromSaid !is DateGate.Read.Ask && fromCommand is DateGate.Read.Ask) add(Guard.TimeDropped)
             }
         }
         // Ferb's own time: the words as said and the rewrite read alike ([DateGate]); Needle 3's never decides.
-        val gated = calls.mapIndexed { i, call -> if (DateGate.timed(call.name)) gate(call.name, call.arguments, said, command, now(), kept[i]) else null }
+        val gated = calls.mapIndexed { i, call -> if (DateGate.timed(call.name)) gate(call.name, call.arguments, said, command, at, kept[i]) else null }
         val shown = reply.copy(
             calls = calls.mapIndexed { i, call -> gated[i]?.let { g -> call.copy(arguments = g.arguments, time = g.time) } ?: call },
             suppressed = reply.suppressed.filter { it !== heldBack },

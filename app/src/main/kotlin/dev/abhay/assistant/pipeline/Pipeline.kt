@@ -9,7 +9,7 @@ sealed interface Step {
  * How Ferb understands a request, step by step (Settings → How Ferb understands you): what hears a
  * spoken one, what rewrites it into one plain English command, and what narrows the tools. Needle 3
  * always makes the tool call. A Ferb-Link step that fails at request time falls back for that
- * request ([fallback]), and the reply's details say so.
+ * request (a [Fallback]), and the reply's details say so.
  */
 enum class AudioStep(override val id: String, val title: String, val hint: String) : Step {
     Off("off", "Off", "No mic: you type"),
