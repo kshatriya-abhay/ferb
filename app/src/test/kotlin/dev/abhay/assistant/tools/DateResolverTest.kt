@@ -17,6 +17,13 @@ class DateResolverTest {
     private fun on(month: Int, day: Int, hour: Int, minute: Int = 0, year: Int = 2026) = Resolved.At(LocalDateTime.of(year, month, day, hour, minute))
 
     @Test
+    fun amIsAWordNotThePrefixOfOne() {
+        // Review P2-35: "2 amul" was 2 am.
+        assertThat(at("remind me to buy 2 amul packets tomorrow at 7")).isEqualTo(on(11, 5, 7))
+        assertThat(at("remind me at 7 am tomorrow")).isEqualTo(on(11, 5, 7))
+    }
+
+    @Test
     fun weekdays() {
         assertThat(at("remind me next wednesday to pay rent")).isEqualTo(on(11, 11, 9))
         assertThat(at("remind me on wednesday at 5 pm to pay rent")).isEqualTo(on(11, 4, 17))

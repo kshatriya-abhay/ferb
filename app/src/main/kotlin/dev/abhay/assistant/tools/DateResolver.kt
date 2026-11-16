@@ -335,7 +335,7 @@ object DateResolver {
         Regex("""\bquarter past $hourWord\b""").find(t)?.let { m -> num(m.groupValues[1])?.let { return withPart(it, 15, null, part, thisPart) } }
         Regex("""\bquarter to $hourWord\b""").find(t)?.let { m -> num(m.groupValues[1])?.let { return withPart(if (it == 1) 12 else it - 1, 45, null, part, thisPart) } }
         // "7:30 pm", "19:30", "6.45 am", "7 am", "7pm".
-        Regex("""\b(\d{1,2})(?:[:.](\d{2}))?\s*(am|a\.m\.|pm|p\.m\.)""").find(t)?.let { m ->
+        Regex("""\b(\d{1,2})(?:[:.](\d{2}))?\s*(am|a\.m\.|pm|p\.m\.)(?![a-z])""").find(t)?.let { m ->
             return withPart(m.groupValues[1].toInt(), m.groupValues[2].ifEmpty { "0" }.toInt(), m.groupValues[3].startsWith("p"), part, thisPart)
         }
         Regex("""\b(\d{1,2})[:.](\d{2})\b""").find(t)?.let { m ->
