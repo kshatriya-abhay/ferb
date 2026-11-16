@@ -355,22 +355,52 @@ object ReminderMigration {
 }
 
 /** Reminders in Ferb's own storage, as JSON: id, title, at, repeat, note id, snoozed. */
+/**
+ * Reminders as JSON in Ferb's own files. What it can't read it keeps (review P2-57): an entry it can't
+ * parse is skipped on load and written back as it was on the next save; a file that isn't JSON at all
+ * is moved aside (reminders.json.bad) before anything is written over it. A save goes to a temp file,
+ * synced to disk, then renamed over the old one, and fails loudly if the rename does.
+ */
 class FileReminderStore(private val file: java.io.File) : ReminderStore {
-    override fun load(): List<Reminder> = try {
-        if (!file.exists()) emptyList() else JSONArray(file.readText()).let { a ->
-            (0 until a.length()).map { i ->
-                val o = a.getJSONObject(i)
-                val at = LocalDateTime.parse(o.getString("at"))
-                // Saved before "fired" was kept (2026-10-23): one already past counts as shown, so nothing old shows late.
-                val fired = if (o.has("fired")) o.getBoolean("fired") else !at.isAfter(LocalDateTime.now())
-                // A "note" key (a reminder on a note, until 2026-10-23) is dropped: it's a plain reminder now.
-                fun time(key: String) = o.optString(key).ifEmpty { null }?.let(LocalDateTime::parse)
-                Reminder(o.getString("id"), o.getString("title"), at, Repeat.of(o.optString("repeat").ifEmpty { null }),
-                    time("snoozed"), fired, time("firedAt"), time("doneAt"))
+    /** Entries the last load couldn't read, as they were, to write back. */
+    private var unreadable = emptyList<JSONObject>()
+    /** The file wasn't JSON at all on the last load: move it aside before saving over it. */
+    private var broken = false
+
+    @Synchronized
+    override fun load(): List<Reminder> {
+        unreadable = emptyList(); broken = false
+        if (!file.exists()) return emptyList()
+        val a = try {
+            JSONArray(file.readText())
+        } catch (e: Exception) {
+            broken = true
+            log("reminders.json unreadable: ${e.javaClass.simpleName}")
+            return emptyList()
+        }
+        val skipped = mutableListOf<JSONObject>()
+        val read = (0 until a.length()).mapNotNull { i ->
+            val o = a.optJSONObject(i) ?: return@mapNotNull null
+            try {
+                reminder(o)
+            } catch (e: Exception) {
+                log("a reminder unreadable: ${e.javaClass.simpleName}")
+                skipped += o
+                null
             }
         }
-    } catch (e: Exception) {
-        emptyList()
+        unreadable = skipped
+        return read
+    }
+
+    private fun reminder(o: JSONObject): Reminder {
+        val at = LocalDateTime.parse(o.getString("at"))
+        // Saved before "fired" was kept (2026-10-23): one already past counts as shown, so nothing old shows late.
+        val fired = if (o.has("fired")) o.getBoolean("fired") else !at.isAfter(LocalDateTime.now())
+        // A "note" key (a reminder on a note, until 2026-10-23) is dropped: it's a plain reminder now.
+        fun time(key: String) = o.optString(key).ifEmpty { null }?.let(LocalDateTime::parse)
+        return Reminder(o.getString("id"), o.getString("title"), at, Repeat.of(o.optString("repeat").ifEmpty { null }),
+            time("snoozed"), fired, time("firedAt"), time("doneAt"))
     }
 
     @Synchronized
@@ -379,9 +409,22 @@ class FileReminderStore(private val file: java.io.File) : ReminderStore {
             JSONObject().put("id", r.id).put("title", r.title).put("at", r.at.toString()).put("repeat", r.repeat?.key ?: "")
                 .put("snoozed", r.snoozed?.toString() ?: "").put("fired", r.fired)
                 .put("firedAt", r.firedAt?.toString() ?: "").put("doneAt", r.doneAt?.toString() ?: "")
-        })
+        } + unreadable.filter { o -> reminders.none { it.id == o.optString("id") } })
+        if (broken && file.exists()) {
+            val aside = java.io.File(file.parentFile, file.name + ".bad")
+            if (!file.renameTo(aside)) throw java.io.IOException("Couldn't keep the unreadable reminders file aside")
+            broken = false
+        }
         val tmp = java.io.File(file.parentFile, file.name + ".tmp")
-        tmp.writeText(a.toString())
-        tmp.renameTo(file)
+        java.io.FileOutputStream(tmp).use { out ->
+            out.write(a.toString().toByteArray(Charsets.UTF_8))
+            out.fd.sync()
+        }
+        if (!tmp.renameTo(file)) throw java.io.IOException("Couldn't save the reminders")
+    }
+
+    /** Debug log, in no words of the user's; a no-op where Android's log isn't there (JVM tests). */
+    private fun log(message: String) {
+        runCatching { android.util.Log.d("FerbReminders", message) }
     }
 }
