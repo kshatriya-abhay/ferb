@@ -103,7 +103,7 @@ class ContentMap(private val latin: (String) -> String) {
     }
 
     /** [command] as Needle 3 sees it: its quoted parts in Latin letters (Needle 3 is an English model). */
-    fun forNeedle(command: String): String = Regex("\"([^\"]+)\"").replace(command) { "\"" + latinOf(it.groupValues[1]) + "\"" }
+    fun forNeedle(command: String): String = QUOTE.replace(command) { m -> quote(m) { latinOf(it) } }
 
     companion object {
         /** A span maps when it matches at least this well. */
@@ -120,12 +120,19 @@ class ContentMap(private val latin: (String) -> String) {
             "add_to_list" to "items", "add_event" to "title", "check_off" to "item",
         )
 
+        /** A quoted part of a command, "…" or “…”: the one rule [quoted], [masked] and [forNeedle] read. */
+        private val QUOTE = Regex("\"([^\"]*)\"|“([^”]*)”")
+
+        /** [m]'s quote, its text changed by [change], in the quote marks it came in. */
+        private fun quote(m: MatchResult, change: (String) -> String): String =
+            if (m.groups[1] != null) "\"" + change(m.groupValues[1]) + "\"" else "“" + change(m.groupValues[2]) + "”"
+
         /** The command's quoted parts ("…" or “…”). */
         fun quoted(command: String?): List<String> =
-            Regex("\"([^\"]+)\"|“([^”]+)”").findAll(command.orEmpty()).map { it.groupValues[1].ifEmpty { it.groupValues[2] } }.toList()
+            QUOTE.findAll(command.orEmpty()).map { it.groupValues[1].ifEmpty { it.groupValues[2] } }.filter { it.isNotEmpty() }.toList()
 
         /** [command] with its quoted parts emptied, for the tool router: the content's words name no tool. */
-        fun masked(command: String): String = command.replace(Regex("\"[^\"]*\""), "\"\"")
+        fun masked(command: String): String = QUOTE.replace(command) { m -> quote(m) { "" } }
 
         /** The words, split on white space as Python's str.split(). */
         fun words(s: String): List<String> = s.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }

@@ -65,6 +65,17 @@ class ContentMapTest {
     }
 
     @Test
+    fun curlyQuotesMarkTheContentForEveryReader() {
+        // Review P2-23: quoted() read “…”, forNeedle() and masked() didn't, so Needle 3 got Devanagari
+        // and the router read the content's words ("alarm").
+        val command = "Make a note: “book the alarm system service”"
+        assertThat(ContentMap.quoted(command)).containsExactly("book the alarm system service")
+        assertThat(ContentMap.masked(command)).isEqualTo("Make a note: “”")
+        assertThat(map.forNeedle("Make a note: “दाल जल गई”")).isEqualTo("Make a note: “dala jala ga'i”")
+        assertThat(map.forNeedle("Make a note: \"दाल जल गई\"")).isEqualTo("Make a note: \"dala jala ga'i\"")
+    }
+
+    @Test
     fun aQuoteThatIsAnotherArgumentIsNotTheContent() {
         val said = "add milk and eggs to the groceries list"
         val got = map.contentOf("milk and eggs", listOf("milk and eggs", "groceries"), mapOf("list" to "groceries"), said)
