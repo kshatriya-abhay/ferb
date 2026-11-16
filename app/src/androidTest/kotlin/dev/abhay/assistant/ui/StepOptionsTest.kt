@@ -12,6 +12,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
 import dev.abhay.assistant.pipeline.AudioStep
 import dev.abhay.assistant.pipeline.Availability
+import dev.abhay.assistant.pipeline.LinkAvailability
 import dev.abhay.assistant.voice.GeminiSetup
 import dev.abhay.assistant.voice.Part
 import org.junit.Rule
@@ -29,7 +30,7 @@ class StepOptionsTest {
         var opened = 0
         compose.setContent {
             StepOptions(AudioOptions, AudioStep.Gemini, { picked = it },
-                Availability(linkReason = Availability.LINK_NOT_PAIRED, geminiSpeech = true, geminiRewrite = true),
+                Availability(link = LinkAvailability.NotPaired, geminiSpeech = true, geminiRewrite = true),
                 GeminiSetup(Part.Ready, Part.Ready), onOpenGemini = { opened++ })
         }
         compose.onNode(hasText(AudioStep.Gemini.title)).assertIsSelected()
@@ -48,7 +49,7 @@ class StepOptionsTest {
     fun optionsThatCantEverWorkHereArentOffered() {
         compose.setContent {
             StepOptions(AudioOptions, AudioStep.Whistle, {},
-                Availability(linkReason = Availability.LINK_NOT_INSTALLED, geminiSpeech = false, geminiRewrite = false),
+                Availability(link = LinkAvailability.NotInstalled, geminiSpeech = false, geminiRewrite = false),
                 GeminiSetup(Part.Unavailable, Part.Unavailable), onOpenGemini = {})
         }
         compose.onNode(hasText(AudioStep.Link.title)).assertDoesNotExist()

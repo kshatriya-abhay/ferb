@@ -1,12 +1,17 @@
 package dev.abhay.assistant.pipeline
 
+/** One of a request's three steps, whatever it is: what [Availability] judges. */
+sealed interface Step {
+    val id: String
+}
+
 /**
  * How Ferb understands a request, step by step (Settings → How Ferb understands you): what hears a
  * spoken one, what rewrites it into one plain English command, and what narrows the tools. Needle 3
  * always makes the tool call. A Ferb-Link step that fails at request time falls back for that
  * request ([fallback]), and the reply's details say so.
  */
-enum class AudioStep(val id: String, val title: String, val hint: String) {
+enum class AudioStep(override val id: String, val title: String, val hint: String) : Step {
     Off("off", "Off", "No mic: you type"),
     Whistle("whistle", "Whistle", "On this phone, English only"),
     Gemini("gemini", "Gemini Nano", "On this phone, English and Hindi"),
@@ -19,7 +24,7 @@ enum class AudioStep(val id: String, val title: String, val hint: String) {
     }
 }
 
-enum class RewriteStep(val id: String, val title: String, val hint: String) {
+enum class RewriteStep(override val id: String, val title: String, val hint: String) : Step {
     Off("off", "Off", "Your words as they are"),
     Gemini("gemini", "Gemini Nano", "On this phone"),
     Link("link", "Ferb Link (Gemma 4)", "On your computer");
@@ -31,7 +36,7 @@ enum class RewriteStep(val id: String, val title: String, val hint: String) {
     }
 }
 
-enum class ToolStep(val id: String, val title: String, val hint: String) {
+enum class ToolStep(override val id: String, val title: String, val hint: String) : Step {
     Off("off", "Off", "Needle 3 picks from the tools named"),
     Link("link", "Ferb Link (Jev)", "Jev, via your computer, picks first");
 
@@ -206,13 +211,25 @@ data class Pipeline(val audio: AudioStep, val rewrite: RewriteStep, val tools: T
     }
 }
 
+/** Ferb Link, as the options see it: each state with what it tells the user ([reason]: null when ready). */
+sealed interface LinkAvailability {
+    val reason: String?
+
+    data object Ready : LinkAvailability { override val reason: String? = null }
+    /** Not on this phone: its options aren't offered at all. */
+    data object NotInstalled : LinkAvailability { override val reason = Availability.INSTALL_LINK }
+    data object NotPaired : LinkAvailability { override val reason = Availability.LINK_NOT_PAIRED }
+    /** Installed but not usable now (off, another version…), [reason] saying why. */
+    data class Unavailable(override val reason: String) : LinkAvailability
+}
+
 /**
  * What each option needs, for Settings and onboarding: Ferb Link installed and paired with a
- * computer for its options ([linkReason] null when it is), and AICore's checks for Gemini Nano's
- * ([geminiSpeech], [geminiRewrite]: null until checked).
+ * computer for its options ([link]), and AICore's checks for Gemini Nano's ([geminiSpeech],
+ * [geminiRewrite]: null until checked).
  */
 data class Availability(
-    val linkReason: String? = null,
+    val link: LinkAvailability = LinkAvailability.Ready,
     val geminiSpeech: Boolean? = null,
     val geminiRewrite: Boolean? = null,
     /** Why the computer can't hear (its model takes no audio), when Ferb Link is otherwise ready. */
@@ -224,26 +241,44 @@ data class Availability(
      * Whether [step] can't ever work on this phone as it is, so it isn't offered at all: Ferb
      * Link's while it isn't installed, Gemini Nano's where AICore can't run it.
      */
-    fun hidden(step: Any): Boolean = when (step) {
-        AudioStep.Link, RewriteStep.Link, ToolStep.Link -> linkReason == LINK_NOT_INSTALLED
-        AudioStep.Gemini -> geminiSpeech == false
-        RewriteStep.Gemini -> geminiRewrite == false
-        else -> false
+    fun hidden(step: Step): Boolean = when (step) {
+        is AudioStep -> when (step) {
+            AudioStep.Link -> link == LinkAvailability.NotInstalled
+            AudioStep.Gemini -> geminiSpeech == false
+            AudioStep.Whistle, AudioStep.Off -> false
+        }
+        is RewriteStep -> when (step) {
+            RewriteStep.Link -> link == LinkAvailability.NotInstalled
+            RewriteStep.Gemini -> geminiRewrite == false
+            RewriteStep.Off -> false
+        }
+        is ToolStep -> when (step) {
+            ToolStep.Link -> link == LinkAvailability.NotInstalled
+            ToolStep.Off -> false
+        }
     }
 
     /** Why [step] can't be picked now, or null when it can. */
-    fun reason(step: Any): String? = when (step) {
-        AudioStep.Link -> linkReason ?: linkAudioReason
-        ToolStep.Link -> linkReason ?: jevReason
-        RewriteStep.Link -> linkReason
-        AudioStep.Gemini -> when (geminiSpeech) { false -> GEMINI_UNAVAILABLE; else -> null }
-        RewriteStep.Gemini -> when (geminiRewrite) { false -> GEMINI_UNAVAILABLE; else -> null }
-        else -> null
+    fun reason(step: Step): String? = when (step) {
+        is AudioStep -> when (step) {
+            AudioStep.Link -> link.reason ?: linkAudioReason
+            AudioStep.Gemini -> GEMINI_UNAVAILABLE.takeIf { geminiSpeech == false }
+            AudioStep.Whistle, AudioStep.Off -> null
+        }
+        is RewriteStep -> when (step) {
+            RewriteStep.Link -> link.reason
+            RewriteStep.Gemini -> GEMINI_UNAVAILABLE.takeIf { geminiRewrite == false }
+            RewriteStep.Off -> null
+        }
+        is ToolStep -> when (step) {
+            ToolStep.Link -> link.reason ?: jevReason
+            ToolStep.Off -> null
+        }
     }
 
     companion object {
         const val GEMINI_UNAVAILABLE = "Not available on this phone"
-        const val LINK_NOT_INSTALLED = "Install Ferb Link to use your computer"
+        const val INSTALL_LINK = "Install Ferb Link to use your computer"
         const val LINK_NOT_PAIRED = "Connect Ferb Link to your computer first"
         const val LINK_NO_AUDIO = "Your computer's model doesn't take audio"
         const val JEV_OFF = "Turn on Jev in Ferb Link first"

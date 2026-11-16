@@ -40,6 +40,8 @@ import dev.abhay.assistant.link.describe
 import dev.abhay.assistant.pipeline.Abilities
 import dev.abhay.assistant.pipeline.AudioStep
 import dev.abhay.assistant.pipeline.Availability
+import dev.abhay.assistant.pipeline.LinkAvailability
+import dev.abhay.assistant.pipeline.Step
 import dev.abhay.assistant.pipeline.ModelChoice
 import dev.abhay.assistant.pipeline.RewriteStep
 import dev.abhay.assistant.pipeline.ToolStep
@@ -48,7 +50,7 @@ import dev.abhay.assistant.voice.GeminiWatch
 import dev.abhay.assistant.voice.Part
 
 /** One option of a step, as Settings and onboarding list it. */
-internal data class StepOption<T>(val value: T, val title: String, val hint: String, val gemini: Boolean = false)
+internal data class StepOption<T : Step>(val value: T, val title: String, val hint: String, val gemini: Boolean = false)
 
 internal val AudioOptions = AudioStep.entries.map { StepOption(it, it.title, it.hint, gemini = it == AudioStep.Gemini) }
 internal val RewriteOptions = RewriteStep.entries.map { StepOption(it, it.title, it.hint, gemini = it == RewriteStep.Gemini) }
@@ -59,11 +61,11 @@ internal val ToolOptions = ToolStep.entries.map {
 
 /** What each option needs now ([Availability]): Ferb Link's state, and Gemini Nano's setup. */
 internal fun availability(status: LinkStatus, computerHears: Boolean, setup: GeminiSetup) = Availability(
-    linkReason = when (status) {
-        is LinkStatus.Ready -> null
-        LinkStatus.NotInstalled -> Availability.LINK_NOT_INSTALLED
-        LinkStatus.NotSetUp -> Availability.LINK_NOT_PAIRED
-        else -> describe(status)
+    link = when (status) {
+        is LinkStatus.Ready -> LinkAvailability.Ready
+        LinkStatus.NotInstalled -> LinkAvailability.NotInstalled
+        LinkStatus.NotSetUp -> LinkAvailability.NotPaired
+        else -> LinkAvailability.Unavailable(describe(status))
     },
     geminiSpeech = setup.speech.let { if (it == Part.Checking) null else it != Part.Unavailable },
     geminiRewrite = setup.rewrite.let { if (it == Part.Checking) null else it != Part.Unavailable },
@@ -86,7 +88,7 @@ internal fun rememberAvailability(link: FerbLink, gemini: GeminiSetup): Availabi
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-internal fun <T : Any> StepOptions(
+internal fun <T : Step> StepOptions(
     options: List<StepOption<T>>,
     selected: T,
     onSelect: (T) -> Unit,
@@ -324,7 +326,7 @@ internal fun UnderstandingSection(settings: SettingsViewModel, onOpenGemini: () 
     SectionTitle(stringResource(UNDERSTANDING))
     Note("Needle 3 always picks the action, on this phone.")
     // What isn't offered here, and why, in a line each.
-    if (available.linkReason == Availability.LINK_NOT_INSTALLED) Note(Availability.LINK_NOT_INSTALLED)
+    if (available.link == LinkAvailability.NotInstalled) Note(Availability.INSTALL_LINK)
     if (available.geminiSpeech == false && available.geminiRewrite == false) Note("Gemini Nano: ${Availability.GEMINI_UNAVAILABLE.lowercase()}")
     StepTitle(AudioStep.TITLE, AudioStep.HINT)
     StepOptions(AudioOptions, pipeline.audio, settings::setAudio, available, gemini, onOpenGemini)

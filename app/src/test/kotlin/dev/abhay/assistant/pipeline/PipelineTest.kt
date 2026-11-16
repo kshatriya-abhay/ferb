@@ -122,7 +122,7 @@ class PipelineTest {
 
     @Test
     fun ferbLinksOptionsNeedItAndGeminisNeedAiCore() {
-        val noLink = Availability(linkReason = Availability.LINK_NOT_PAIRED, geminiSpeech = true, geminiRewrite = false)
+        val noLink = Availability(link = LinkAvailability.NotPaired, geminiSpeech = true, geminiRewrite = false)
         assertThat(noLink.reason(AudioStep.Link)).isEqualTo(Availability.LINK_NOT_PAIRED)
         assertThat(noLink.reason(RewriteStep.Link)).isEqualTo(Availability.LINK_NOT_PAIRED)
         assertThat(noLink.reason(ToolStep.Link)).isEqualTo(Availability.LINK_NOT_PAIRED)
@@ -136,7 +136,7 @@ class PipelineTest {
 
     @Test
     fun whatCantEverWorkHereIsntOffered() {
-        val notInstalled = Availability(linkReason = Availability.LINK_NOT_INSTALLED, geminiSpeech = false, geminiRewrite = true)
+        val notInstalled = Availability(link = LinkAvailability.NotInstalled, geminiSpeech = false, geminiRewrite = true)
         assertThat(notInstalled.hidden(AudioStep.Link)).isTrue()
         assertThat(notInstalled.hidden(RewriteStep.Link)).isTrue()
         assertThat(notInstalled.hidden(ToolStep.Link)).isTrue()
@@ -144,7 +144,7 @@ class PipelineTest {
         assertThat(notInstalled.hidden(RewriteStep.Gemini)).isFalse()
         assertThat(notInstalled.hidden(AudioStep.Whistle)).isFalse()
         // Installed but not paired: offered, greyed with why.
-        assertThat(Availability(linkReason = Availability.LINK_NOT_PAIRED).hidden(AudioStep.Link)).isFalse()
+        assertThat(Availability(link = LinkAvailability.NotPaired).hidden(AudioStep.Link)).isFalse()
         // Not checked yet: offered.
         assertThat(Availability().hidden(AudioStep.Gemini)).isFalse()
     }
