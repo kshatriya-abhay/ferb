@@ -19,11 +19,21 @@ class LinkContractTest {
 
     private val cases: List<Case> = run {
         val dir = File(javaClass.classLoader!!.getResource("ferb-link-contract/v1")!!.toURI())
-        dir.listFiles { f -> f.extension == "json" }!!.sortedBy { it.name }.map { file ->
+        // limits.json holds Ferb Link's numbers, not an exchange: [ferbsCopiesOfFerbLinksLimitsAgree].
+        dir.listFiles { f -> f.extension == "json" && f.name != LIMITS }!!.sortedBy { it.name }.map { file ->
             val o = JSONObject(file.readText())
             Case(file.nameWithoutExtension, o.getString("method"), o.optJSONObject("extras") ?: JSONObject(),
                 o.getJSONObject("result"), o.optBoolean("synthetic"))
         }
+    }
+
+    @Test
+    fun ferbsCopiesOfFerbLinksLimitsAgree() {
+        // Ferb keeps its own copies of these (it can't import Ferb Link's LinkContract); limits.json is Ferb Link's.
+        val limits = JSONObject(File(javaClass.classLoader!!.getResource("ferb-link-contract/v1/$LIMITS")!!.toURI()).readText())
+        assertThat(LinkContract.VERSION).isEqualTo(limits.getInt("VERSION"))
+        assertThat(LinkContract.MAX_REQUEST_CHARS).isEqualTo(limits.getInt("MAX_REQUEST_CHARS"))
+        assertThat(FerbLink.TRANSCRIBE_TIMEOUT_MS).isEqualTo(limits.getInt("TRANSCRIBE_TIMEOUT_MS"))
     }
 
     /** A fixture's result as Ferb reads a Bundle; `reply`, an object in the fixture, travels as a string. */
@@ -164,9 +174,8 @@ class LinkContractTest {
             }
         }
         val all = of("rewrite").map { FerbLink.rewriteOf(values(it.result)) }
-        // One command, two, none, and one with a fact the request didn't hold.
-        assertThat(all.map { it.commands.size }).containsAtLeast(0, 1, 2)
-        assertThat(all.any { it.invented.isNotEmpty() }).isTrue()
+        // One command, and none (two commands and invented facts were the v2 prompt's, now the bench's).
+        assertThat(all.map { it.commands.size }).containsAtLeast(0, 1)
     }
 
     @Test
@@ -267,5 +276,9 @@ class LinkContractTest {
         val unknown = cases.filter { it.result.has("throws") }
         assertThat(unknown).isNotEmpty()
         unknown.forEach { assertThat(it.result.getString("throws")).isEqualTo("IllegalArgumentException") }
+    }
+
+    private companion object {
+        const val LIMITS = "limits.json"
     }
 }

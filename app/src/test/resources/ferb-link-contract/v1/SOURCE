@@ -1,1 +1,1 @@
-2bf5ee0 2026-11-15 contract: SHA256SUMS beside the fixtures, so Ferb can check its copy
+ddee976 2026-11-16 companion: the Gradle wrapper checks its download's SHA-256
