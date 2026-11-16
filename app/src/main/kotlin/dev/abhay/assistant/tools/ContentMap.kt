@@ -93,7 +93,7 @@ class ContentMap(private val latin: (String) -> String) {
         val words = words(said)
         val spans = listOfNotNull(if (a.isNotEmpty()) spanOf(a, said) else null, q?.let { spanOf(it, said) }).filter { it.score >= OK }
         if (spans.isEmpty()) return Content(q ?: a.ifEmpty { null }, false)
-        fun text(from: Int, until: Int) = words.subList(from, until).joinToString(" ").trim(*STRIP)
+        fun text(from: Int, until: Int) = edges(words.subList(from, until).joinToString(" "))
         if (spans.size == 2) {
             val (s1, s2) = spans
             if (maxOf(s1.from, s2.from) <= minOf(s1.until, s2.until) + 2) return Content(text(minOf(s1.from, s2.from), maxOf(s1.until, s2.until)), true)
@@ -109,7 +109,21 @@ class ContentMap(private val latin: (String) -> String) {
         /** A span maps when it matches at least this well. */
         const val OK = 0.75
 
-        private val STRIP = charArrayOf(' ', ',', '.', ';', ':', '!', '?', '"', '\'')
+        /** A sentence's punctuation at the kept words' ends: English's and Hindi's (danda, double danda). */
+        private val STRIP = charArrayOf(' ', ',', '.', ';', ':', '!', '?', '।', '॥')
+
+        /**
+         * The kept words without sentence punctuation at their ends, and without a quote mark at an end
+         * that nothing in them closes: "say \"hi\"" keeps both, "\"buy milk" loses its lone one. (The
+         * frozen H2 map trimmed ASCII only, one mark at a time: review P2-26.)
+         */
+        private fun edges(text: String): String {
+            var t = text.trim(*STRIP)
+            for (q in listOf('"', '\'')) if (t.count { it == q } % 2 == 1) t = (if (t.startsWith(q)) t.drop(1) else if (t.endsWith(q)) t.dropLast(1) else t).trim(*STRIP)
+            if (t.startsWith('“') && '”' !in t) t = t.drop(1).trim(*STRIP)
+            if (t.endsWith('”') && '“' !in t) t = t.dropLast(1).trim(*STRIP)
+            return t
+        }
 
         /**
          * The argument each tool writes down or sends, the content kept as said. Other tools carry no

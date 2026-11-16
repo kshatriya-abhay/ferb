@@ -76,6 +76,19 @@ class ContentMapTest {
     }
 
     @Test
+    fun theKeptWordsLoseTheirSentencesPunctuationNotTheirQuotes() {
+        // Review P2-26, a departure from the frozen H2 map: its ASCII-only trim kept Hindi's full stop,
+        // and took one quote mark off each end on its own, halving a quote the user said.
+        assertThat(map.contentOf("main der se aaunga", listOf("मैं देर से आऊँगा"), mapOf("name" to "मम्मी"), "मम्मी को मैसेज करो मैं देर से आऊँगा।").text)
+            .isEqualTo("मैं देर से आऊँगा")
+        assertThat(map.contentOf("\"Inception\" is worth a rewatch", listOf("\"Inception\" is worth a rewatch"), emptyMap(), "make a note \"Inception\" is worth a rewatch").text)
+            .isEqualTo("\"Inception\" is worth a rewatch")
+        assertThat(map.contentOf("say \"hi\"", emptyList(), mapOf("name" to "Mum"), "text Mum say \"hi\"").text).isEqualTo("say \"hi\"")
+        // A lone quote mark at an end still goes, as does an English full stop.
+        assertThat(map.contentOf("buy milk", listOf("buy milk"), emptyMap(), "note \"buy milk.").text).isEqualTo("buy milk")
+    }
+
+    @Test
     fun aQuoteThatIsAnotherArgumentIsNotTheContent() {
         val said = "add milk and eggs to the groceries list"
         val got = map.contentOf("milk and eggs", listOf("milk and eggs", "groceries"), mapOf("list" to "groceries"), said)
