@@ -11,6 +11,16 @@ class ContentRewriteTest {
     private fun sha256(s: String) = MessageDigest.getInstance("SHA-256").digest(s.toByteArray()).joinToString("") { "%02x".format(it) }
 
     @Test
+    fun anArrowInsideTheContentStays() {
+        // Review P2-27, a departure from the frozen code: the line was cut after its last "->", content included.
+        fun line(answer: String) = ContentRewrite.parseLine("said", answer).command
+        assertThat(line("Make a note: \"platform 2 -> platform 5\"")).isEqualTo("Make a note: \"platform 2 -> platform 5\"")
+        // An echoed request before the arrow still goes.
+        assertThat(line("note platform change -> Make a note: \"platform 2 -> platform 5\"")).isEqualTo("Make a note: \"platform 2 -> platform 5\"")
+        assertThat(line("wake me at 7 -> Set an alarm for 7 am")).isEqualTo("Set an alarm for 7 am")
+    }
+
+    @Test
     fun quotingTheContentLeavesTheRestOfTheCommandAlone() {
         // Review P2-24: a plain substring replace put quotes inside a name ("Ab"hi"shek").
         fun merged(command: String, content: String) = ContentRewrite.merged("said", ContentRewrite.Typed(command, content)).command

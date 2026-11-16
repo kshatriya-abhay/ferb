@@ -127,11 +127,16 @@ the alarm woke the baby -> NONE"""
     }
 
     /**
-     * A's one-line answer (the frozen code's first_line): its first line, after the last arrow; null
+     * A's one-line answer (the frozen code's first_line): its first line, after the last arrow before the
+     * content's quote (the frozen code took the last arrow anywhere); null
      * for NONE. Unlike [GeminiRewrite.parse], quotes stay: they mark the content. Throws when empty.
      */
     fun parseLine(said: String, answer: String): Rewritten {
-        val line = answer.trim().lineSequence().firstOrNull().orEmpty().trim().substringAfterLast("->").trim()
+        val first = answer.trim().lineSequence().firstOrNull().orEmpty().trim()
+        // An echoed "request ->" goes: the last arrow before the content's quote, never one inside it (review P2-27).
+        val quote = first.indexOfFirst { it == '"' || it == '“' }.takeIf { it >= 0 } ?: first.length
+        val arrow = first.lastIndexOf("->", quote)
+        val line = (if (arrow >= 0 && arrow < quote) first.substring(arrow + 2) else first).trim()
         require(line.isNotEmpty()) { "the rewrite wrote nothing" }
         return Rewritten(said, line.takeUnless { it.trimEnd('.').equals(GeminiRewrite.NONE, ignoreCase = true) })
     }
