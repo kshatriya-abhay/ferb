@@ -58,7 +58,7 @@ class ReminderDraftTest {
         val saved = ReminderDraft("  Take out the bins ", at.toLocalDate(), at.toLocalTime(), RepeatChoice.Weekly).save(book, now)!!
         assertThat(saved.title).isEqualTo("Take out the bins")
         assertThat(store.saved).containsExactly(saved)
-        assertThat(book.upcoming().single()).isEqualTo(Reminder(saved.id, "Take out the bins", at, Repeat.Weekly))
+        assertThat(book.upcoming().single()).isEqualTo(Reminder(saved.id, "Take out the bins", at, Repeat.Weekly, start = at))
         // Not valid: nothing saved.
         assertThat(ReminderDraft.new(now).save(book, now)).isNull()
         assertThat(store.saved).hasSize(1)

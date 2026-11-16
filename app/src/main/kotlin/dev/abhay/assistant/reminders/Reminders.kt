@@ -20,11 +20,12 @@ import org.json.JSONObject
 enum class Repeat(val key: String) {
     Daily("daily"), Weekly("weekly"), Monthly("monthly"), Yearly("yearly");
 
-    fun after(at: LocalDateTime): LocalDateTime = when (this) {
-        Daily -> at.plusDays(1)
-        Weekly -> at.plusWeeks(1)
-        Monthly -> at.plusMonths(1)
-        Yearly -> at.plusYears(1)
+    /** The [n]th time after [start]: from the start, not the last time, so the 31st comes back after February's 28th. */
+    fun nth(start: LocalDateTime, n: Long): LocalDateTime = when (this) {
+        Daily -> start.plusDays(n)
+        Weekly -> start.plusWeeks(n)
+        Monthly -> start.plusMonths(n)
+        Yearly -> start.plusYears(n)
     }
 
     companion object {
@@ -56,6 +57,8 @@ enum class Repeat(val key: String) {
 data class Reminder(
     val id: String, val title: String, val at: LocalDateTime, val repeat: Repeat? = null, val snoozed: LocalDateTime? = null,
     val fired: Boolean = false, val firedAt: LocalDateTime? = null, val doneAt: LocalDateTime? = null,
+    /** A repeat's first time, what each next one counts from ([Repeat.nth]); null (saved before 2026-11-16): [at]. */
+    val start: LocalDateTime? = null,
 ) {
     /** When the notification is due. */
     val due: LocalDateTime get() = snoozed ?: at
@@ -217,7 +220,7 @@ class ReminderBook(store: ReminderStore, private val now: () -> LocalDateTime) {
 
     @Synchronized
     fun add(title: String, at: LocalDateTime, repeat: Repeat? = null): Reminder {
-        val reminder = Reminder(NoteStore.newId(), title, at, repeat)
+        val reminder = Reminder(NoteStore.newId(), title, at, repeat, start = at.takeIf { repeat != null })
         store.save(store.load() + reminder)
         return reminder
     }
@@ -278,7 +281,11 @@ class ReminderBook(store: ReminderStore, private val now: () -> LocalDateTime) {
 
     /** One-offs whose time went by without their notification (the phone was off): to show late, then [fired]. */
     @Synchronized
-    fun missed(): List<Reminder> = all().filter { it.repeat == null && !it.fired && it.doneAt == null && !it.due.isAfter(now()) }
+    fun missed(): List<Reminder> = all().filter {
+        (it.repeat == null && !it.fired && it.doneAt == null && !it.due.isAfter(now())) ||
+            // A snooze that came due unseen (the phone off): the user asked to be reminded again (review P2-55).
+            (it.snoozed != null && !it.snoozed.isAfter(now()) && (it.repeat != null || it.doneAt == null))
+    }
 
     /**
      * Repeats whose time went by unseen (the phone off, or Ferb's alarms cleared) move to their
@@ -286,16 +293,19 @@ class ReminderBook(store: ReminderStore, private val now: () -> LocalDateTime) {
      */
     @Synchronized
     fun catchUp(): List<Reminder> {
-        store.load().filter { it.repeat != null && !it.due.isAfter(now()) }.forEach { advance(it) }
+        // By the occurrence's own time, not a snooze's: a snoozed repeat already moved on (review P2-54).
+        store.load().filter { it.repeat != null && !it.at.isAfter(now()) }.forEach { advance(it) }
         return all()
     }
 
     /** A repeat at its next time after now, without a snooze. */
     private fun advance(reminder: Reminder): Reminder {
         val repeat = reminder.repeat!!
-        var next = repeat.after(reminder.at)
-        while (!next.isAfter(now())) next = repeat.after(next)
-        val moved = reminder.copy(at = next, snoozed = null)
+        val start = reminder.start ?: reminder.at
+        var n = 1L
+        var next = repeat.nth(start, n)
+        while (!next.isAfter(reminder.at) || !next.isAfter(now())) next = repeat.nth(start, ++n)
+        val moved = reminder.copy(at = next, snoozed = null, start = start)
         save(moved)
         return moved
     }
@@ -408,7 +418,7 @@ class FileReminderStore(private val file: java.io.File) : ReminderStore {
         // A "note" key (a reminder on a note, until 2026-10-23) is dropped: it's a plain reminder now.
         fun time(key: String) = o.optString(key).ifEmpty { null }?.let(LocalDateTime::parse)
         return Reminder(o.getString("id"), o.getString("title"), at, Repeat.of(o.optString("repeat").ifEmpty { null }),
-            time("snoozed"), fired, time("firedAt"), time("doneAt"))
+            time("snoozed"), fired, time("firedAt"), time("doneAt"), time("start"))
     }
 
     @Synchronized
@@ -417,6 +427,7 @@ class FileReminderStore(private val file: java.io.File) : ReminderStore {
             JSONObject().put("id", r.id).put("title", r.title).put("at", r.at.toString()).put("repeat", r.repeat?.key ?: "")
                 .put("snoozed", r.snoozed?.toString() ?: "").put("fired", r.fired)
                 .put("firedAt", r.firedAt?.toString() ?: "").put("doneAt", r.doneAt?.toString() ?: "")
+                .put("start", r.start?.toString() ?: "")
         } + unreadable.filter { o -> reminders.none { it.id == o.optString("id") } })
         if (broken && file.exists()) {
             val aside = java.io.File(file.parentFile, file.name + ".bad")
