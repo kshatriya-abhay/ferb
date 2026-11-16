@@ -59,11 +59,47 @@ class ReminderFireTest {
 
     @Test
     fun aSnoozedReminderShowsAgain() {
-        val (book, id) = bookWithOneDueNow()
+        var clock = now
+        val book = ReminderBook(MemoryStore()) { clock }
+        val id = book.add("Call the plumber", now).id
         val shown = mutableListOf<String>()
         book.fire(id) { shown += "on time"; true }
         book.snooze(id)
+        // The snooze's alarm goes off at its time.
+        clock = clock.plusMinutes(ReminderBook.SNOOZE_MINUTES)
         book.fire(id) { shown += "snoozed"; true }
         assertThat(shown).containsExactly("on time", "snoozed").inOrder()
+    }
+
+    @Test
+    fun aRepeatShowsOncePerOccurrenceEvenIfAStaleAlarmFiresAgain() {
+        // Review P2-56: fire showed a repeat on any FIRE, so a stale alarm showed it twice.
+        var clock = now
+        val book = ReminderBook(MemoryStore()) { clock }
+        val id = book.add("Take the pills", now, Repeat.Daily).id
+        val shown = mutableListOf<LocalDateTime>()
+        book.fire(id) { shown += clock; true }
+        clock = clock.plusSeconds(5)
+        book.fire(id) { shown += clock; true }
+        assertThat(shown).containsExactly(now)
+    }
+
+    @Test
+    fun aOneOffThatCouldntBeShownIsStillMissed() {
+        // Review P2-58: fire marked it shown though show() failed (notifications off), so it never showed late.
+        val (book, id) = bookWithOneDueNow()
+        book.fire(id) { false }
+        assertThat(book.missed().map { it.id }).containsExactly(id)
+    }
+
+    @Test
+    fun alarmsAreScheduledFromTheBookInsideItsLock() {
+        // Review P2-56: callers read upcoming() under the lock but scheduled outside it.
+        val (book, id) = bookWithOneDueNow()
+        val scheduled = mutableListOf<List<String>>()
+        book.add("Later", now.plusHours(1))
+        book.schedule { upcoming -> scheduled += upcoming.map { it.title } }
+        assertThat(scheduled).containsExactly(listOf("Later"))
+        assertThat(id).isNotEmpty()
     }
 }

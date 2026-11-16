@@ -318,9 +318,17 @@ class ReminderBook(store: ReminderStore, private val now: () -> LocalDateTime) {
     fun fire(id: String, show: (Reminder) -> Boolean): Reminder? {
         val reminder = store.load().firstOrNull { it.id == id } ?: return null
         if (reminder.repeat == null && (reminder.doneAt != null || reminder.fired && reminder.snoozed == null)) return null
-        show(reminder)
+        // Not due yet: a stale alarm for an occurrence already shown (a repeat moved on), review P2-56.
+        if (reminder.due.isAfter(now())) return null
+        // A one-off counts as shown only if it was (notifications off: it stays missed, as showMissed does);
+        // a repeat moves on to its next time either way (review P2-58).
+        if (!show(reminder) && reminder.repeat == null) return null
         return fired(id)
     }
+
+    /** The upcoming reminders handed to [sync] (the alarms) while the book is locked, so no change slips between them. */
+    @Synchronized
+    fun schedule(sync: (List<Reminder>) -> Unit) = sync(upcoming())
 
     /** One-offs whose time went by unseen ([missed]): each [show]n late, then [fired], so it never shows twice. */
     @Synchronized

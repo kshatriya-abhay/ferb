@@ -92,7 +92,7 @@ class AssistantApp : Application() {
             dev.abhay.assistant.reminders.ReminderReceiver.showMissed(this, this)
             reminders.catchUp()
             reminders.prune()
-            alarms.sync(reminders.upcoming())
+            reminders.schedule(alarms::sync)
         }
     }
     /**
@@ -110,18 +110,18 @@ class AssistantApp : Application() {
     /** Clears a reminder (the Reminders tab): out of the store, its alarm cancelled and its notification taken down. Blocking. */
     fun clearReminder(id: String): dev.abhay.assistant.reminders.Reminder? = reminders.clear(id)?.also {
         dev.abhay.assistant.reminders.ReminderReceiver.cancel(this, id)
-        alarms.sync(reminders.upcoming())
+        reminders.schedule(alarms::sync)
     }
 
     /** Takes an entry off the Reminders tab's Recent ([dev.abhay.assistant.reminders.ReminderBook.dismiss]). Blocking. */
     fun dismissReminder(id: String): dev.abhay.assistant.reminders.Reminder? = reminders.dismiss(id)?.also {
-        alarms.sync(reminders.upcoming())
+        reminders.schedule(alarms::sync)
     }
 
     /** Undo for [clearReminder] and [dismissReminder]: the reminder and its alarm back. Blocking. */
     fun restoreReminder(reminder: dev.abhay.assistant.reminders.Reminder) {
         reminders.restore(reminder)
-        alarms.sync(reminders.upcoming())
+        reminders.schedule(alarms::sync)
     }
 
     lateinit var foreground: ForegroundTracker
