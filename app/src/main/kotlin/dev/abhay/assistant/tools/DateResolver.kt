@@ -31,7 +31,9 @@ object DateResolver {
 
     /** The parts of the day without a time, and what an hour said with them means. */
     private enum class Part(val default: LocalTime, val pm: Boolean?) {
-        Morning(LocalTime.of(9, 0), false), Afternoon(LocalTime.of(14, 0), true), Evening(LocalTime.of(18, 0), true), Night(LocalTime.of(20, 0), null)
+        Morning(LocalTime.of(9, 0), false), Afternoon(LocalTime.of(14, 0), true), Evening(LocalTime.of(18, 0), true), Night(LocalTime.of(20, 0), null),
+        // Meals, as When reads them: dinner at 7 is the evening's; lunch at 1 or at 11 as the clock reads it.
+        Breakfast(LocalTime.of(8, 0), false), Lunch(LocalTime.of(13, 0), null), Dinner(LocalTime.of(20, 0), true),
     }
 
     private val DEFAULT_TIME: LocalTime = LocalTime.of(9, 0)
@@ -324,6 +326,9 @@ object DateResolver {
             Regex("""\b(afternoon)\b""").containsMatchIn(t) -> Part.Afternoon
             Regex("""\b(evening)\b""").containsMatchIn(t) -> Part.Evening
             Regex("""\b(night|tonight)\b""").containsMatchIn(t) -> Part.Night
+            Regex("""\bdinner\b""").containsMatchIn(t) -> Part.Dinner
+            Regex("""\blunch\b""").containsMatchIn(t) -> Part.Lunch
+            Regex("""\bbreakfast\b""").containsMatchIn(t) -> Part.Breakfast
             else -> null
         }
         val thisPart = Regex("""\bthis (morning|afternoon|evening)\b""").containsMatchIn(t)
@@ -345,7 +350,7 @@ object DateResolver {
             return withPart(h, m.groupValues[2].toInt(), pm, part, thisPart)
         }
         // "at 7", "7 o'clock", "7 baje", "for 8" (an alarm), "at seven".
-        Regex("""\b(?:at|for|by) $hourWord\b(?! (?:minute|min|hour|second|day|week)s?\b)(?![/:.]\d)""").find(t)?.let { m -> num(m.groupValues[1])?.let { return withPart(it, 0, null, part, thisPart) } }
+        Regex("""\b(?:at|for|by) $hourWord\b(?! (?:minute|min|hour|second|day|week|people|person)s?\b)(?![/:.]\d)""").find(t)?.let { m -> num(m.groupValues[1])?.let { return withPart(it, 0, null, part, thisPart) } }
         Regex("""\b$hourWord (?:o'clock|oclock|baje)\b""").find(t)?.let { m -> num(m.groupValues[1])?.let { return withPart(it, 0, null, part, thisPart) } }
         // "tomorrow at 7" said as "7 tomorrow", "alarm at 6": a lone hour next to a day or a part.
         Regex("""\b$hourWord (?:tomorrow|today|in the (?:morning|evening))\b""").find(t)?.let { m -> num(m.groupValues[1])?.let { return withPart(it, 0, null, part, thisPart) } }

@@ -24,6 +24,14 @@ class DateResolverTest {
     }
 
     @Test
+    fun peopleAndMealsAreReadAsWhenIsReadsThem() {
+        // Review P2-36: "for 4 people" was 16:00, and dinner at 7 was the morning.
+        assertThat(at("remind me tomorrow to book a table for 4 people")).isEqualTo(on(11, 5, 9))
+        assertThat(at("dinner with Riya tomorrow at 7", Kind.Event)).isEqualTo(on(11, 5, 19))
+        assertThat(at("lunch with Sam tomorrow at 1", Kind.Event)).isEqualTo(on(11, 5, 13))
+    }
+
+    @Test
     fun weekdays() {
         assertThat(at("remind me next wednesday to pay rent")).isEqualTo(on(11, 11, 9))
         assertThat(at("remind me on wednesday at 5 pm to pay rent")).isEqualTo(on(11, 4, 17))
