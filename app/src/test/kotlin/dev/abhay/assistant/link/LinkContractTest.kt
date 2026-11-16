@@ -132,6 +132,23 @@ class LinkContractTest {
     }
 
     @Test
+    fun jevsFallbackReasonNamesJevOnce() {
+        // ferb-link P56: the chat's reason was "Jev " + Ferb Link's short, so "Jev off" read "Jev Jev off".
+        val failed = of("decide").map { FerbLink.decisionOf(values(it.result)) }.filter { it.p == null }
+        assertThat(failed).isNotEmpty()
+        for (jev in failed) {
+            val reason = (LinkPolicy.select(jev, listOf("set_alarm")) as JevPick.Fallback).reason
+            assertWithMessage(reason).that(Regex("""(?i)\bjev\b""").findAll(reason).count()).isEqualTo(1)
+        }
+        // A short without Jev's name (as near the cap) still reads with it once.
+        val near = JevReply(null, emptyMap(), error = "near its spending limit", errorDetail = "Jev is near its spending limit (\$2.90 of \$3.00)", errorKind = "off")
+        assertThat((LinkPolicy.select(near, listOf("set_alarm")) as JevPick.Fallback).reason).isEqualTo("Jev near its spending limit")
+        // At the cap: the limit, named once.
+        val cap = failed.single { it.errorDetail?.startsWith("Jev reached its spending limit") == true }
+        assertThat((LinkPolicy.select(cap, listOf("set_alarm")) as JevPick.Fallback).reason).isEqualTo("Jev's limit reached")
+    }
+
+    @Test
     fun decideIsAPickWithItsProbabilityOrAShortError() {
         of("decide").forEach { case ->
             val jev = FerbLink.decisionOf(values(case.result))

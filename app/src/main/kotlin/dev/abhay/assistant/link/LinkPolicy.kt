@@ -22,7 +22,7 @@ object LinkPolicy {
      */
     fun select(jev: JevReply, enabled: Collection<String>): JevPick {
         val p = jev.p ?: return JevPick.Fallback(
-            if (jev.errorDetail?.startsWith("Jev reached its spending limit") == true) "Jev's limit reached" else "Jev ${jev.error}",
+            if (capped(jev)) "Jev's limit reached" else named(jev.error ?: "failed"),
             jev.errorDetail ?: jev.error ?: "Jev failed")
         return when {
             p < JEV_BAR -> JevPick.Fallback("Jev wasn't sure", String.format(Locale.US, "Jev's best pick had %.2f, below %.2f", p, JEV_BAR))
@@ -36,13 +36,22 @@ object LinkPolicy {
     fun jevLine(jev: JevReply?): String? {
         jev ?: return null
         val p = jev.p ?: return when {
-            jev.errorDetail?.startsWith("Jev reached its spending limit") == true -> "Jev's spending limit is reached: raise it in Ferb Link"
+            capped(jev) -> "Jev's spending limit is reached: raise it in Ferb Link"
             else -> "Jev didn't answer: ${jev.errorDetail ?: jev.error}"
         }
         val picked = jev.choice?.let { Tools.byName(it)?.title } ?: "no tool"
         return if (p < JEV_BAR) String.format(Locale.US, "Jev wasn't sure (%s, %.2f)", picked, p)
         else String.format(Locale.US, "Jev picked %s (%.2f)", picked, p)
     }
+
+    /**
+     * Whether Jev stopped at its spending limit. Ferb Link's decide reply has no signal of its own for
+     * that (its kind is "off", as when Jev is turned off), so its detail is read.
+     */
+    private fun capped(jev: JevReply) = jev.errorDetail?.startsWith("Jev reached its spending limit") == true
+
+    /** [short], one of Ferb Link's few words, with Jev's name once: "Jev off" and "can't reach Jev" as they are, "timed out" as "Jev timed out". */
+    private fun named(short: String) = if (Regex("""(?i)\bjev\b""").containsMatchIn(short)) short else "Jev $short"
 
     // Spoken requests follow the same rules as typed ones. From 2026-10-12 until the same day,
     // spoken alarms and timers asked first while the computer misheard Hindi times; after Ferb
