@@ -2,6 +2,7 @@ package dev.abhay.assistant.request
 
 import dev.abhay.assistant.engine.Decision
 import dev.abhay.assistant.engine.NeedleReply
+import dev.abhay.assistant.engine.ToolCall
 import dev.abhay.assistant.link.FerbLink
 import dev.abhay.assistant.link.JevPick
 import dev.abhay.assistant.link.JevReply
@@ -302,23 +303,18 @@ class AnswerFlow(
         // names that timed tool alone, so it comes back to be weighed (gate E).
         val heldBack = reply.suppressed.firstOrNull { DateGate.timed(it.name) && timed(routed) == listOf(it.name) }
         val needled = if (reply.calls.isEmpty() && heldBack != null) listOf(heldBack) else reply.calls
-        // The words to keep, as said (a rewritten request only).
-        val asks = mutableListOf<Guard>()
-        // Each call's content as said, where it mapped: times are read outside it ([DateGate.outside]).
-        val kept = mutableListOf<String?>()
-        val calls = if (command == null) needled.also { it.forEach { kept += null } } else needled.map { call ->
-            val field = ContentMap.CONTENT[call.name] ?: return@map call.also { kept += null }
-            val c = content.contentOf(call.arguments[field]?.toString(), ContentMap.quoted(command),
-                call.arguments.filterKeys { it != field && !it.startsWith("_") }, said)
-            if (!c.mapped && Guard.NotSaid !in asks) asks += Guard.NotSaid
-            kept += c.text.takeIf { c.mapped }
-            call.copy(arguments = call.arguments + (field to c.text))
-        }
-        if (command != null && calls.isNotEmpty()) {
-            val named = saidRouted.map { it.name }
-            if (named.isNotEmpty() && calls.first().name !in named) asks += Guard.OtherTool
-            val (fromSaid, fromCommand) = DateGate.readings(TIME_GUARD_TOOL, said, command, now(), kept.firstOrNull { it != null })
-            if (fromSaid !is DateGate.Read.Ask && fromCommand is DateGate.Read.Ask) asks += Guard.TimeDropped
+        // Each call with its content as said (a rewritten request only): times are read outside it ([DateGate.outside]).
+        val mapped = needled.map { call -> mapContent(call, said, command) }
+        val calls = mapped.map { it.call }
+        val kept = mapped.map { it.kept }
+        val asks = buildList {
+            if (mapped.any { it.notSaid }) add(Guard.NotSaid)
+            if (command != null && calls.isNotEmpty()) {
+                val named = saidRouted.map { it.name }
+                if (named.isNotEmpty() && calls.first().name !in named) add(Guard.OtherTool)
+                val (fromSaid, fromCommand) = DateGate.readings(TIME_GUARD_TOOL, said, command, now(), kept.firstOrNull { it != null })
+                if (fromSaid !is DateGate.Read.Ask && fromCommand is DateGate.Read.Ask) add(Guard.TimeDropped)
+            }
         }
         // Ferb's own time: the words as said and the rewrite read alike ([DateGate]); Needle 3's never decides.
         val gated = calls.mapIndexed { i, call -> if (DateGate.timed(call.name)) gate(call.name, call.arguments, said, command, now(), kept[i]) else null }
@@ -334,6 +330,18 @@ class AnswerFlow(
         val otherTool = calls.any { DateGate.timed(it.name) && saidTimed.isNotEmpty() && it.name !in saidTimed }
         asks.forEach { trail.path += Step("Asks first", it.why) }
         return Guarded(shown, gated, asks, otherTool)
+    }
+
+    /** A call with its content argument as said ([kept], where it mapped), and whether it couldn't be found there ([notSaid]). */
+    private class Mapped(val call: ToolCall, val kept: String?, val notSaid: Boolean)
+
+    /** [call]'s content mapped back to the words as said ([ContentMap]); a call with none, or an unrewritten request, as it is. */
+    private fun mapContent(call: ToolCall, said: String, command: String?): Mapped {
+        val field = ContentMap.CONTENT[call.name]
+        if (command == null || field == null) return Mapped(call, null, false)
+        val c = content.contentOf(call.arguments[field]?.toString(), ContentMap.quoted(command),
+            call.arguments.filterKeys { it != field && !it.startsWith("_") }, said)
+        return Mapped(call.copy(arguments = call.arguments + (field to c.text)), c.text.takeIf { c.mapped }, !c.mapped)
     }
 
     /** The verdict on the guarded calls: the tools' bars, then the guards' asks and the agreed dates. */
