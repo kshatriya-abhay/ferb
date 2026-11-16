@@ -28,7 +28,7 @@ object When {
         val day = findDay(t, now.toLocalDate(), ahead = true)?.first
         val part = PART_OF_DAY.find(t)?.groupValues?.get(1)
         val range = findRange(t, part)
-        val time = range?.first ?: findTime(t, part)?.first ?: part?.let { PARTS.getValue(it) }
+        val time = range?.first ?: findTime(t, part)?.first ?: part?.let { DateWords.PART_TIMES.getValue(it) }
         val length = LENGTH.find(t)?.let { Durations.parse(it.groupValues[1])?.div(60) }?.takeIf { it > 0 }
         return Said(day, time, range?.second, length, allDay = ALL_DAY.containsMatchIn(t))
     }
@@ -52,14 +52,8 @@ object When {
 
     // --- days ---
 
-    private val WEEKDAYS = mapOf(
-        "mon" to DayOfWeek.MONDAY, "tue" to DayOfWeek.TUESDAY, "wed" to DayOfWeek.WEDNESDAY, "thu" to DayOfWeek.THURSDAY,
-        "fri" to DayOfWeek.FRIDAY, "sat" to DayOfWeek.SATURDAY, "sun" to DayOfWeek.SUNDAY,
-    )
-    // Whole names, and abbreviations that aren't words of their own ("sat", "wed" and "sun" are).
-    private const val WEEKDAY = """(monday|mon|tuesday|tues|tue|wednesday|thursday|thurs|thu|friday|fri|saturday|sunday)"""
-    private const val MONTH = """(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sept|sep|october|oct|november|nov|december|dec)"""
-    private val MONTHS = listOf("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
+    private const val WEEKDAY = DateWords.WEEKDAY
+    private const val MONTH = DateWords.MONTH
     private const val ORDINAL = """(\d{1,2})(?:st|nd|rd|th)?"""
 
     private val RELATIVE = Regex("""\b(day after tomorrow|today|tonight|tomorrow|yesterday)\b""")
@@ -91,7 +85,7 @@ object When {
             found += today.plusDays(if (m.groupValues[2] == "week") 7L * n else n.toLong()) to m.range
         }
         NAMED_WEEKDAY.find(t)?.let { m ->
-            found += weekday(today, WEEKDAYS.getValue(m.groupValues[2].take(3)), next = m.groupValues[1] == "next") to m.range
+            found += weekday(today, DateWords.weekday(m.groupValues[2]), next = m.groupValues[1] == "next") to m.range
         }
         DAY_MONTH.find(t)?.let { m -> dated(m.groupValues[1], m.groupValues[2], m.groupValues[3], today, ahead)?.let { found += it to m.range } }
         MONTH_DAY.find(t)?.let { m -> dated(m.groupValues[2], m.groupValues[1], m.groupValues[3], today, ahead)?.let { found += it to m.range } }
@@ -108,7 +102,7 @@ object When {
     }
 
     private fun dated(day: String, month: String, year: String, today: LocalDate, ahead: Boolean): LocalDate? =
-        monthDay(day.toInt(), MONTHS.indexOf(month.take(3)) + 1, year.ifEmpty { null }?.toInt(), today, ahead)
+        monthDay(day.toInt(), DateWords.month(month), year.ifEmpty { null }?.toInt(), today, ahead)
 
     // --- the rules ---
 
@@ -139,11 +133,6 @@ object When {
     // --- times ---
 
     /** Parts of the day, and the time each means when no time is said ("tomorrow morning" is 9:00). */
-    private val PARTS = mapOf(
-        "morning" to LocalTime.of(9, 0), "noon" to LocalTime.NOON, "lunch" to LocalTime.of(13, 0), "afternoon" to LocalTime.of(14, 0),
-        "evening" to LocalTime.of(18, 0), "dinner" to LocalTime.of(20, 0), "tonight" to LocalTime.of(20, 0), "night" to LocalTime.of(20, 0),
-        "breakfast" to LocalTime.of(8, 0),
-    )
     private val PART_OF_DAY = Regex("""\b(morning|breakfast|noon|lunch|afternoon|evening|dinner|tonight|night)\b""")
     private val LATER_PARTS = setOf("afternoon", "evening", "dinner", "tonight", "night")
     private val ALL_DAY = Regex("""\ball[- ]day\b|\bwhole day\b""")

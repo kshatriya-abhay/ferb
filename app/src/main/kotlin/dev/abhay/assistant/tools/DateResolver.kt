@@ -30,10 +30,13 @@ object DateResolver {
     }
 
     /** The parts of the day without a time, and what an hour said with them means. */
-    private enum class Part(val default: LocalTime, val pm: Boolean?) {
-        Morning(LocalTime.of(9, 0), false), Afternoon(LocalTime.of(14, 0), true), Evening(LocalTime.of(18, 0), true), Night(LocalTime.of(20, 0), null),
+    private enum class Part(word: String, val pm: Boolean?) {
+        Morning("morning", false), Afternoon("afternoon", true), Evening("evening", true), Night("night", null),
         // Meals, as When reads them: dinner at 7 is the evening's; lunch at 1 or at 11 as the clock reads it.
-        Breakfast(LocalTime.of(8, 0), false), Lunch(LocalTime.of(13, 0), null), Dinner(LocalTime.of(20, 0), true),
+        Breakfast("breakfast", false), Lunch("lunch", null), Dinner("dinner", true);
+
+        /** The time it means when no time is said ([DateWords.PART_TIMES]). */
+        val default: LocalTime = DateWords.PART_TIMES.getValue(word)
     }
 
     private val DEFAULT_TIME: LocalTime = LocalTime.of(9, 0)
@@ -253,15 +256,10 @@ object DateResolver {
      */
     private class SaidDay(val date: LocalDate, val weekday: DayOfWeek? = null, val later: LocalDate? = null, val tonight: Boolean = false, val noSuchDate: Boolean = false)
 
-    private val WEEKDAYS = mapOf(
-        "monday" to DayOfWeek.MONDAY, "tuesday" to DayOfWeek.TUESDAY, "wednesday" to DayOfWeek.WEDNESDAY, "thursday" to DayOfWeek.THURSDAY,
-        "friday" to DayOfWeek.FRIDAY, "saturday" to DayOfWeek.SATURDAY, "sunday" to DayOfWeek.SUNDAY,
-    )
     private val WAKE = Regex("""\b(wake|waking|get up|getting up|utha|uthana|utha dena|jaga|jagana|jaga dena)\b""")
     /** A weekday, also plural ("on Fridays"): group 1 is its name. */
-    private val WEEKDAY = Regex("""\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)s?\b""")
-    private val MONTHS = listOf("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
-    private const val MONTH = """(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sept|sep|october|oct|november|nov|december|dec)"""
+    private val WEEKDAY = Regex("""\b${DateWords.WEEKDAY_NAME}s?\b""")
+    private const val MONTH = DateWords.MONTH
 
     private fun day(t: String, today: LocalDate): SaidDay? {
         if (Regex("""\bday after tomorrow\b""").containsMatchIn(t)) return SaidDay(today.plusDays(2))
@@ -283,10 +281,10 @@ object DateResolver {
         fun dated(month: Int, dayOfMonth: Int, year: String): LocalDate? =
             if (year.isEmpty()) ahead(month, dayOfMonth) else runCatching { LocalDate.of(year.toInt(), month, dayOfMonth) }.getOrNull()
         Regex("""\b$MONTH (\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?\b""").find(t)?.let { m ->
-            return dated(MONTHS.indexOf(m.groupValues[1].take(3)) + 1, m.groupValues[2].toInt(), m.groupValues[3])?.let { SaidDay(it) } ?: SaidDay(today, noSuchDate = true)
+            return dated(DateWords.month(m.groupValues[1]), m.groupValues[2].toInt(), m.groupValues[3])?.let { SaidDay(it) } ?: SaidDay(today, noSuchDate = true)
         }
         Regex("""\b(\d{1,2})(?:st|nd|rd|th)?(?: of)? $MONTH(?:,?\s+(\d{4}))?\b""").find(t)?.let { m ->
-            return dated(MONTHS.indexOf(m.groupValues[2].take(3)) + 1, m.groupValues[1].toInt(), m.groupValues[3])?.let { SaidDay(it) } ?: SaidDay(today, noSuchDate = true)
+            return dated(DateWords.month(m.groupValues[2]), m.groupValues[1].toInt(), m.groupValues[3])?.let { SaidDay(it) } ?: SaidDay(today, noSuchDate = true)
         }
         Regex("""\b(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?\b""").find(t)?.let { m ->
             val d = m.groupValues[1].toInt()
@@ -295,9 +293,9 @@ object DateResolver {
             val date = if (y != null) runCatching { LocalDate.of(y, mo, d) }.getOrNull() else ahead(mo, d)
             return date?.let { SaidDay(it) } ?: SaidDay(today, noSuchDate = true)
         }
-        Regex("""\b(?:(this|next|coming) )?(monday|tuesday|wednesday|thursday|friday|saturday|sunday)s?\b""").find(t)?.let { m ->
-            if (Regex("""\bevery ${m.groupValues[2]}""").containsMatchIn(t)) return SaidDay(today.with(TemporalAdjusters.nextOrSame(WEEKDAYS.getValue(m.groupValues[2]))), WEEKDAYS.getValue(m.groupValues[2]))
-            val weekday = WEEKDAYS.getValue(m.groupValues[2])
+        Regex("""\b(?:(this|next|coming) )?${DateWords.WEEKDAY_NAME}s?\b""").find(t)?.let { m ->
+            if (Regex("""\bevery ${m.groupValues[2]}""").containsMatchIn(t)) return SaidDay(today.with(TemporalAdjusters.nextOrSame(DateWords.weekday(m.groupValues[2]))), DateWords.weekday(m.groupValues[2]))
+            val weekday = DateWords.weekday(m.groupValues[2])
             return if (m.groupValues[1] == "next") SaidDay(today.with(TemporalAdjusters.next(weekday)), weekday)
             else {
                 val coming = today.with(TemporalAdjusters.nextOrSame(weekday))
