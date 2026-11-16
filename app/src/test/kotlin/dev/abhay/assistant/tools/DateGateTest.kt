@@ -12,6 +12,18 @@ class DateGateTest {
     private val zoned = ZonedDateTime.of(now, ZoneId.of("Asia/Kolkata"))
 
     @Test
+    fun aReminderKeepsEveryRepeatItsWordsSay() {
+        // Review P2-37: "every year" and "each day" were lost, so a one-off was saved.
+        fun repeat(said: String) = DateGate.apply(AddReminder.name, emptyMap(), said, null, zoned).time?.repeat
+        assertThat(repeat("remind me every year on 5 march to renew the insurance")).isEqualTo(dev.abhay.assistant.reminders.Repeat.Yearly)
+        assertThat(repeat("remind me each day at 8 pm to take my pills")).isEqualTo(dev.abhay.assistant.reminders.Repeat.Daily)
+        assertThat(repeat("remind me every month on the 1st to pay rent")).isEqualTo(dev.abhay.assistant.reminders.Repeat.Monthly)
+        // A yearly day already passed today comes back next year, not tomorrow.
+        val birthday = DateGate.apply(AddReminder.name, emptyMap(), "remind me every year on 4 november at 9 am to call Riya", null, zoned).time!!
+        assertThat(birthday.at).isEqualTo(LocalDateTime.of(2027, 11, 4, 9, 0))
+    }
+
+    @Test
     fun anEventsSpanIsItsLength() {
         assertThat(DateGate.span("dinner 6 to 8 pm tomorrow", now)).isEqualTo(120)
         assertThat(DateGate.span("meeting from 3 till 5 on friday", now)).isEqualTo(120)

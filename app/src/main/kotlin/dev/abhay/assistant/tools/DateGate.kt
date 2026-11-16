@@ -153,7 +153,7 @@ object DateGate {
                 else -> if (pick.rule == DateResolver.Rule.Weekdays) {
                     time = time.copy(at = pick.at, ask = "reminders can't repeat on weekdays only yet"); out[param] = shown(pick)
                 } else {
-                    time = time.copy(at = pick.at, repeat = pick.rule?.key); out[param] = shown(pick)
+                    time = time.copy(at = pick.at, repeat = pick.rule?.repeat); out[param] = shown(pick)
                 }
             }
             is Read.Day -> { time = time.copy(day = pick.day); out[param] = pick.day.toString() }

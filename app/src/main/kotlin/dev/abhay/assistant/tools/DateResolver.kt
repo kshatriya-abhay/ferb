@@ -16,7 +16,12 @@ import java.time.temporal.TemporalAdjusters
 object DateResolver {
     enum class Kind { Reminder, Alarm, Event, Agenda }
 
-    enum class Rule(val key: String) { Daily("daily"), Weekdays("weekdays"), Weekly("weekly"), Monthly("monthly") }
+    /** A repeat as said; [repeat], the reminders' own (weekdays only has none: reminders can't do it yet). */
+    enum class Rule(val key: String, val repeat: dev.abhay.assistant.reminders.Repeat?) {
+        Daily("daily", dev.abhay.assistant.reminders.Repeat.Daily), Weekdays("weekdays", null),
+        Weekly("weekly", dev.abhay.assistant.reminders.Repeat.Weekly), Monthly("monthly", dev.abhay.assistant.reminders.Repeat.Monthly),
+        Yearly("yearly", dev.abhay.assistant.reminders.Repeat.Yearly),
+    }
 
     sealed interface Resolved {
         data class At(val at: LocalDateTime, val rule: Rule? = null) : Resolved
@@ -71,6 +76,11 @@ object DateResolver {
             // Monthly on a day of the month: that day next month when it's passed ("every month on the 1st").
             if (rule == Rule.Monthly && day != null && day.weekday == null) {
                 while (!first.isAfter(now)) first = first.plusMonths(1)
+                return Resolved.At(first, rule)
+            }
+            // Yearly on a date: that date next year when it's passed ("every year on 5 March").
+            if (rule == Rule.Yearly && day != null) {
+                while (!first.isAfter(now)) first = first.plusYears(1)
                 return Resolved.At(first, rule)
             }
             while (!first.isAfter(now) || !fits(first.toLocalDate())) first = first.plusDays(1)
@@ -212,9 +222,10 @@ object DateResolver {
 
     private fun rule(t: String): Rule? = when {
         Regex("""\b(every weekday|weekdays|every working day)\b""").containsMatchIn(t) -> Rule.Weekdays
-        Regex("""\b(every day|daily|everyday|har roz|roz|every (morning|afternoon|evening|night))\b""").containsMatchIn(t) -> Rule.Daily
-        Regex("""\b(every (monday|tuesday|wednesday|thursday|friday|saturday|sunday)|every week|weekly)\b""").containsMatchIn(t) -> Rule.Weekly
-        Regex("""\b(every month|monthly)\b""").containsMatchIn(t) -> Rule.Monthly
+        Regex("""\b(every day|each day|daily|everyday|har roz|roz|every (morning|afternoon|evening|night))\b""").containsMatchIn(t) -> Rule.Daily
+        Regex("""\b((every|each) (monday|tuesday|wednesday|thursday|friday|saturday|sunday)|(every|each) week|weekly)\b""").containsMatchIn(t) -> Rule.Weekly
+        Regex("""\b((every|each) month|monthly)\b""").containsMatchIn(t) -> Rule.Monthly
+        Regex("""\b((every|each) year|yearly|annually)\b""").containsMatchIn(t) -> Rule.Yearly
         else -> null
     }
 

@@ -67,7 +67,7 @@ object AddReminder : Tool(
         if (!at.isAfter(now)) return Prepared.Invalid("That's in the past")
         // The request's words decide the repeat; Needle 3's only counts when the request says one too.
         val said = env.request
-        val repeat = if (resolved) Repeat.of(ferb?.repeat)
+        val repeat = if (resolved) ferb?.repeat
             else said?.let(Repeat::said) ?: Repeat.of(arguments.text("repeat")).takeIf { said == null }
         // Without notifications a reminder can't remind: ask first, then the request runs again.
         if (!env.granted(Manifest.permission.POST_NOTIFICATIONS)) {
