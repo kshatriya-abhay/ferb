@@ -152,7 +152,8 @@ interface ReminderStore {
 
 /**
  * Reminders: title, time, maybe a repeat, kept in Ferb's own store and nowhere else (no notes
- * since 2026-10-23). [Alarms][ReminderAlarms] schedule what this decides.
+ * since 2026-10-23). [Alarms][ReminderAlarms] schedule what this decides. Its functions run one at a
+ * time: alarms, a launch and the screens all change it, each on its own thread.
  */
 class ReminderBook(store: ReminderStore, private val now: () -> LocalDateTime) {
     private val _changes = MutableStateFlow(0)
@@ -167,15 +168,18 @@ class ReminderBook(store: ReminderStore, private val now: () -> LocalDateTime) {
         }
     }
 
+    @Synchronized
     fun all(): List<Reminder> = store.load().sortedBy { it.due }
 
     /** What's still to come, soonest first: what the alarms are set for, and what the Reminders tab lists. */
+    @Synchronized
     fun upcoming(): List<Reminder> = all().filter { it.due.isAfter(now()) && it.doneAt.let { done -> done == null || it.repeat != null } }
 
     /**
      * The Reminders tab's Recent: reminders whose last occurrence showed or was done in the past
      * [RECENT_HOURS], newest first. A repeat can be here and in [upcoming] at its next time.
      */
+    @Synchronized
     fun recent(): List<RecentReminder> {
         val since = now().minusHours(RECENT_HOURS)
         return store.load().mapNotNull { r ->
@@ -192,6 +196,7 @@ class ReminderBook(store: ReminderStore, private val now: () -> LocalDateTime) {
      * One-offs over for more than [RECENT_HOURS] (shown or done, by when that was) leave the store.
      * On launch, after a reboot or update, and as reminders fire.
      */
+    @Synchronized
     fun prune() {
         val since = now().minusHours(RECENT_HOURS)
         val kept = store.load().filterNot { it.over && !(it.doneAt ?: it.firedAt ?: it.at).isAfter(since) }
@@ -202,6 +207,7 @@ class ReminderBook(store: ReminderStore, private val now: () -> LocalDateTime) {
      * Takes an entry off Recent (its clear button): a one-off goes; a repeat only forgets its last
      * occurrence and stays scheduled. Returned for Undo ([restore]).
      */
+    @Synchronized
     fun dismiss(id: String): Reminder? {
         val reminder = store.load().firstOrNull { it.id == id } ?: return null
         if (reminder.repeat == null) return clear(id)
@@ -209,6 +215,7 @@ class ReminderBook(store: ReminderStore, private val now: () -> LocalDateTime) {
         return reminder
     }
 
+    @Synchronized
     fun add(title: String, at: LocalDateTime, repeat: Repeat? = null): Reminder {
         val reminder = Reminder(NoteStore.newId(), title, at, repeat)
         store.save(store.load() + reminder)
@@ -216,11 +223,13 @@ class ReminderBook(store: ReminderStore, private val now: () -> LocalDateTime) {
     }
 
     /** Removes a reminder (Undo, or Done without a repeat). */
+    @Synchronized
     fun remove(id: String) {
         clear(id)
     }
 
     /** Clears a reminder entirely (a repeat too, not just its next time); it's returned for Undo ([restore]), or null if there's none. */
+    @Synchronized
     fun clear(id: String): Reminder? {
         val reminder = store.load().firstOrNull { it.id == id } ?: return null
         store.save(store.load().filter { it.id != id })
@@ -228,9 +237,11 @@ class ReminderBook(store: ReminderStore, private val now: () -> LocalDateTime) {
     }
 
     /** Undoes [clear]: the reminder back as it was (time, repeat, snooze). */
+    @Synchronized
     fun restore(reminder: Reminder) = store.save(store.load().filter { it.id != reminder.id } + reminder)
 
     /** Adds reminders kept elsewhere before (the notes' frontmatter, read once: [ReminderMigration]), keeping those already here. */
+    @Synchronized
     fun import(reminders: List<Reminder>) {
         val kept = store.load()
         val new = reminders.filter { r -> kept.none { it.id == r.id } }
@@ -241,6 +252,7 @@ class ReminderBook(store: ReminderStore, private val now: () -> LocalDateTime) {
      * Done: a repeat moves to its next time after now, unless it already has ([fired]), when only
      * a snooze goes; a one-off is marked done, for Recent, until [prune]d. Both keep when.
      */
+    @Synchronized
     fun done(id: String): Reminder? {
         val reminder = store.load().firstOrNull { it.id == id } ?: return null
         val doneNow = reminder.copy(doneAt = now().withNano(0), snoozed = null)
@@ -254,6 +266,7 @@ class ReminderBook(store: ReminderStore, private val now: () -> LocalDateTime) {
      * whether or not Done is tapped, and a snooze that's over goes. A one-off stays until Done,
      * marked [Reminder.fired], so it's never shown late as well ([missed]).
      */
+    @Synchronized
     fun fired(id: String): Reminder? {
         val reminder = store.load().firstOrNull { it.id == id } ?: return null
         val unsnoozed = reminder.copy(snoozed = reminder.snoozed?.takeIf { it.isAfter(now()) })
@@ -264,12 +277,14 @@ class ReminderBook(store: ReminderStore, private val now: () -> LocalDateTime) {
     }
 
     /** One-offs whose time went by without their notification (the phone was off): to show late, then [fired]. */
+    @Synchronized
     fun missed(): List<Reminder> = all().filter { it.repeat == null && !it.fired && it.doneAt == null && !it.due.isAfter(now()) }
 
     /**
      * Repeats whose time went by unseen (the phone off, or Ferb's alarms cleared) move to their
      * next time, so they keep coming: after a reboot, an update, a launch.
      */
+    @Synchronized
     fun catchUp(): List<Reminder> {
         store.load().filter { it.repeat != null && !it.due.isAfter(now()) }.forEach { advance(it) }
         return all()
@@ -288,10 +303,29 @@ class ReminderBook(store: ReminderStore, private val now: () -> LocalDateTime) {
     private fun save(reminder: Reminder) = store.save(store.load().map { if (it.id == reminder.id) reminder else it })
 
     /** Snooze: the notification again in [minutes]; the reminder keeps its time. */
+    @Synchronized
     fun snooze(id: String, minutes: Long = SNOOZE_MINUTES): Reminder? {
         val snoozed = store.load().firstOrNull { it.id == id }?.copy(snoozed = now().plusMinutes(minutes).withNano(0)) ?: return null
         store.save(store.load().map { if (it.id == id) snoozed else it })
         return snoozed
+    }
+
+    /**
+     * Its alarm went off: [show]s it and marks it [fired], unless it already showed (a one-off shown
+     * as [missed] by a launch meanwhile, or done); a snooze that's due shows again.
+     */
+    @Synchronized
+    fun fire(id: String, show: (Reminder) -> Boolean): Reminder? {
+        val reminder = store.load().firstOrNull { it.id == id } ?: return null
+        if (reminder.repeat == null && (reminder.doneAt != null || reminder.fired && reminder.snoozed == null)) return null
+        show(reminder)
+        return fired(id)
+    }
+
+    /** One-offs whose time went by unseen ([missed]): each [show]n late, then [fired], so it never shows twice. */
+    @Synchronized
+    fun showMissed(show: (Reminder) -> Boolean) {
+        missed().forEach { if (show(it)) fired(it.id) }
     }
 
     companion object {

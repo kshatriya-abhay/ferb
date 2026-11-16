@@ -63,11 +63,8 @@ class ReminderReceiver : BroadcastReceiver() {
         thread {
             try {
                 when (intent.action) {
-                    FIRE -> app.reminders.all().firstOrNull { it.id == id }?.let {
-                        notify(context, it, late = false)
-                        // A repeat comes back at its next time, Done tapped or not.
-                        app.reminders.fired(it.id)
-                    }
+                    // A repeat comes back at its next time, Done tapped or not.
+                    FIRE -> id?.let { app.reminders.fire(it) { reminder -> notify(context, reminder, late = false) } }
                     DONE -> id?.let { app.reminders.done(it); cancel(context, it) }
                     SNOOZE -> id?.let { app.reminders.snooze(it); cancel(context, it) }
                     else -> {
@@ -99,9 +96,7 @@ class ReminderReceiver : BroadcastReceiver() {
          * One-offs due while the phone was off (or Ferb's alarms were cleared): shown now, late,
          * with the time they were due, and marked fired so they never show twice.
          */
-        fun showMissed(context: Context, app: AssistantApp) {
-            app.reminders.missed().forEach { if (notify(context, it, late = true)) app.reminders.fired(it.id) }
-        }
+        fun showMissed(context: Context, app: AssistantApp) = app.reminders.showMissed { notify(context, it, late = true) }
 
         /** Shows [reminder]'s notification; [late]: "Due 9:00 am". False without the permission. */
         fun notify(context: Context, reminder: Reminder, late: Boolean): Boolean {
