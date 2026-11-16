@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Builds, signs and checks a release APK into dist/: mise run release. Publishing is separate
+# Builds, signs and checks a release APK into dist/: mise run release. Out: dist/ferb-<version>.apk,
+# its .sha256, and its .commit, the commit it was built from (publish.sh tags that one). Only from a
+# clean tree, so the release's source is exactly what the APK holds. Publishing is separate
 # (scripts/publish.sh), and only ever run by the maintainer.
 #
 # Signing is local, with the maintainer's key; nothing secret goes into the repo, a file or a log:
@@ -14,6 +16,8 @@
 # FERB_RELEASE_CERT_FILE, for tests with a throwaway key only, reads another file instead.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+[ -z "$(git status --porcelain)" ] || { echo "Commit or stash your changes first: a release is built from a commit."; exit 1; }
+COMMIT=$(git rev-parse HEAD)
 
 KEYSTORE=${FERB_RELEASE_KEYSTORE:-$HOME/.android/keystores/release-key-abhay.jks}
 [ -f "$KEYSTORE" ] || { echo "No keystore at $KEYSTORE (set FERB_RELEASE_KEYSTORE)"; exit 1; }
@@ -30,7 +34,7 @@ OUT=dist/ferb-$VERSION.apk
 
 ./gradlew --no-daemon -q assembleRelease
 mkdir -p dist
-rm -f "$OUT" "$OUT.sha256" dist/aligned.apk
+rm -f "$OUT" "$OUT.sha256" "dist/ferb-$VERSION.commit" dist/aligned.apk
 "$TOOLS/zipalign" -P 16 -f 4 "$UNSIGNED" dist/aligned.apk
 "$TOOLS/apksigner" sign --ks "$KEYSTORE" --ks-key-alias "$FERB_RELEASE_KEY_ALIAS" \
   --ks-pass env:FERB_RELEASE_STORE_PASSWORD --key-pass env:FERB_RELEASE_KEY_PASSWORD --out "$OUT" dist/aligned.apk
@@ -51,4 +55,5 @@ fi
 scripts/check-offline.sh "$OUT"
 scripts/check-release.sh "$OUT"
 (cd dist && sha256sum "$(basename "$OUT")" > "$(basename "$OUT").sha256")
-echo "Built $OUT ($(du -h "$OUT" | cut -f1)), SHA-256 in $OUT.sha256"
+echo "$COMMIT" > "dist/ferb-$VERSION.commit"
+echo "Built $OUT ($(du -h "$OUT" | cut -f1)) from $COMMIT, SHA-256 in $OUT.sha256"
