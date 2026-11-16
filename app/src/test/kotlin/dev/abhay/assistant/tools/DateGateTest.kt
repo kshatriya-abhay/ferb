@@ -12,6 +12,16 @@ class DateGateTest {
     private val zoned = ZonedDateTime.of(now, ZoneId.of("Asia/Kolkata"))
 
     @Test
+    fun theAgendaCanLookBack() {
+        // Review P2-38: the gate's day rolled forward, so "yesterday" showed today and "2 nov" next year.
+        fun day(said: String) = DateGate.read(ShowAgenda.name, said, now)
+        assertThat(day("what did I have yesterday")).isEqualTo(DateGate.Read.Day(java.time.LocalDate.of(2026, 11, 3)))
+        assertThat(day("what was on 2 nov")).isEqualTo(DateGate.Read.Day(java.time.LocalDate.of(2026, 11, 2)))
+        assertThat(day("what's on tomorrow")).isEqualTo(DateGate.Read.Day(java.time.LocalDate.of(2026, 11, 5)))
+        assertThat(day("what's on my calendar")).isEqualTo(DateGate.Read.Day(java.time.LocalDate.of(2026, 11, 4)))
+    }
+
+    @Test
     fun aReminderKeepsEveryRepeatItsWordsSay() {
         // Review P2-37: "every year" and "each day" were lost, so a one-off was saved.
         fun repeat(said: String) = DateGate.apply(AddReminder.name, emptyMap(), said, null, zoned).time?.repeat

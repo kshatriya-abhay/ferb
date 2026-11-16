@@ -33,10 +33,11 @@ object DateGate {
 
     fun read(tool: String, text: String, now: LocalDateTime): Read {
         if (tool == SetTimer.name) return length(text)?.let { Read.Length(it) } ?: Read.Ask("How long?")
+        // An agenda can look back ("yesterday", "2 Nov" said on the 4th): When reads days for that; else today.
+        if (tool == ShowAgenda.name) return Read.Day(When.day(text, now.toLocalDate()) ?: now.toLocalDate())
         val kind = when (tool) {
             SetAlarm.name -> DateResolver.Kind.Alarm
             AddEvent.name -> DateResolver.Kind.Event
-            ShowAgenda.name -> DateResolver.Kind.Agenda
             else -> DateResolver.Kind.Reminder
         }
         return when (val r = runCatching { DateResolver.resolve(text, kind, now) }.getOrElse { DateResolver.Resolved.Ask("When?") }) {
