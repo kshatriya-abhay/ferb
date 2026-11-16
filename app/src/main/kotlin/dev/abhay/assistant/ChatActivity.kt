@@ -119,9 +119,7 @@ class ChatActivity : ComponentActivity() {
                     opening?.let { (id, name) -> showNote(NoteRef(id, name, 0)) }
                     noteToOpen.value = null
                 }
-                // A reply's "Reminders": the Notes screen on that tab, forward as any screen opens.
-                LaunchedEffect(Unit) { viewModel.opens.collect { screen -> if (stack.last() != screen) stack = stack + screen } }
-                // A reminder's notification: the chat, then the Reminders tab over it.
+                // A reminder's notification, or a reply's "Reminders": the chat, then the Reminders tab over it.
                 val fromNotification by remindersOpened
                 LaunchedEffect(fromNotification) { if (fromNotification > 0 && stack.last() != REMINDERS) stack = listOf("assistant", REMINDERS) }
                 val back = { stack = stack.dropLast(1) }

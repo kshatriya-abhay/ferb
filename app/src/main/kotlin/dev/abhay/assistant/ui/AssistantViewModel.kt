@@ -58,7 +58,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -164,9 +163,6 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     val notes get() = assistant.notes
     val reminders get() = assistant.reminders
 
-    /** Screens a reply's button opens in Ferb (the Reminders tab), each once, onto the back stack. */
-    private val screens = kotlinx.coroutines.channels.Channel<String>(kotlinx.coroutines.channels.Channel.BUFFERED)
-    val opens: kotlinx.coroutines.flow.Flow<String> = screens.receiveAsFlow()
 
     /** A reminder just made by hand, for the Reminders tab to scroll to once. */
     val justAdded = MutableStateFlow<String?>(null)
@@ -661,7 +657,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         val env = PrepareEnv(apps = assistant.apps, contacts = assistant.contacts, calendar = assistant.calendar, notes = assistant.notes, time = call.time, request = request,
             reminders = assistant.reminders, remindersChanged = assistant::syncReminders,
             openNote = { context, note -> context.startActivity(dev.abhay.assistant.ChatActivity.openNote(context, note)) },
-            openReminders = { screens.trySend(dev.abhay.assistant.ChatActivity.REMINDERS) },
+            // As a reminder's notification does: from the sheet too, and from a reply another screen made.
+            openReminders = { assistant.startActivity(dev.abhay.assistant.ChatActivity.openReminders(assistant)) },
             granted = { assistant.checkSelfPermission(it) == android.content.pm.PackageManager.PERMISSION_GRANTED },
             options = assistant.toolSettings.configs.value[tool.name]?.options.orEmpty())
         return tool.prepare(tool.fromRequest(call.arguments, request), env)
