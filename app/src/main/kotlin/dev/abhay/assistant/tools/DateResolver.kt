@@ -186,12 +186,19 @@ object DateResolver {
         return t
     }
 
+    /** [text] in Latin letters, a Hindi span ("6 se 8 baje tak") as "from 6 to 8": what [When] reads a span in. */
+    internal fun spans(text: String): String =
+        latin(text.replace("से", "se").replace("तक", "tak"))
+            .replace(Regex("""(?i)(\d{1,2}(?:[:.]\d{2})?)\s+se\s+(\d{1,2}(?:[:.]\d{2})?)(\s+baje)?(\s+tak)?"""), "from $1 to $2")
+
     /** Lower case, Hindi day and time words in English, "saade paanch baje" as "5:30". */
     internal fun normalise(text: String): String {
-        var t = " " + Meridiem.normalise(latin(text)).lowercase().replace(Regex("""[,!?।]"""), " ") + " "
-        // An event's span is its start: "6 to 8 pm" is 6 pm (A1).
-        t = t.replace(Regex("""\b(\d{1,2})(?::(\d{2}))?\s*(?:to|-|se|till|until)\s*\d{1,2}(?::\d{2})?\s*(am|pm)\b""")) {
-            "${it.groupValues[1]}:${it.groupValues[2].ifEmpty { "00" }} ${it.groupValues[3]}"
+        var t = " " + Meridiem.normalise(spans(text)).lowercase().replace(Regex("""[,!?।]"""), " ").replace(Regex("""\s+"""), " ") + " "
+        // An event's span is its start, as When reads the span (its length comes from the same reading,
+        // [DateGate.span]): "6 to 8 pm" is 6 pm, "from 2 to 4" 2 pm, "11 to 1 pm" 11 am.
+        When.spanStart(t)?.let { (range, start) ->
+            val h = start.hour % 12
+            t = t.replaceRange(range, "${if (h == 0) 12 else h}:${"%02d".format(start.minute)} ${if (start.hour < 12) "am" else "pm"}")
         }
         // dedh and dhai (A1): with baje a clock time, with a length 1.5 and 2.5 of it.
         t = t.replace(Regex("""\bdedh\s+baje\b"""), "1:30").replace(Regex("""\bdhai\s+baje\b"""), "2:30")

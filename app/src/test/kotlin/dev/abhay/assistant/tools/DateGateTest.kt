@@ -12,6 +12,16 @@ class DateGateTest {
     private val zoned = ZonedDateTime.of(now, ZoneId.of("Asia/Kolkata"))
 
     @Test
+    fun anEventsSpanGivesItsStartAndItsLength() {
+        // Review P2-33: the start and the length came from two readers; the length was right, the start wasn't.
+        fun event(said: String) = DateGate.apply(AddEvent.name, mapOf("title" to "x"), said, null, zoned).time!!.let { it.at to it.lengthMinutes }
+        assertThat(event("kal 6 se 8 baje party")).isEqualTo(LocalDateTime.of(2026, 11, 5, 18, 0) to 120)
+        assertThat(event("meeting tomorrow from 2 to 4")).isEqualTo(LocalDateTime.of(2026, 11, 5, 14, 0) to 120)
+        assertThat(event("lunch tomorrow 11 to 1 pm")).isEqualTo(LocalDateTime.of(2026, 11, 5, 11, 0) to 120)
+        assertThat(event("dinner tomorrow 7 to 9 pm")).isEqualTo(LocalDateTime.of(2026, 11, 5, 19, 0) to 120)
+    }
+
+    @Test
     fun aTimersLengthReadsCompoundNumberWords() {
         // Review P2-32: "twenty five minutes" was read as "five minutes".
         assertThat(DateGate.read(SetTimer.name, "set a timer for twenty five minutes", now)).isEqualTo(DateGate.Read.Length(1500))

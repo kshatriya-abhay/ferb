@@ -160,6 +160,16 @@ object When {
         return null
     }
 
+    /**
+     * The span [t] says ("from 2 to 4", "5-6pm", "11 to 1 pm"): where it is in [t] (lower case, single
+     * spaces) and its start. The one reader of a span: [DateResolver] takes its start from here, and
+     * [DateGate.span] its length from [read].
+     */
+    internal fun spanStart(t: String): Pair<IntRange, LocalTime>? {
+        val part = PART_OF_DAY.find(t)?.groupValues?.get(1)
+        return RANGE.findAll(t).firstNotNullOfOrNull { m -> range(m, part)?.let { m.range to it.first } }
+    }
+
     /** "from 2 to 3:30 pm", "5-6pm", "between 10 and 11": start and end; am or pm said once applies to both. */
     private fun findRange(t: String, part: String?): Pair<LocalTime, LocalTime>? = RANGE.findAll(t).firstNotNullOfOrNull { range(it, part) }
 

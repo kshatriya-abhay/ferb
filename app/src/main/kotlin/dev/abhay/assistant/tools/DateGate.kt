@@ -66,8 +66,7 @@ object DateGate {
      * in Latin letters first. Null when it says none.
      */
     fun span(text: String, now: LocalDateTime): Int? {
-        val t = DateResolver.latin(text.replace("से", "se").replace("तक", "tak")).replace(Regex("""(?i)(\d{1,2}(?:[:.]\d{2})?)\s+se\s+(\d{1,2}(?:[:.]\d{2})?)(\s+baje)?(\s+tak)?"""), "from $1 to $2")
-        val said = When.read(t, now)
+        val said = When.read(DateResolver.spans(text), now)
         val start = said.time
         val end = said.end
         return when {
