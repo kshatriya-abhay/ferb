@@ -130,8 +130,8 @@ class ContentMap(private val latin: (String) -> String) {
          * content (their arguments are times, names, places and apps).
          */
         val CONTENT = mapOf(
-            "send_text" to "message", "create_note" to "text", "add_reminder" to "text",
-            "add_to_list" to "items", "add_event" to "title", "check_off" to "item",
+            SendText.name to "message", CreateNote.name to "text", AddReminder.name to "text",
+            AddToList.name to "items", AddEvent.name to "title", CheckOff.name to "item",
         )
 
         /** A quoted part of a command, "…" or “…”: the one rule [quoted], [masked] and [forNeedle] read. */

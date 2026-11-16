@@ -89,6 +89,15 @@ class ContentMapTest {
     }
 
     @Test
+    fun eachContentArgumentIsOneItsToolHas() {
+        // Review P2-29: the table named tools by string, so a renamed tool or argument would silently lose the content fix.
+        ContentMap.CONTENT.forEach { (tool, field) ->
+            val schema = org.json.JSONObject(Tools.byName(tool)!!.schema)
+            assertThat(schema.getJSONObject("parameters").getJSONObject("properties").has(field)).isTrue()
+        }
+    }
+
+    @Test
     fun aQuoteThatIsAnotherArgumentIsNotTheContent() {
         val said = "add milk and eggs to the groceries list"
         val got = map.contentOf("milk and eggs", listOf("milk and eggs", "groceries"), mapOf("list" to "groceries"), said)
