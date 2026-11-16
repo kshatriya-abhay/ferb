@@ -322,21 +322,21 @@ private fun SetupTools(settings: SettingsViewModel) {
 @Composable
 fun Onboarding(settings: SettingsViewModel, onDone: () -> Unit) {
     val page = rememberSaveable { mutableStateOf(Page.Welcome) }
-    var stack by rememberSaveable { mutableStateOf(listOf(SETUP)) }
-    val open = { screen: String -> stack = stack + screen }
+    var stack by rememberSaveable(stateSaver = Screen.stackSaver(Screen.Page.Setup)) { mutableStateOf(listOf<Screen>(Screen.Page.Setup)) }
+    val open = { screen: Screen -> stack = stack + screen }
     val back = { stack = stack.dropLast(1) }
     NavStack(stack, onBack = back) { screen ->
-        when {
-            screen == SETUP -> SetupPages(settings, onDone, page, onOpenTools = { open("tools") })
-            screen == "tools" -> ToolsScreen(settings, onOpenTool = { open("tool:$it") }, onBack = back)
-            screen.startsWith("keywords:") -> KeywordsScreen(settings, screen.removePrefix("keywords:"), onBack = back)
-            else -> ToolConfigScreen(settings, screen.removePrefix("tool:"), onOpenKeywords = { open("keywords:" + screen.removePrefix("tool:")) },
+        when (screen) {
+            Screen.Page.Tools -> ToolsScreen(settings, onOpenTool = { open(Screen.Tool(it)) }, onBack = back)
+            is Screen.Keywords -> KeywordsScreen(settings, screen.name, onBack = back)
+            is Screen.Tool -> ToolConfigScreen(settings, screen.name, onOpenKeywords = { open(Screen.Keywords(screen.name)) },
                 onTry = null, onBack = back)
+            // Setup's own pages; the chat's screens aren't on this stack.
+            is Screen.Page -> SetupPages(settings, onDone, page, onOpenTools = { open(Screen.Page.Tools) })
         }
     }
 }
 
-private const val SETUP = "setup"
 
 @Composable
 private fun SetupPages(settings: SettingsViewModel, onDone: () -> Unit, page: MutableState<Page>, onOpenTools: () -> Unit) {

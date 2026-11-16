@@ -29,4 +29,16 @@ class NavTest {
         assertThat(Nav.transform(back = true, shift = 90, motion).targetContentZIndex).isEqualTo(-1f)
         assertThat(Nav.transform(back = false, shift = 90, motion).targetContentZIndex).isEqualTo(0f)
     }
+
+    @Test
+    fun aSavedStackComesBackAndAnUnknownScreenIsDropped() {
+        // Review P2-15: screens were strings, and any name not known became a tool's page.
+        val saver = Screen.stackSaver(Screen.Page.Assistant)
+        val stack = listOf(Screen.Page.Assistant, Screen.Page.Tools, Screen.Tool("set_alarm"), Screen.Keywords("set_alarm"))
+        val saved = with(saver) { androidx.compose.runtime.saveable.SaverScope { true }.save(stack) }!!
+        assertThat(saver.restore(saved)).isEqualTo(stack)
+        assertThat(saver.restore(arrayListOf("assistant", "renamed_screen", "settings"))).containsExactly(Screen.Page.Assistant, Screen.Page.Settings).inOrder()
+        assertThat(saver.restore(arrayListOf("gone"))).containsExactly(Screen.Page.Assistant)
+        assertThat(Screen.of("tool:")).isNull()
+    }
 }

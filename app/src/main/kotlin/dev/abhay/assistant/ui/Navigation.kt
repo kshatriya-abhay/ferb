@@ -28,12 +28,42 @@ import androidx.compose.ui.unit.dp
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
 
+/**
+ * A screen of Ferb's, as its back stack holds it: a fixed [Page], or a tool's page or its keywords.
+ * Saved by [key] across process death; a saved key no screen has any more (an update renamed it) is
+ * dropped ([stackSaver]), not guessed at.
+ */
+sealed interface Screen {
+    val key: String
+
+    enum class Page(override val key: String) : Screen {
+        Assistant("assistant"), Notes("notes"), Reminders("reminders"), NewReminder("new_reminder"),
+        Settings("settings"), Licences("licences"), Privacy("privacy"), Advanced("advanced"),
+        Gemini("gemini"), Bench("bench"), Link("link"), Tools("tools"), Setup("setup"),
+    }
+
+    data class Tool(val name: String) : Screen { override val key get() = "tool:$name" }
+    data class Keywords(val name: String) : Screen { override val key get() = "keywords:$name" }
+
+    companion object {
+        fun of(key: String): Screen? = Page.entries.firstOrNull { it.key == key }
+            ?: key.removePrefix("tool:").takeIf { it != key && it.isNotEmpty() }?.let(::Tool)
+            ?: key.removePrefix("keywords:").takeIf { it != key && it.isNotEmpty() }?.let(::Keywords)
+
+        /** A back stack saved as keys; unknown ones dropped, and [root] if nothing's left. */
+        fun stackSaver(root: Screen) = androidx.compose.runtime.saveable.Saver<List<Screen>, ArrayList<String>>(
+            save = { stack -> ArrayList(stack.map { it.key }) },
+            restore = { keys -> keys.mapNotNull(::of).ifEmpty { listOf(root) } },
+        )
+    }
+}
+
 /** Which way a move between screen stacks goes: back when the new stack is shorter (popped or reset to the chat). */
 object Nav {
     /** Back's length: the system's standard short duration. */
     const val BACK_MS = 300
 
-    fun isBack(from: List<String>, to: List<String>): Boolean = to.size < from.size
+    fun <T> isBack(from: List<T>, to: List<T>): Boolean = to.size < from.size
 
     /**
      * Forward: Material's shared X axis, the new screen sliding in 30 dp from the end while the old
@@ -75,7 +105,7 @@ object Nav {
  * BackHandler, composed later, still wins (Tools, with unsaved changes, asks first).
  */
 @Composable
-fun NavStack(stack: List<String>, onBack: () -> Unit, content: @Composable (String) -> Unit) {
+fun <T> NavStack(stack: List<T>, onBack: () -> Unit, content: @Composable (T) -> Unit) {
     val state = remember { SeekableTransitionState(stack) }
     val current by rememberUpdatedState(stack)
     val back by rememberUpdatedState(onBack)

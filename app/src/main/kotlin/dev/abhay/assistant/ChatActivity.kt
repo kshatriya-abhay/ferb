@@ -3,6 +3,8 @@ package dev.abhay.assistant
 import android.os.Bundle
 import android.widget.Toast
 import dev.abhay.assistant.ui.NotesScreen
+import dev.abhay.assistant.ui.Screen
+import dev.abhay.assistant.ui.Screen.Page
 import dev.abhay.assistant.ui.NotesTab
 import dev.abhay.assistant.ui.NewReminderScreen
 import dev.abhay.assistant.ui.AdvancedScreen
@@ -105,8 +107,8 @@ class ChatActivity : ComponentActivity() {
                     Onboarding(settings, onDone = { viewModel.onboarding.welcomed() })
                     return@AnimatedContent
                 }
-                var stack by rememberSaveable { mutableStateOf(listOf("assistant")) }
-                val open = { screen: String -> stack = stack + screen }
+                var stack by rememberSaveable(stateSaver = Screen.stackSaver(Page.Assistant)) { mutableStateOf(listOf<Screen>(Page.Assistant)) }
+                val open = { screen: Screen -> stack = stack + screen }
                 // A note opens in Obsidian (Ferb has no viewer of its own); without it, a short message.
                 val showNote = { note: NoteRef ->
                     if (!Obsidian.open(this@ChatActivity, note)) {
@@ -121,29 +123,30 @@ class ChatActivity : ComponentActivity() {
                 }
                 // A reminder's notification, or a reply's "Reminders": the chat, then the Reminders tab over it.
                 val fromNotification by remindersOpened
-                LaunchedEffect(fromNotification) { if (fromNotification > 0 && stack.last() != REMINDERS) stack = listOf("assistant", REMINDERS) }
+                LaunchedEffect(fromNotification) { if (fromNotification > 0 && stack.last() != Page.Reminders) stack = listOf(Page.Assistant, Page.Reminders) }
                 val back = { stack = stack.dropLast(1) }
                 NavStack(stack, onBack = back) { screen ->
-                    when {
-                        screen == "assistant" -> AssistantScreen(viewModel, onOpenSettings = { open("settings") },
-                            onOpenLink = { stack = stack + "settings" + "link" }, onOpenNotes = { open("notes") })
-                        screen == "notes" || screen == REMINDERS -> NotesScreen(viewModel, onOpen = { showNote(it) }, onBack = back,
-                            tab = if (screen == REMINDERS) NotesTab.Reminders else NotesTab.Notes,
+                    when (screen) {
+                        // Setup is onboarding's, not the chat's: its root here is the chat.
+                        Page.Assistant, Page.Setup -> AssistantScreen(viewModel, onOpenSettings = { open(Page.Settings) },
+                            onOpenLink = { stack = stack + Page.Settings + Page.Link }, onOpenNotes = { open(Page.Notes) })
+                        Page.Notes, Page.Reminders -> NotesScreen(viewModel, onOpen = { showNote(it) }, onBack = back,
+                            tab = if (screen == Page.Reminders) NotesTab.Reminders else NotesTab.Notes,
                             // The page beneath becomes the Reminders tab, so Save or Back lands there.
-                            onNewReminder = { stack = stack.dropLast(1) + REMINDERS + NEW_REMINDER })
-                        screen == NEW_REMINDER -> NewReminderScreen(viewModel, onDone = back)
-                        screen == "settings" -> SettingsScreen(settings, onOpenTools = { open("tools") }, onOpenLink = { open("link") }, onOpenAdvanced = { open("advanced") }, onOpenBench = { open("bench") }, onOpenLicences = { open("licences") }, onOpenPrivacy = { open("privacy") }, onBack = back)
-                        screen == "licences" -> LicencesScreen(onBack = back)
-                        screen == "privacy" -> PrivacyScreen(onBack = back)
-                        screen == "advanced" -> AdvancedScreen(settings, onOpenGemini = { open("gemini") }, onBack = back)
-                        screen == "gemini" -> GeminiScreen(settings, onBack = back)
-                        screen == "bench" -> DebugBench.Screen(onBack = back)
-                        screen == "link" -> LinkScreen(settings, onBack = back)
-                        screen == "tools" -> ToolsScreen(settings, onOpenTool = { open("tool:$it") }, onBack = back)
-                        screen.startsWith("keywords:") -> KeywordsScreen(settings, screen.removePrefix("keywords:"), onBack = back)
+                            onNewReminder = { stack = stack.dropLast(1) + Page.Reminders + Page.NewReminder })
+                        Page.NewReminder -> NewReminderScreen(viewModel, onDone = back)
+                        Page.Settings -> SettingsScreen(settings, onOpenTools = { open(Page.Tools) }, onOpenLink = { open(Page.Link) }, onOpenAdvanced = { open(Page.Advanced) }, onOpenBench = { open(Page.Bench) }, onOpenLicences = { open(Page.Licences) }, onOpenPrivacy = { open(Page.Privacy) }, onBack = back)
+                        Page.Licences -> LicencesScreen(onBack = back)
+                        Page.Privacy -> PrivacyScreen(onBack = back)
+                        Page.Advanced -> AdvancedScreen(settings, onOpenGemini = { open(Page.Gemini) }, onBack = back)
+                        Page.Gemini -> GeminiScreen(settings, onBack = back)
+                        Page.Bench -> DebugBench.Screen(onBack = back)
+                        Page.Link -> LinkScreen(settings, onBack = back)
+                        Page.Tools -> ToolsScreen(settings, onOpenTool = { open(Screen.Tool(it)) }, onBack = back)
+                        is Screen.Keywords -> KeywordsScreen(settings, screen.name, onBack = back)
                         // "Try it" on a tool's page: back to the chat, and send the example.
-                        else -> ToolConfigScreen(settings, screen.removePrefix("tool:"), onOpenKeywords = { open("keywords:" + screen.removePrefix("tool:")) }, onTry = { example ->
-                            stack = listOf("assistant")
+                        is Screen.Tool -> ToolConfigScreen(settings, screen.name, onOpenKeywords = { open(Screen.Keywords(screen.name)) }, onTry = { example ->
+                            stack = listOf(Page.Assistant)
                             viewModel.send(example)
                         }, onBack = back)
                     }
@@ -154,9 +157,6 @@ class ChatActivity : ComponentActivity() {
     }
 
     companion object {
-        /** The Notes screen opened on its Reminders tab. */
-        const val REMINDERS = "reminders"
-        const val NEW_REMINDER = "new_reminder"
         private const val EXTRA_REMINDERS = "reminders"
         private const val EXTRA_NOTE_ID = "note_id"
         private const val EXTRA_NOTE_NAME = "note_name"
