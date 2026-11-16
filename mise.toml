@@ -77,13 +77,9 @@ mkdir -p "$DIR/models" "$DIR/results"
 # One bench at a time: models run side by side share the CPU and memory, which skews every
 # timing and can push the machine into swap.
 exec 9> "$DIR/.lock"
-# Ferb Link's server/run.sh holds it shared for the server's whole life (ferb-link b9c1779).
+# Nor beside Ferb Link's model server: its server/run.sh holds it shared for the server's whole life
+# (ferb-link b9c1779), and a request from the phone loads Gemma 4 even while it sleeps.
 flock -n 9 || { echo "Another bench or Ferb Link's model server is running (stop the server: mise run server:stop in ../ferb-link). Models run one at a time."; exit 1; }
-# Nor beside Ferb Link's model server (ferb-llama, /data/Projects/ferb-link): it stays up, and a
-# request from the phone loads Gemma 4 even while it sleeps.
-if systemctl --user -q is-active ferb-llama 2>/dev/null; then
-  echo "Ferb Link's model server is up: stop it first (mise run server:stop in ../ferb-link)."; exit 1
-fi
 fetch() { # url path sha256
   if [ -f "$2" ] && echo "$3  $2" | sha256sum -c --quiet 2>/dev/null; then return; fi
   curl -fL --progress-bar -o "$2.part" "$1"
