@@ -36,6 +36,7 @@ import dev.abhay.assistant.link.Transcript
 import dev.abhay.assistant.tools.CallRunner
 import dev.abhay.assistant.tools.Choice
 import dev.abhay.assistant.tools.FollowUp
+import dev.abhay.assistant.tools.of
 import dev.abhay.assistant.tools.FollowUpEnv
 import dev.abhay.assistant.tools.Outcome
 import dev.abhay.assistant.tools.PrepareEnv
@@ -660,7 +661,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             // As a reminder's notification does: from the sheet too, and from a reply another screen made.
             openReminders = { assistant.startActivity(dev.abhay.assistant.ChatActivity.openReminders(assistant)) },
             granted = { assistant.checkSelfPermission(it) == android.content.pm.PackageManager.PERMISSION_GRANTED },
-            options = assistant.toolSettings.configs.value[tool.name]?.options.orEmpty())
+            options = assistant.toolSettings.configs.value.of(tool).options)
         return tool.prepare(tool.fromRequest(call.arguments, request), env)
     }
 

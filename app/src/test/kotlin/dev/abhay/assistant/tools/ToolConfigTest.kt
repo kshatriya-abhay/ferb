@@ -69,6 +69,16 @@ class ToolConfigTest {
         assertThat(Flashlight.options).isEmpty()
     }
 
+    @Test
+    fun aToolWithNoSavedConfigIsJudgedByItsDefaults() {
+        // Review P2-8: the router used a missing tool's defaults, the verdict 0.7, no confirm and "mentioned".
+        val request = "send a text to Priya and set an alarm"
+        for (tool in listOf(SendText, SetAlarm)) {
+            val r = reply(0.5, tool.name)
+            assertThat(Verdict.of(r, emptyMap(), request)).isEqualTo(Verdict.of(r, mapOf(tool.name to ToolConfig.defaults(tool)), request))
+        }
+    }
+
     private fun reply(confidence: Double, vararg tools: String) = NeedleReply.parse(
         """{"success":true,"function_calls":[${tools.joinToString { """{"name":"$it","arguments":{}}""" }}],"confidence":$confidence}""",
     )

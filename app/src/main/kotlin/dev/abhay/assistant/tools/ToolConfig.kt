@@ -83,6 +83,12 @@ data class ToolConfig(
     }
 }
 
+/**
+ * [tool]'s config, or its defaults when none is saved: the one answer for a missing config, for the
+ * router, the verdict and the view model alike ([ToolSettings] keeps every tool's, so this is rare).
+ */
+fun Map<String, ToolConfig>.of(tool: Tool): ToolConfig = this[tool.name] ?: ToolConfig.defaults(tool)
+
 /** A setting of one tool's own, beyond the ones every tool has. */
 sealed interface ToolOption {
     val key: String
@@ -143,10 +149,11 @@ data class Verdict(
 ) {
     companion object {
         fun of(reply: NeedleReply, configs: Map<String, ToolConfig>, request: String): Verdict {
-            val called = reply.calls.map { configs[it.name] }
+            // A call to a tool Ferb doesn't have has no config: it's judged by the default bar, and fails its checks.
+            val called = reply.calls.map { call -> Tools.byName(call.name)?.let(configs::of) }
             val runAt = called.maxOfOrNull { it?.runFrom ?: Decision.RUN_AT } ?: Decision.RUN_AT
             val alwaysConfirm = called.any { it?.alwaysConfirm == true }
-            val unmentioned = reply.calls.any { call -> configs[call.name]?.mentionedIn(request) == false }
+            val unmentioned = called.any { it?.mentionedIn(request) == false }
             // A time Ferb asks about (the call's [dev.abhay.assistant.engine.ToolCall.time]) asks too.
             val ungrounded = reply.calls.any { call -> call.time?.ask != null || Tools.byName(call.name)?.grounded(call.arguments, request, call.time) == false }
             val decision = when {
