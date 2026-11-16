@@ -23,6 +23,13 @@ object NumberWords {
     /** Hindi halves, as the numbers they say: dedh is one and a half (1 and 30), aadha half (30). */
     val HINDI_HALVES = mapOf("dedh" to listOf(1, 30), "dhai" to listOf(2, 30), "aadha" to listOf(30), "aadhe" to listOf(30))
 
+    /** "twenty five", "forty-five": a ten and a unit, 21 to 59, which no single word above is. */
+    private val COMPOUND = Regex("""\b(twenty|thirty|forty|fifty)[ -](one|two|three|four|five|six|seven|eight|nine)\b""", RegexOption.IGNORE_CASE)
+
+    /** [text] with its compound number words as digits ("twenty five minutes" → "25 minutes"), for readers that take one word at a time. */
+    fun compoundsAsDigits(text: String): String =
+        text.replace(COMPOUND) { (ENGLISH.getValue(it.groupValues[1].lowercase()) + ENGLISH.getValue(it.groupValues[2].lowercase())).toString() }
+
     /** The words for 1 to 12, the hours of a clock. */
     val ENGLISH_HOURS = ENGLISH.filterValues { it in 1..12 }
     val HINDI_HOURS = HINDI.filterValues { it in 1..12 }

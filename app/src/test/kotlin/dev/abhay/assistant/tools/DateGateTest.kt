@@ -12,6 +12,17 @@ class DateGateTest {
     private val zoned = ZonedDateTime.of(now, ZoneId.of("Asia/Kolkata"))
 
     @Test
+    fun aTimersLengthReadsCompoundNumberWords() {
+        // Review P2-32: "twenty five minutes" was read as "five minutes".
+        assertThat(DateGate.read(SetTimer.name, "set a timer for twenty five minutes", now)).isEqualTo(DateGate.Read.Length(1500))
+        assertThat(DateGate.read(SetTimer.name, "timer for forty-five seconds", now)).isEqualTo(DateGate.Read.Length(45))
+        assertThat(DateGate.read(SetTimer.name, "timer for one hour and thirty five minutes", now)).isEqualTo(DateGate.Read.Length(5700))
+        assertThat(Durations.parse("twenty five minutes")).isEqualTo(1500)
+        // The rewrite's "25" is a number the request said.
+        assertThat(SaidNumbers.grounded("25 minutes", "set a timer for twenty five minutes")).isTrue()
+    }
+
+    @Test
     fun theAgendaCanLookBack() {
         // Review P2-38: the gate's day rolled forward, so "yesterday" showed today and "2 nov" next year.
         fun day(said: String) = DateGate.read(ShowAgenda.name, said, now)

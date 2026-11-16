@@ -161,7 +161,7 @@ object Durations {
      * isn't one. The computer's model passes halves as said (audio bench, 2026-10-12).
      */
     fun parse(text: String): Int? {
-        val t = text.trim().lowercase()
+        val t = NumberWords.compoundsAsDigits(text.trim().lowercase())
             // Before "and" goes and "a" becomes 1.
             .replace(Regex("""\band a half\b"""), " andahalf ")
             .replace(Regex("""\bhalf an? (hour|minute|second)\b""")) { "0.5 ${it.groupValues[1]}" }
@@ -188,7 +188,7 @@ object SaidNumbers {
     private val CLOCK_WORDS = mapOf("half" to 30, "quarter" to 15, "noon" to 12, "midnight" to 12)
     val WORD = Regex("""\b(${WORDS.keys.joinToString("|")})\b""")
 
-    fun of(text: String): Set<Int> = Regex("""\d+|[a-z]+""").findAll(text.lowercase())
+    fun of(text: String): Set<Int> = Regex("""\d+|[a-z]+""").findAll(NumberWords.compoundsAsDigits(text.lowercase()))
         .mapNotNull { it.value.toIntOrNull() ?: WORDS[it.value] ?: CLOCK_WORDS[it.value] }.toSet()
 
     /** Whether every number in [argument] is one [request] says. Zeros always are, and 13–23 are when said as 1–11 (pm). */

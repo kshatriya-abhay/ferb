@@ -48,12 +48,12 @@ object DateGate {
     }
 
     private val UNIT = """(?:hours?|hrs?|minutes?|mins?|seconds?|secs?)"""
-    private val NUMBER = """(?:\d+(?:\.\d+)?|a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|sixty|ninety|half an?|a quarter of an?)"""
+    private val NUMBER = """(?:\d+(?:\.\d+)?|a|an|${NumberWords.ENGLISH.keys.sortedByDescending { it.length }.joinToString("|")}|half an?|a quarter of an?)"""
     private val LENGTH = Regex("""$NUMBER(?: and a half)?\s*$UNIT(?:,?\s*(?:and\s+)?$NUMBER\s*$UNIT)*(?: and a half)?""")
 
     /** A timer's length in [text] (Hindi too: das minute, dedh ghanta), in seconds. */
     fun length(text: String): Int? {
-        val t = DateResolver.normalise(text)
+        val t = DateResolver.normalise(NumberWords.compoundsAsDigits(text))
             .replace(Regex("""\b(${NumberWords.HINDI.keys.joinToString("|")})\s+(minute|minat|ghante|ghanta|second|sekand)\b""")) { "${NumberWords.HINDI.getValue(it.groupValues[1])} ${UNITS.getValue(it.groupValues[2])}" }
         return LENGTH.find(t)?.value?.let { Durations.parse(it) }?.takeIf { it > 0 }
     }
