@@ -43,11 +43,11 @@ object DateResolver {
         val today = now.toLocalDate()
         val rule = rule(t)
 
-        // "in 20 minutes", "in 2 hours", "in half an hour": exactly from now. "in 3 days": that day.
-        inLength(t)?.let { (seconds, days) ->
+        // "in 20 minutes", "in 2 hours", "in half an hour": exactly from now. "in 3 days" (narso): that day,
+        // read as any day said is, so a bare hour takes the day's rules.
+        val inDays = inLength(t)?.let { (seconds, days) ->
             if (days == null) return Resolved.At(now.plusSeconds(seconds.toLong()).withSecond(0).withNano(0), rule)
-            val time = time(t)
-            return Resolved.At(today.plusDays(days.toLong()).atTime(time?.let { it.at ?: it.part?.default } ?: DEFAULT_TIME), rule)
+            days
         }
 
         // A weekend, or two weekdays ("Monday and Wednesday"): which day isn't one Ferb can pick.
@@ -56,7 +56,7 @@ object DateResolver {
             if (WEEKDAY.findAll(t).map { it.groupValues[1] }.toSet().size > 1) return Resolved.Ask("Which day?")
         }
 
-        val day = day(t, today)
+        val day = inDays?.let { SaidDay(today.plusDays(it.toLong())) } ?: day(t, today)
         // A date said that doesn't exist (2026-02-30, 31/11): ask, never another day.
         if (day?.noSuchDate == true) return Resolved.Ask("That date doesn't exist")
         // Waking words make a bare hour the morning's ("wake me up at 8"; v2 of the set, 2026-10-24).

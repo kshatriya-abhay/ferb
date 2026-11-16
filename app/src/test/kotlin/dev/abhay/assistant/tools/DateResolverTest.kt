@@ -38,6 +38,15 @@ class DateResolverTest {
     }
 
     @Test
+    fun inNDaysTakesTheDayRuleForABareHour() {
+        // Review P2-34: with a day said, a bare 1-6 is the afternoon; parso had it, narso and "in 2 days" didn't.
+        assertThat(at("parso 4 baje yaad dilana")).isEqualTo(on(11, 6, 16))
+        assertThat(at("narso 4 baje yaad dilana")).isEqualTo(on(11, 7, 16))
+        assertThat(at("remind me in 2 days at 5 to call the bank")).isEqualTo(on(11, 6, 17))
+        assertThat(at("remind me in 3 days to pay the bill")).isEqualTo(on(11, 7, 9))
+    }
+
+    @Test
     fun weekdays() {
         assertThat(at("remind me next wednesday to pay rent")).isEqualTo(on(11, 11, 9))
         assertThat(at("remind me on wednesday at 5 pm to pay rent")).isEqualTo(on(11, 4, 17))
