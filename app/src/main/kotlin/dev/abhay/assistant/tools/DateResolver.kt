@@ -53,7 +53,7 @@ object DateResolver {
         // A weekend, or two weekdays ("Monday and Wednesday"): which day isn't one Ferb can pick.
         if (kind != Kind.Agenda) {
             if (Regex("""\bweekends?\b""").containsMatchIn(t)) return Resolved.Ask("Saturday or Sunday?")
-            if (WEEKDAY.findAll(t).map { it.value }.toSet().size > 1) return Resolved.Ask("Which day?")
+            if (WEEKDAY.findAll(t).map { it.groupValues[1] }.toSet().size > 1) return Resolved.Ask("Which day?")
         }
 
         val day = day(t, today)
@@ -258,7 +258,8 @@ object DateResolver {
         "friday" to DayOfWeek.FRIDAY, "saturday" to DayOfWeek.SATURDAY, "sunday" to DayOfWeek.SUNDAY,
     )
     private val WAKE = Regex("""\b(wake|waking|get up|getting up|utha|uthana|utha dena|jaga|jagana|jaga dena)\b""")
-    private val WEEKDAY = Regex("""\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b""")
+    /** A weekday, also plural ("on Fridays"): group 1 is its name. */
+    private val WEEKDAY = Regex("""\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)s?\b""")
     private val MONTHS = listOf("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
     private const val MONTH = """(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sept|sep|october|oct|november|nov|december|dec)"""
 
@@ -294,7 +295,7 @@ object DateResolver {
             val date = if (y != null) runCatching { LocalDate.of(y, mo, d) }.getOrNull() else ahead(mo, d)
             return date?.let { SaidDay(it) } ?: SaidDay(today, noSuchDate = true)
         }
-        Regex("""\b(?:(this|next|coming) )?(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b""").find(t)?.let { m ->
+        Regex("""\b(?:(this|next|coming) )?(monday|tuesday|wednesday|thursday|friday|saturday|sunday)s?\b""").find(t)?.let { m ->
             if (Regex("""\bevery ${m.groupValues[2]}""").containsMatchIn(t)) return SaidDay(today.with(TemporalAdjusters.nextOrSame(WEEKDAYS.getValue(m.groupValues[2]))), WEEKDAYS.getValue(m.groupValues[2]))
             val weekday = WEEKDAYS.getValue(m.groupValues[2])
             return if (m.groupValues[1] == "next") SaidDay(today.with(TemporalAdjusters.next(weekday)), weekday)

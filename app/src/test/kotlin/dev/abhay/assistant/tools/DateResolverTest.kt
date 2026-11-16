@@ -32,6 +32,12 @@ class DateResolverTest {
     }
 
     @Test
+    fun aPluralWeekdayIsThatWeekday() {
+        // Review P2-39: "on fridays" matched no weekday, so the reminder landed today, a Wednesday.
+        assertThat((at("remind me on fridays at 6 pm to call mum") as Resolved.At).at.dayOfWeek).isEqualTo(java.time.DayOfWeek.FRIDAY)
+    }
+
+    @Test
     fun weekdays() {
         assertThat(at("remind me next wednesday to pay rent")).isEqualTo(on(11, 11, 9))
         assertThat(at("remind me on wednesday at 5 pm to pay rent")).isEqualTo(on(11, 4, 17))
