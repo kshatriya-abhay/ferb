@@ -520,7 +520,8 @@ data class Transcript(val heard: String, val text: String, val model: String? = 
 
 /**
  * Jev's answer to `decide`: [choice], a tool's name or "none", with [probabilities] for every option
- * it was asked; [error] (a few words), [errorDetail] and [errorKind] when it failed.
+ * it was asked; [error] (a few words), [errorDetail] and [errorKind] when it failed; [capped]: Jev's
+ * spending limit is why (at it, or near it), null from a Ferb Link that doesn't say (before d588b50).
  */
 data class JevReply(
     val choice: String?,
@@ -530,6 +531,7 @@ data class JevReply(
     val error: String? = null,
     val errorDetail: String? = null,
     val errorKind: String? = null,
+    val capped: Boolean? = null,
 ) {
     /** The probability of [choice], when Jev answered. */
     val p: Double? get() = if (error == null) choice?.let { probabilities[it] } else null
@@ -549,6 +551,7 @@ data class JevReply(
                 error = if (success) null else o.optString("error").ifBlank { "Jev failed" },
                 errorDetail = o.optString("error_detail").ifBlank { null },
                 errorKind = o.optString("error_kind").ifBlank { null },
+                capped = if (o.has("jev_capped")) o.optBoolean("jev_capped") else null,
             )
         } catch (e: Exception) {
             failed("unexpected answer", "Jev's reply couldn't be read: ${e.message}")

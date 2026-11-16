@@ -132,6 +132,26 @@ class LinkContractTest {
     }
 
     @Test
+    fun jevsCapIsReadFromItsOwnSignal() {
+        // ferb-link d588b50: decide says when the cap is why (jev_capped), at the cap and near it.
+        fun fixture(name: String) = FerbLink.decisionOf(values(cases.single { it.name == name }.result))
+        val cap = fixture("decide-cap")
+        val near = fixture("decide-near-cap")
+        assertThat(listOf(cap.capped, near.capped)).containsExactly(true, true)
+        assertThat(fixture("decide-off").capped).isNotEqualTo(true)
+        // The reason, Ferb Link's own words with Jev named once; near the cap it isn't "reached".
+        assertThat((LinkPolicy.select(cap, listOf("set_alarm")) as JevPick.Fallback).reason).isEqualTo("Jev's limit reached")
+        assertThat((LinkPolicy.select(near, listOf("set_alarm")) as JevPick.Fallback).reason).isEqualTo("Jev near its spending limit")
+        // The details: Ferb Link's own, which say what to do.
+        assertThat(LinkPolicy.jevLine(cap)).contains("Raise it in Ferb Link")
+        assertThat(LinkPolicy.jevLine(near)).contains("a shorter one may still go")
+        // An older Ferb Link, without the signal: the prose still tells.
+        val old = JevReply(null, emptyMap(), error = "Jev's limit reached", errorDetail = "Jev reached its spending limit (\$3.00).", errorKind = "off")
+        assertThat(old.capped).isNull()
+        assertThat(LinkPolicy.jevLine(old)).contains("spending limit")
+    }
+
+    @Test
     fun jevsFallbackReasonNamesJevOnce() {
         // ferb-link P56: the chat's reason was "Jev " + Ferb Link's short, so "Jev off" read "Jev Jev off".
         val failed = of("decide").map { FerbLink.decisionOf(values(it.result)) }.filter { it.p == null }
