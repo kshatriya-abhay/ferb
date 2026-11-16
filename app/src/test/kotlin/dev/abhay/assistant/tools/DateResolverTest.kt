@@ -17,6 +17,19 @@ class DateResolverTest {
     private fun on(month: Int, day: Int, hour: Int, minute: Int = 0, year: Int = 2026) = Resolved.At(LocalDateTime.of(year, month, day, hour, minute))
 
     @Test
+    fun aNightHourFromTwelveToFourAfterADayAsks() {
+        // The user's decision on review P2-40 (2026-11-16): kal is the calendar day, and "kal raat 1"
+        // could be the early hours of tomorrow or of the day after, so Ferb asks rather than guess.
+        for (h in listOf(12, 1, 2, 4)) assertThat(at("kal raat $h baje yaad dilana")).isInstanceOf(Resolved.Ask::class.java)
+        assertThat(at("remind me tomorrow night at 2 to check the oven")).isInstanceOf(Resolved.Ask::class.java)
+        // Other hours, and no night word, read as before.
+        assertThat(at("kal raat 11 baje yaad dilana")).isEqualTo(on(11, 5, 23))
+        assertThat(at("remind me tomorrow at 1 am to call the US office")).isEqualTo(on(11, 5, 1))
+        // "tonight at 1 am" said late already asks.
+        assertThat(at("remind me tonight at 1 am to check the oven", clock = LocalDateTime.of(2026, 11, 4, 22, 0))).isInstanceOf(Resolved.Ask::class.java)
+    }
+
+    @Test
     fun amIsAWordNotThePrefixOfOne() {
         // Review P2-35: "2 amul" was 2 am.
         assertThat(at("remind me to buy 2 amul packets tomorrow at 7")).isEqualTo(on(11, 5, 7))
@@ -182,7 +195,8 @@ class DateResolverTest {
         assertThat(at("kal dhai baje meeting", Kind.Event)).isEqualTo(on(11, 5, 14, 30))
         assertThat(at("dinner tomorrow from 7 to 9 pm", Kind.Event)).isEqualTo(on(11, 5, 19))
         assertThat(at("raat 12 baje yaad dilana")).isEqualTo(on(11, 5, 0))
-        assertThat(at("kal raat 12 baje yaad dilana")).isEqualTo(on(11, 6, 0))
+        // After a day it asks (the user's decision, 2026-11-16): aNightHourFromTwelveToFourAfterADayAsks.
+        assertThat(at("kal raat 12 baje yaad dilana")).isInstanceOf(Resolved.Ask::class.java)
     }
 
     /** The user's rules (2026-10-25): a bare hour for today is the nearest ahead outside 00:00-04:59; alarms with a day 5-11 am, 1-4 pm. */

@@ -21,6 +21,10 @@ existing sets are frozen with the rules in their own headers; don't change them.
 - A clock time with no day that has passed today rolls to tomorrow; a time said for today that has
   passed asks. A part of the day with no day that has passed rolls to tomorrow.
 - Alarms always need a time.
+- A night hour from 12 to 4 after a day word ("kal raat 1", "kal raat 12", "tomorrow night at 2")
+  asks: it could be the early hours of that day or of the next (the user's decision, 2026-11-16,
+  review P2-40). "tonight at 1 am" said late asks too. Without a night word ("tomorrow at 1 am")
+  it's that day's 01:00.
 - kal is tomorrow, even just after midnight; parso +2, narso +3. "in N minutes/hours" counts from
   now; sava +15, saade +30, paune -15, dedh 1:30 or 1.5, dhai 2:30 or 2.5.
 - noon is 12:00; midnight is 00:00 at the start of the next day.

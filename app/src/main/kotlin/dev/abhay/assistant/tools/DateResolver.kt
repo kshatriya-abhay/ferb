@@ -99,6 +99,12 @@ object DateResolver {
         // A weekday said on that weekday: today while its time is ahead, else a week on ("this" and
         // bare ones; "next" is a week on already).
         if (day != null) {
+            // A night hour from 12 to 4 after a day ("kal raat 1", "tomorrow night at 2"): the early hours
+            // of that day or of the next? The user's decision (2026-11-16): ask, don't guess.
+            if (!day.tonight && NIGHT_WORD.containsMatchIn(t) && said?.at != null && said.at.hour in 0..4) {
+                val hour = if (said.at.hour == 0) 12 else said.at.hour
+                return Resolved.Ask("$hour at night: the early hours of ${day.date.format(SHORT_DAY)}, or of ${day.date.plusDays(1).format(SHORT_DAY)}?")
+            }
             // A bare hour today: the nearest half of the clock still ahead today, outside 00:00-04:59 ([nearest]).
             if (said != null && said.bare && said.at != null && day.date == today && day.later == null) {
                 val ahead = nearest(said.at, now)?.takeIf { it.toLocalDate() == today }
@@ -263,6 +269,8 @@ object DateResolver {
      */
     private class SaidDay(val date: LocalDate, val weekday: DayOfWeek? = null, val later: LocalDate? = null, val tonight: Boolean = false, val noSuchDate: Boolean = false)
 
+    private val NIGHT_WORD = Regex("""\b(night|tonight)\b""")
+    private val SHORT_DAY = java.time.format.DateTimeFormatter.ofPattern("EEE d MMM", java.util.Locale.US)
     private val WAKE = Regex("""\b(wake|waking|get up|getting up|utha|uthana|utha dena|jaga|jagana|jaga dena)\b""")
     /** A weekday, also plural ("on Fridays"): group 1 is its name. */
     private val WEEKDAY = Regex("""\b${DateWords.WEEKDAY_NAME}s?\b""")
