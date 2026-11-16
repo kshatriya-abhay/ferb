@@ -11,6 +11,16 @@ class ContentRewriteTest {
     private fun sha256(s: String) = MessageDigest.getInstance("SHA-256").digest(s.toByteArray()).joinToString("") { "%02x".format(it) }
 
     @Test
+    fun quotingTheContentLeavesTheRestOfTheCommandAlone() {
+        // Review P2-24: a plain substring replace put quotes inside a name ("Ab"hi"shek").
+        fun merged(command: String, content: String) = ContentRewrite.merged("said", ContentRewrite.Typed(command, content)).command
+        assertThat(merged("Send a text to Abhishek: hi", "hi")).isEqualTo("Send a text to Abhishek: \"hi\"")
+        assertThat(merged("Text Manoj no", "no")).isEqualTo("Text Manoj \"no\"")
+        // Not there as whole words: added after a colon.
+        assertThat(merged("Text Brooke", "ok")).isEqualTo("Text Brooke: \"ok\"")
+    }
+
+    @Test
     fun theTextsAreTheFrozenFilesByteForByte() {
         // build/content/frozen-2/SHA256SUMS, 2026-11-06.
         assertThat(sha256(ContentRewrite.PROMPT)).isEqualTo("52537a51c885de04c8bb42fc59bec6422bbefaec167183fac2bda71e88de30c5")

@@ -115,9 +115,12 @@ the alarm woke the baby -> NONE"""
         val cmd = typed.command.trim()
         val content = typed.content.trim()
         if (cmd.isEmpty() || cmd.trimEnd('.').equals(GeminiRewrite.NONE, ignoreCase = true)) return Rewritten(said, null)
+        // The content where the command has it as whole words (the last time, as it ends a command),
+        // never inside a name ("hi" in "Abhishek").
+        val whole = Regex("""(?<![\p{L}\p{N}])${Regex.escape(content)}(?![\p{L}\p{N}])""").findAll(cmd).lastOrNull()
         val command = when {
             content.isEmpty() || "\"$content\"" in cmd -> cmd
-            content in cmd -> cmd.replace(content, "\"$content\"")
+            whole != null -> cmd.replaceRange(whole.range, "\"$content\"")
             else -> "$cmd: \"$content\""
         }
         return Rewritten(said, command)
