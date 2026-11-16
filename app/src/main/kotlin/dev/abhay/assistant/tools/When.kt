@@ -113,22 +113,19 @@ object When {
     // --- the rules ---
 
     /** [weekday] from [today]: today itself if it's that day ("Friday" on a Friday), a week on for "next" said on that day, else the coming one. */
-    fun weekday(today: LocalDate, weekday: DayOfWeek, next: Boolean): LocalDate {
+    private fun weekday(today: LocalDate, weekday: DayOfWeek, next: Boolean): LocalDate {
         val coming = today.with(TemporalAdjusters.nextOrSame(weekday))
         return if (next && coming == today) coming.plusWeeks(1) else coming
     }
 
     /** "the 12th": this month's, or next month's if it has passed and [ahead]. */
-    fun nth(n: Int, today: LocalDate, ahead: Boolean): LocalDate? {
+    private fun nth(n: Int, today: LocalDate, ahead: Boolean): LocalDate? {
         val month = if (ahead && n < today.dayOfMonth) today.plusMonths(1) else today
         return runCatching { month.withDayOfMonth(n) }.getOrNull()
     }
 
-    /** The time a part of the day means when no time is said ("tomorrow morning" is 9:00); null for an unknown part. */
-    fun partTime(part: String): LocalTime? = PARTS[part]
-
     /** A day of a month; without a [year], the next one from [today] if [ahead], else the nearest. */
-    fun monthDay(day: Int, month: Int, year: Int?, today: LocalDate, ahead: Boolean): LocalDate? {
+    private fun monthDay(day: Int, month: Int, year: Int?, today: LocalDate, ahead: Boolean): LocalDate? {
         val md = runCatching { MonthDay.of(month, day) }.getOrNull() ?: return null
         if (year != null) {
             val y = if (year < 100) 2000 + year else year
@@ -199,7 +196,7 @@ object When {
         clock(hour.toIntOrNull() ?: return null, minute.ifEmpty { "0" }.toInt(), period.ifEmpty { null }, part)
 
     /** [clock]'s rule for an event's hour: am or pm as said, else [part] decides, else 1–6 are pm and 7–11 am. */
-    fun clock(hour: Int, minute: Int, meridiem: String?, part: String?): LocalTime? {
+    private fun clock(hour: Int, minute: Int, meridiem: String?, part: String?): LocalTime? {
         var h = hour
         val min = minute
         val period = meridiem.orEmpty()
