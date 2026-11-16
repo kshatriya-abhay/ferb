@@ -15,7 +15,14 @@ package dev.abhay.assistant.tools
  * that the frozen code used).
  */
 class ContentMap(private val latin: (String) -> String) {
-    private val latinCache = HashMap<String, String>()
+    /**
+     * Spans already written in Latin letters: [spanOf] tries each of a request's n(n+1)/2 spans, and
+     * one request reads many twice. Bounded, least recently used out first, so a view model's flow
+     * doesn't keep every span of every request it ever answered (review P2-28).
+     */
+    private val latinCache = object : LinkedHashMap<String, String>(256, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?) = size > LATIN_CACHE_SIZE
+    }
 
     /** [s] in Latin letters, ASCII, as uconv -x "Any-Latin; Latin-ASCII" writes it, trimmed. */
     fun latinOf(s: String): String = synchronized(latinCache) { latinCache.getOrPut(s) { latin(s).trim() } }
@@ -106,6 +113,9 @@ class ContentMap(private val latin: (String) -> String) {
     fun forNeedle(command: String): String = QUOTE.replace(command) { m -> quote(m) { latinOf(it) } }
 
     companion object {
+        /** Enough for the spans of a long request (60 words: 1,830). */
+        private const val LATIN_CACHE_SIZE = 2048
+
         /** A span maps when it matches at least this well. */
         const val OK = 0.75
 
