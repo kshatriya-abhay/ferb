@@ -83,7 +83,14 @@ sealed interface Prepared {
         val cancel: String = "Not now",
         val needs: List<String> = emptyList(),
         val run: (Context) -> Outcome,
-    ) : Prepared
+    ) : Prepared {
+        /** This with [reason], why Ferb asks first, on its own line above [detail]; as it is when there's none or it's there already. */
+        fun withReason(reason: String?): Ready {
+            if (reason.isNullOrBlank() || detail?.contains(reason, ignoreCase = true) == true) return this
+            val line = reason.replaceFirstChar { it.uppercase() }
+            return Ready(summary, opensApp, listOfNotNull(line, detail).joinToString("\n"), choices, other, confirm, cancel, needs, run)
+        }
+    }
     /** Can't run: [reason]; when it's for want of Android permissions, [needs] lists them, for the reply to ask. */
     data class Invalid(val reason: String, val needs: List<String> = emptyList()) : Prepared
 }
@@ -158,6 +165,14 @@ abstract class Tool(
     abstract val schema: String
 
     abstract fun prepare(arguments: Map<String, Any?>, env: PrepareEnv): Prepared
+
+    /**
+     * [call] checked, as the chat shows it: [prepare] on its arguments, with every reason the date gate
+     * has to ask first ([dev.abhay.assistant.engine.FerbTime.ask]) on the card, for every timed tool alike
+     * (review P2-66: only an alarm on another day said why).
+     */
+    fun prepareCall(call: dev.abhay.assistant.engine.ToolCall, request: String, env: PrepareEnv): Prepared =
+        prepare(fromRequest(call.arguments, request), env).let { (it as? Prepared.Ready)?.withReason(call.time?.ask) ?: it }
 }
 
 /**

@@ -662,7 +662,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             openReminders = { assistant.startActivity(dev.abhay.assistant.ChatActivity.openReminders(assistant)) },
             granted = { assistant.checkSelfPermission(it) == android.content.pm.PackageManager.PERMISSION_GRANTED },
             options = assistant.toolSettings.configs.value.of(tool).options)
-        return tool.prepare(tool.fromRequest(call.arguments, request), env)
+        return tool.prepareCall(call, request, env)
     }
 
     /** Runs an exchange's waiting calls, one at a time ([CallQueue]); each outcome shows as soon as it's known. */

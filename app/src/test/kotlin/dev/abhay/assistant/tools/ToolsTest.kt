@@ -18,6 +18,20 @@ class ToolsTest {
     private fun reason(prepared: Prepared) = (prepared as? Prepared.Invalid)?.reason
 
     @Test
+    fun theCardSaysWhyFerbAsksFirst() {
+        // Review P2-66: only an alarm on another day put the gate's reason on the card; a repeating alarm
+        // showed "Set an alarm for 06:00" and never said it won't repeat.
+        val call = dev.abhay.assistant.engine.ToolCall(SetAlarm.name, mapOf("time" to "06:00"),
+            dev.abhay.assistant.engine.FerbTime(ask = "repeating alarms aren't supported yet"))
+        val card = SetAlarm.prepareCall(call, "wake me up every day at 6 am", PrepareEnv()) as Prepared.Ready
+        assertThat(card.summary).isEqualTo("Set an alarm for 06:00")
+        assertThat(card.detail).isEqualTo("Repeating alarms aren't supported yet")
+        // With nothing to ask about, nothing is added.
+        val plain = SetAlarm.prepareCall(call.copy(time = dev.abhay.assistant.engine.FerbTime()), "wake me up at 6 am", PrepareEnv()) as Prepared.Ready
+        assertThat(plain.detail).isNull()
+    }
+
+    @Test
     fun alarmsTakeTheTimeAsWritten() {
         assertThat(summary(SetAlarm.prepare(mapOf("time" to "7 pm"), PrepareEnv(apps)))).isEqualTo("Set an alarm for 19:00")
         assertThat(summary(SetAlarm.prepare(mapOf("time" to "6:45"), PrepareEnv(apps)))).isEqualTo("Set an alarm for 06:45")

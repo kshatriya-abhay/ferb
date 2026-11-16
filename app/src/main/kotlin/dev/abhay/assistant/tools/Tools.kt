@@ -122,7 +122,8 @@ object SetAlarm : Tool(
         val reminders = env.reminders
         if (wanted != null && reminders != null) {
             val day = wanted.format(java.time.format.DateTimeFormatter.ofPattern("EEE d MMM", Locale.US))
-            return Prepared.Ready("Set an alarm for $time?", detail = env.time?.ask?.replaceFirstChar { it.uppercase() },
+            // Why it asks (the gate's reason) goes on the card with every timed call's ([Tool.prepareCall]).
+            return Prepared.Ready("Set an alarm for $time?",
                 choices = listOf(
                     Choice("Alarm at the next $time") { set(it) },
                     Choice("Reminder on $day at $time") { _ ->
