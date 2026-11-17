@@ -29,7 +29,7 @@ not_in_use() {
 notified() { adb shell dumpsys notification --noredact | grep -q "Ferb device test"; }
 
 not_in_use
-./gradlew --no-daemon -q installDebug installDebugAndroidTest || exit 1
+./gradlew --no-daemon -q :app:installDebug :app:installDebugAndroidTest || exit 1
 adb shell pm grant $APP android.permission.POST_NOTIFICATIONS
 
 # 1. Every instrumented test (the special ones skip themselves); quiet: not the one that fires a notification.

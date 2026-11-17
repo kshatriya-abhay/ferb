@@ -32,7 +32,7 @@ VERSION=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts)
 UNSIGNED=app/build/outputs/apk/release/app-release-unsigned.apk
 OUT=dist/ferb-$VERSION.apk
 
-./gradlew --no-daemon -q assembleRelease
+./gradlew --no-daemon -q :app:assembleRelease
 mkdir -p dist
 rm -f "$OUT" "$OUT.sha256" "dist/ferb-$VERSION.commit" dist/aligned.apk
 "$TOOLS/zipalign" -P 16 -f 4 "$UNSIGNED" dist/aligned.apk

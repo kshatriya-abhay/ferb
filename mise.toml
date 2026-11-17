@@ -196,7 +196,7 @@ run = "scripts/publish.sh"
 [tasks.build]
 description = "Build the debug APK"
 depends = ["fetch"]
-run = "./gradlew --no-daemon assembleDebug"
+run = "./gradlew --no-daemon :app:assembleDebug"
 
 [tasks.test]
 description = "Unit and contract tests: fast, no model, server or phone (see README, Testing)"
@@ -250,7 +250,7 @@ run = "scripts/device-check.sh"
 
 [tasks.install]
 depends = ["fetch"]
-run = "./gradlew --no-daemon installDebug"
+run = "./gradlew --no-daemon :app:installDebug"
 
 [tasks.run]
 description = "Install and launch on the connected phone"
