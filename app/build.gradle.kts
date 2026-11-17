@@ -73,8 +73,8 @@ dependencies {
     // The test APK must use the app's versions (consistent resolution), and androidx.test and Truth
     // need these newer ones; without them it stopped building (2026-10-29). Both are tiny.
     constraints {
-        implementation("androidx.concurrent:concurrent-futures:1.2.0")
-        implementation("com.google.errorprone:error_prone_annotations:2.41.0")
+        implementation(libs.androidx.concurrent.futures)
+        implementation(libs.errorprone.annotations)
     }
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

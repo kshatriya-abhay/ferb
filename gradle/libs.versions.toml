@@ -1,4 +1,8 @@
 [versions]
+# Constraints only (app/build.gradle.kts): the test APK must use the app's versions, and androidx.test
+# and Truth need these newer ones.
+concurrentFutures = "1.2.0"
+errorprone = "2.41.0"
 agp = "9.4.1"
 kotlin = "2.4.20"
 composeBom = "2026.09.00"
@@ -28,6 +32,8 @@ mlkitSchema = "1.0.0-alpha1"
 ksp = "2.3.6"
 
 [libraries]
+androidx-concurrent-futures = { module = "androidx.concurrent:concurrent-futures", version.ref = "concurrentFutures" }
+errorprone-annotations = { module = "com.google.errorprone:error_prone_annotations", version.ref = "errorprone" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
 androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }

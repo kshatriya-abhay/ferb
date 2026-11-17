@@ -5,8 +5,9 @@
     <!-- No INTERNET permission: the model is bundled and runs on the phone, and the app never goes
          online. `mise run check-offline` checks the built APK. -->
 
-    <!-- ML Kit (Gemini Nano voice, POC) merges these in for Google's usage logs (transport-backend-cct).
-         Removed: Ferb never goes online, so the library can't send its logs. Speech runs in AICore. -->
+    <!-- ML Kit merges these in: its speech library itself (genai-speech-recognition), and its usage
+         logs (transport-backend-cct, transport-runtime). Removed: Ferb never goes online, so the
+         library can't send anything. Speech runs in AICore. -->
     <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
 
@@ -24,8 +25,8 @@
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.WRITE_CALENDAR" />
 
-    <!-- Voice, only through Ferb Link: record a spoken request, which Ferb Link sends to the
-         user's computer to transcribe. Ferb itself still has no INTERNET permission. -->
+    <!-- Voice: record a spoken request, for Whistle on the phone, Gemini Nano in AICore, or Ferb
+         Link, which sends it to the user's computer. Ferb itself still has no INTERNET permission. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- A low-latency Wi-Fi lock while a request is with the computer (Ferb Link): Wi-Fi power
          save delayed each one by about a second. Not network access: Ferb still has no INTERNET. -->
