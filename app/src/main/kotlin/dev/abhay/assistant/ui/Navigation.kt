@@ -19,6 +19,8 @@ import androidx.compose.material3.MotionScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -112,11 +114,20 @@ fun <T> List<T>.popped(from: T = last()): List<T> = if (size > 1 && last() == fr
  * gesture) pops the stack; the gesture seeks the transition as it's dragged, so the screen beneath
  * peeks (predictive back), and a cancelled swipe settles back. With one screen left, back goes to
  * the system, whose back-to-home animation then runs (`enableOnBackInvokedCallback`). A screen's own
- * BackHandler, composed later, still wins (Tools, with unsaved changes, asks first).
+ * BackHandler, composed later, still wins (Tools, with unsaved changes, asks first). Each screen's
+ * saved state (scroll, rememberSaveable) is kept while it's under another, and dropped once popped
+ * (review P2-131: back from a tool's page landed at the top of Tools, and setup lost its refusals).
  */
 @Composable
-fun <T> NavStack(stack: List<T>, onBack: () -> Unit, content: @Composable (T) -> Unit) {
+fun <T : Screen> NavStack(stack: List<T>, onBack: () -> Unit, content: @Composable (T) -> Unit) {
     val state = remember { SeekableTransitionState(stack) }
+    val saved = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
+    var kept by remember { mutableStateOf(stack.map { it.key }.toSet()) }
+    LaunchedEffect(stack) {
+        val now = stack.map { it.key }.toSet()
+        (kept - now).forEach(saved::removeState)
+        kept = now
+    }
     val current by rememberUpdatedState(stack)
     val back by rememberUpdatedState(onBack)
     LaunchedEffect(stack) { if (state.currentState != stack) state.animateTo(stack) }
@@ -139,5 +150,5 @@ fun <T> NavStack(stack: List<T>, onBack: () -> Unit, content: @Composable (T) ->
     rememberTransition(state).AnimatedContent(
         transitionSpec = { Nav.transform(Nav.isBack(initialState, targetState), shift, motion) },
         contentKey = { it },
-    ) { shown -> content(shown.last()) }
+    ) { shown -> shown.last().let { top -> saved.SaveableStateProvider(top.key) { content(top) } } }
 }
