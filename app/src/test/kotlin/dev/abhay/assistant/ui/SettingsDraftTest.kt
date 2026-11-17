@@ -25,7 +25,6 @@ class SettingsDraftTest {
     private val store = ViewModelStore()
 
     @Before fun setUp() {
-        FakeApp.prefs.clear() // FakeApp keeps its preferences per process: each test starts from the defaults
         Dispatchers.setMain(main)
     }
 

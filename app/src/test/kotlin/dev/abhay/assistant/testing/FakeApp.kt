@@ -8,6 +8,8 @@ import dev.abhay.assistant.link.FerbLink
 import dev.abhay.assistant.pipeline.PipelineSettings
 import dev.abhay.assistant.tools.ToolSettings
 import dev.abhay.assistant.voice.NanoEars
+import dev.abhay.assistant.ui.AssistantViewModel
+import dev.abhay.assistant.ui.ChatSession
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.sync.Mutex
@@ -21,6 +23,11 @@ import kotlinx.coroutines.sync.Mutex
  */
 object FakeApp {
     fun create(): AssistantApp {
+        // Each app starts as a fresh one: its own preferences, and the conversation the process
+        // shares (ChatSession) emptied (review P2-179: one JVM-wide map and session leaked between tests).
+        ChatSession.state.value = AssistantViewModel.UiState()
+        ChatSession.exchangeIds.set(0)
+        (field(ChatSession, "following") as AtomicBoolean).set(false)
         val context = allocate(PrefsContext::class.java)
         val app = allocate(AssistantApp::class.java)
         val engine = AssistantEngine(context)
@@ -38,8 +45,11 @@ object FakeApp {
         return app
     }
 
+    /** Preferences in memory, this context's own (allocated without a constructor, so set on first use). */
     class PrefsContext : ContextWrapper(null) {
-        override fun getSharedPreferences(name: String, mode: Int): SharedPreferences = prefs.getOrPut(name) { MemoryPrefs() }
+        private var prefs: MutableMap<String, MemoryPrefs>? = null
+        override fun getSharedPreferences(name: String, mode: Int): SharedPreferences =
+            (prefs ?: mutableMapOf<String, MemoryPrefs>().also { prefs = it }).getOrPut(name) { MemoryPrefs() }
     }
 
     class MemoryPrefs : SharedPreferences {
@@ -77,8 +87,6 @@ object FakeApp {
             to.values.putAll(changes)
         }
     }
-
-    val prefs = mutableMapOf<String, MemoryPrefs>()
 
     fun <T> allocate(type: Class<T>): T {
         val unsafe = Class.forName("sun.misc.Unsafe").getDeclaredField("theUnsafe").apply { isAccessible = true }.get(null)
