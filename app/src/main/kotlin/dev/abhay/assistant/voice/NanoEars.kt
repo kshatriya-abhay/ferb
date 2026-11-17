@@ -112,18 +112,16 @@ class NanoEars(inFront: StateFlow<Boolean>, private val now: () -> Long = System
         _setup.update { s -> s.copy(speech = s.speech.takeIf { it !is Part.Unchecked } ?: Part.Checking, rewrite = s.rewrite.takeIf { it !is Part.Unchecked } ?: Part.Checking) }
         val speech = part(SPEECH) { listener(NanoSpeech.LOCALE).checkStatus() }
         val rewrite = part(REWRITE) { writer().checkStatus() }
-        val before = _setup.value
         _setup.update { GeminiSetup(speech = checked(SPEECH, it.speech, speech), rewrite = checked(REWRITE, it.rewrite, rewrite)) }
-        // Downloading: followed for the log, unless Ferb's own download of it failed (no retrying
-        // in a loop); waited for either way.
-        if (speech == Part.Downloading) { if (before.speech is Part.Failed) readyWatch.start() else download(SPEECH) }
-        if (rewrite == Part.Downloading) { if (before.rewrite is Part.Failed) readyWatch.start() else download(REWRITE) }
+        // Downloading (Android fetching it): waited for, never a download of Ferb's started again from
+        // here, whose end would nudge the next check at once (review P2-101).
+        if (speech == Part.Downloading || rewrite == Part.Downloading) readyWatch.start()
         if (_setup.value.ready) readyWatch.sawReady()
     }
 
     /** Once Ferb comes back to the front: one check, or, while waiting for a download, ask now. */
     fun resumed() {
-        if (readyWatch.state.value == GeminiWatch.Watching) readyWatch.nudge()
+        if (readyWatch.watching) readyWatch.nudge()
         else scope.launch { refresh() }
     }
 

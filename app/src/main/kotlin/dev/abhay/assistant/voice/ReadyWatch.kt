@@ -45,6 +45,9 @@ class ReadyWatch(
     private val nudges = Channel<Unit>(Channel.CONFLATED)
     private var job: Job? = null
 
+    /** Whether a watch is running: what a resume goes by, not [state], which a check elsewhere may have changed. */
+    val watching: Boolean get() = job?.isActive == true
+
     /** Starts waiting, unless it already is. */
     @Synchronized
     fun start() {
@@ -76,13 +79,17 @@ class ReadyWatch(
             if (inFront.value) asked += now() - began
             else inFront.first { it } // Away: no checks until Ferb is back, then one at once.
             val s = check()
-            _state.value = when {
+            // A nudge sent while it checked is answered by this check: it doesn't skip the next wait,
+            // or a check that nudges (a download ending at once) asks every second (review P2-101).
+            nudges.tryReceive()
+            val next = when {
                 s.ready -> GeminiWatch.Ready
                 stops(s) -> GeminiWatch.Off
                 asked >= CAP_MS -> GeminiWatch.GaveUp
                 else -> GeminiWatch.Watching
             }
-            if (_state.value != GeminiWatch.Watching) return
+            // Only over Watching: a check elsewhere may have seen it ready meanwhile (review P2-111).
+            if (!_state.compareAndSet(GeminiWatch.Watching, next) || next != GeminiWatch.Watching) return
             wait = next(wait, changed = s != last)
             last = s
         }

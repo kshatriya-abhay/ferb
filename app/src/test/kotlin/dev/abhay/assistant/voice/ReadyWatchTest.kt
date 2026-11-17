@@ -132,4 +132,38 @@ class ReadyWatchTest {
         assertThat(ReadyWatch.stops(GeminiSetup(Part.NeedsDownload, Part.Downloading))).isFalse()
         assertThat(ReadyWatch.stops(downloading)).isFalse()
     }
+
+    @Test
+    fun aCheckThatNudgesKeepsTheBackoff() = runTest {
+        // Review P2-101: a check whose download ended at once nudged the watch, and the nudge ran the
+        // next check at once: about one a second instead of every 10 to 30 s.
+        val asked = mutableListOf<Long>()
+        lateinit var watch: ReadyWatch
+        watch = ReadyWatch(backgroundScope, MutableStateFlow(true), { testScheduler.currentTime }) {
+            kotlinx.coroutines.delay(1_000)
+            asked += testScheduler.currentTime
+            watch.nudge()
+            GeminiSetup(Part.Downloading, Part.Downloading)
+        }
+        watch.start()
+        advanceTimeBy(60_000)
+        // The documented pace: 10 s, then half as long again while nothing changes.
+        assertThat(asked.size).isAtMost(4)
+    }
+
+    @Test
+    fun readySeenElsewhereStaysReady() = runTest {
+        // Review P2-111: a check that had already answered wrote Watching over a Ready seen elsewhere,
+        // with no watch running, so later resumes checked nothing.
+        lateinit var watch: ReadyWatch
+        watch = ReadyWatch(backgroundScope, MutableStateFlow(true), { testScheduler.currentTime }) {
+            watch.sawReady()
+            GeminiSetup(Part.Downloading, Part.Downloading)
+        }
+        watch.start()
+        advanceTimeBy(10_001)
+        runCurrent()
+        assertThat(watch.state.value).isEqualTo(GeminiWatch.Ready)
+        assertThat(watch.watching).isFalse()
+    }
 }
