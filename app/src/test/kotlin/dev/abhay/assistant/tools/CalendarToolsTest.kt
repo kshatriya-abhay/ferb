@@ -38,6 +38,13 @@ class CalendarToolsTest {
     private fun args(request: String, vararg pairs: Pair<String, Any?>) = Asked(mapOf(*pairs), request)
 
     @Test
+    fun anEventWithTheSameTitleAtTheSameTimeIsShown() {
+        // Review P2-81: the clash check left out events with the same title, so a doubled Gym went in silently.
+        val ready = AddEvent.prepare(args("gym tomorrow at 5:30 pm", "title" to "Gym", "when" to "tomorrow at 5:30 pm"), env()) as Prepared.Ready
+        assertThat(ready.detail).contains("Gym (17:30)")
+    }
+
+    @Test
     fun allDayEventsAreOnTheirUtcDatesNotTheHoursTheyOverlap() {
         // In India, Dussehra (9 Oct, UTC) runs from 05:30 on the 9th to 05:30 on the 10th.
         assertThat(book.day(LocalDate.of(2026, 10, 9))!!.map { it.title }).containsExactly("Dussehra", "Night train", "Standup", "Gym").inOrder()

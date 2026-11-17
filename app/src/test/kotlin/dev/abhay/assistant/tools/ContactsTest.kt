@@ -18,6 +18,27 @@ class ContactsTest {
     private fun names(query: String, limit: Int = 3) = ContactMatch.rank(query, book, limit).map { it.name }
 
     @Test
+    fun theNameSaidBeatsTheRelationWord() {
+        // Review P2-84: one relation word made every contact with one in its name a perfect match.
+        val people = listOf(Contact("Rahul Verma", "+1 555 0101"), Contact("Ankit Bhaiya", "+1 555 0102"),
+            Contact("Priya Didi", "+1 555 0103"), Contact("Neha Didi", "+1 555 0104"))
+        assertThat(ContactMatch.rank("Rahul bhaiya", people, 1).map { it.name }).containsExactly("Rahul Verma")
+        assertThat(ContactMatch.rank("Priya didi", people, 1).map { it.name }).containsExactly("Priya Didi")
+        // A relation alone still finds the one saved that way.
+        assertThat(ContactMatch.rank("bhaiya", people, 1).map { it.name }).containsExactly("Ankit Bhaiya")
+    }
+
+    @Test
+    fun aContactsNumberIsTheDefaultThenThePrimaryThenAMobileInAStableOrder() {
+        // Review P2-85: with no default, the number was whichever row the provider gave first.
+        fun row(id: Long, number: String, mobile: Boolean = true, primary: Boolean = false, default: Boolean = false) =
+            ContactBook.Row(id, Contact("Asha", number), mobile, primary, default)
+        assertThat(ContactBook.oneNumber(listOf(row(9, "new"), row(3, "old"))).number).isEqualTo("old")
+        assertThat(ContactBook.oneNumber(listOf(row(3, "old"), row(9, "new", primary = true))).number).isEqualTo("new")
+        assertThat(ContactBook.oneNumber(listOf(row(3, "work", mobile = false), row(9, "set", default = true))).number).isEqualTo("set")
+    }
+
+    @Test
     fun aFirstNameFindsEveryoneWithIt() {
         // Both Priyas, the starred one first.
         assertThat(names("Priya")).containsExactly("Priya Singh", "Priya Sharma").inOrder()

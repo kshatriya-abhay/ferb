@@ -16,6 +16,14 @@ class CreateNoteTest {
     private val note = mapOf("text" to "the car is parked on level 3")
 
     @Test
+    fun aNotesFileNameIsntHiddenOrCutInsideACharacter() {
+        // Review P2-49: a leading dot made a hidden file; take(80) could split an emoji.
+        assertThat(NoteStore.fileName(".net migration plan")).isEqualTo("net migration plan")
+        val name = NoteStore.fileName("a".repeat(79) + "😀 party")
+        assertThat(String(name.toByteArray(Charsets.UTF_8), Charsets.UTF_8)).isEqualTo(name)
+    }
+
+    @Test
     fun toTheFolderAsAMarkdownFileWithFerbsId() {
         val folder = MemoryNotes()
         val ready = CreateNote.prepare(note, PrepareEnv(notes = folder, options = toFolder)) as Prepared.Ready

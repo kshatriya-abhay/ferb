@@ -21,8 +21,20 @@ class ContactBook(private val load: () -> List<Contact>?) {
     /** The contacts that best match [query], best first, at most [limit]; null without the permission. */
     fun find(query: String, limit: Int = 3): List<Contact>? = load()?.let { ContactMatch.rank(query, it, limit) }
 
+    /** One of a contact's numbers, as the provider gives it: its row [id], and how it's marked. */
+    class Row(val id: Long, val contact: Contact, val mobile: Boolean, val primary: Boolean, val default: Boolean)
+
     companion object {
         val NONE = ContactBook { null }
+
+        /**
+         * One number per contact: the one set as default, else the primary, else a mobile, else any; the
+         * oldest row of those first, so the choice doesn't depend on the provider's order (review P2-85).
+         */
+        fun oneNumber(numbers: List<Row>): Contact {
+            val stable = numbers.sortedBy { it.id }
+            return (stable.firstOrNull { it.default } ?: stable.firstOrNull { it.primary } ?: stable.firstOrNull { it.mobile } ?: stable.first()).contact
+        }
 
         fun granted(context: Context) = context.checkSelfPermission(Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
 
@@ -30,21 +42,20 @@ class ContactBook(private val load: () -> List<Contact>?) {
             val latin by lazy { Transliterator.getInstance("Any-Latin; Latin-ASCII") }
             return ContactBook {
                 if (!granted(context)) return@ContactBook null
-                val columns = arrayOf(Phone.CONTACT_ID, Phone.DISPLAY_NAME_PRIMARY, Phone.NUMBER, Phone.TYPE, Phone.LABEL, Phone.STARRED, Phone.IS_SUPER_PRIMARY)
-                val rows = mutableListOf<Pair<Long, Triple<Contact, Int, Boolean>>>()
+                val columns = arrayOf(Phone.CONTACT_ID, Phone.DISPLAY_NAME_PRIMARY, Phone.NUMBER, Phone.TYPE, Phone.LABEL, Phone.STARRED,
+                    Phone.IS_SUPER_PRIMARY, Phone.IS_PRIMARY, Phone._ID)
+                val rows = mutableListOf<Pair<Long, Row>>()
                 context.contentResolver.query(Phone.CONTENT_URI, columns, null, null, null)?.use { c ->
                     while (c.moveToNext()) {
                         val name = c.getString(1) ?: continue
                         val number = c.getString(2) ?: continue
                         val type = c.getInt(3)
                         val kind = Phone.getTypeLabel(context.resources, type, c.getString(4)).toString()
-                        rows += c.getLong(0) to Triple(Contact(name, number, kind, c.getInt(5) == 1, latin.transliterate(name)), type, c.getInt(6) == 1)
+                        rows += c.getLong(0) to Row(c.getLong(8), Contact(name, number, kind, c.getInt(5) == 1, latin.transliterate(name)),
+                            mobile = type == Phone.TYPE_MOBILE, primary = c.getInt(7) == 1, default = c.getInt(6) == 1)
                     }
                 }
-                // One number per contact: the one set as default, else a mobile, else the first.
-                rows.groupBy({ it.first }, { it.second }).values.map { numbers ->
-                    (numbers.firstOrNull { it.third } ?: numbers.firstOrNull { it.second == Phone.TYPE_MOBILE } ?: numbers.first()).first
-                }
+                rows.groupBy({ it.first }, { it.second }).values.map(::oneNumber)
             }
         }
     }
@@ -73,9 +84,11 @@ object ContactMatch {
     fun score(query: List<String>, name: List<String>): Double {
         if (name.isEmpty()) return 0.0
         // "mum" against "Maa", "Mummy", "Mom"…
-        val relation = RELATIONS.firstOrNull { group -> query.any { it in group } }
+        // A relation alone ("call mum") finds whoever is saved that way; with a name ("Rahul bhaiya") it's
+        // one word among the others, and the name still has to match (review P2-84).
+        val relation = RELATIONS.firstOrNull { group -> query.all { it in group } }
         if (relation != null && name.any { it in relation }) return 1.0
-        val perWord = query.map { q -> name.maxOf { word(q, it) } }.average()
+        val perWord = query.map { q -> name.maxOf { w -> if (RELATIONS.any { q in it && w in it }) 1.0 else word(q, w) } }.average()
         // "shrey ansh" against "Shreyansh", or the other way round.
         val joined = word(query.joinToString(""), name.joinToString(""))
         return maxOf(perWord, joined * 0.95)

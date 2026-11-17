@@ -213,7 +213,8 @@ object AddEvent : Tool(
             ?: return Prepared.Ready(summary, detail = listOfNotNull("Opens in your calendar app, to save there", past).joinToString("\n"),
                 confirm = "Open calendar", cancel = "Cancel", needs = listOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR)) { context -> openToSave(context, planned) }
 
-        val clashes = planned.start?.let { env.calendar.overlapping(planned.begin, planned.end) }.orEmpty().filter { it.title != title }
+        // Same title too: a second "Dentist" at the same time is most likely a double (review P2-81).
+        val clashes = planned.start?.let { env.calendar.overlapping(planned.begin, planned.end) }.orEmpty()
         val clash = clashes.takeIf { it.isNotEmpty() }?.let { found ->
             "Clashes with " + found.take(2).joinToString(" and ") { e ->
                 "${e.title} (${clockTime(Instant.ofEpochMilli(e.begin).atZone(zone).toLocalTime())})"

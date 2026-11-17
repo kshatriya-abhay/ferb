@@ -18,6 +18,43 @@ class ToolsTest {
     private fun reason(prepared: Prepared) = (prepared as? Prepared.Invalid)?.reason
 
     @Test
+    fun aTimersLengthIsReadWholeOrNotAtAll() {
+        // Review P2-64: what parse couldn't read was dropped, so "quarter of an hour" and "1 hour 30" were an hour.
+        assertThat(Durations.parse("quarter of an hour")).isEqualTo(900)
+        assertThat(Durations.parse("a quarter of an hour")).isEqualTo(900)
+        assertThat(Durations.parse("1 hour 30")).isEqualTo(5400)
+        assertThat(Durations.parse("2 minutes 30")).isEqualTo(150)
+        assertThat(Durations.parse("5 minutes for the pasta")).isNull()
+        val now = java.time.LocalDateTime.of(2026, 11, 4, 10, 0)
+        assertThat(DateGate.read(SetTimer.name, "set a timer for quarter of an hour", now)).isEqualTo(DateGate.Read.Length(900))
+        assertThat(DateGate.read(SetTimer.name, "set a timer for 1 hour 30", now)).isEqualTo(DateGate.Read.Length(5400))
+    }
+
+    @Test
+    fun theTravelModeIsntReadFromThePlace() {
+        // Review P2-65: "bus stop" picked transit.
+        assertThat(GetDirections.fromRequest(mapOf("destination" to "the nearest bus stop"), "directions to the nearest bus stop")["mode"]).isNull()
+        assertThat(GetDirections.fromRequest(mapOf("destination" to "the mall"), "directions to the mall by bus")["mode"]).isEqualTo("transit")
+    }
+
+    @Test
+    fun aShortNumberIsANumber() {
+        // Review P2-68: "Call 112" was looked up as a contact's name.
+        assertThat((MakeCall.prepare(mapOf("name" to "112"), PrepareEnv()) as Prepared.Ready).summary).contains("112")
+        assertThat((SendText.prepare(mapOf("name" to "121", "message" to "balance"), PrepareEnv()) as Prepared.Ready).summary).contains("121")
+    }
+
+    @Test
+    fun aVolumeTheRequestDoesntSayIsntGrounded() {
+        // Review P2-70: any percent passed.
+        assertThat(SetVolume.grounded(mapOf("percent" to 100), "turn the volume up a little", null)).isFalse()
+        assertThat(SetVolume.grounded(mapOf("percent" to 40), "set the volume to 40", null)).isTrue()
+        assertThat(SetVolume.grounded(mapOf("percent" to 0), "mute the music", null)).isTrue()
+        assertThat(SetVolume.grounded(mapOf("percent" to 100), "volume to max", null)).isTrue()
+        assertThat(SetVolume.grounded(mapOf("percent" to 50), "half volume", null)).isTrue()
+    }
+
+    @Test
     fun anAlarmOnAnotherDayOffersAReminderOnlyWhenItCanRemind() {
         // Review P2-67: the reminder choice added a reminder without notifications, which AddReminder refuses.
         val now = java.time.ZonedDateTime.of(2026, 11, 4, 10, 0, 0, 0, java.time.ZoneId.of("Asia/Kolkata"))

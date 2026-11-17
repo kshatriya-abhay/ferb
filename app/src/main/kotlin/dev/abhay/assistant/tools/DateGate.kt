@@ -61,7 +61,7 @@ object DateGate {
 
     /** A timer's length in [text] (Hindi too: das minute, dedh ghanta), in seconds. */
     fun length(text: String): Int? {
-        val t = DateResolver.normalise(NumberWords.compoundsAsDigits(text))
+        val t = DateResolver.normalise(Durations.spoken(text))
             .replace(Regex("""\b(${NumberWords.HINDI.keys.joinToString("|")})\s+(minute|minat|ghante|ghanta|second|sekand)\b""")) { "${NumberWords.HINDI.getValue(it.groupValues[1])} ${UNITS.getValue(it.groupValues[2])}" }
         return LENGTH.find(t)?.value?.let { Durations.parse(it) }?.takeIf { it > 0 }
     }
@@ -164,6 +164,11 @@ object DateGate {
                     if (pick.rule != null) asks += "repeating alarms aren't supported yet"
                 }
                 // Reminders repeat daily, weekly, monthly or yearly; not on weekdays only, yet.
+                // An event repeats nowhere yet (no RRULE): it asks, as an alarm does (review P2-78).
+                AddEvent.name -> {
+                    time = time.copy(at = pick.at); out[param] = shown(pick)
+                    if (pick.rule != null) asks += "repeating events aren't supported yet"
+                }
                 else -> if (pick.rule == DateResolver.Rule.Weekdays) {
                     time = time.copy(at = pick.at); asks += "reminders can't repeat on weekdays only yet"; out[param] = shown(pick)
                 } else {

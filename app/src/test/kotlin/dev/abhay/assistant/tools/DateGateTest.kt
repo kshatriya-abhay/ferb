@@ -12,6 +12,13 @@ class DateGateTest {
     private val zoned = ZonedDateTime.of(now, ZoneId.of("Asia/Kolkata"))
 
     @Test
+    fun aRepeatingEventAsks() {
+        // Review P2-78: "every monday" put a weekly repeat on the event and nothing read it: one event, silently.
+        val ask = DateGate.apply(AddEvent.name, mapOf("title" to "gym"), "add gym to my calendar every monday at 7 am", null, zoned).time!!.ask
+        assertThat(ask).isEqualTo("repeating events aren't supported yet")
+    }
+
+    @Test
     fun everyReasonToAskIsKept() {
         // Review P2-43: the disagreement's reason replaced the earlier one, so a repeating alarm could be
         // confirmed without the user hearing it won't repeat.

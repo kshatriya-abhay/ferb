@@ -35,7 +35,9 @@ interface NoteStore {
 
         /** A file name for [title]: what Obsidian allows, no more than 80 characters, "Note" when nothing's left. */
         fun fileName(title: String): String =
-            title.replace(Regex("""[\\/:*?"<>|#^\[\]]"""), "").replace(Regex("""\s+"""), " ").trim().take(80).trim().ifEmpty { "Note" }
+            title.replace(Regex("""[\\/:*?"<>|#^\[\]]"""), "").replace(Regex("""\s+"""), " ").trim()
+                // No leading dot (a hidden file Obsidian doesn't list), and cut between characters, not inside one (review P2-49).
+                .trimStart('.').trim().let { if (it.length <= 80) it else it.take(if (it[79].isHighSurrogate()) 79 else 80) }.trim().ifEmpty { "Note" }
 
         /**
          * A list's name without "my", "the" and " list", case kept: "My Shopping List" and "the shopping

@@ -165,8 +165,18 @@ object Durations {
      * minute", "an hour and a half", "1 and a half minutes", "half a minute" → seconds; null if it
      * isn't one. The computer's model passes halves as said (audio bench, 2026-10-12).
      */
+    /**
+     * A spoken length in the form [parse] reads: "(a) quarter of an hour" as 15 minutes, three quarters
+     * as 45, and a bare number after hours as minutes ("1 hour 30"), after minutes as seconds.
+     */
+    fun spoken(text: String): String = NumberWords.compoundsAsDigits(text.lowercase())
+        .replace(Regex("""\b(?:a )?quarter (?:of )?an? hour\b"""), "15 minutes")
+        .replace(Regex("""\bthree quarters? (?:of )?an? hour\b"""), "45 minutes")
+        .replace(Regex("""(\d+(?:\.\d+)?\s*(?:hours?|hrs?|h))\s+(?:and\s+)?(\d{1,2})\b(?!\s*[a-z:])""")) { "${it.groupValues[1]} ${it.groupValues[2]} minutes" }
+        .replace(Regex("""(\d+(?:\.\d+)?\s*(?:minutes?|mins?|m))\s+(?:and\s+)?(\d{1,2})\b(?!\s*[a-z:])""")) { "${it.groupValues[1]} ${it.groupValues[2]} seconds" }
+
     fun parse(text: String): Int? {
-        val t = NumberWords.compoundsAsDigits(text.trim().lowercase())
+        val t = spoken(text.trim())
             // Before "and" goes and "a" becomes 1.
             .replace(Regex("""\band a half\b"""), " andahalf ")
             .replace(Regex("""\bhalf an? (hour|minute|second)\b""")) { "0.5 ${it.groupValues[1]}" }
@@ -179,6 +189,8 @@ object Durations {
         Regex("""(\d+):(\d{2})""").matchEntire(t)?.let { return it.groupValues[1].toInt() * 60 + it.groupValues[2].toInt() }
         val parts = PART.findAll(t).toList()
         if (parts.isEmpty() || parts.any { it.groupValues[2] !in UNITS }) return null
+        // A word it didn't read means a length it can't vouch for: none, rather than part of one (review P2-64).
+        if (PART.replace(t, "").replace(Regex("""[\s,.;]"""), "").isNotEmpty()) return null
         return parts.sumOf { it.groupValues[1].toDouble() * UNITS.getValue(it.groupValues[2]) }.let { Math.round(it).toInt() }
     }
 }
@@ -536,7 +548,16 @@ object SetVolume : Tool(
     /** Other volumes this tool doesn't change: a request naming one asks first rather than change the media volume. */
     private val OTHER_VOLUMES = Regex("""\b(ring(er|tone)?|alarms?|notifications?|calls?)\b""", RegexOption.IGNORE_CASE)
 
-    override fun grounded(arguments: Map<String, Any?>, request: String, time: FerbTime?) = !OTHER_VOLUMES.containsMatchIn(request)
+    /** Only the media volume, and a level the request says (mute, max and half count): never one Needle 3 guessed (review P2-70). */
+    override fun grounded(arguments: Map<String, Any?>, request: String, time: FerbTime?): Boolean {
+        if (OTHER_VOLUMES.containsMatchIn(request)) return false
+        val percent = arguments.int("percent") ?: return true
+        val said = request.lowercase()
+        return SaidNumbers.grounded(percent.toString(), request) ||
+            (percent == 0 && Regex("""\b(mute|silent|off|zero)\b""").containsMatchIn(said)) ||
+            (percent == 100 && Regex("""\b(max|maximum|full|fullest|loudest|highest)\b""").containsMatchIn(said)) ||
+            (percent == 50 && Regex("""\bhalf\b""").containsMatchIn(said))
+    }
 
     override fun prepare(arguments: Map<String, Any?>, env: PrepareEnv): Prepared {
         val percent = arguments.int("percent") ?: return Prepared.Invalid("No volume given")
@@ -791,7 +812,8 @@ object GetDirections : Tool(
     fun modeIn(request: String): String? = modes.entries.firstOrNull { it.value.containsMatchIn(request.lowercase()) }?.key
 
     override fun fromRequest(arguments: Map<String, Any?>, request: String) =
-        (arguments - "mode") + listOfNotNull(modeIn(request)?.let { "mode" to it })
+        // The mode from the request, but not from the place's own name ("the nearest bus stop", review P2-65).
+        (arguments - "mode") + listOfNotNull(modeIn(DateGate.outside(request, arguments.text("destination")))?.let { "mode" to it })
 
     // "Route to", not "route": "what's the route of the tour de france" got directions at 0.75.
     // "Get directions in Google Maps to a place…" as the description lost "take me to the nearest
@@ -837,7 +859,15 @@ private const val NO_CONTACTS = "Ferb needs your contacts to find who you mean"
 private const val WRONG_PERSON = "Ferb may pick the wrong person. Without asking, the best match opens for you to check."
 
 /** A typed number ("call 98765 43210"), not a name: five digits or more. */
-private fun numberIn(text: String): String? = text.filter { it.isDigit() || it == '+' }.takeIf { it.count(Char::isDigit) >= 5 }
+/**
+ * A phone number in [text]: one said alone (only digits, spaces, + and -) from three digits, as 112 or
+ * 121 are (review P2-68); mixed into a name, from five, so "Flat 4B" isn't one.
+ */
+private fun numberIn(text: String): String? {
+    val digits = text.filter { it.isDigit() || it == '+' }
+    val alone = text.isNotBlank() && text.all { it.isDigit() || it in " +-()" }
+    return digits.takeIf { it.count(Char::isDigit) >= if (alone) 3 else 5 }
+}
 
 object MakeCall : Tool(
     name = "make_call",
