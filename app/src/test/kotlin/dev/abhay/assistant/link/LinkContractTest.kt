@@ -14,11 +14,17 @@ import org.junit.Test
  * here by `mise run link:contract-sync`. Ferb parses each result with the app's own code, so a
  * change on either side that breaks the other fails here, with neither running.
  */
-class LinkContractTest {
+open class LinkContractTest {
+    /** The fixture set: Ferb Link's current contract (v1), or an older release's ([LinkContractV01Test]). */
+    protected open val set: String get() = "v1"
+
+    /** Whether this Ferb Link takes a JSON schema for the rewrite: some example of its sends one. */
+    private val takesSchema by lazy { of("rewrite").any { it.extras.has(LinkContract.EXTRA_JSON_SCHEMA) } }
+
     private class Case(val name: String, val method: String, val extras: JSONObject, val result: JSONObject, val synthetic: Boolean)
 
     private val cases: List<Case> = run {
-        val dir = File(javaClass.classLoader!!.getResource("ferb-link-contract/v1")!!.toURI())
+        val dir = File(javaClass.classLoader!!.getResource("ferb-link-contract/$set")!!.toURI())
         // limits.json holds Ferb Link's numbers, not an exchange: [ferbsCopiesOfFerbLinksLimitsAgree].
         dir.listFiles { f -> f.extension == "json" && f.name != LIMITS }!!.sortedBy { it.name }.map { file ->
             val o = JSONObject(file.readText())
@@ -30,7 +36,7 @@ class LinkContractTest {
     @Test
     fun ferbsCopiesOfFerbLinksLimitsAgree() {
         // Ferb keeps its own copies of these (it can't import Ferb Link's LinkContract); limits.json is Ferb Link's.
-        val limits = JSONObject(File(javaClass.classLoader!!.getResource("ferb-link-contract/v1/$LIMITS")!!.toURI()).readText())
+        val limits = JSONObject(File(javaClass.classLoader!!.getResource("ferb-link-contract/$set/$LIMITS")!!.toURI()).readText())
         assertThat(LinkContract.VERSION).isEqualTo(limits.getInt("VERSION"))
         assertThat(FerbLink.TRANSCRIBE_TIMEOUT_MS).isEqualTo(limits.getInt("TRANSCRIBE_TIMEOUT_MS"))
     }
@@ -39,10 +45,12 @@ class LinkContractTest {
     fun whatFerbSendsFitsFerbLinksLimits() {
         // Review P2-117: past any of these, Ferb Link turns every rewrite or pick down as a bad request,
         // and Ferb quietly goes on without it.
-        val limits = JSONObject(File(javaClass.classLoader!!.getResource("ferb-link-contract/v1/$LIMITS")!!.toURI()).readText())
+        val limits = JSONObject(File(javaClass.classLoader!!.getResource("ferb-link-contract/$set/$LIMITS")!!.toURI()).readText())
         for ((name, prompt) in mapOf("PROMPT" to ContentRewrite.PROMPT, "PROMPT_A" to ContentRewrite.PROMPT_A))
             assertWithMessage(name).that(prompt.length).isAtMost(limits.getInt("MAX_INSTRUCTIONS_CHARS"))
-        assertWithMessage("SCHEMA").that(ContentRewrite.SCHEMA.length).isAtMost(limits.getInt("MAX_JSON_SCHEMA_CHARS"))
+        // Sent only to a Ferb Link that takes a schema (its status says so); 0.1 has no such limit, and takes none.
+        if (limits.has("MAX_JSON_SCHEMA_CHARS")) assertWithMessage("SCHEMA").that(ContentRewrite.SCHEMA.length).isAtMost(limits.getInt("MAX_JSON_SCHEMA_CHARS"))
+        else assertThat(takesSchema).isFalse()
         for ((name, tokens) in mapOf("MAX_TOKENS" to ContentRewrite.MAX_TOKENS, "MAX_TOKENS_A" to ContentRewrite.MAX_TOKENS_A))
             assertWithMessage(name).that(tokens).isAtMost(limits.getInt("MAX_REWRITE_TOKENS"))
         val timeouts = mapOf(
@@ -101,7 +109,8 @@ class LinkContractTest {
             is JSONObject -> if (v.has("bytes")) "bytes" else "object"
             else -> v?.javaClass?.simpleName ?: "null"
         }
-        sent.forEach { (label, extras) ->
+        // The schema rewrite goes only to a Ferb Link whose status says it takes one (AnswerFlow).
+        sent.filterKeys { it != "rewrite" || takesSchema }.forEach { (label, extras) ->
             val method = label.substringBefore(" (")
             val examples = of(method).map { it.extras }
             assertThat(examples).isNotEmpty()
@@ -154,6 +163,13 @@ class LinkContractTest {
         // ferb-link d588b50: decide says when the cap is why (jev_capped), at the cap and near it.
         fun fixture(name: String) = FerbLink.decisionOf(values(cases.single { it.name == name }.result))
         val cap = fixture("decide-cap")
+        if (cases.none { it.name == "decide-near-cap" }) {
+            // Ferb Link 0.1, from before the signal: its cap reply is read from its own words.
+            assertThat(cap.capped).isNull()
+            assertThat((LinkPolicy.select(cap, listOf("set_alarm")) as JevPick.Fallback).reason).isEqualTo("Jev's limit reached")
+            assertThat(LinkPolicy.jevLine(cap)).contains("spending limit")
+            return
+        }
         val near = fixture("decide-near-cap")
         assertThat(listOf(cap.capped, near.capped)).containsExactly(true, true)
         assertThat(fixture("decide-off").capped).isNotEqualTo(true)
@@ -265,6 +281,8 @@ class LinkContractTest {
     @Test
     fun statusSaysWhetherTheRewriteTakesAJsonSchema() {
         val status = { name: String -> FerbLink.statusOf(values(cases.single { it.name == name }.result)) as LinkStatus.Ready }
+        // Ferb Link 0.1 doesn't say: Ferb uses its line prompt with it, and sends no schema.
+        if (!takesSchema) return assertThat(status("status").jsonSchema).isFalse()
         assertThat(status("status").jsonSchema).isTrue()
         // An older Ferb Link doesn't say: Ferb uses its line prompt there.
         assertThat(status("status-no-json-schema").jsonSchema).isFalse()
@@ -272,6 +290,8 @@ class LinkContractTest {
 
     @Test
     fun aRewriteWithAJsonSchemaIsItsOutputOrAShortError() {
+        // A Ferb Link that takes no schema (0.1) is never sent one: statusSaysWhetherTheRewriteTakesAJsonSchema.
+        org.junit.Assume.assumeTrue("this Ferb Link takes a schema", takesSchema)
         val replies = of("rewrite").filter { it.extras.has(LinkContract.EXTRA_JSON_SCHEMA) }.associate { it.name to FerbLink.rewriteOf(values(it.result)) }
         assertThat(replies).isNotEmpty()
         replies.getValue("rewrite-json").let {

@@ -1,0 +1,14 @@
+{
+  "method": "status",
+  "note": "Turned off in Ferb Link.",
+  "extras": {},
+  "result": {
+    "audio": true,
+    "configured": true,
+    "enabled": false,
+    "jev": false,
+    "model": "gemma-4-e2b",
+    "model_state": "loaded",
+    "version": 1
+  }
+}

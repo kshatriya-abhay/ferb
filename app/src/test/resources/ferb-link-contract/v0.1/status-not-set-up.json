@@ -1,0 +1,13 @@
+{
+  "method": "status",
+  "note": "No server set up yet: no model seen.",
+  "extras": {},
+  "result": {
+    "audio": false,
+    "configured": false,
+    "enabled": true,
+    "jev": false,
+    "model": "",
+    "version": 1
+  }
+}

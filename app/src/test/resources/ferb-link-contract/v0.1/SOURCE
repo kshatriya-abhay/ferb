@@ -1,0 +1,3 @@
+03392d7 2026-10-24 Review fixes: request cap, context overflow, audio limits, Jev cap under lock
+v0.1 tag: 1656829
+limits.json: generated from v0.1's companion/.../LinkContract.kt constants (v0.1 shipped none)

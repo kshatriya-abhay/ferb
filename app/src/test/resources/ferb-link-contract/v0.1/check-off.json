@@ -1,0 +1,15 @@
+{
+  "method": "check",
+  "note": "Turned off: no network, reachable false.",
+  "extras": {},
+  "result": {
+    "audio": true,
+    "error": "turned off",
+    "error_detail": "Ferb Link is off",
+    "error_kind": "off",
+    "model": "",
+    "model_state": "loaded",
+    "reachable": false,
+    "version": 1
+  }
+}
