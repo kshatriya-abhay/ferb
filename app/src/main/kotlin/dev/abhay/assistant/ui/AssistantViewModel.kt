@@ -155,7 +155,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     /** How Ferb understands a request (Settings → How Ferb understands you). */
     val pipeline: StateFlow<Pipeline> = assistant.pipeline.pipeline
     /** Whether a step uses the computer, so typing or speaking wakes its model ([wakeComputer]). */
-    val usesComputer get() = pipeline.value.let { it.audio == AudioStep.Link || it.rewrite == RewriteStep.Link || it.tools == ToolStep.Link }
+    val usesComputer get() = pipeline.value.usesComputer
     val link get() = assistant.link
     val notes get() = assistant.notes
     val reminders get() = assistant.reminders

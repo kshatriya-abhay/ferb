@@ -148,6 +148,12 @@ data class Saved(val audio: AudioStep? = null, val rewrite: RewriteStep? = null,
 }
 
 data class Pipeline(val audio: AudioStep, val rewrite: RewriteStep, val tools: ToolStep) {
+    /**
+     * Whether a step uses the computer (through Ferb Link): the privacy line, the chat's subtitle,
+     * holding Ferb Link and waking the computer all read this one rule (review P2-125).
+     */
+    val usesComputer get() = audio == AudioStep.Link || rewrite == RewriteStep.Link || tools == ToolStep.Link
+
     companion object {
         /**
          * The steps to use: [Saved.model]'s; else, once changed under Advanced, the steps as saved,

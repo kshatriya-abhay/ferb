@@ -134,7 +134,7 @@ import kotlin.math.roundToInt
 fun SettingsScreen(settings: SettingsViewModel, onOpenTools: () -> Unit, onOpenLink: () -> Unit, onOpenAdvanced: () -> Unit = {}, onOpenBench: () -> Unit = {}, onOpenLicences: () -> Unit = {}, onOpenPrivacy: () -> Unit = {}, onBack: () -> Unit) {
     val saved by settings.saved.collectAsStateWithLifecycle()
     val pipeline by settings.pipeline.collectAsStateWithLifecycle()
-    val usesComputer = pipeline.audio == AudioStep.Link || pipeline.rewrite == RewriteStep.Link || pipeline.tools == ToolStep.Link
+    val usesComputer = pipeline.usesComputer
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer, topBar = { TopBar(stringResource(R.string.assistant_settings), onBack = onBack, scroll = bar) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(vertical = 8.dp),

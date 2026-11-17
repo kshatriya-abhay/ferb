@@ -169,7 +169,7 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
     LaunchedEffect(state.notice?.id) { state.notice?.let { snackbar.showSnackbar(it.text); viewModel.noticeShown(it.id) } }
     val onboarding by viewModel.onboarding.state.collectAsStateWithLifecycle()
     val linkStatus = rememberLinkStatus(viewModel.link)
-    val usesComputer = pipeline.audio == AudioStep.Link || pipeline.rewrite == RewriteStep.Link || pipeline.tools == ToolStep.Link
+    val usesComputer = pipeline.usesComputer
     // The mic, unless audio processing is off (Settings → How Ferb understands you).
     val micAvailable = Mic.shows(pipeline.audio)
     // The one tip to show, if any, among those whose thing is on screen.

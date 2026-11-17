@@ -155,4 +155,14 @@ class PipelineTest {
         assertThat(RewriteStep.HINT).isEqualTo("Helps with Hindi and accuracy.")
         assertThat(ToolStep.HINT).isEqualTo("Narrows the tool choice.")
     }
+
+    @Test
+    fun anyStepOnTheComputerUsesIt() {
+        // Review P2-125: one rule, read by the privacy line, the chat and the sheet.
+        assertThat(Pipeline(AudioStep.Whistle, RewriteStep.Off, ToolStep.Off).usesComputer).isFalse()
+        assertThat(Pipeline(AudioStep.Gemini, RewriteStep.Gemini, ToolStep.Off).usesComputer).isFalse()
+        assertThat(Pipeline(AudioStep.Link, RewriteStep.Off, ToolStep.Off).usesComputer).isTrue()
+        assertThat(Pipeline(AudioStep.Gemini, RewriteStep.Link, ToolStep.Off).usesComputer).isTrue()
+        assertThat(Pipeline(AudioStep.Whistle, RewriteStep.Off, ToolStep.Link).usesComputer).isTrue()
+    }
 }
