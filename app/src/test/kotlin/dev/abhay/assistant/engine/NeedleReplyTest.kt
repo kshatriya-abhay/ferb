@@ -17,6 +17,21 @@ class NeedleReplyTest {
         "reasoning":"No weather tool.","confidence":0.0396,"prefill_tps":1.0,"decode_tps":1.0,"peak_ram_mb":79.0,
         "validation":{"ungrounded":["show_notification.message"],"negation":false}}"""
 
+    /** org.json as Android has it: optString on a JSON null gives the text "null" (the JVM's gives ""). */
+    private class AndroidJson(json: String) : org.json.JSONObject(json) {
+        override fun optString(name: String?): String = if (has(name) && isNull(name)) "null" else super.optString(name)
+    }
+
+    @Test
+    fun aNullFromTheEngineIsNoText() {
+        // Review P2-92: an engine failure with "error": null read "Needle 3: null" on the phone.
+        val reply = NeedleReply.parse(AndroidJson("""{"success":false,"error":null,"reasoning":null,"function_calls":[]}"""))
+        assertThat(reply.error).isEqualTo("Engine error")
+        assertThat(reply.reasoning).isEmpty()
+        // A real message still reads as itself.
+        assertThat(NeedleReply.parse(AndroidJson("""{"success":false,"error":"model not loaded"}""")).error).isEqualTo("model not loaded")
+    }
+
     @Test
     fun parsesCallsConfidenceAndTimings() {
         val reply = NeedleReply.parse(twoCalls)

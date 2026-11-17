@@ -55,20 +55,22 @@ data class NeedleReply(
 ) {
 
     companion object {
-        fun parse(json: String): NeedleReply {
-            val o = JSONObject(json)
+        fun parse(json: String): NeedleReply = parse(JSONObject(json))
+
+        /** [parse] on the engine's JSON already read. */
+        internal fun parse(o: JSONObject): NeedleReply {
             val validation = o.optJSONObject("validation")
             return NeedleReply(
                 calls = calls(o.optJSONArray("function_calls")),
                 suppressed = calls(o.optJSONArray("suppressed_calls")),
-                reasoning = o.optString("reasoning"),
+                reasoning = o.text("reasoning").orEmpty(),
                 confidence = if (o.isNull("confidence")) null else o.optDouble("confidence"),
                 ungrounded = validation?.optJSONArray("ungrounded")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty(),
                 negation = validation?.optBoolean("negation") ?: false,
                 prefillTps = o.optDouble("prefill_tps", 0.0),
                 decodeTps = o.optDouble("decode_tps", 0.0),
                 peakRamMb = o.optDouble("peak_ram_mb", 0.0),
-                error = if (o.optBoolean("success", true)) null else o.optString("error").ifEmpty { "Engine error" },
+                error = if (o.optBoolean("success", true)) null else o.text("error") ?: "Engine error",
             )
         }
 
@@ -103,3 +105,10 @@ enum class Decision {
         }
     }
 }
+
+/**
+ * [key]'s string, or null when it's missing, JSON null or empty: the one way the engine's JSON is read
+ * as text. org.json's optString gives "" for a JSON null on the JVM but "null" on Android, so a failure
+ * the engine reports with "error": null read "Needle 3: null" on the phone (review P2-92).
+ */
+internal fun JSONObject.text(key: String): String? = if (isNull(key)) null else optString(key).ifEmpty { null }
