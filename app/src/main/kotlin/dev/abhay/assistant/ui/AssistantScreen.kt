@@ -179,7 +179,8 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
     val seen = viewModel.onboarding::seen
     val context = LocalContext.current
     // A reply's Allow: the permission, then the request again if it was given.
-    var allowing by remember { mutableStateOf<Long?>(null) }
+    // Saved, as Android's answer outlives the Activity: rotated during the dialog, the request still runs again (review P2-124).
+    var allowing by rememberSaveable { mutableStateOf<Long?>(null) }
     val allow = rememberPermissionFlow { granted ->
         val request = state.history.firstOrNull { it.id == allowing }?.request
         if (request != null && granted.isNotEmpty()) viewModel.send(request)
@@ -195,7 +196,7 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
         allowing = null
     }
     // Turning on a tool from a reply: its permissions first, then the request again (with or without them).
-    var turningOn by remember { mutableStateOf<Pair<Long, String>?>(null) }
+    var turningOn by rememberSaveable { mutableStateOf<Pair<Long, String>?>(null) }
     val askPermissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         turningOn?.let { (id, tool) -> viewModel.turnOn(id, tool) }
         turningOn = null
