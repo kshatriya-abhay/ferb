@@ -1,6 +1,5 @@
 package dev.abhay.assistant.tools
 
-import dev.abhay.assistant.engine.FerbTime
 import dev.abhay.assistant.notes.NoteRef
 import dev.abhay.assistant.notes.NoteStore
 import dev.abhay.assistant.reminders.ReminderBook
@@ -170,7 +169,7 @@ abstract class Tool(
 
     /**
      * [call] checked, as the chat shows it: [prepare] on its arguments, with every reason the date gate
-     * has to ask first ([dev.abhay.assistant.engine.FerbTime.ask]) on the card, for every timed tool alike
+     * has to ask first ([FerbTime.ask]) on the card, for every timed tool alike
      * (review P2-66: only an alarm on another day said why).
      */
     fun prepareCall(call: dev.abhay.assistant.engine.ToolCall, request: String, env: PrepareEnv): Prepared =
