@@ -41,4 +41,18 @@ class LinkSetupTest {
     fun workingNeedsNoChecklist() {
         assertThat(setupSteps(LinkStatus.Ready("gemma-4-e2b"), answers = true)).isEmpty()
     }
+
+    @Test
+    fun aFerbLinkThatCantBeUsedGetsItsOwnFixNotPairing() {
+        // Review P2-114: these three were sent to "scan the QR code" again, which fixes none of them.
+        fun steps(status: LinkStatus) = setupSteps(status, answers = null).filter { !it.done }
+        assertThat(steps(LinkStatus.NotAllowed).single().title).isEqualTo("Install Ferb and Ferb Link from the same place")
+        assertThat(steps(LinkStatus.Mismatch(LinkContract.VERSION - 1)).single().title).isEqualTo("Update Ferb Link")
+        assertThat(steps(LinkStatus.Mismatch(LinkContract.VERSION + 1)).single().title).isEqualTo("Update Ferb")
+        val failed = steps(LinkStatus.Failed("provider crashed")).single()
+        assertThat(failed.detail).contains("provider crashed")
+        assertThat(failed.action).isEqualTo(SetupAction.OpenFerbLink)
+        for (status in listOf(LinkStatus.NotAllowed, LinkStatus.Mismatch(2), LinkStatus.Failed("x")))
+            assertThat(setupSteps(status, answers = null).map { it.title }).doesNotContain("Connect to your computer")
+    }
 }
