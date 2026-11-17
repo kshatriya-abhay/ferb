@@ -200,8 +200,15 @@ fun LinkScreen(settings: SettingsViewModel, onBack: () -> Unit) {
             checking = false
         }
     }
-    // Ready only means set up: ask the computer once the page shows, so the card says whether it answers.
-    LaunchedEffect(status is LinkStatus.Ready) { if (status is LinkStatus.Ready) check() }
+    // Ready only means set up: ask the computer when the page shows, and again each time it comes
+    // back to the front (Tailscale is fixed in its own app), so the card and steps say whether it
+    // answers now (review P2-142: it kept "doesn't answer" until refresh).
+    var resumed by remember { mutableIntStateOf(0) }
+    LifecycleResumeEffect(Unit) {
+        resumed++
+        onPauseOrDispose { }
+    }
+    LaunchedEffect(status is LinkStatus.Ready, resumed) { if (status is LinkStatus.Ready) check() }
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer, topBar = { TopBar(stringResource(R.string.link_ferb_link), onBack = onBack, scroll = bar) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(top = 8.dp, bottom = 24.dp)) {
