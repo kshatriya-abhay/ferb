@@ -123,15 +123,19 @@ object SetAlarm : Tool(
         if (wanted != null && reminders != null) {
             val day = wanted.format(java.time.format.DateTimeFormatter.ofPattern("EEE d MMM", Locale.US))
             // Why it asks (the gate's reason) goes on the card with every timed call's ([Tool.prepareCall]).
+            // A reminder can't remind without notifications (as AddReminder says): without them it isn't
+            // offered, and the reply asks for them (review P2-67).
+            val canRemind = env.granted(android.Manifest.permission.POST_NOTIFICATIONS)
             return Prepared.Ready("Set an alarm for $time?",
-                choices = listOf(
+                choices = listOfNotNull(
                     Choice("Alarm at the next $time") { set(it) },
                     Choice("Reminder on $day at $time") { _ ->
                         val reminder = reminders.add("Alarm", wanted)
                         env.remindersChanged()
                         AddReminder.added(env, reminder.id, "I'll remind you on $day at $time")
-                    },
-                ), cancel = "Cancel") { set(it) }
+                    }.takeIf { canRemind },
+                ), cancel = "Cancel",
+                needs = if (canRemind) emptyList() else listOf(android.Manifest.permission.POST_NOTIFICATIONS)) { set(it) }
         }
         // The clock app sets the next time it's that time of day: today if it's still ahead, else tomorrow.
         return Prepared.Ready("Set an alarm for $time") { context -> set(context) }

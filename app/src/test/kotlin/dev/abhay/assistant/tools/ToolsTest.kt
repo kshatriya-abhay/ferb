@@ -18,6 +18,24 @@ class ToolsTest {
     private fun reason(prepared: Prepared) = (prepared as? Prepared.Invalid)?.reason
 
     @Test
+    fun anAlarmOnAnotherDayOffersAReminderOnlyWhenItCanRemind() {
+        // Review P2-67: the reminder choice added a reminder without notifications, which AddReminder refuses.
+        val now = java.time.ZonedDateTime.of(2026, 11, 4, 10, 0, 0, 0, java.time.ZoneId.of("Asia/Kolkata"))
+        val book = dev.abhay.assistant.reminders.ReminderBook(object : dev.abhay.assistant.reminders.ReminderStore {
+            override fun load() = emptyList<dev.abhay.assistant.reminders.Reminder>()
+            override fun save(reminders: List<dev.abhay.assistant.reminders.Reminder>) {}
+        }) { now.toLocalDateTime() }
+        val gated = DateGate.apply(SetAlarm.name, mapOf("time" to "7 am"), "set an alarm for friday at 7 am", null, now)
+        fun card(granted: Boolean) = SetAlarm.prepare(gated.arguments, PrepareEnv(time = gated.time, now = now, reminders = book, granted = { granted })) as Prepared.Ready
+        val without = card(granted = false)
+        assertThat(without.choices.map { it.label }).doesNotContain("Reminder on Fri 6 Nov at 07:00")
+        assertThat(without.needs).contains(android.Manifest.permission.POST_NOTIFICATIONS)
+        val with = card(granted = true)
+        assertThat(with.choices.map { it.label }).contains("Reminder on Fri 6 Nov at 07:00")
+        assertThat(with.needs).isEmpty()
+    }
+
+    @Test
     fun theCardSaysWhyFerbAsksFirst() {
         // Review P2-66: only an alarm on another day put the gate's reason on the card; a repeating alarm
         // showed "Set an alarm for 06:00" and never said it won't repeat.
