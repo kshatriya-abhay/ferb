@@ -1,6 +1,5 @@
 package dev.abhay.assistant.eval.frozen
 
-import dev.abhay.assistant.tools.Durations
 
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -176,7 +175,7 @@ object DateResolverA0 {
         }
         val m = Regex("""\bin ((?:a quarter of an|half an|an|a|\d+(?:\.\d+)?|[a-z]+)(?: and a half)? (?:hour|minute|min|second)s?(?: and a half)?(?:,? (?:and )?\d+ (?:minute|min)s?)?)""").find(t) ?: return null
         val phrase = m.groupValues[1].replace("a quarter of an hour", "15 minutes")
-        val seconds = Durations.parse(phrase) ?: return null
+        val seconds = FrozenDurations.parse(phrase) ?: return null
         return seconds to null
     }
 

@@ -3,7 +3,6 @@ package dev.abhay.assistant.eval
 import dev.abhay.assistant.eval.frozen.DateResolverA0
 import dev.abhay.assistant.eval.frozen.DateResolverA1
 import dev.abhay.assistant.tools.DateResolver
-import dev.abhay.assistant.tools.Durations
 import dev.abhay.assistant.tools.ToolRouter
 import dev.abhay.assistant.tools.ToolSettings
 import dev.abhay.assistant.tools.Tools
@@ -36,12 +35,12 @@ object DateReaders {
         return "+PT" + (if (h > 0) "${h}H" else "") + (if (m > 0) "${m}M" else "") + (if (s > 0) "${s}S" else "")
     }
 
-    /** A timer's length in [t] (already normalised): the run of number-and-unit words, as Durations reads them. */
+    /** A timer's length in [t] (already normalised): the run of number-and-unit words, as the frozen readers' Durations reads them (FrozenDurations, review P2-169). */
     private fun lengthIn(t: String): String {
         val unit = """(?:hours?|hrs?|minutes?|mins?|seconds?|secs?)"""
         val num = """(?:\d+(?:\.\d+)?|a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|sixty|ninety|half an?|a quarter of an?)"""
         val m = Regex("""$num(?: and a half)?\s*$unit(?:,?\s*(?:and\s+)?$num\s*$unit)*(?: and a half)?""").find(t) ?: return "ask"
-        return Durations.parse(m.value)?.let { length(it.toLong()) } ?: "ask"
+        return dev.abhay.assistant.eval.frozen.FrozenDurations.parse(m.value)?.let { length(it.toLong()) } ?: "ask"
     }
 
     val A0 = Reader { text, tool, now ->
