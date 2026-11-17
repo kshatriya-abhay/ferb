@@ -89,10 +89,8 @@ dependencies {
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
-    implementation(libs.compose.ui.tooling.preview)
     implementation(libs.compose.material3)
     implementation(libs.compose.material.icons.core)
-    debugImplementation(libs.compose.ui.tooling)
     // Compose UI tests (androidTest) need their test activity in the debug manifest.
     debugImplementation(libs.compose.ui.test.manifest)
 

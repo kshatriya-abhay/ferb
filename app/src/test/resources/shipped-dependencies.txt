@@ -46,8 +46,6 @@ androidx.compose.ui:ui-graphics
 androidx.compose.ui:ui-graphics-android
 androidx.compose.ui:ui-text
 androidx.compose.ui:ui-text-android
-androidx.compose.ui:ui-tooling-preview
-androidx.compose.ui:ui-tooling-preview-android
 androidx.compose.ui:ui-unit
 androidx.compose.ui:ui-unit-android
 androidx.compose.ui:ui-util
