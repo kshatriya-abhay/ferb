@@ -803,6 +803,20 @@ private const val NO_CONTACTS = "Ferb needs your contacts to find who you mean"
 private const val WRONG_PERSON = "Ferb may pick the wrong person. Without asking, the best match opens for you to check."
 
 /** A typed number ("call 98765 43210"), not a name: five digits or more. */
+/** Who a call or a message is for: a number said, the contact that best matches, no access to contacts, or no match (review P2-71). */
+sealed interface Recipient {
+    data class Number(val number: String) : Recipient
+    data class Person(val contact: Contact) : Recipient
+    data object NoAccess : Recipient
+    data object NoMatch : Recipient
+
+    companion object {
+        fun of(name: String, contacts: ContactBook): Recipient = numberIn(name)?.let(::Number)
+            ?: contacts.find(name, limit = 1)?.let { found -> found.firstOrNull()?.let(::Person) ?: NoMatch }
+            ?: NoAccess
+    }
+}
+
 /**
  * A phone number in [text]: one said alone (only digits, spaces, + and -) from three digits, as 112 or
  * 121 are (review P2-68); mixed into a name, from five, so "Flat 4B" isn't one.
@@ -865,18 +879,18 @@ object MakeCall : Tool(
 
     override fun prepare(arguments: Map<String, Any?>, env: PrepareEnv): Prepared {
         val name = arguments.text("name") ?: return Prepared.Invalid("No one to call")
-        numberIn(name)?.let { number ->
-            return Prepared.Ready("Call $number?", choices = listOf(Choice(number) { call(it, number, number) }), other = openDialer,
-                cancel = "Cancel", run = dialOnly(number, number))
+        return when (val to = Recipient.of(name, env.contacts)) {
+            is Recipient.Number -> Prepared.Ready("Call ${to.number}?", choices = listOf(Choice(to.number) { call(it, to.number, to.number) }), other = openDialer,
+                cancel = "Cancel", run = dialOnly(to.number, to.number))
+            // The best match only, one tap to call; anyone else is found in the dialer.
+            is Recipient.Person -> Prepared.Ready("Call \u201c$name\u201d?", choices = listOf(Choice(to.contact.name,
+                listOfNotNull(to.contact.kind, to.contact.number).joinToString(" \u00b7 ")) { call(it, to.contact.number, to.contact.name) }),
+                other = openDialer, cancel = "Cancel", run = dialOnly(to.contact.number, to.contact.name))
+            // Without the contacts: the dialer, to find them there.
+            Recipient.NoAccess -> Prepared.Ready("Call \u201c$name\u201d from the dialer", detail = NO_CONTACTS,
+                confirm = "Open dialer", cancel = "Cancel", needs = listOf(Manifest.permission.READ_CONTACTS), run = openDialer.run)
+            Recipient.NoMatch -> Prepared.Ready("No contact matches \u201c$name\u201d", confirm = "Open dialer", cancel = "Cancel", run = openDialer.run)
         }
-        // The best match only, one tap to call; anyone else is found in the dialer.
-        // Without the contacts: the dialer, to find them there.
-        val contact = (env.contacts.find(name, limit = 1) ?: return Prepared.Ready("Call \u201c$name\u201d from the dialer", detail = NO_CONTACTS,
-            confirm = "Open dialer", cancel = "Cancel", needs = listOf(Manifest.permission.READ_CONTACTS), run = openDialer.run)).firstOrNull()
-            ?: return Prepared.Ready("No contact matches \u201c$name\u201d", confirm = "Open dialer", cancel = "Cancel", run = openDialer.run)
-        val choice = Choice(contact.name, listOfNotNull(contact.kind, contact.number).joinToString(" \u00b7 ")) { call(it, contact.number, contact.name) }
-        return Prepared.Ready("Call \u201c$name\u201d?", choices = listOf(choice), other = openDialer, cancel = "Cancel",
-            run = dialOnly(contact.number, contact.name))
     }
 }
 
@@ -925,22 +939,18 @@ object SendText : Tool(
         val name = arguments.text("name") ?: return Prepared.Invalid("No one to send it to")
         val message = arguments.text("message") ?: return Prepared.Invalid("No message to send")
         val draft = "\u201c$message\u201d"
-        val number = numberIn(name)
-        // Without the contacts: the message written in the messages app, to pick them there.
-        val contact = if (number == null) (env.contacts.find(name, limit = 1) ?: return Prepared.Ready("Write to \u201c$name\u201d in your messages app",
-            detail = "$draft\n$NO_CONTACTS", confirm = "Open messages", cancel = "Cancel", needs = listOf(Manifest.permission.READ_CONTACTS)) { context ->
-            Tools.start(context, compose(null, message), "Message written: choose who to send it to, then send")
-        }).firstOrNull() else null
-        val to = when {
-            number != null -> number
-            contact != null -> "${contact.name} \u00b7 ${contact.number}"
-            else -> return Prepared.Ready("No contact matches \u201c$name\u201d: choose in your messages app", detail = draft,
-                confirm = "Open messages", cancel = "Cancel") { context ->
-                Tools.start(context, compose(null, message), "Message written: choose who to send it to, then send")
-            }
+        fun chooseThere(context: android.content.Context) = Tools.start(context, compose(null, message), "Message written: choose who to send it to, then send")
+        fun to(number: String, label: String, who: String) = Prepared.Ready("Text $label", detail = draft, confirm = "Proceed", cancel = "Cancel") { context ->
+            Tools.start(context, compose(number, message), "Message written to $who: press send")
         }
-        return Prepared.Ready("Text $to", detail = draft, confirm = "Proceed", cancel = "Cancel") { context ->
-            Tools.start(context, compose(number ?: contact!!.number, message), "Message written to ${contact?.name ?: number}: press send")
+        return when (val r = Recipient.of(name, env.contacts)) {
+            is Recipient.Number -> to(r.number, r.number, r.number)
+            is Recipient.Person -> to(r.contact.number, "${r.contact.name} \u00b7 ${r.contact.number}", r.contact.name)
+            // Without the contacts: the message written in the messages app, to pick them there.
+            Recipient.NoAccess -> Prepared.Ready("Write to \u201c$name\u201d in your messages app", detail = "$draft\n$NO_CONTACTS",
+                confirm = "Open messages", cancel = "Cancel", needs = listOf(Manifest.permission.READ_CONTACTS)) { chooseThere(it) }
+            Recipient.NoMatch -> Prepared.Ready("No contact matches \u201c$name\u201d: choose in your messages app", detail = draft,
+                confirm = "Open messages", cancel = "Cancel") { chooseThere(it) }
         }
     }
 }
