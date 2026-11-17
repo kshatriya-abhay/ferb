@@ -20,20 +20,31 @@ import org.junit.runner.RunWith
 /**
  * The tools as the phone's permissions actually stand: with one revoked (the script runs this with
  * `pm revoke` and again after `pm grant`), the tool falls back and names what it needs; with it
- * granted, it doesn't.
+ * granted, it doesn't. The script says which run it is (`-e expect revoked|granted`), and each test
+ * first checks the phone agrees: else both runs could check the granted branch, and pass, if the
+ * revoke didn't take (review P2-176). Run alone, without it, a test checks the state it finds.
  */
 @RunWith(AndroidJUnit4::class)
 class PermissionsDeviceTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private val app = context.applicationContext as AssistantApp
     private fun granted(p: String) = context.checkSelfPermission(p) == PackageManager.PERMISSION_GRANTED
+    private val expect = InstrumentationRegistry.getArguments().getString("expect")
+
+    /** Whether [p] is granted, checked against the run the script said this is. */
+    private fun state(p: String): Boolean = granted(p).also { now ->
+        when (expect) {
+            "revoked" -> com.google.common.truth.Truth.assertWithMessage("$p revoked for this run").that(now).isFalse()
+            "granted" -> com.google.common.truth.Truth.assertWithMessage("$p granted for this run").that(now).isTrue()
+        }
+    }
     private val env = PrepareEnv(contacts = ContactBook.from(context), calendar = CalendarBook.from(context), reminders = app.reminders, granted = ::granted)
 
     @Test
     fun contacts() {
         val call = MakeCall.prepare(mapOf("name" to "Nobody Testperson"), env) as Prepared.Ready
         val text = SendText.prepare(mapOf("name" to "Nobody Testperson", "message" to "hi"), env) as Prepared.Ready
-        if (granted(Manifest.permission.READ_CONTACTS)) {
+        if (state(Manifest.permission.READ_CONTACTS)) {
             assertThat(call.needs).isEmpty()
             assertThat(text.needs).isEmpty()
         } else {
@@ -47,7 +58,7 @@ class PermissionsDeviceTest {
     @Test
     fun calendar() {
         val agenda = ShowAgenda.prepare(mapOf("day" to "today"), env.copy(time = DateGate.apply(ShowAgenda.name, emptyMap(), "what's on today", null, env.now).time)) as Prepared.Ready
-        if (granted(Manifest.permission.READ_CALENDAR)) assertThat(agenda.needs).isEmpty()
+        if (state(Manifest.permission.READ_CALENDAR)) assertThat(agenda.needs).isEmpty()
         else {
             assertThat(agenda.confirm).isEqualTo("Open calendar")
             assertThat(agenda.needs).containsExactly(Manifest.permission.READ_CALENDAR)
@@ -58,7 +69,7 @@ class PermissionsDeviceTest {
     fun notifications() {
         val gated = DateGate.apply(AddReminder.name, mapOf("text" to "stretch", "time" to "in 5 minutes"), "remind me in 5 minutes to stretch", null, env.now)
         val r = AddReminder.prepare(gated.arguments, env.copy(time = gated.time))
-        if (granted(Manifest.permission.POST_NOTIFICATIONS)) assertThat(r).isInstanceOf(Prepared.Ready::class.java)
+        if (state(Manifest.permission.POST_NOTIFICATIONS)) assertThat(r).isInstanceOf(Prepared.Ready::class.java)
         else assertThat((r as Prepared.Invalid).needs).containsExactly(Manifest.permission.POST_NOTIFICATIONS)
     }
 }

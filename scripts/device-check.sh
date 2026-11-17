@@ -65,9 +65,9 @@ else result 1 "list written before the kill"; fi
 # 3. Permission fallbacks: revoked, then restored as they were.
 not_in_use
 for p in $perms; do adb shell pm revoke $APP $p; done
-instrument -e class $T.PermissionsDeviceTest; result $? "fallbacks with permissions revoked"
+instrument -e class $T.PermissionsDeviceTest -e expect revoked; result $? "fallbacks with permissions revoked"
 for p in $perms; do adb shell pm grant $APP $p; done
-instrument -e class $T.PermissionsDeviceTest; result $? "no fallbacks with permissions granted"
+instrument -e class $T.PermissionsDeviceTest -e expect granted; result $? "no fallbacks with permissions granted"
 # Notifications stay on for the reminder checks below; every grant is put back on exit.
 
 if [ "${QUIET:-0}" = 1 ]; then echo "$pass passed, $fail failed (quiet: @InFront tests and reminder notifications left out)"; [ "$fail" = 0 ]; exit; fi
