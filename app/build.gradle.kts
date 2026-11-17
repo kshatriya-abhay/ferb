@@ -21,6 +21,14 @@ android {
         versionName = "0.1.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        // Which Ferb Link Ferb calls: the real one in release and smoke (LinkContract; P2-113's guard
+        // checks its package and key). Debug builds call Ferb Link's smoke build instead, which is
+        // signed with the debug key too, so a debug Ferb on the phone can be tested against a Ferb
+        // Link without touching the user's (its pairing and keys). LinkContractTest pins release's.
+        buildConfigField("String", "FERB_LINK_PACKAGE", "\"dev.abhay.ferblink\"")
+        buildConfigField("String", "FERB_LINK_AUTHORITY", "\"dev.abhay.ferblink.link\"")
+        manifestPlaceholders["ferbLinkPackage"] = "dev.abhay.ferblink"
+
         // The Needle engine is only linked for 64-bit ARM (Pixel, Poco F5); no x86 emulators.
         ndk { abiFilters += "arm64-v8a" }
         externalNativeBuild {
@@ -41,6 +49,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "FERB_LINK_PACKAGE", "\"dev.abhay.ferblink.smoke\"")
+            buildConfigField("String", "FERB_LINK_AUTHORITY", "\"dev.abhay.ferblink.smoke.link\"")
+            manifestPlaceholders["ferbLinkPackage"] = "dev.abhay.ferblink.smoke"
+        }
         release {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
@@ -66,6 +79,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

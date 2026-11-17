@@ -55,7 +55,7 @@
         </intent>
         <!-- Ferb Link, the optional companion app that holds the internet access Ferb doesn't have
              and passes requests to a model on the user's own computer (link/FerbLink.kt). -->
-        <package android:name="dev.abhay.ferblink" />
+        <package android:name="${ferbLinkPackage}" />
     </queries>
 
     <application

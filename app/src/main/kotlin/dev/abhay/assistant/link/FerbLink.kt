@@ -19,8 +19,9 @@ import org.json.JSONObject
  * depend on that app's code, so the names are repeated here; change both together.
  */
 object LinkContract {
-    const val PACKAGE = "dev.abhay.ferblink"
-    const val AUTHORITY = "dev.abhay.ferblink.link"
+    /** Ferb Link's package and provider: dev.abhay.ferblink in release and smoke; its smoke build in debug (app/build.gradle.kts). */
+    const val PACKAGE = dev.abhay.assistant.BuildConfig.FERB_LINK_PACKAGE
+    const val AUTHORITY = dev.abhay.assistant.BuildConfig.FERB_LINK_AUTHORITY
 
     /** The only version Ferb understands; any other means one of the two apps needs updating. */
     const val VERSION = 1

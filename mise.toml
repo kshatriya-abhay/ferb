@@ -183,7 +183,7 @@ depends = ["fetch"]
 shell = "bash -c"
 run = """
 set -euo pipefail
-./gradlew --no-daemon -q :app:assembleSmoke :app:testReleaseUnitTest --tests 'dev.abhay.assistant.PrivateTest'
+./gradlew --no-daemon -q :app:assembleSmoke :app:testReleaseUnitTest --tests 'dev.abhay.assistant.PrivateTest' --tests 'dev.abhay.assistant.FerbLinkTargetTest'
 scripts/check-offline.sh app/build/outputs/apk/smoke/app-smoke.apk
 scripts/check-release.sh app/build/outputs/apk/smoke/app-smoke.apk
 echo "Built app/build/outputs/apk/smoke/app-smoke.apk"
