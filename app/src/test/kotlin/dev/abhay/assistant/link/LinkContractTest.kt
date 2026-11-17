@@ -32,8 +32,26 @@ class LinkContractTest {
         // Ferb keeps its own copies of these (it can't import Ferb Link's LinkContract); limits.json is Ferb Link's.
         val limits = JSONObject(File(javaClass.classLoader!!.getResource("ferb-link-contract/v1/$LIMITS")!!.toURI()).readText())
         assertThat(LinkContract.VERSION).isEqualTo(limits.getInt("VERSION"))
-        assertThat(LinkContract.MAX_REQUEST_CHARS).isEqualTo(limits.getInt("MAX_REQUEST_CHARS"))
         assertThat(FerbLink.TRANSCRIBE_TIMEOUT_MS).isEqualTo(limits.getInt("TRANSCRIBE_TIMEOUT_MS"))
+    }
+
+    @Test
+    fun whatFerbSendsFitsFerbLinksLimits() {
+        // Review P2-117: past any of these, Ferb Link turns every rewrite or pick down as a bad request,
+        // and Ferb quietly goes on without it.
+        val limits = JSONObject(File(javaClass.classLoader!!.getResource("ferb-link-contract/v1/$LIMITS")!!.toURI()).readText())
+        for ((name, prompt) in mapOf("PROMPT" to ContentRewrite.PROMPT, "PROMPT_A" to ContentRewrite.PROMPT_A))
+            assertWithMessage(name).that(prompt.length).isAtMost(limits.getInt("MAX_INSTRUCTIONS_CHARS"))
+        assertWithMessage("SCHEMA").that(ContentRewrite.SCHEMA.length).isAtMost(limits.getInt("MAX_JSON_SCHEMA_CHARS"))
+        for ((name, tokens) in mapOf("MAX_TOKENS" to ContentRewrite.MAX_TOKENS, "MAX_TOKENS_A" to ContentRewrite.MAX_TOKENS_A))
+            assertWithMessage(name).that(tokens).isAtMost(limits.getInt("MAX_REWRITE_TOKENS"))
+        val timeouts = mapOf(
+            "REWRITE_TIMEOUT_MS" to FerbLink.REWRITE_TIMEOUT_MS, "TRANSCRIBE_TIMEOUT_MS" to FerbLink.TRANSCRIBE_TIMEOUT_MS,
+            "WAKING_TIMEOUT_MS" to FerbLink.WAKING_TIMEOUT_MS, "JEV_TIMEOUT_MS" to FerbLink.JEV_TIMEOUT_MS,
+        )
+        for ((name, ms) in timeouts)
+            assertWithMessage(name).that(ms).isIn(com.google.common.collect.Range.closed(limits.getInt("MIN_TIMEOUT_MS"), limits.getInt("MAX_TIMEOUT_MS")))
+        assertWithMessage("JEV_TIMEOUT_MS").that(FerbLink.JEV_TIMEOUT_MS).isAtMost(limits.getInt("MAX_DECIDE_TIMEOUT_MS"))
     }
 
     /** A fixture's result as Ferb reads a Bundle; `reply`, an object in the fixture, travels as a string. */
