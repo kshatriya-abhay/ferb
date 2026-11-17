@@ -69,6 +69,12 @@ android {
     }
 }
 
+// Release's unit tests too, for its own stand-ins (src/testRelease: the log filter that keeps a
+// request's words out of release logs, review P2-177); `mise run smoke` runs them.
+androidComponents {
+    beforeVariants(selector().withBuildType("release")) { it.hostTests[com.android.build.api.variant.HostTestBuilder.UNIT_TEST_TYPE]?.enable = true }
+}
+
 dependencies {
     // The test APK must use the app's versions (consistent resolution), and androidx.test and Truth
     // need these newer ones; without them it stopped building (2026-10-29). Both are tiny.
