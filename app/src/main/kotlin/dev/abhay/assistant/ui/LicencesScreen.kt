@@ -47,6 +47,15 @@ internal val LICENCES = listOf(
     Licence("Material Components for Android", "Google", APACHE),
     Licence("Kotlin coroutines", "JetBrains", APACHE),
     Licence("Material Icons", "Google", APACHE),
+    // What ML Kit, Guava and Kotlin bring with them (review P2-152; README's Credits, the release's runtime classpath).
+    Licence("Kotlin standard library", "JetBrains", APACHE),
+    Licence("kotlinx.serialization", "JetBrains", APACHE),
+    Licence("Guava", "Google", APACHE),
+    Licence("Google Play services", "Google", "Android Software Development Kit License", "https://developer.android.com/studio/terms"),
+    Licence("Firebase components and Google Data Transport", "Google", APACHE),
+    Licence("Annotations: JSR 305, Error Prone, JSpecify, javax.inject, JetBrains, J2ObjC", "Google, JetBrains and others", APACHE),
+    Licence("Checker Framework qualifiers", "The Checker Framework developers", "MIT", "https://opensource.org/license/mit"),
+    Licence("Reactive Streams", "Reactive Streams", "CC0", "https://creativecommons.org/publicdomain/zero/1.0/"),
 )
 
 /** [text]'s paragraphs (blank-line separated), each on one line so it wraps to the screen. */

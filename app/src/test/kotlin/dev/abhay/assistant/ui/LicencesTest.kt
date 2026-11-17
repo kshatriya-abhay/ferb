@@ -16,6 +16,42 @@ class LicencesTest {
         assertThat(shipped.filterNot { credit -> names.any { credit.startsWith(it) } }).isEmpty()
     }
 
+    /** Which credit covers a shipped library (group, or group:artifact prefix). */
+    private val creditFor = listOf(
+        "androidx." to "AndroidX",
+        "com.google.android.material:" to "Material Components for Android",
+        "com.google.mlkit:" to "ML Kit GenAI",
+        "org.jetbrains.kotlinx:kotlinx-coroutines" to "Kotlin coroutines",
+        "org.jetbrains.kotlinx:kotlinx-serialization" to "kotlinx.serialization",
+        "org.jetbrains.kotlin:" to "Kotlin standard library",
+        "com.google.guava:" to "Guava",
+        "com.google.android.gms:" to "Google Play services",
+        "com.google.firebase:" to "Firebase components and Google Data Transport",
+        "com.google.android.datatransport:" to "Firebase components and Google Data Transport",
+        "com.google.code.findbugs:" to "Annotations",
+        "com.google.errorprone:" to "Annotations",
+        "org.jspecify:" to "Annotations",
+        "javax.inject:" to "Annotations",
+        "org.jetbrains:annotations" to "Annotations",
+        "com.google.j2objc:" to "Annotations",
+        "org.checkerframework:" to "Checker Framework qualifiers",
+        "org.reactivestreams:" to "Reactive Streams",
+    )
+
+    @Test
+    fun everyLibraryTheReleaseShipsIsCredited() {
+        // Review P2-152: Credits left out what ML Kit, Guava and Kotlin bring. The list is the release's
+        // runtime classpath (`mise run credits:sync` after changing a dependency).
+        val shipped = File("src/test/resources/shipped-dependencies.txt").readLines().filter { it.isNotBlank() }
+        assertThat(shipped).isNotEmpty()
+        val names = LICENCES.map { it.name }
+        val uncredited = shipped.filter { lib ->
+            val credit = creditFor.firstOrNull { (prefix, _) -> lib.startsWith(prefix) }?.second
+            credit == null || names.none { it.startsWith(credit) }
+        }
+        assertThat(uncredited).isEmpty()
+    }
+
     @Test
     fun apacheTextIsBundled() {
         val bundled = File("src/main/res/raw/apache_2_0.txt").readText()

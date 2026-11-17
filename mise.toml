@@ -214,6 +214,18 @@ if [ ! -d "$SRC" ]; then echo "skipped: no $SRC"; exit 0; fi
 if diff -r -q -x SOURCE "$SRC" "$DST"; then echo "Ferb's copy matches $SRC"; else echo "out of date: mise run link:contract-sync"; exit 1; fi
 """
 
+[tasks."credits:sync"]
+description = "Write what the release ships (its runtime classpath, group:artifact) to the list LicencesTest checks against README's Credits; run after changing a dependency"
+shell = "bash -c"
+run = """
+set -euo pipefail
+OUT=app/src/test/resources/shipped-dependencies.txt
+./gradlew --no-daemon -q :app:dependencies --configuration releaseRuntimeClasspath \
+  | grep -oE '[a-zA-Z0-9_.-]+:[a-zA-Z0-9_.-]+:[^ ]' | sed -E 's/:[^:]*$//' | sort -u > "$OUT"
+echo "$(wc -l < "$OUT") libraries in $OUT"
+git diff --stat -- "$OUT"
+"""
+
 [tasks."link:contract-sync"]
 description = "Copy Ferb Link's contract fixtures from ../ferb-link (or $FERB_LINK) into Ferb's tests, with the commit they came from"
 # bash, not sh: Ubuntu's sh (dash, as on CI) has no pipefail

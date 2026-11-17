@@ -136,6 +136,14 @@ Ferb has no internet access, analytics, ads or accounts. What stays on the phone
 | [Material Components for Android](https://github.com/material-components/material-components-android) | Apache-2.0 | The Material 3 window theme behind Compose |
 | [Kotlin coroutines](https://github.com/Kotlin/kotlinx.coroutines) | Apache-2.0 | Background work |
 | [Material Icons](https://github.com/google/material-design-icons) | Apache-2.0 | Icons |
+| [Kotlin standard library](https://github.com/JetBrains/kotlin) by JetBrains | Apache-2.0 | The language's runtime |
+| [kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization) by JetBrains | Apache-2.0 | Brought in by ML Kit GenAI |
+| [Guava](https://github.com/google/guava) by Google | Apache-2.0 | Brought in by ML Kit |
+| [Google Play services](https://developers.google.com/android/guides/overview) by Google (`play-services-base`, `-basement`, `-tasks`) | [Android Software Development Kit License](https://developer.android.com/studio/terms) | Brought in by ML Kit |
+| [Firebase components and Google Data Transport](https://github.com/firebase/firebase-android-sdk) by Google | Apache-2.0 | Brought in by ML Kit: its telemetry transport, which can't send anything, as Ferb has no INTERNET permission |
+| Annotations: [JSR 305](https://github.com/findbugsproject/findbugs), [Error Prone annotations](https://github.com/google/error-prone), [JSpecify](https://github.com/jspecify/jspecify), [javax.inject](https://github.com/javax-inject/javax-inject), [JetBrains annotations](https://github.com/JetBrains/java-annotations), [J2ObjC annotations](https://github.com/google/j2objc) | Apache-2.0 | Brought in by Guava, ML Kit and Kotlin |
+| [Checker Framework qualifiers](https://github.com/typetools/checker-framework) | MIT | Annotations, brought in by Guava |
+| [Reactive Streams](https://github.com/reactive-streams/reactive-streams-jvm) | CC0 | Brought in by Kotlin coroutines' reactive bridge |
 
 Tools and models used only for tuning, not shipped: [docs/development.md](docs/development.md#credits-tools-for-tuning-not-shipped).
 
