@@ -2,6 +2,8 @@
 # Publishes dist/ferb-<version>.apk as a GitHub release: mise run release:publish. Run by the
 # maintainer only, after mise run release. Refuses an APK whose certificate isn't the release one,
 # or that wasn't built from HEAD (release.sh's .commit); the release's tag is put on that commit.
+# The notes are CHANGELOG.md's "## <version>" section (scripts/changelog-section.sh), with the APK's
+# SHA-256 and the signing certificate's; no section, no release.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 [ -t 0 ] || { echo "Publishing needs a person at a terminal."; exit 1; }
@@ -19,6 +21,10 @@ CERT=$("$TOOLS/apksigner" verify --print-certs "$APK" | sed -n 's/.*[Ss]igner.*c
 [ "$CERT" = "$(tr -d ' \n' < release-cert.sha256)" ] || { echo "FAIL: $APK isn't signed with the release certificate"; exit 1; }
 (cd dist && sha256sum -c --quiet "$(basename "$APK").sha256")
 if gh release view "v$VERSION" >/dev/null 2>&1; then echo "Release v$VERSION exists already: bump versionName"; exit 1; fi
+SECTION=$(scripts/changelog-section.sh "$VERSION")
+NOTES=$(printf '%s\n\n---\n\nAPK SHA-256: `%s`\nSigned with the release certificate, SHA-256: `%s`\n' "$SECTION" "$(cut -d' ' -f1 "$APK.sha256")" "$CERT")
+echo "$NOTES"
+echo
 read -r -p "Publish Ferb v$VERSION to GitHub Releases? Type the version to confirm: " typed
 [ "$typed" = "$VERSION" ] || { echo "Not published."; exit 1; }
-gh release create "v$VERSION" "$APK" "$APK.sha256" --target "$BUILT" --title "Ferb $VERSION" --generate-notes
+gh release create "v$VERSION" "$APK" "$APK.sha256" --target "$BUILT" --title "Ferb $VERSION" --notes "$NOTES"
