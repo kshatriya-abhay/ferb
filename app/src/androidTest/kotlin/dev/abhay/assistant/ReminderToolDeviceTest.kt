@@ -58,9 +58,9 @@ class ReminderToolDeviceTest {
         assertThat(reminder.repeat).isEqualTo(Repeat.Daily)
 
         // The exact alarm (syncReminders runs on a thread of its own).
-        assertThat(waitFor(10_000) { alarmFor(reminder.id) != null }).isTrue()
-        log("alarm: ${alarmFor(reminder.id)}")
-        assertThat(alarmFor(reminder.id)).contains("window=0") // exact: no window
+        assertThat(waitFor(10_000) { alarmFor(reminder.due) != null }).isTrue()
+        log("alarm: ${alarmFor(reminder.due)}")
+        assertThat(alarmFor(reminder.due)).contains("window=0") // exact: no window
 
         // The notification, on time, with its title.
         assertThat(waitFor(120_000) { posted(reminder.id) != null }).isTrue()
@@ -79,20 +79,24 @@ class ReminderToolDeviceTest {
         // second of the notification, before anyone could tap Done (the log shows any tap).
         assertThat(waitFor(1_000) { app.reminders.all().single { it.id == reminder.id }.at.isAfter(LocalDateTime.now()) }).isTrue()
         val next = app.reminders.all().single { it.id == reminder.id }
-        log("after firing: at ${next.at}, alarm ${alarmFor(reminder.id)}")
+        log("after firing: at ${next.at}, alarm ${alarmFor(next.due)}")
         assertThat(next.at).isEqualTo(reminder.at.plusDays(1))
-        assertThat(waitFor(10_000) { alarmFor(reminder.id) != null }).isTrue()
+        assertThat(waitFor(10_000) { alarmFor(next.due) != null }).isTrue()
     }
 
-    /** The reminder's alarm in `dumpsys alarm`: the line after its ferb-reminder:// intent, or null. */
-    private fun alarmFor(id: String): String? {
+    /**
+     * The reminder's alarm in `dumpsys alarm`: the package's RTC_WAKEUP block whose trigger time is
+     * the reminder's [due] (dumpsys prints origWhen as epoch ms, or as local time on some builds),
+     * or null. Any reminder alarm of Ferb's matched before, so on the user's phone, which holds real
+     * reminders, these checks passed from another reminder's alarm (review P2-174).
+     */
+    private fun alarmFor(due: LocalDateTime): String? {
         val lines = shell("dumpsys alarm").lines()
-        val i = lines.indexOfFirst { "ferb-reminder://$id" in it || ("dev.abhay.assistant" in it && "RTC_WAKEUP" in it && id in it) }
-        if (i >= 0) return lines.subList(maxOf(0, i - 2), minOf(lines.size, i + 3)).joinToString(" | ") { it.trim() }
-        // dumpsys doesn't print intent data: the package's RTC_WAKEUP alarms with their tag.
+        val ms = due.atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli().toString()
+        val local = due.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
         return lines.withIndex().filter { (_, l) -> "RTC_WAKEUP" in l && "dev.abhay.assistant" in l }
-            .joinToString(" || ") { (j, _) -> lines.subList(j, minOf(lines.size, j + 4)).joinToString(" | ") { it.trim() } }.ifEmpty { null }
-            ?.takeIf { "reminder.FIRE" in it }
+            .map { (j, _) -> lines.subList(j, minOf(lines.size, j + 4)).joinToString(" | ") { it.trim() } }
+            .firstOrNull { block -> "reminder.FIRE" in block && (ms in block || local in block) }
     }
 
     private fun posted(id: String) = notifications.activeNotifications.firstOrNull { it.id == id.hashCode() }?.notification
