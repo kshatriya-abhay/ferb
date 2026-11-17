@@ -376,7 +376,9 @@ class FerbLink(
      */
     suspend fun check(): Reachability? = withContext(Dispatchers.IO) {
         val result = try {
-            provider(LinkContract.METHOD_CHECK)
+            // Low latency like the other calls: Ferb Link gives the check 2 s, and Wi-Fi power save
+            // alone adds 0.1 to 3.3 s (review P2-116).
+            lowLatency { timed(LinkContract.METHOD_CHECK) { provider(LinkContract.METHOD_CHECK) } }
         } catch (e: IllegalArgumentException) {
             return@withContext null
         } catch (e: SecurityException) {
