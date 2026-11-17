@@ -88,9 +88,8 @@ fun AssistSheet(viewModel: AssistantViewModel, opened: Int, onOpenChat: () -> Un
     // The conversation since the sheet opened (the first exchange id it can show).
     var since by rememberSaveable { mutableStateOf(Long.MAX_VALUE) }
     var focus by remember { mutableIntStateOf(0) }
-    val askMic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) viewModel.startRecording() else focus++
-    }
+    val mic = rememberPermissionFlow { granted -> if (Manifest.permission.RECORD_AUDIO in granted) viewModel.startRecording() else focus++ }
+    val micNeeds = listOf(Manifest.permission.RECORD_AUDIO)
     val ready = engine is AssistantEngine.State.Ready
     val powerSave = rememberPowerSave()
     // Each invocation: listen at once, or focus the box (and with Battery Saver stopping Gemini Nano, the box).
@@ -100,8 +99,9 @@ fun AssistSheet(viewModel: AssistantViewModel, opened: Int, onOpenChat: () -> Un
         if (!ready || state.busy || state.voice != null) return@LaunchedEffect
         when {
             !Mic.shows(pipeline.audio) || BatterySaver.warns(powerSave, pipeline.audio) -> focus++
-            context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED -> viewModel.startRecording()
-            else -> askMic.launch(Manifest.permission.RECORD_AUDIO)
+            // Opening the sheet never opens Android's settings: refused for good, the box.
+            mic.step(micNeeds) == PermissionStep.OpenSettings -> focus++
+            else -> mic.run(micNeeds)
         }
     }
     // Sized to its content (the header, the latest exchange, the box or recording bar), so the bar
@@ -184,10 +184,7 @@ fun AssistSheet(viewModel: AssistantViewModel, opened: Int, onOpenChat: () -> Un
             if (clip != null) VoiceField(clip, viewModel::finishRecording, viewModel::discardRecording, onSend = { viewModel.send() })
             else InputField(state, ready, viewModel::onInputChange, onSend = { viewModel.send() },
                 onMic = {
-                    when {
-                        context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED -> viewModel.startRecording()
-                        else -> askMic.launch(Manifest.permission.RECORD_AUDIO)
-                    }
+                    mic.run(micNeeds)
                 }.takeIf { Mic.shows(pipeline.audio) },
                 onFocus = { if (viewModel.usesComputer) viewModel.wakeComputer() }, focus = focus)
             }

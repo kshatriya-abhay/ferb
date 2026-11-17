@@ -302,7 +302,7 @@ fun ToolsScreen(settings: SettingsViewModel, onOpenTool: (String) -> Unit, onBac
     // Unsaved changes: back asks first (no predictive peek then); otherwise the navigation's own back.
     BackHandler(enabled = draft != saved, onBack = back)
     val on = ToolSettings.enabledNames(draft).size
-    val askPermissions = rememberPermissionAsk()
+    val askPermissions = rememberPermissionFlow { }
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val onboarding by settings.onboarding.state.collectAsStateWithLifecycle()
 
@@ -325,7 +325,7 @@ fun ToolsScreen(settings: SettingsViewModel, onOpenTool: (String) -> Unit, onBac
                 val config = draft.getValue(tool.name)
                 ToolRow(tool, config, ListItemDefaults.segmentedShapes(i, Tools.all.size), onOpen = { onOpenTool(tool.name) }, onToggle = { enabled ->
                     settings.onboarding.seen(Tip.Switches)
-                    if (enabled) askPermissions(tool)
+                    if (enabled) askPermissions.run(tool.permissions)
                     settings.update(tool.name) { it.copy(enabled = enabled) }
                 })
             }
@@ -380,7 +380,7 @@ fun ToolConfigScreen(settings: SettingsViewModel, name: String, onOpenKeywords: 
     val config = draft.getValue(name)
     val default = ToolConfig.defaults(tool)
     fun change(change: (ToolConfig) -> ToolConfig) = settings.update(name, change)
-    val askPermissions = rememberPermissionAsk()
+    val askPermissions = rememberPermissionFlow { }
     var confirmStopAsking by rememberSaveable { mutableStateOf(false) }
 
     if (confirmStopAsking) {
@@ -408,7 +408,7 @@ fun ToolConfigScreen(settings: SettingsViewModel, name: String, onOpenKeywords: 
             Group(listOf(
                 { shapes ->
                     SwitchRow("Use this tool", checked = config.enabled, shapes = shapes) { on ->
-                        if (on) askPermissions(tool)
+                        if (on) askPermissions.run(tool.permissions)
                         change { it.copy(enabled = on) }
                     }
                 },
@@ -628,13 +628,6 @@ internal fun SectionTitle(text: String) {
         style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
 }
 
-/** Asks Android for the permissions [Tool.permissions] that aren't granted yet; nothing if none are missing. */
-@Composable
-private fun rememberPermissionAsk(onResult: (Boolean) -> Unit = {}): (Tool) -> Unit {
-    val ask = rememberPermissionsAsk(onResult)
-    return { tool -> ask(tool.permissions) }
-}
-
 /**
  * Asks Android for those of the permissions that aren't granted yet; [onResult] says whether all
  * were allowed. None missing: it's true at once, without asking. The tool pages and setup share it.
@@ -676,15 +669,15 @@ private fun permissionTitle(permission: String) = when (permission) {
 
 /**
  * What the tool needs from Android (e.g. the contacts), shown only while it's missing: Allow asks;
- * once refused, Android won't ask again, so the button opens the app's page in Android's settings.
+ * once Android won't ask again ([PermissionStep]), the button opens the app's page in Android's settings.
  */
 @Composable
 private fun PermissionsCard(tool: Tool) {
     val context = LocalContext.current
     fun granted() = tool.permissions.all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
     var allowed by remember { mutableStateOf(granted()) }
-    var refused by rememberSaveable { mutableStateOf(false) }
-    val ask = rememberPermissionAsk { ok -> allowed = ok; refused = !ok }
+    val allow = rememberPermissionFlow { allowed = granted() }
+    val settingsOnly = allow.step(tool.permissions) == PermissionStep.OpenSettings
     // Back from Android's settings, or the permission changed while away.
     LifecycleResumeEffect(tool) {
         allowed = granted()
@@ -699,9 +692,7 @@ private fun PermissionsCard(tool: Tool) {
             Row(Modifier.padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.settings_needs_s, tool.permissions.joinToString { permissionTitle(it) }.lowercase()), Modifier.weight(1f),
                     style = MaterialTheme.typography.bodyLarge)
-                Button(onClick = {
-                    if (refused) openAppSettings(context) else ask(tool)
-                }) { Text(if (refused) "Open settings" else "Allow") }
+                Button(onClick = { allow.run(tool.permissions) }) { Text(if (settingsOnly) "Open settings" else "Allow") }
             }
         }
     }

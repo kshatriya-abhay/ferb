@@ -96,12 +96,12 @@ fun NewReminderScreen(viewModel: AssistantViewModel, onDone: () -> Unit) {
             if (saved) onDone() else problem = "That time has passed"
         }
     }
-    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) save() else problem = NEEDS_NOTIFICATIONS
-    }
+    val notifications = listOf(Manifest.permission.POST_NOTIFICATIONS)
+    val allow = rememberPermissionFlow { granted -> if (granted.isNotEmpty()) save() else problem = NEEDS_NOTIFICATIONS }
+    // Refused for good, Save opens Ferb's page in Android's settings, where it can be allowed (review P2-146).
     val onSave = {
-        if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) save()
-        else ask.launch(Manifest.permission.POST_NOTIFICATIONS)
+        if (allow.step(notifications) == PermissionStep.OpenSettings) problem = "$NEEDS_NOTIFICATIONS: allow them in Android's settings, then Save"
+        allow.run(notifications)
     }
     var picking by remember { mutableStateOf<Picker?>(null) }
     Scaffold(containerColor = MaterialTheme.colorScheme.surfaceContainer, topBar = {

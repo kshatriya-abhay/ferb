@@ -180,12 +180,9 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
     val context = LocalContext.current
     // A reply's Allow: the permission, then the request again if it was given.
     var allowing by remember { mutableStateOf<Long?>(null) }
-    var refused by rememberSaveable { mutableStateOf(setOf<String>()) }
-    val askAllow = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
-        val activity = context as? Activity
-        refused = refused + result.filter { (permission, granted) -> !granted && activity?.shouldShowRequestPermissionRationale(permission) == false }.keys
+    val allow = rememberPermissionFlow { granted ->
         val request = state.history.firstOrNull { it.id == allowing }?.request
-        if (request != null && result.values.any { it }) viewModel.send(request)
+        if (request != null && granted.isNotEmpty()) viewModel.send(request)
         allowing = null
     }
     // A reply's "Pick a notes folder": the system's folder picker, then the request again.
@@ -251,13 +248,8 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
                                 pickFolder.launch(null)
                                 return@History
                             }
-                            // Android asks no more once a permission was refused twice: then its page in Android's settings.
-                            if (needs.any { it in refused }) {
-                                context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
-                            } else {
-                                allowing = id
-                                askAllow.launch(needs.toTypedArray())
-                            }
+                            allowing = id
+                            allow.run(needs)
                         })
             }
             // Battery Saver on with Gemini Nano voice: it can't hear, so say so above the box.
@@ -277,13 +269,9 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
                 if (holding) viewModel.link.hold()
                 onDispose { if (holding) viewModel.link.release() }
             }
-            val askMic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-                if (granted) viewModel.startRecording()
-                else {
-                    // Refused: typing still works. Once Android won't ask again, the mic opens Ferb's settings page.
-                    if ((context as? Activity)?.shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO) == false) refused = refused + Manifest.permission.RECORD_AUDIO
-                    viewModel.notify("Ferb needs the microphone.")
-                }
+            // Refused: typing still works. Once Android won't ask again, the mic opens Ferb's settings page.
+            val mic = rememberPermissionFlow { granted ->
+                if (Manifest.permission.RECORD_AUDIO in granted) viewModel.startRecording() else viewModel.notify("Ferb needs the microphone.")
             }
             InputBar(state, ready = engine is AssistantEngine.State.Ready, focus = 0, onChange = viewModel::onInputChange, onSend = { viewModel.send() },
                 // While a step uses the computer, a tap on the box wakes its model while the request is typed.
@@ -291,12 +279,7 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
                 mic = micAvailable,
                 onMic = {
                     seen(Tip.Mic)
-                    when {
-                        context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED -> viewModel.startRecording()
-                        Manifest.permission.RECORD_AUDIO in refused ->
-                            context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
-                        else -> askMic.launch(Manifest.permission.RECORD_AUDIO)
-                    }
+                    mic.run(listOf(Manifest.permission.RECORD_AUDIO))
                 },
                 onFinish = viewModel::finishRecording, onDiscard = viewModel::discardRecording)
         }
