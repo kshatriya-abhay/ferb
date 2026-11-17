@@ -68,7 +68,7 @@ fun LicencesScreen(onBack: () -> Unit) {
                 { shapes ->
                     SegmentedListItem(
                         onClick = {
-                            if (item.url != null) context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(item.url)))
+                            if (item.url != null) openInBrowser(context, item.url)
                             else shown = if (shown == item.licence) null else item.licence
                         },
                         shapes = shapes,
@@ -101,4 +101,13 @@ fun PrivacyScreen(onBack: () -> Unit) {
             }
         }
     }
+}
+
+/**
+ * Opens [url] in the user's browser; Ferb itself never loads it. With no browser to open it
+ * (Chrome disabled, as an offline-minded user might), a line says so instead of a crash (review P2-153).
+ */
+internal fun openInBrowser(context: android.content.Context, url: String) {
+    if (runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }.isFailure)
+        android.widget.Toast.makeText(context, "No browser to open $url", android.widget.Toast.LENGTH_LONG).show()
 }

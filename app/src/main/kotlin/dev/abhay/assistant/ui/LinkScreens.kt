@@ -151,7 +151,7 @@ private const val QUICK_START = "https://github.com/kshatriya-abhay/ferb-link#qu
 @Composable
 private fun SetupChecklist(steps: List<SetupStep>, onOpenFerbLink: (() -> Unit)?) {
     val context = LocalContext.current
-    fun browse(url: String) = context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    fun browse(url: String) = openInBrowser(context, url)
     SectionTitle("Set up")
     Group(steps.mapIndexed { i, step ->
         { shapes ->
