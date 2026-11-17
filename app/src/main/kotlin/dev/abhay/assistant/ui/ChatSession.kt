@@ -28,7 +28,7 @@ object ChatSession {
     fun followGemini(watch: Flow<GeminiWatch>) {
         if (!following.compareAndSet(false, true)) return
         CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate).launch {
-            watch.drop(1).filter { it == GeminiWatch.Ready }.collect { state.update { it.copy(notice = GEMINI_READY) } }
+            watch.drop(1).filter { it == GeminiWatch.Ready }.collect { state.update { it.copy(notice = Notice(GEMINI_READY)) } }
         }
     }
 

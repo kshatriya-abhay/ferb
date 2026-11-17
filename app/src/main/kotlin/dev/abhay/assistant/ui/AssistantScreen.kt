@@ -165,7 +165,8 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
     val pipeline by viewModel.pipeline.collectAsStateWithLifecycle()
     var details by remember { mutableStateOf<AssistantViewModel.Exchange?>(null) }
     val snackbar = remember { SnackbarHostState() }
-    LaunchedEffect(state.notice) { state.notice?.let { snackbar.showSnackbar(it) } }
+    // Shown once: cleared when the snackbar goes, so a trip to Settings and back doesn't show it again.
+    LaunchedEffect(state.notice?.id) { state.notice?.let { snackbar.showSnackbar(it.text); viewModel.noticeShown(it.id) } }
     val onboarding by viewModel.onboarding.state.collectAsStateWithLifecycle()
     val linkStatus = rememberLinkStatus(viewModel.link)
     val usesComputer = pipeline.audio == AudioStep.Link || pipeline.rewrite == RewriteStep.Link || pipeline.tools == ToolStep.Link

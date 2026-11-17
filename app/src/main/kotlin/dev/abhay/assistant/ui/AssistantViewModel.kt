@@ -122,7 +122,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         val pending: String? = null,
         /** What the thinking bubble says, when it's more than thinking (waiting for the computer). */
         val asking: String? = null,
-        val notice: String? = null,
+        val notice: Notice? = null,
         /** A spoken request being recorded, or recorded and waiting for Send. */
         val voice: Voice? = null,
         /**
@@ -285,7 +285,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            _state.update { it.copy(notice = e.message ?: e.toString(), input = if (heardBy == null) said else it.input) }
+            _state.update { it.copy(notice = Notice(e.message ?: e.toString()), input = if (heardBy == null) said else it.input) }
         } finally {
             _state.update { it.copy(busy = false, pending = null, asking = null) }
         }
@@ -344,7 +344,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _state.update { it.copy(voice = null, notice = "The microphone can't be used: ${e.message ?: e}") }
+                _state.update { it.copy(voice = null, notice = Notice("The microphone can't be used: ${e.message ?: e}")) }
                 null
             }
         }
@@ -357,12 +357,12 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             val ms = SystemClock.elapsedRealtime() - startedAt
             if (heardNothing) {
                 heardNothing = false
-                return@launch _state.update { if (it.voice is Voice.Recording) it.copy(voice = null, notice = NOTHING_HEARD) else it }
+                return@launch _state.update { if (it.voice is Voice.Recording) it.copy(voice = null, notice = Notice(NOTHING_HEARD)) else it }
             }
             _state.update {
                 if (it.voice !is Voice.Recording) it
                 else it.copy(voice = Voice.Recorded(ms, pcm).takeIf { pcm.isNotEmpty() },
-                    notice = if (pcm.isEmpty()) "Nothing recorded. Try again." else null)
+                    notice = if (pcm.isEmpty()) Notice("Nothing recorded. Try again.") else null)
             }
             sendIfAsked()
         }
@@ -415,7 +415,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
                 if (nanoJob === self) nanoJob = null
                 Log.i(NanoEars.TAG, "${dev.abhay.assistant.voice.NanoSpeech.LOCALE}: Whistle instead (${choice.notice})")
                 startPhoneRecording()
-                _state.update { it.copy(notice = choice.notice) }
+                _state.update { it.copy(notice = Notice(choice.notice)) }
                 return@launch
             }
             val transcript = LiveTranscript()
@@ -467,7 +467,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
                 Log.w(NanoEars.TAG, "${dev.abhay.assistant.voice.NanoSpeech.LOCALE}: recognition failed", e)
                 // Battery limits (Battery Saver on): a plain message, not AICore's error.
                 val notice = BatterySaver.notice(e, BatterySaver.isOn(app))?.let(app::getString) ?: "Gemini Nano couldn't hear it: ${e.message ?: e}"
-                _state.update { it.copy(notice = notice) }
+                _state.update { it.copy(notice = Notice(notice)) }
             } finally {
                 ticker.cancel()
                 if (nanoJob === self) nanoJob = null
@@ -479,8 +479,8 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
                 _state.update {
                     if ((it.voice as? Voice.Recording)?.live != true) it
                     else if (cancelled) it.copy(voice = null)
-                    else if (nothing) it.copy(voice = null, notice = NOTHING_HEARD)
-                    else if (heard.isBlank()) it.copy(voice = null, notice = if (failed) it.notice else PhoneVoice.NO_WORDS)
+                    else if (nothing) it.copy(voice = null, notice = Notice(NOTHING_HEARD))
+                    else if (heard.isBlank()) it.copy(voice = null, notice = if (failed) it.notice else Notice(PhoneVoice.NO_WORDS))
                     else it.copy(voice = Voice.Heard(heard, ms))
                 }
                 if (!cancelled) sendIfAsked()
@@ -554,7 +554,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         val clip = _state.value.voice as? Voice.Recorded ?: return
         if (_state.value.busy || engine.value !is AssistantEngine.State.Ready) return
         val pcm = clip.pcm ?: return _state.update { it.copy(voice = null) }
-        PhoneVoice.silent(pcm)?.let { failed -> return _state.update { it.copy(voice = null, notice = failed.notice) } }
+        PhoneVoice.silent(pcm)?.let { failed -> return _state.update { it.copy(voice = null, notice = Notice(failed.notice)) } }
         if (pipeline.value.audio == AudioStep.Link) sendLinkVoice(clip, pcm) else sendPhoneVoice(clip, pcm)
     }
 
@@ -583,7 +583,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
                         }
                         is VoiceOutcome.Failed -> if (!next.keepClip) {
                             // No words: not the computer's failure, so no Whistle either.
-                            return@voiceRequest _state.update { it.copy(busy = false, pending = null, asking = null, notice = next.notice) }
+                            return@voiceRequest _state.update { it.copy(busy = false, pending = null, asking = null, notice = Notice(next.notice)) }
                         } else next.notice.removePrefix("Your computer couldn't hear it: ")
                     }
                 }
@@ -628,7 +628,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         _state.update { it.copy(transcribing = false) }
         when (val next = PhoneVoice.of(heard)) {
             is PhoneVoice.Failed ->
-                _state.update { it.copy(busy = false, pending = null, asking = null, voice = clip.takeIf { next.keepClip }, notice = next.notice) }
+                _state.update { it.copy(busy = false, pending = null, asking = null, voice = clip.takeIf { next.keepClip }, notice = Notice(next.notice)) }
             is PhoneVoice.Request -> {
                 _state.update { it.copy(pending = next.text, asking = null) }
                 answer(next.text, heardBy = listOf(Step(if (fallbacks.isEmpty()) "Voice: Whistle" else "Voice: Whistle instead")), audioFallbacks = fallbacks)
@@ -727,7 +727,10 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
     fun pickNotesFolder(tree: android.net.Uri) = assistant.notes.pick(tree)
 
     /** A short message at the bottom of the screen. */
-    fun notify(text: String) = _state.update { it.copy(notice = text) }
+    fun notify(text: String) = _state.update { it.copy(notice = Notice(text)) }
+
+    /** The screen showed notice [id]: it's gone, so it isn't shown again on return (review P2-122). */
+    fun noticeShown(id: Long) = _state.update { if (it.notice?.id == id) it.copy(notice = null) else it }
 
     private fun updateExchange(id: Long, change: (Exchange) -> Exchange) =
         _state.update { s -> s.copy(history = s.history.map { if (it.id == id) change(it) else it }) }
@@ -759,3 +762,13 @@ internal sealed interface VoiceOutcome {
 
 /** "Voice request · 0:04", for the request's bubble until the computer has heard it. */
 internal fun voiceLabel(ms: Long): String = String.format(java.util.Locale.US, "Voice request \u00b7 %d:%02d", ms / 60_000, ms / 1000 % 60)
+
+/**
+ * A line for the user ("Ferb needs the microphone."), shown once: an event with its own [id], so
+ * the same text twice shows twice and a screen coming back doesn't show it again (review P2-122).
+ */
+data class Notice(val text: String, val id: Long = ids.getAndIncrement()) {
+    companion object {
+        private val ids = java.util.concurrent.atomic.AtomicLong()
+    }
+}

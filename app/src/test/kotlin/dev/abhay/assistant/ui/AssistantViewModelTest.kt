@@ -97,5 +97,21 @@ class AssistantViewModelTest {
         store.clear()
     }
 
+    @Test
+    fun aNoticeIsShownOnceAndTheSameTextTwiceShowsTwice() {
+        // Review P2-122: a notice was state shown as an event, so it showed again on every return to
+        // the chat, and the same text twice (the mic refused twice) didn't show the second time.
+        val vm = viewModel(FakeApp.create(), ViewModelStore())
+        vm.notify("Ferb needs the microphone.")
+        val first = vm.state.value.notice!!
+        vm.noticeShown(first.id)
+        assertThat(vm.state.value.notice).isNull()
+        vm.notify("Ferb needs the microphone.")
+        assertThat(vm.state.value.notice!!.id).isNotEqualTo(first.id)
+        // A screen that showed an older one doesn't clear a newer one.
+        vm.noticeShown(first.id)
+        assertThat(vm.state.value.notice).isNotNull()
+    }
+
     private fun speechLike() = FloatArray(16_000) { i -> if (i < 8_000) 0f else if (i % 2 == 0) 0.5f else -0.5f }
 }

@@ -66,6 +66,9 @@ internal val OPEN_CHAT = R.string.ui_open_chat
 internal val LISTENING = R.string.ui_listening
 /** The sheet's box or recording bar, for the device test. */
 internal const val SHEET_BAR = "sheet_bar"
+internal const val SHEET_NOTICE = "sheet_notice"
+/** How long the sheet shows a notice. */
+private const val NOTICE_MS = 4_000L
 /** How far a drag up on the conversation goes before the full chat opens. */
 private val DRAG_UP_TO_OPEN = 80.dp
 
@@ -180,6 +183,13 @@ fun AssistSheet(viewModel: AssistantViewModel, opened: Int, onOpenChat: () -> Un
             Spacer(Modifier.padding(4.dp))
             // The bar, pinned under the conversation, above the keyboard.
             val clip = state.voice
+            // Why the last voice try came to nothing (the mic, nothing heard, a failure): the chat shows
+            // it as a snackbar; the sheet, a line over the bar, for a few seconds (review P2-122).
+            state.notice?.let { notice ->
+                LaunchedEffect(notice.id) { kotlinx.coroutines.delay(NOTICE_MS); viewModel.noticeShown(notice.id) }
+                Text(notice.text, Modifier.padding(horizontal = 24.dp, vertical = 4.dp).testTag(SHEET_NOTICE),
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+            }
             Box(Modifier.imePadding().testTag(SHEET_BAR)) {
             if (clip != null) VoiceField(clip, viewModel::finishRecording, viewModel::discardRecording, onSend = { viewModel.send() })
             else InputField(state, ready, viewModel::onInputChange, onSend = { viewModel.send() },
