@@ -36,6 +36,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
 
 /**
@@ -84,7 +85,10 @@ class NanoEars(inFront: StateFlow<Boolean>, private val now: () -> Long = System
             modelConfig = modelConfig { releaseStage = ModelReleaseStage.STABLE; this.preference = preference }
         })
         val fast = model(ModelPreference.FAST)
-        val chosen = if (status { fast.checkStatus() } == FeatureStatus.UNAVAILABLE) {
+        // A check that fails says nothing about FAST: let it through, so no writer is kept and the next
+        // use tries FAST again, rather than pinning FULL for the process (review P2-102).
+        val status = try { fast.checkStatus() } catch (e: Exception) { fast.close(); throw e }
+        val chosen = if (status == FeatureStatus.UNAVAILABLE) {
             fast.close()
             writerName = "FULL"
             model(ModelPreference.FULL)
@@ -92,16 +96,14 @@ class NanoEars(inFront: StateFlow<Boolean>, private val now: () -> Long = System
         return chosen.also { writer = it }
     }
 
-    private suspend fun status(check: suspend () -> Int): Int = try {
-        check()
-    } catch (e: Exception) {
-        Log.w(TAG, "checkStatus failed", e)
-        FeatureStatus.UNAVAILABLE
+    /**
+     * Hearing's state now, for the mic: checked as [refresh] checks it (a check that throws is
+     * Unchecked) and kept in [setup], so the mic and the screens read one state (review P2-102, P2-105).
+     */
+    suspend fun speech(): Part {
+        val now = part(SPEECH) { listener(NanoSpeech.LOCALE).checkStatus() }
+        return _setup.updateAndGet { it.copy(speech = checked(SPEECH, it.speech, now)) }.speech
     }
-
-    /** checkStatus() for hearing, in [NanoSpeech.LOCALE]. */
-    suspend fun status(): Int =
-        status { listener(NanoSpeech.LOCALE).checkStatus() }.also { Log.i(TAG, "${NanoSpeech.LOCALE}: checkStatus ${NanoChoice.name(it)}") }
 
     /**
      * Checks both parts, as AICore says they are: what it says wins over the download's callbacks,

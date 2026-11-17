@@ -414,7 +414,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         lateinit var self: kotlinx.coroutines.Job
         self = viewModelScope.launch(start = kotlinx.coroutines.CoroutineStart.LAZY) {
             val nano = assistant.nanoEars
-            val choice = NanoChoice.of(nano.status())
+            val choice = NanoChoice.of(nano.speech())
             if (choice is NanoChoice.Whistle) {
                 if (nanoJob === self) nanoJob = null
                 Log.i(NanoEars.TAG, "${dev.abhay.assistant.voice.NanoSpeech.LOCALE}: Whistle instead (${choice.notice})")

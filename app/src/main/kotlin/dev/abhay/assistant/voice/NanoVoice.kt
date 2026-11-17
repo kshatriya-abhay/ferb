@@ -91,25 +91,22 @@ sealed interface NanoChoice {
     data class Whistle(val notice: String) : NanoChoice
 
     companion object {
-        fun of(status: Int): NanoChoice = when (status) {
-            FeatureStatus.AVAILABLE -> Nano
-            FeatureStatus.DOWNLOADABLE -> Whistle(NOT_SET_UP)
-            FeatureStatus.DOWNLOADING -> Whistle(DOWNLOADING)
-            else -> Whistle(UNAVAILABLE)
+        /**
+         * The mic's choice from speech's [Part], as setup has it: one reading of AICore for the whole
+         * app (review P2-105). A check that failed is "couldn't check", never "can't run" (P2-102).
+         */
+        fun of(part: Part): NanoChoice = when (part) {
+            Part.Ready -> Nano
+            Part.NeedsDownload, is Part.Failed -> Whistle(NOT_SET_UP)
+            Part.Downloading -> Whistle(DOWNLOADING)
+            Part.Unavailable -> Whistle(UNAVAILABLE)
+            Part.Checking, is Part.Unchecked -> Whistle(UNCHECKED)
         }
 
         const val NOT_SET_UP = "Gemini Nano isn't set up: Whistle heard this"
         const val DOWNLOADING = "Gemini Nano is downloading: Whistle heard this"
         const val UNAVAILABLE = "Gemini Nano can't run here: Whistle heard this"
-
-        /** For the log. */
-        fun name(status: Int): String = when (status) {
-            FeatureStatus.AVAILABLE -> "available"
-            FeatureStatus.DOWNLOADABLE -> "downloadable"
-            FeatureStatus.DOWNLOADING -> "downloading"
-            FeatureStatus.UNAVAILABLE -> "unavailable"
-            else -> "unknown ($status)"
-        }
+        const val UNCHECKED = "Gemini Nano couldn't be checked just now: Whistle heard this"
     }
 }
 

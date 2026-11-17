@@ -59,11 +59,12 @@ class NanoVoiceTest {
 
     @Test
     fun whistleHearsItWhenGeminiCant() {
-        assertThat(NanoChoice.of(FeatureStatus.AVAILABLE)).isEqualTo(NanoChoice.Nano)
-        assertThat(NanoChoice.of(FeatureStatus.DOWNLOADABLE)).isEqualTo(NanoChoice.Whistle(NanoChoice.NOT_SET_UP))
-        assertThat(NanoChoice.of(FeatureStatus.DOWNLOADING)).isEqualTo(NanoChoice.Whistle(NanoChoice.DOWNLOADING))
-        assertThat(NanoChoice.of(FeatureStatus.UNAVAILABLE)).isEqualTo(NanoChoice.Whistle(NanoChoice.UNAVAILABLE))
-        assertThat(NanoChoice.of(42)).isEqualTo(NanoChoice.Whistle(NanoChoice.UNAVAILABLE))
+        assertThat(NanoChoice.of(Part.Ready)).isEqualTo(NanoChoice.Nano)
+        assertThat(NanoChoice.of(Part.NeedsDownload)).isEqualTo(NanoChoice.Whistle(NanoChoice.NOT_SET_UP))
+        assertThat(NanoChoice.of(Part.Downloading)).isEqualTo(NanoChoice.Whistle(NanoChoice.DOWNLOADING))
+        assertThat(NanoChoice.of(Part.Unavailable)).isEqualTo(NanoChoice.Whistle(NanoChoice.UNAVAILABLE))
+        // Review P2-102: a check that threw (AICore busy, Ferb in the background) isn't "can't run here".
+        assertThat(NanoChoice.of(Part.Unchecked("busy"))).isEqualTo(NanoChoice.Whistle(NanoChoice.UNCHECKED))
     }
 
     @Test
