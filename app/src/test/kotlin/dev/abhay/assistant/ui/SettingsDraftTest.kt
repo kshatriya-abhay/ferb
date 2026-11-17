@@ -81,4 +81,35 @@ class SettingsDraftTest {
         assertThat(app.toolSettings.configs.value.getValue("send_text").enabled).isTrue()
         assertThat(app.toolSettings.configs.value.getValue("make_call").enabled).isTrue()
     }
+
+    // Review P2-154: an undone edit kept the whole config, hiding the chat's change.
+    @Test
+    fun aSwitchFlippedBackAndForthDoesNotHideAToolTheChatTurnedOn() {
+        val app = app()
+        val settings = SettingsViewModel(app)
+        settings.update("make_call") { it.copy(enabled = true) }
+        settings.update("make_call") { it.copy(enabled = false) }
+        main.scheduler.runCurrent()
+        assertThat(settings.draft.value == settings.saved.value).isTrue()
+
+        turnOnFromTheChat(app, "make_call")
+
+        assertThat(settings.draft.value.getValue("make_call").enabled).isTrue()
+        assertThat(settings.draft.value == settings.saved.value).isTrue()
+    }
+
+    /** Then the user changes another tool and taps Save: Make a call must stay on. */
+    @Test
+    fun savingAfterThatKeepsTheToolTheChatTurnedOn() {
+        val app = app()
+        val settings = SettingsViewModel(app)
+        settings.update("make_call") { it.copy(enabled = true) }
+        settings.update("make_call") { it.copy(enabled = false) }
+        turnOnFromTheChat(app, "make_call")
+
+        settings.update("send_text") { it.copy(enabled = true) }
+        settings.save()
+
+        assertThat(app.toolSettings.configs.value.getValue("make_call").enabled).isTrue()
+    }
 }

@@ -71,19 +71,27 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
 
     /**
-     * The user's unsaved edits, by tool. The draft is the saved set with these over it, so a tool
-     * turned on elsewhere (the chat's "Turn on") shows here at once and isn't an unsaved change, and
-     * Save doesn't write a stale copy over it (review P2-133).
+     * The user's unsaved edits, by tool: only the fields they changed ([ToolEdit]). The draft is the
+     * saved set with those fields over it, so a tool turned on elsewhere (the chat's "Turn on")
+     * shows here at once and isn't an unsaved change, Save doesn't write a stale copy over it
+     * (review P2-133), and an edit undone drops out (review P2-154: a switch flipped on and off
+     * kept the whole config as it was, hiding the chat's change).
      */
-    private val edits = MutableStateFlow(emptyMap<String, ToolConfig>())
+    private val edits = MutableStateFlow(emptyMap<String, ToolEdit>())
     val draft: StateFlow<Map<String, ToolConfig>> =
-        combine(saved, edits) { s, e -> s + e }.stateIn(viewModelScope, SharingStarted.Eagerly, saved.value)
+        combine(saved, edits, ::merged).stateIn(viewModelScope, SharingStarted.Eagerly, saved.value)
 
-    fun update(name: String, change: (ToolConfig) -> ToolConfig) =
-        edits.update { e -> e + (name to change(e[name] ?: saved.value.getValue(name))) }
+    private fun merged(saved: Map<String, ToolConfig>, edits: Map<String, ToolEdit>) =
+        saved.mapValues { (name, config) -> edits[name]?.over(config) ?: config }
+
+    fun update(name: String, change: (ToolConfig) -> ToolConfig) = edits.update { e ->
+        val was = saved.value.getValue(name)
+        val edit = ToolEdit.of(was, change(e[name]?.over(was) ?: was))
+        if (edit.none) e - name else e + (name to edit)
+    }
 
     fun save() {
-        settings.save(saved.value + edits.value)
+        settings.save(merged(saved.value, edits.value))
         edits.value = emptyMap()
     }
 
@@ -93,10 +101,40 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun setEnabled(names: Collection<String>, on: Boolean) {
         settings.save(saved.value + names.associateWith { saved.value.getValue(it).copy(enabled = on) })
-        edits.update { e -> e.mapValues { (name, c) -> if (name in names) c.copy(enabled = on) else c } }
+        edits.update { e -> e.mapValues { (name, edit) -> if (name in names) edit.copy(enabled = null) else edit }.filterValues { !it.none } }
     }
 
     fun discard() {
         edits.value = emptyMap()
+    }
+}
+
+/** A tool's unsaved edit: the fields the user changed, null for those as saved (review P2-154). */
+internal data class ToolEdit(
+    val enabled: Boolean? = null,
+    val alwaysConfirm: Boolean? = null,
+    val runFrom: Double? = null,
+    val options: Map<String, String>? = null,
+    val keywords: List<String>? = null,
+) {
+    val none get() = this == ToolEdit()
+
+    fun over(saved: ToolConfig) = saved.copy(
+        enabled = enabled ?: saved.enabled,
+        alwaysConfirm = alwaysConfirm ?: saved.alwaysConfirm,
+        runFrom = runFrom ?: saved.runFrom,
+        options = options ?: saved.options,
+        keywords = keywords ?: saved.keywords,
+    )
+
+    companion object {
+        /** [edited] against [saved]: only what differs. */
+        fun of(saved: ToolConfig, edited: ToolConfig) = ToolEdit(
+            enabled = edited.enabled.takeIf { it != saved.enabled },
+            alwaysConfirm = edited.alwaysConfirm.takeIf { it != saved.alwaysConfirm },
+            runFrom = edited.runFrom.takeIf { it != saved.runFrom },
+            options = edited.options.takeIf { it != saved.options },
+            keywords = edited.keywords.takeIf { it != saved.keywords },
+        )
     }
 }
