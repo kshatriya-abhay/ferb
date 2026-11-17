@@ -89,14 +89,17 @@ data class GeminiSetup(val speech: Part = Part.Checking, val rewrite: Part = Par
         fun abilities(s: GeminiSetup) = GeminiAbilities(speech = s.speech == Part.Ready, rewrite = s.rewrite == Part.Ready, here = s.speech != Part.Unavailable)
     }
 
-    /** The Settings row's line under "Gemini Nano". */
+    /**
+     * Its state in a few words, for Advanced's Gemini Nano options and the Gemini page's subtitle:
+     * the status only, as neither is a button; the buttons say what they do (review P2-134).
+     */
     fun summary(): String = when {
         ready -> "Ready"
-        parts.any { it is Part.Unchecked } -> "Couldn't check: tap to try again"
+        parts.any { it is Part.Unchecked } -> "Couldn't check"
         parts.any { it == Part.Unavailable } -> "Not available on this phone"
         downloading -> "Downloading…"
         parts.any { it == Part.Checking } -> "Checking…"
-        else -> "Set up needed: tap to download"
+        else -> "Set up needed"
     }
 }
 

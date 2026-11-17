@@ -51,9 +51,10 @@ class NanoVoiceTest {
 
     @Test
     fun theSettingsRowSumsTheSetupUp() {
+        // Review P2-134: the status only; it shows where a tap selects a step, or nothing.
         assertThat(GeminiSetup(Part.Ready, Part.Ready).summary()).isEqualTo("Ready")
         assertThat(GeminiSetup(Part.Ready, Part.Ready).ready).isTrue()
-        assertThat(GeminiSetup(Part.Ready, Part.NeedsDownload).summary()).isEqualTo("Set up needed: tap to download")
+        assertThat(GeminiSetup(Part.Ready, Part.NeedsDownload).summary()).isEqualTo("Set up needed")
         assertThat(GeminiSetup(Part.Ready, Part.NeedsDownload).needsSetUp).isTrue()
         assertThat(GeminiSetup(Part.Downloading, Part.Downloading).summary()).isEqualTo("Downloading…")
         // Android fetching it already: nothing to set up, Ferb waits for it (ReadyWatch).
@@ -62,7 +63,7 @@ class NanoVoiceTest {
         assertThat(GeminiSetup(Part.Ready, Part.Failed("not enough space on the phone")).needsSetUp).isTrue()
         assertThat(GeminiSetup(Part.Unavailable, Part.Ready).summary()).isEqualTo("Not available on this phone")
         assertThat(GeminiSetup().summary()).isEqualTo("Checking…")
-        assertThat(GeminiSetup(Part.Unchecked("NullPointerException"), Part.Unchecked("NullPointerException")).summary()).isEqualTo("Couldn't check: tap to try again")
+        assertThat(GeminiSetup(Part.Unchecked("NullPointerException"), Part.Unchecked("NullPointerException")).summary()).isEqualTo("Couldn't check")
     }
 
     @Test
