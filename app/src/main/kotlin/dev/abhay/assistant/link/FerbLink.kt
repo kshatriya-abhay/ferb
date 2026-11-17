@@ -167,36 +167,77 @@ class ProviderTransport(private val context: Context) : LinkTransport {
     /**
      * Held while a step uses the computer ([hold]): Android then keeps Ferb Link's process
      * at Ferb's importance instead of killing it, which cost about 250 ms on the next call (twice
-     * in the audio bench, 2026-10-12). Unstable, so Ferb isn't killed if Ferb Link crashes.
+     * in the audio bench, 2026-10-12). Unstable, so Ferb isn't killed if Ferb Link crashes. Acquired
+     * on its own thread: about 250 ms when Ferb Link's process is dead, too long for Main (review P2-115).
      */
-    @Volatile private var client: ContentProviderClient? = null
-    private var holders = 0
+    private val held = Held(
+        acquire = { context.contentResolver.acquireUnstableContentProviderClient(LinkContract.AUTHORITY) },
+        close = ContentProviderClient::close,
+        background = java.util.concurrent.Executors.newSingleThreadExecutor { Thread(it, "FerbLinkHold").apply { isDaemon = true } }::execute,
+    )
 
-    /** Main thread. */
-    override fun hold() {
-        if (holders++ == 0) client = context.contentResolver.acquireUnstableContentProviderClient(LinkContract.AUTHORITY)
-    }
-
-    override fun release() {
-        if (holders > 0 && --holders == 0) {
-            client?.close()
-            client = null
-        }
-    }
+    override fun hold() = held.hold()
+    override fun release() = held.release()
 
     /** Through the held client when there is one, else as usual. */
     override fun call(method: String, extras: Map<String, Any>?): LinkResult? {
         val bundle = extras?.bundle()
-        client?.let { held ->
+        held.current()?.let { client ->
             try {
-                return held.call(method, null, bundle)?.values()
+                return client.call(method, null, bundle)?.values()
             } catch (e: DeadObjectException) {
                 // Ferb Link died since: drop the client and call it afresh, which restarts it.
-                held.close()
-                client = context.contentResolver.acquireUnstableContentProviderClient(LinkContract.AUTHORITY)
+                held.died(client)
             }
         }
         return context.contentResolver.call(LinkContract.AUTHORITY, method, null, bundle)?.values()
+    }
+}
+
+/**
+ * One client, held while anyone holds it ([hold], [release]): acquired in the [background], and
+ * acquire, re-acquire and release under one lock, so a client acquired after the last release is
+ * closed, not kept (review P2-115).
+ */
+class Held<C : Any>(
+    private val acquire: () -> C?,
+    private val close: (C) -> Unit,
+    private val background: (Runnable) -> Unit,
+) {
+    private val lock = Any()
+    private var holders = 0
+    private var client: C? = null
+
+    fun hold() {
+        synchronized(lock) { if (holders++ > 0) return }
+        background(Runnable { fill() })
+    }
+
+    fun release() {
+        val gone = synchronized(lock) {
+            if (holders == 0 || --holders > 0) return
+            client.also { client = null }
+        }
+        gone?.let(close)
+    }
+
+    fun current(): C? = synchronized(lock) { client }
+
+    /** [dead] stopped answering: closed, and another acquired while it's still held. */
+    fun died(dead: C) {
+        val (mine, again) = synchronized(lock) {
+            val mine = client === dead
+            if (mine) client = null
+            mine to (mine && holders > 0)
+        }
+        if (mine) close(dead)
+        if (again) fill()
+    }
+
+    private fun fill() {
+        val fresh = acquire() ?: return
+        val kept = synchronized(lock) { (holders > 0 && client == null).also { if (it) client = fresh } }
+        if (!kept) close(fresh)
     }
 }
 
@@ -213,7 +254,7 @@ class FerbLink(
     private val clock: () -> Long = SystemClock::elapsedRealtime,
     private val log: (String) -> Unit = { Log.i(TAG, it) },
 ) : LinkCalls {
-    /** Keeps Ferb Link's process up until a matching [release]. Main thread. */
+    /** Keeps Ferb Link's process up until a matching [release]. Returns at once. */
     fun hold() {
         if (packages.installed()) transport.hold()
     }
