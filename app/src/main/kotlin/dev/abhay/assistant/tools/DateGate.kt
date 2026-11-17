@@ -23,6 +23,9 @@ object DateGate {
 
     fun timed(tool: String) = tool in TIMED
 
+    /** Why a timed tool can't run a call without [FerbTime]: one that skipped [apply]. */
+    const val UNGATED = "Ferb didn't read a time for this call"
+
     /** What a text says, read for [tool]: a moment (with a repeat), a day, a length, or why to ask. */
     sealed interface Read {
         data class At(val at: LocalDateTime, val rule: DateResolver.Rule?) : Read
@@ -153,7 +156,7 @@ object DateGate {
             null -> { asks += (fromSaid as Read.Ask).why; return done(false) }
             is Read.At -> when (tool) {
                 SetAlarm.name -> {
-                    out[param] = pick.at.toLocalTime().toString()
+                    time = time.copy(clock = pick.at.toLocalTime()); out[param] = pick.at.toLocalTime().toString()
                     // The Clock app rings at the next time it's that time of day: another day asks,
                     // offering that ring or a reminder on the day asked for.
                     val ring = local.toLocalDate().atTime(pick.at.toLocalTime()).let { if (it.isAfter(local)) it else it.plusDays(1) }
@@ -176,7 +179,7 @@ object DateGate {
                 }
             }
             is Read.Day -> { time = time.copy(day = pick.day); out[param] = pick.day.toString() }
-            is Read.Length -> out[param] = "${pick.seconds} seconds"
+            is Read.Length -> { time = time.copy(seconds = pick.seconds); out[param] = "${pick.seconds} seconds" }
             is Read.Ask -> {}
         }
         // An event's span: its length, from the words as said or the rewrite, put on the agreed start.

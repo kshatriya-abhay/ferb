@@ -47,11 +47,11 @@ class ToolsTest {
     @Test
     fun aVolumeTheRequestDoesntSayIsntGrounded() {
         // Review P2-70: any percent passed.
-        assertThat(SetVolume.grounded(mapOf("percent" to 100), "turn the volume up a little", null)).isFalse()
-        assertThat(SetVolume.grounded(mapOf("percent" to 40), "set the volume to 40", null)).isTrue()
-        assertThat(SetVolume.grounded(mapOf("percent" to 0), "mute the music", null)).isTrue()
-        assertThat(SetVolume.grounded(mapOf("percent" to 100), "volume to max", null)).isTrue()
-        assertThat(SetVolume.grounded(mapOf("percent" to 50), "half volume", null)).isTrue()
+        assertThat(SetVolume.grounded(mapOf("percent" to 100), "turn the volume up a little")).isFalse()
+        assertThat(SetVolume.grounded(mapOf("percent" to 40), "set the volume to 40")).isTrue()
+        assertThat(SetVolume.grounded(mapOf("percent" to 0), "mute the music")).isTrue()
+        assertThat(SetVolume.grounded(mapOf("percent" to 100), "volume to max")).isTrue()
+        assertThat(SetVolume.grounded(mapOf("percent" to 50), "half volume")).isTrue()
     }
 
     @Test
@@ -76,57 +76,46 @@ class ToolsTest {
     fun theCardSaysWhyFerbAsksFirst() {
         // Review P2-66: only an alarm on another day put the gate's reason on the card; a repeating alarm
         // showed "Set an alarm for 06:00" and never said it won't repeat.
-        val call = dev.abhay.assistant.engine.ToolCall(SetAlarm.name, mapOf("time" to "06:00"),
-            dev.abhay.assistant.engine.FerbTime(ask = "repeating alarms aren't supported yet"))
-        val card = SetAlarm.prepareCall(call, "wake me up every day at 6 am", PrepareEnv()) as Prepared.Ready
+        val card = SetAlarm.prepareSaid("wake me up every day at 6 am", PrepareEnv(now = now), "time" to "06:00") as Prepared.Ready
         assertThat(card.summary).isEqualTo("Set an alarm for 06:00")
         assertThat(card.detail).isEqualTo("Repeating alarms aren't supported yet")
         // With nothing to ask about, nothing is added.
-        val plain = SetAlarm.prepareCall(call.copy(time = dev.abhay.assistant.engine.FerbTime()), "wake me up at 6 am", PrepareEnv()) as Prepared.Ready
+        val plain = SetAlarm.prepareSaid("wake me up at 6 am", PrepareEnv(now = now), "time" to "06:00") as Prepared.Ready
         assertThat(plain.detail).isNull()
     }
 
-    @Test
-    fun alarmsTakeTheTimeAsWritten() {
-        assertThat(summary(SetAlarm.prepare(mapOf("time" to "7 pm"), PrepareEnv(apps)))).isEqualTo("Set an alarm for 19:00")
-        assertThat(summary(SetAlarm.prepare(mapOf("time" to "6:45"), PrepareEnv(apps)))).isEqualTo("Set an alarm for 06:45")
-        assertThat(reason(SetAlarm.prepare(mapOf("time" to "soon"), PrepareEnv(apps)))).contains("soon")
-        assertThat(reason(SetAlarm.prepare(emptyMap(), PrepareEnv(apps)))).isNotNull()
-    }
+    /** Thursday 8 October 2026, 10:00 in India. */
+    private val now = java.time.ZonedDateTime.of(2026, 10, 8, 10, 0, 0, 0, java.time.ZoneId.of("Asia/Kolkata"))
 
     @Test
-    fun timesOfDayAsTheModelWritesThem() {
-        // Forms seen from Needle 3 on the desktop check, and a few more.
-        val cases = mapOf(
-            "8:00 AM" to (8 to 0), "08:00" to (8 to 0), "9:00" to (9 to 0), "8" to (8 to 0), "6:45" to (6 to 45),
-            "7 pm" to (19 to 0), "7:30 p.m." to (19 to 30), "12 am" to (0 to 0), "12 pm" to (12 to 0), "19:30" to (19 to 30),
-            "6.45" to (6 to 45), "noon" to (12 to 0), "midnight" to (0 to 0),
-        )
-        cases.forEach { (text, expected) -> assertThat(TimeOfDay.parse(text)).isEqualTo(expected) }
-        listOf("25:00", "13 pm", "8:75", "tomorrow", "").forEach { assertThat(TimeOfDay.parse(it)).isNull() }
-        // As the computer's model writes them for spoken requests (2026-10-12: "5 o'clock" was refused).
-        val spoken = mapOf("5 o'clock" to (5 to 0), "five o'clock" to (5 to 0), "5 baje" to (5 to 0), "tomorrow at 6" to (6 to 0),
-            "6 am tomorrow" to (6 to 0), "7 in the evening" to (19 to 0), "5 in the morning" to (5 to 0), "9 at night" to (21 to 0),
-            "12 at night" to (0 to 0), "3 in the afternoon" to (15 to 0), "subah 5" to (5 to 0), "shaam 6 baje" to (18 to 0),
-            "7:30 in the evening" to (19 to 30), "6 pm tonight" to (18 to 0), "raat 2 baje" to (2 to 0), "raat 10 baje" to (22 to 0),
-            // As Ferb Link leaves the model's own words for the time of day.
-            "11 o'clock at night" to (23 to 0), "7 o'clock in the morning" to (7 to 0), "3 o'clock in the afternoon" to (15 to 0))
-        spoken.forEach { (text, expected) -> assertThat(TimeOfDay.parse(text)).isEqualTo(expected) }
+    fun alarmsTakeFerbsTime() {
+        assertThat(summary(SetAlarm.prepareSaid("set an alarm for 7 pm", PrepareEnv(apps, now = now), "time" to "7 pm"))).isEqualTo("Set an alarm for 19:00")
+        assertThat(summary(SetAlarm.prepareSaid("wake me up at 6:45", PrepareEnv(apps, now = now), "time" to "8:00"))).isEqualTo("Set an alarm for 06:45")
         // am and pm however they're written (2026-10-24: "10 a.m." wasn't a time of day).
-        val written = mapOf("10 a.m." to (10 to 0), "10 A.M." to (10 to 0), "10am." to (10 to 0), "10 a m" to (10 to 0), "10a.m" to (10 to 0),
-            "7:15 P.M." to (19 to 15), "7 p. m." to (19 to 0), "12 a.m." to (0 to 0))
-        written.forEach { (text, expected) -> assertThat(TimeOfDay.parse(text)).isEqualTo(expected) }
-        assertThat(summary(SetAlarm.prepare(SetAlarm.fromRequest(mapOf("time" to "10 a.m."), "set an alarm for 10 a.m."), PrepareEnv(apps)))).contains("10:00")
+        assertThat(summary(SetAlarm.prepareSaid("set an alarm for 10 a.m.", PrepareEnv(apps, now = now)))).isEqualTo("Set an alarm for 10:00")
+        assertThat(reason(SetAlarm.prepareSaid("set an alarm", PrepareEnv(apps, now = now), "time" to "6:45"))).isEqualTo("When should the alarm ring?")
         // Not a meridiem: "a meeting" after a number.
         assertThat(Meridiem.normalise("5 a meeting")).isEqualTo("5 a meeting")
     }
 
     @Test
-    fun timersTakeTheLengthAsWritten() {
-        assertThat(summary(SetTimer.prepare(mapOf("duration" to "90 seconds"), PrepareEnv(apps)))).isEqualTo("Start a 1 min 30 s timer")
-        assertThat(summary(SetTimer.prepare(mapOf("duration" to "1 hour 15 minutes"), PrepareEnv(apps)))).isEqualTo("Start a 1 h 15 min timer")
-        assertThat(reason(SetTimer.prepare(mapOf("duration" to "a while"), PrepareEnv(apps)))).isNotNull()
-        assertThat(reason(SetTimer.prepare(mapOf("duration" to "25 hours"), PrepareEnv(apps)))).isNotNull()
+    fun timersTakeFerbsLength() {
+        assertThat(summary(SetTimer.prepareSaid("set a 90 second timer", PrepareEnv(apps, now = now), "duration" to "90 minutes"))).isEqualTo("Start a 1 min 30 s timer")
+        assertThat(summary(SetTimer.prepareSaid("timer for 1 hour 15 minutes", PrepareEnv(apps, now = now)))).isEqualTo("Start a 1 h 15 min timer")
+        assertThat(reason(SetTimer.prepareSaid("set a timer for a while", PrepareEnv(apps, now = now), "duration" to "10 minutes"))).isEqualTo("No length given")
+        assertThat(reason(SetTimer.prepareSaid("timer for 25 hours", PrepareEnv(apps, now = now)))).isEqualTo("A timer needs 1 second to 24 hours")
+    }
+
+    @Test
+    fun aTimedCallWithoutFerbsTimeDoesntRun() {
+        val book = dev.abhay.assistant.reminders.ReminderBook(object : dev.abhay.assistant.reminders.ReminderStore {
+            override fun load() = emptyList<dev.abhay.assistant.reminders.Reminder>()
+            override fun save(reminders: List<dev.abhay.assistant.reminders.Reminder>) {}
+        }) { now.toLocalDateTime() }
+        val asked = mapOf(SetAlarm to mapOf("time" to "7 pm"), SetTimer to mapOf("duration" to "10 minutes"), ShowAgenda to mapOf("day" to "today"),
+            AddReminder to mapOf("text" to "call mum", "time" to "tomorrow at 9"), AddEvent to mapOf("title" to "Dentist", "when" to "tomorrow at 5 pm"))
+        assertThat(asked.keys.map { it.name }.all(DateGate::timed)).isTrue()
+        asked.forEach { (tool, arguments) -> assertThat(reason(tool.prepare(arguments, PrepareEnv(now = now, reminders = book)))).isEqualTo(DateGate.UNGATED) }
     }
 
     @Test

@@ -14,7 +14,7 @@ NIGHT = r"\b(at night|tonight|night|raat)\b"
 TIME_FILLER = r"\b(o'clock|o’clock|oclock|o clock|baje|bje|sharp|at|tomorrow|today|kal|aaj|ka|ki|ke)\b"
 
 def time_of_day(text):
-    """As the app's TimeOfDay.parse: "5 o'clock", "7 in the evening", "subah 5 baje" included."""
+    """As TimeOfDay.parse (now the date eval's, app/src/test/.../eval/TimeReaders.kt): "5 o'clock", "7 in the evening", "subah 5 baje" included."""
     lower = str(text).strip().lower()
     hint = "am" if re.search(MORNING, lower) else "pm" if re.search(LATER, lower) else None
     t = re.sub(TIME_FILLER, " ", re.sub(LATER, " ", re.sub(MORNING, " ", lower)))

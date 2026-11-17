@@ -155,7 +155,7 @@ data class Verdict(
             val alwaysConfirm = called.any { it?.alwaysConfirm == true }
             val unmentioned = called.any { it?.mentionedIn(request) == false }
             // A time Ferb asks about (the call's [dev.abhay.assistant.engine.ToolCall.time]) asks too.
-            val ungrounded = reply.calls.any { call -> call.time?.ask != null || Tools.byName(call.name)?.grounded(call.arguments, request, call.time) == false }
+            val ungrounded = reply.calls.any { call -> call.time?.ask != null || Tools.byName(call.name)?.grounded(call.arguments, request) == false }
             val decision = when {
                 reply.error != null -> Decision.Refuse
                 (alwaysConfirm || unmentioned || ungrounded) && reply.calls.isNotEmpty() -> Decision.Confirm

@@ -90,11 +90,11 @@ class DateGateTest {
         assertThat(got.agreed).isTrue()
         assertThat(got.time?.at?.toString()).isEqualTo("2026-11-05T18:00")
         assertThat(got.time?.lengthMinutes).isEqualTo(120)
-        val planned = AddEvent.plan("Dinner", got.arguments, now, ZoneId.of("Asia/Kolkata"), got.time)!!
+        val planned = AddEvent.plan("Dinner", got.time!!, ZoneId.of("Asia/Kolkata"))!!
         assertThat(planned.start.toString() to planned.endTime.toString()).isEqualTo("18:00" to "20:00")
         // No span said: an hour, as before.
         val hour = DateGate.apply(AddEvent.name, call, "dinner tomorrow at 6 pm", null, zoned)
-        assertThat(AddEvent.plan("Dinner", hour.arguments, now, ZoneId.of("Asia/Kolkata"), hour.time)!!.endTime.toString()).isEqualTo("19:00")
+        assertThat(AddEvent.plan("Dinner", hour.time!!, ZoneId.of("Asia/Kolkata"))!!.endTime.toString()).isEqualTo("19:00")
     }
 
     @Test

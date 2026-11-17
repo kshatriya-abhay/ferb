@@ -125,10 +125,11 @@ class ToolConfigTest {
 
     @Test
     fun aTimeTheRequestDoesntSayAsksFirst() {
+        val now = java.time.ZonedDateTime.of(2026, 10, 8, 10, 0, 0, 0, java.time.ZoneId.of("Asia/Kolkata"))
         fun alarm(time: String, request: String) = Verdict.of(NeedleReply.parse(
-            """{"success":true,"function_calls":[{"name":"set_alarm","arguments":{"time":"$time"}}],"confidence":0.63}""",
-        ), configs, request)
-        // Needle 3 took 6:45 from the tool's example.
+            """{"success":true,"function_calls":[],"confidence":0.63}""",
+        ).copy(calls = listOf(SetAlarm.gatedCall(request, now, "time" to time))), configs, request)
+        // Needle 3 took 6:45 from the tool's example; Ferb reads no time in the words.
         assertThat(alarm("6:45", "I hate alarms").let { it.decision to it.ungrounded }).isEqualTo(Decision.Confirm to true)
         assertThat(alarm("6:30", "wake me at half past six").decision).isEqualTo(Decision.Run)
         assertThat(alarm("23:30", "alarm at 11:30 at night").decision).isEqualTo(Decision.Run)

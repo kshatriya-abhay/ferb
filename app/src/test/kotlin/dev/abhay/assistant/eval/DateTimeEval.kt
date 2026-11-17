@@ -1,10 +1,8 @@
 package dev.abhay.assistant.eval
 
 import dev.abhay.assistant.reminders.Repeat
-import dev.abhay.assistant.reminders.ReminderTime
 import dev.abhay.assistant.tools.DateResolver
 import dev.abhay.assistant.tools.Durations
-import dev.abhay.assistant.tools.TimeOfDay
 import dev.abhay.assistant.tools.ToolRouter
 import dev.abhay.assistant.tools.ToolSettings
 import dev.abhay.assistant.tools.Tools
@@ -51,13 +49,13 @@ class DateTimeEval {
 
     private fun at(t: LocalDateTime, rule: String? = null) = t.toString().take(16) + (rule?.let { " $it" } ?: "")
 
-    /** Today's code, as the tools read time now. */
+    /** The tools' own readers, before Ferb read the time itself ([TimeOfDay], [ReminderWords]). */
     private fun baseline(line: Line, a: Answer, text: String): String {
         val now = line.now
         return when (line.tool) {
             "add_reminder" -> {
-                val r = ReminderTime.read(text, now) ?: a.args.optString("time").takeIf { it.isNotBlank() }?.let { ReminderTime.read(it, now) }
-                if (r == null || !r.isAfter(now)) "ask" else at(r, Repeat.said(text).key())
+                val r = ReminderWords.time(text, now) ?: a.args.optString("time").takeIf { it.isNotBlank() }?.let { ReminderWords.time(it, now) }
+                if (r == null || !r.isAfter(now)) "ask" else at(r, ReminderWords.repeat(text).key())
             }
             "set_alarm" -> {
                 val (h, m) = a.args.optString("time").takeIf { it.isNotBlank() }?.let { TimeOfDay.parse(it) } ?: return "ask"

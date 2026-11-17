@@ -2,8 +2,6 @@ package dev.abhay.assistant.reminders
 
 import dev.abhay.assistant.notes.NoteStore
 import dev.abhay.assistant.notes.NoteText
-import dev.abhay.assistant.tools.Durations
-import dev.abhay.assistant.tools.When
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -29,18 +27,6 @@ enum class Repeat(val key: String) {
     }
 
     companion object {
-        /** The repeat a request says: "every day", "daily", "every Monday" (weekly), "every month"…; null if it says none. */
-        fun said(text: String): Repeat? {
-            val t = text.lowercase()
-            return when {
-                Regex("""\b(every ?day|daily|each day|every morning|every evening|every night)\b""").containsMatchIn(t) -> Daily
-                Regex("""\b(every|each) (week|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|\bweekly\b""").containsMatchIn(t) -> Weekly
-                Regex("""\b(every|each) month\b|\bmonthly\b""").containsMatchIn(t) -> Monthly
-                Regex("""\b(every|each) year\b|\byearly\b|\bannually\b""").containsMatchIn(t) -> Yearly
-                else -> null
-            }
-        }
-
         fun of(text: String?): Repeat? = text?.trim()?.lowercase()?.let { t ->
             entries.firstOrNull { it.key == t || t == it.name.lowercase() || t == "every " + mapOf("daily" to "day", "weekly" to "week", "monthly" to "month", "yearly" to "year")[it.key] }
         }
@@ -74,7 +60,6 @@ data class RecentReminder(val reminder: Reminder, val time: LocalDateTime, val d
 object ReminderTime {
     private val FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.US)
     val DEFAULT_TIME: LocalTime = LocalTime.of(9, 0)
-    private val RELATIVE = Regex("""\bin (an?|\d+(?:\.\d+)?|half an?) ?(minutes?|mins?|hours?|hrs?|h)\b(?: and (\d+) ?(?:minutes?|mins?))?""")
 
     fun format(at: LocalDateTime): String = at.format(FORMAT)
 
@@ -126,24 +111,6 @@ object ReminderTime {
         val v = value.trim().trim('"', '\'').replace('T', ' ')
         return runCatching { LocalDateTime.parse(v.take(16), FORMAT) }.getOrNull()
             ?: runCatching { java.time.LocalDate.parse(v.take(10)).atTime(DEFAULT_TIME) }.getOrNull()
-    }
-
-    /**
-     * When a spoken or typed reminder is due: "in 20 minutes" from [now]; else a day and a time
-     * ("tomorrow at 9", "Friday", "at 6 pm"), a day alone at 09:00, a time alone the next time it
-     * comes. Null if [text] says no time.
-     */
-    fun read(text: String, now: LocalDateTime): LocalDateTime? {
-        val t = text.lowercase()
-        RELATIVE.find(t)?.let { m ->
-            val seconds = Durations.parse(m.value.removePrefix("in ").trim()) ?: return@let
-            return now.plusSeconds(seconds.toLong()).withNano(0)
-        }
-        val said = When.read(text, now)
-        if (said.isEmpty) return null
-        val time = said.time ?: DEFAULT_TIME
-        val day = said.day ?: if (time.isAfter(now.toLocalTime())) now.toLocalDate() else now.toLocalDate().plusDays(1)
-        return day.atTime(time)
     }
 }
 

@@ -8,6 +8,7 @@ import com.google.common.truth.Truth.assertThat
 import dev.abhay.assistant.tools.AddReminder
 import dev.abhay.assistant.tools.CalendarBook
 import dev.abhay.assistant.tools.ContactBook
+import dev.abhay.assistant.tools.DateGate
 import dev.abhay.assistant.tools.MakeCall
 import dev.abhay.assistant.tools.PrepareEnv
 import dev.abhay.assistant.tools.Prepared
@@ -45,7 +46,7 @@ class PermissionsDeviceTest {
 
     @Test
     fun calendar() {
-        val agenda = ShowAgenda.prepare(mapOf("day" to "today"), env) as Prepared.Ready
+        val agenda = ShowAgenda.prepare(mapOf("day" to "today"), env.copy(time = DateGate.apply(ShowAgenda.name, emptyMap(), "what's on today", null, env.now).time)) as Prepared.Ready
         if (granted(Manifest.permission.READ_CALENDAR)) assertThat(agenda.needs).isEmpty()
         else {
             assertThat(agenda.confirm).isEqualTo("Open calendar")
@@ -55,7 +56,8 @@ class PermissionsDeviceTest {
 
     @Test
     fun notifications() {
-        val r = AddReminder.prepare(mapOf("text" to "stretch", "time" to "in 5 minutes"), env.copy(request = "remind me in 5 minutes to stretch"))
+        val gated = DateGate.apply(AddReminder.name, mapOf("text" to "stretch", "time" to "in 5 minutes"), "remind me in 5 minutes to stretch", null, env.now)
+        val r = AddReminder.prepare(gated.arguments, env.copy(time = gated.time))
         if (granted(Manifest.permission.POST_NOTIFICATIONS)) assertThat(r).isInstanceOf(Prepared.Ready::class.java)
         else assertThat((r as Prepared.Invalid).needs).containsExactly(Manifest.permission.POST_NOTIFICATIONS)
     }

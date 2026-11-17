@@ -17,18 +17,6 @@ class RemindersTest {
     private fun book(store: MemoryStore = MemoryStore()) = ReminderBook(store) { now }
 
     @Test
-    fun timesAsSaid() {
-        fun at(text: String) = ReminderTime.read(text, now)
-        assertThat(at("remind me in 20 minutes to check the oven")).isEqualTo(now.plusMinutes(20))
-        assertThat(at("in an hour")).isEqualTo(now.plusHours(1))
-        assertThat(at("tomorrow at 9")).isEqualTo(LocalDateTime.of(2026, 10, 15, 9, 0))
-        assertThat(at("on Friday to pay the rent")).isEqualTo(LocalDateTime.of(2026, 10, 16, 9, 0)) // a day alone: 09:00
-        assertThat(at("at 6 pm")).isEqualTo(LocalDateTime.of(2026, 10, 14, 18, 0))
-        assertThat(at("at 8 am")).isEqualTo(LocalDateTime.of(2026, 10, 15, 8, 0)) // passed today: tomorrow
-        assertThat(at("to call mum")).isNull()
-    }
-
-    @Test
     fun theNotesRemindKey() {
         assertThat(ReminderTime.parse("2026-10-20 09:30")).isEqualTo(LocalDateTime.of(2026, 10, 20, 9, 30))
         assertThat(ReminderTime.parse("2026-10-20")).isEqualTo(LocalDateTime.of(2026, 10, 20, 9, 0)) // a date alone: 09:00

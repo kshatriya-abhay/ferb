@@ -10,6 +10,7 @@ import dev.abhay.assistant.tools.Outcome
 import dev.abhay.assistant.tools.PrepareEnv
 import dev.abhay.assistant.tools.Tool
 import dev.abhay.assistant.tools.Prepared
+import dev.abhay.assistant.tools.prepareSaid
 import java.time.LocalDateTime
 import java.time.ZoneId
 import kotlinx.coroutines.runBlocking
@@ -27,10 +28,10 @@ class AddReminderTest {
         PrepareEnv(now = now.atZone(ZoneId.of("Asia/Kolkata")), notes = notes, reminders = ReminderBook(store) { now },
             remindersChanged = changed, granted = { granted })
 
-    /** A call's arguments with the request they came from, as the view model gives them ([PrepareEnv.request]). */
-    private class Asked(val arguments: Map<String, Any?>, val request: String)
-    private fun Tool.prepare(asked: Asked, env: PrepareEnv) = prepare(asked.arguments, env.copy(request = asked.request))
-    private fun call(request: String, vararg args: Pair<String, String>) = Asked(mapOf(*args), request)
+    /** Needle 3's arguments with the request they came from, prepared as the app prepares them ([prepareSaid]). */
+    private class Asked(val request: String, val arguments: Array<out Pair<String, String>>)
+    private fun Tool.prepare(asked: Asked, env: PrepareEnv) = prepareSaid(asked.request, env, *asked.arguments)
+    private fun call(request: String, vararg args: Pair<String, String>) = Asked(request, args)
 
     @Test
     fun aReminderFromTheRequestsOwnWords() {

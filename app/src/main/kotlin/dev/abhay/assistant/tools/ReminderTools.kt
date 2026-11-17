@@ -1,15 +1,10 @@
 package dev.abhay.assistant.tools
 
-import dev.abhay.assistant.engine.FerbTime
 import android.Manifest
 import dev.abhay.assistant.R
-import dev.abhay.assistant.reminders.Repeat
-import dev.abhay.assistant.reminders.ReminderTime
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-
-/** The request itself, added to the arguments: the time is read from it ([ReminderTime.read]), as Needle 3 doesn't know the date. */
 
 object AddReminder : Tool(
     name = "add_reminder",
@@ -37,10 +32,8 @@ object AddReminder : Tool(
            "required": ["text", "time"]}}
     """.trimIndent()
 
-    /** What to be reminded of must be the request's words, and the time's numbers too. */
-    override fun grounded(arguments: Map<String, Any?>, request: String, time: FerbTime?) =
-        Tools.mostlySaid(arguments.text("text"), request) &&
-            (time != null || arguments.text("time")?.let { SaidNumbers.grounded(it, request) } ?: true)
+    /** What to be reminded of must be the request's words. */
+    override fun grounded(arguments: Map<String, Any?>, request: String) = Tools.mostlySaid(arguments.text("text"), request)
 
     /** "Pay the rent": the words of the reminder, without "remind me to" or the time. */
     fun title(text: String): String = When.strip(text)
@@ -56,19 +49,10 @@ object AddReminder : Tool(
         val text = title(arguments.text("text") ?: return Prepared.Invalid("Remind you of what?"))
         if (text.isBlank()) return Prepared.Invalid("Remind you of what?")
         val now = env.now.toLocalDateTime()
-        // The request's own words first, then Needle 3's "time".
-        val ferb = env.time
-        val resolved = ferb != null
-        // Resolved by Ferb ([DateGate], the call's time): that, before the words.
-        val at = ferb?.at
-            ?: env.request?.takeIf { !resolved }?.let { ReminderTime.read(it, now) }
-            ?: arguments.text("time")?.takeIf { !resolved }?.let { ReminderTime.read(it, now) }
-            ?: return Prepared.Invalid(ferb?.ask?.replaceFirstChar { it.uppercase() } ?: "When? Say a time, such as in 20 minutes or tomorrow at 9")
+        val ferb = env.time ?: return Prepared.Invalid(DateGate.UNGATED)
+        val at = ferb.at ?: return Prepared.Invalid(ferb.ask?.replaceFirstChar { it.uppercase() } ?: "When? Say a time, such as in 20 minutes or tomorrow at 9")
         if (!at.isAfter(now)) return Prepared.Invalid("That's in the past")
-        // The request's words decide the repeat; Needle 3's only counts when the request says one too.
-        val said = env.request
-        val repeat = if (resolved) ferb?.repeat
-            else said?.let(Repeat::said) ?: Repeat.of(arguments.text("repeat")).takeIf { said == null }
+        val repeat = ferb.repeat
         // Without notifications a reminder can't remind: ask first, then the request runs again.
         if (!env.granted(Manifest.permission.POST_NOTIFICATIONS)) {
             return Prepared.Invalid("Ferb needs to show notifications to remind you", needs = listOf(Manifest.permission.POST_NOTIFICATIONS))

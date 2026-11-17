@@ -318,7 +318,9 @@ class AnswerFlow(
         val gated = calls.mapIndexed { i, call -> if (DateGate.timed(call.name)) gate(call.name, call.arguments, said, command, at, kept[i]) else null }
         val shown = reply.copy(
             calls = calls.mapIndexed { i, call -> gated[i]?.let { g -> call.copy(arguments = g.arguments, time = g.time) } ?: call },
-            suppressed = reply.suppressed.filter { it !== heldBack },
+            // A held-back call shows what Ferb would do ([Tool.prepareCall]): with its time, for a timed one.
+            suppressed = reply.suppressed.filter { it !== heldBack }
+                .map { call -> if (DateGate.timed(call.name)) call.copy(time = gate(call.name, call.arguments, said, command, at, null).time) else call },
         )
         gated.filterNotNull().firstOrNull()?.let { g ->
             trail.path += Step("Dates: Ferb", if (g.agreed) DateGate.shown(g.said) else "asks: ${g.time?.ask}")

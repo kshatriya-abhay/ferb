@@ -24,17 +24,17 @@ class PermissionNeedsTest {
 
     @Test
     fun theCalendarToolsWithoutTheCalendarUseTheCalendarApp() {
-        val agenda = ShowAgenda.prepare(mapOf("day" to "today"), noAccess) as Prepared.Ready
+        val agenda = ShowAgenda.prepareSaid("what's on today", noAccess, "day" to "today") as Prepared.Ready
         assertThat(agenda.confirm).isEqualTo("Open calendar")
         assertThat(agenda.needs).containsExactly(Manifest.permission.READ_CALENDAR)
-        val event = AddEvent.prepare(mapOf("title" to "dentist", "when" to "tomorrow at 5 pm"), noAccess) as Prepared.Ready
+        val event = AddEvent.prepareSaid("dentist tomorrow at 5 pm", noAccess, "title" to "dentist", "when" to "tomorrow at 5 pm") as Prepared.Ready
         assertThat(event.confirm).isEqualTo("Open calendar")
         assertThat(event.needs).containsAtLeast(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR)
     }
 
     @Test
     fun withAccessOrForOtherReasonsNothingIsNeeded() {
-        assertThat((SetAlarm.prepare(mapOf("time" to "soon"), PrepareEnv()) as Prepared.Invalid).needs).isEmpty()
-        assertThat((SetAlarm.prepare(mapOf("time" to "6:45"), PrepareEnv()) as Prepared.Ready).needs).isEmpty()
+        assertThat((SetAlarm.prepareSaid("set an alarm soon", PrepareEnv(), "time" to "soon") as Prepared.Invalid).needs).isEmpty()
+        assertThat((SetAlarm.prepareSaid("set an alarm for 6:45", PrepareEnv(), "time" to "6:45") as Prepared.Ready).needs).isEmpty()
     }
 }

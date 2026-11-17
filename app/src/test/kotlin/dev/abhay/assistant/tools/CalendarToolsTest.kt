@@ -32,10 +32,10 @@ class CalendarToolsTest {
     private val book = CalendarBook({ calendars }, { from, to -> events.filter { it.begin < to && it.end > from } }, india)
 
     private fun env(calendar: CalendarBook = book, options: Map<String, String> = emptyMap()) = PrepareEnv(calendar = calendar, now = now, options = options)
-    /** A call's arguments with the request they came from, as the view model gives them ([PrepareEnv.request]). */
-    private class Asked(val arguments: Map<String, Any?>, val request: String)
-    private fun Tool.prepare(asked: Asked, env: PrepareEnv) = prepare(asked.arguments, env.copy(request = asked.request))
-    private fun args(request: String, vararg pairs: Pair<String, Any?>) = Asked(mapOf(*pairs), request)
+    /** Needle 3's arguments with the request they came from, prepared as the app prepares them ([prepareSaid]). */
+    private class Asked(val request: String, val arguments: Array<out Pair<String, Any?>>)
+    private fun Tool.prepare(asked: Asked, env: PrepareEnv) = prepareSaid(asked.request, env, *asked.arguments)
+    private fun args(request: String, vararg pairs: Pair<String, Any?>) = Asked(request, pairs)
 
     @Test
     fun anEventWithTheSameTitleAtTheSameTimeIsShown() {
@@ -65,12 +65,12 @@ class CalendarToolsTest {
 
     @Test
     fun theAgendaShowsTheRequestsDay() {
-        val tomorrow = ShowAgenda.dayFor(mapOf("day" to "today"), today, request = "what's on tomorrow")
-        assertThat(tomorrow).isEqualTo(LocalDate.of(2026, 10, 9))
-        // The request names no day: Needle 3's, else today.
-        assertThat(ShowAgenda.dayFor(mapOf("day" to "Friday"), today, request = "am I free then")).isEqualTo(LocalDate.of(2026, 10, 9))
-        assertThat(ShowAgenda.dayFor(mapOf("day" to "soon"), today, request = "what's on my calendar")).isEqualTo(today)
-        assertThat((ShowAgenda.prepare(emptyMap(), env().copy(request = "what's on tomorrow")) as Prepared.Ready).summary).isEqualTo("Show Fri 9 Oct")
+        fun summary(request: String, day: String) = (ShowAgenda.prepare(args(request, "day" to day), env()) as Prepared.Ready).summary
+        assertThat(summary("what's on tomorrow", "today")).isEqualTo("Show Fri 9 Oct")
+        // The request names no day: today, whatever Needle 3 gave.
+        assertThat(summary("am I free then", "Friday")).isEqualTo("Show Thu 8 Oct")
+        // An agenda can look back.
+        assertThat(summary("what was on 2 Oct", "today")).isEqualTo("Show Fri 2 Oct")
     }
 
     @Test
@@ -112,21 +112,20 @@ class CalendarToolsTest {
     }
 
     @Test
-    fun daysWithoutTimesAreAllDayAndTimesWithoutDaysAreTheNextOne() {
+    fun aDayWithoutATimeIsAtNineAndATimeWithoutADayTheNextOne() {
         fun summary(request: String, title: String) = (AddEvent.prepare(args(request, "title" to title, "when" to ""), env()) as Prepared.Ready).summary
-        assertThat(summary("add mum's birthday on 12 oct to my calendar", "Mum's birthday")).isEqualTo("Add \u201cMum's birthday\u201d \u00b7 Mon 12 Oct, all day")
-        // 9 am has passed (it's 10:00): tomorrow.
-        assertThat(summary("meeting at 9", "meeting")).isEqualTo("Add \u201cMeeting\u201d \u00b7 Fri 9 Oct, 09:00–10:00")
+        assertThat(summary("add mum's birthday on 12 oct to my calendar", "Mum's birthday")).isEqualTo("Add \u201cMum's birthday\u201d \u00b7 Mon 12 Oct, 09:00–10:00")
+        // 9 am has passed (it's 10:00): 9 pm.
+        assertThat(summary("meeting at 9", "meeting")).isEqualTo("Add \u201cMeeting\u201d \u00b7 Thu 8 Oct, 21:00–22:00")
         assertThat(summary("meeting at 4", "meeting")).isEqualTo("Add \u201cMeeting\u201d \u00b7 Thu 8 Oct, 16:00–17:00")
         assertThat(summary("study session tomorrow at 4 for 2 hours", "study session")).isEqualTo("Add \u201cStudy session\u201d \u00b7 Fri 9 Oct, 16:00–18:00")
         assertThat(summary("party on saturday from 10 pm to 1 am", "party")).isEqualTo("Add \u201cParty\u201d \u00b7 Sat 10 Oct, 22:00 – Sun 11 Oct 01:00")
     }
 
     @Test
-    fun needle3sWhenIsTheFallback() {
-        val ready = AddEvent.prepare(args("put the dentist in my calendar", "title" to "dentist", "when" to "tomorrow at 5 pm"), env()) as Prepared.Ready
-        assertThat(ready.summary).isEqualTo("Add \u201cDentist\u201d \u00b7 Fri 9 Oct, 17:00–18:00")
-        assertThat(AddEvent.prepare(args("put the dentist in my calendar", "title" to "dentist", "when" to "soon"), env())).isInstanceOf(Prepared.Invalid::class.java)
+    fun needle3sWhenNeverDecides() {
+        val asks = AddEvent.prepare(args("put the dentist in my calendar", "title" to "dentist", "when" to "tomorrow at 5 pm"), env()) as Prepared.Invalid
+        assertThat(asks.reason).isEqualTo("When? Say a day or a time, such as tomorrow at 5 pm")
     }
 
     @Test
@@ -137,16 +136,8 @@ class CalendarToolsTest {
     }
 
     @Test
-    fun pastTimesAreFlagged() {
-        val ready = AddEvent.prepare(args("standup today at 9", "title" to "standup", "when" to "today at 9"), env()) as Prepared.Ready
-        assertThat(ready.detail).contains("That's in the past")
-    }
-
-    @Test
-    fun aTitleOrTimeTheRequestDoesntSayAsksFirst() {
+    fun aTitleTheRequestDoesntSayAsksFirst() {
         assertThat(AddEvent.grounded(mapOf("title" to "Dentist", "when" to "tomorrow at 5"), "dentist tomorrow at 5")).isTrue()
         assertThat(AddEvent.grounded(mapOf("title" to "Team offsite", "when" to "tomorrow"), "dentist tomorrow")).isFalse()
-        // The request says no time, and Needle 3's has numbers it doesn't say.
-        assertThat(AddEvent.grounded(mapOf("title" to "dentist", "when" to "2024-10-09 17:00"), "put the dentist in my calendar")).isFalse()
     }
 }

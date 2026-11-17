@@ -10,6 +10,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.common.truth.Truth.assertThat
 import dev.abhay.assistant.tools.AddReminder
+import dev.abhay.assistant.tools.DateGate
 import dev.abhay.assistant.tools.Outcome
 import dev.abhay.assistant.tools.PrepareEnv
 import dev.abhay.assistant.tools.Prepared
@@ -46,7 +47,8 @@ class ReminderToolDeviceTest {
         val request = "Remind me in 1 minute about $TITLE every day"
         val env = PrepareEnv(notes = app.notes, reminders = app.reminders, remindersChanged = app::syncReminders,
             granted = { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED })
-        val ready = AddReminder.prepare(mapOf("text" to TITLE, "time" to "in 1 minute", "repeat" to "daily"), env.copy(request = request))
+        val gated = DateGate.apply(AddReminder.name, mapOf("text" to TITLE, "time" to "in 1 minute", "repeat" to "daily"), request, null, env.now)
+        val ready = AddReminder.prepare(gated.arguments, env.copy(time = gated.time))
         assertThat(ready).isInstanceOf(Prepared.Ready::class.java)
         val outcome = (ready as Prepared.Ready).run(context)
         log("tool: ${ready.summary} → $outcome")

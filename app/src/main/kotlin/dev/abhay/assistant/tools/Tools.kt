@@ -1,6 +1,5 @@
 package dev.abhay.assistant.tools
 
-import dev.abhay.assistant.engine.FerbTime
 import android.Manifest
 import dev.abhay.assistant.notes.NoteStore
 import dev.abhay.assistant.notes.NoteText
@@ -91,8 +90,8 @@ object SetAlarm : Tool(
 ) {
     override val options = listOf(ClockProviders.option)
 
-    // The time as text, parsed by the app. On the desktop check, separate hour and minute fields
-    // turned "alarms at 8 and 9 am" into one alarm at 08:09 and scored single alarms around 0.3;
+    // The time as text (Ferb reads its own, [DateGate]). On the desktop check, separate hour and
+    // minute fields turned "alarms at 8 and 9 am" into one alarm at 08:09 and scored single alarms around 0.3;
     // one time string got every request right (two alarms included) and scored higher. A label
     // parameter made the model invent labels ("Tomorrow morning"), so there isn't one.
     // Hindi for wake me ("6 baje utha dena", "jaga dena"): typed Hinglish without "alarm" reached
@@ -108,17 +107,17 @@ object SetAlarm : Tool(
     """.trimIndent()
 
     override fun prepare(arguments: Map<String, Any?>, env: PrepareEnv): Prepared {
-        val said = arguments.text("time") ?: return Prepared.Invalid(env.time?.ask?.replaceFirstChar { it.uppercase() } ?: "No time given")
-        val (hour, minute) = TimeOfDay.parse(said) ?: return Prepared.Invalid("\"$said\" isn't a time of day")
-        val time = String.format(Locale.US, "%02d:%02d", hour, minute)
+        val ferb = env.time ?: return Prepared.Invalid(DateGate.UNGATED)
+        val clock = ferb.clock ?: return Prepared.Invalid(ferb.ask?.replaceFirstChar { it.uppercase() } ?: "No time given")
+        val time = clockTime(clock)
         fun set(context: android.content.Context) = Tools.start(context, Intent(AlarmClock.ACTION_SET_ALARM)
-            .putExtra(AlarmClock.EXTRA_HOUR, hour)
-            .putExtra(AlarmClock.EXTRA_MINUTES, minute)
+            .putExtra(AlarmClock.EXTRA_HOUR, clock.hour)
+            .putExtra(AlarmClock.EXTRA_MINUTES, clock.minute)
             .putExtra(AlarmClock.EXTRA_SKIP_UI, true), "Alarm set for $time", quietly = true)
             .withActions(SHOW_ALARMS)
         // Asked for on another day than its next ring (the Clock app can't take a date): offer
         // the next ring, or a reminder at the time asked for (the user's decision, 2026-10-16).
-        val wanted = env.time?.wanted
+        val wanted = ferb.wanted
         val reminders = env.reminders
         if (wanted != null && reminders != null) {
             val day = wanted.format(java.time.format.DateTimeFormatter.ofPattern("EEE d MMM", Locale.US))
@@ -140,9 +139,6 @@ object SetAlarm : Tool(
         // The clock app sets the next time it's that time of day: today if it's still ahead, else tomorrow.
         return Prepared.Ready("Set an alarm for $time") { context -> set(context) }
     }
-
-    override fun grounded(arguments: Map<String, Any?>, request: String, time: FerbTime?) =
-        time != null || arguments.text("time")?.let { SaidNumbers.grounded(it, request) } ?: true
 
     private val SHOW_ALARMS = FollowUp("Show alarms") { Tools.start(it.context, Intent(AlarmClock.ACTION_SHOW_ALARMS), "Opened the alarms") }
 
@@ -246,54 +242,6 @@ object Meridiem {
     fun sameLength(text: String): String = SAID.replace(text) { "${it.groupValues[1]}${it.groupValues[2].lowercase()}m".padEnd(it.value.length) }
 }
 
-/** A spoken or written time of day as hour (0–23) and minute. */
-object TimeOfDay {
-    private val PATTERN = Regex("""^(\d{1,2})(?:\s*[:.h]\s*(\d{2}))?\s*(am|a\.m\.|pm|p\.m\.)?$""")
-
-    // Words around a time that say am or pm, in English and Hindi ("subah 5 baje", "7 in the evening").
-    private val MORNING = Regex("""\b(in the morning|morning|subah|subha)\b""")
-    private val LATER = Regex("""\b(in the afternoon|afternoon|in the evening|evening|at night|tonight|night|dopahar|shaam|sham|raat)\b""")
-    private val NIGHT = Regex("""\b(at night|tonight|night|raat)\b""")
-    // Words that add nothing to the time: "5 o'clock", "5 baje", "tomorrow at 7" (the clock app
-    // sets the next time it's that time of day, so tomorrow when it's already passed today).
-    private val FILLER = Regex("""\b(o'clock|o’clock|oclock|o clock|baje|bje|sharp|at|tomorrow|today|kal|aaj|ka|ki|ke)\b""")
-
-    /**
-     * "8:00 AM", "08:00", "7 pm", "19:30", "6.45", "8", "5 o'clock", "five o'clock", "5 baje", "7 in
-     * the evening", "subah 5", "tomorrow at 6" → (hour, minute); null if it isn't one. Without am,
-     * pm or a word for the time of day, an hour up to 12 is taken as written (so "8" is 8 am, "12"
-     * noon). "5 o'clock" came back from the computer for "paanch baje" (2026-10-12) and was refused.
-     */
-    fun parse(text: String): Pair<Int, Int>? {
-        val lower = Meridiem.normalise(text.trim()).lowercase()
-        val hint = when {
-            MORNING.containsMatchIn(lower) -> "am"
-            LATER.containsMatchIn(lower) -> "pm"
-            else -> null
-        }
-        var t = lower.replace(MORNING, " ").replace(LATER, " ").replace(FILLER, " ")
-            .replace(SaidNumbers.WORD) { w -> SaidNumbers.WORDS.getValue(w.value).takeIf { it in 1..12 }?.toString() ?: w.value }
-            .replace(Regex("""\s+"""), " ").trim()
-        t = if (t == "noon") "12" else if (t == "midnight") "0" else t
-        // The word gives am or pm when the time doesn't; at night, 12 to 5 are the small hours
-        // ("12 at night" is midnight, "raat 2 baje" 2 am), as Ferb Link reads raat too.
-        val small = Regex("""^(\d{1,2})""").find(t)?.groupValues?.get(1)?.toInt()?.let { it == 12 || it in 1..5 } == true
-        val said = if (hint == "pm" && NIGHT.containsMatchIn(lower) && small) "am" else hint
-        if (said != null && Regex("""^\d{1,2}(?:\s*[:.h]\s*\d{2})?$""").matches(t)) t = "$t $said"
-        val m = PATTERN.matchEntire(t) ?: return null
-        var hour = m.groupValues[1].toInt()
-        val minute = m.groupValues[2].ifEmpty { "0" }.toInt()
-        val period = m.groupValues[3].replace(".", "")
-        if (minute > 59) return null
-        when (period) {
-            "am" -> { if (hour !in 1..12) return null; if (hour == 12) hour = 0 }
-            "pm" -> { if (hour !in 1..12) return null; if (hour != 12) hour += 12 }
-            else -> if (hour > 23) return null
-        }
-        return hour to minute
-    }
-}
-
 object SetTimer : Tool(
     name = "set_timer",
     title = "Timers",
@@ -308,7 +256,7 @@ object SetTimer : Tool(
 
     const val MAX_SECONDS = 24 * 60 * 60
 
-    // The length as text, parsed by the app (like alarm times). As a number of seconds, Needle 3
+    // The length as text (Ferb reads its own, [DateGate]). As a number of seconds, Needle 3
     // got the arithmetic wrong, confidently: "2 hours" became 120 s at 0.82, "45 min" 45 s. As
     // text it copied every length right on the desktop check, and scored higher. No label: it
     // added nothing the clock shows, and the model invents them.
@@ -328,8 +276,7 @@ object SetTimer : Tool(
     override val ruledOutBy = """(?![\s\S]*(?<!\w)(?:timer|countdown|count\s+down))[\s\S]*?(?<!\w)remind"""
 
     override fun prepare(arguments: Map<String, Any?>, env: PrepareEnv): Prepared {
-        val said = arguments.text("duration") ?: return Prepared.Invalid("No length given")
-        val total = Durations.parse(said) ?: return Prepared.Invalid("\"$said\" isn't a length of time")
+        val total = (env.time ?: return Prepared.Invalid(DateGate.UNGATED)).seconds ?: return Prepared.Invalid("No length given")
         if (total !in 1..MAX_SECONDS) return Prepared.Invalid("A timer needs 1 second to 24 hours")
         val length = duration(total)
         return Prepared.Ready("Start a $length timer") { context ->
@@ -339,9 +286,6 @@ object SetTimer : Tool(
                 .withActions(FollowUp("Show timers") { Tools.start(it.context, Intent(AlarmClock.ACTION_SHOW_TIMERS), "Opened the timers") })
         }
     }
-
-    override fun grounded(arguments: Map<String, Any?>, request: String, time: FerbTime?) =
-        time != null || arguments.text("duration")?.let { SaidNumbers.grounded(it, request) } ?: true
 
     /** "1 h 5 min", "90 s" → "1 min 30 s". */
     fun duration(seconds: Int): String = listOfNotNull(
@@ -549,7 +493,7 @@ object SetVolume : Tool(
     private val OTHER_VOLUMES = Regex("""\b(ring(er|tone)?|alarms?|notifications?|calls?)\b""", RegexOption.IGNORE_CASE)
 
     /** Only the media volume, and a level the request says (mute, max and half count): never one Needle 3 guessed (review P2-70). */
-    override fun grounded(arguments: Map<String, Any?>, request: String, time: FerbTime?): Boolean {
+    override fun grounded(arguments: Map<String, Any?>, request: String): Boolean {
         if (OTHER_VOLUMES.containsMatchIn(request)) return false
         val percent = arguments.int("percent") ?: return true
         val said = request.lowercase()
@@ -723,7 +667,7 @@ object CreateNote : Tool(
     """.trimIndent()
 
     /** At least half the note's words must be the request's: a note Needle 3 made up asks first. */
-    override fun grounded(arguments: Map<String, Any?>, request: String, time: FerbTime?) = Tools.mostlySaid(arguments.text("text"), request)
+    override fun grounded(arguments: Map<String, Any?>, request: String) = Tools.mostlySaid(arguments.text("text"), request)
 
     /** Where notes go: the notes app (Google Keep), as before, or `.md` files in a folder of the user's Obsidian vault, opened in Obsidian. */
     const val KEEP = "keep"
@@ -829,7 +773,7 @@ object GetDirections : Tool(
     """.trimIndent()
 
     /** At least half the destination's words must be the request's: a place Needle 3 made up asks first. */
-    override fun grounded(arguments: Map<String, Any?>, request: String, time: FerbTime?) = Tools.mostlySaid(arguments.text("destination"), request)
+    override fun grounded(arguments: Map<String, Any?>, request: String) = Tools.mostlySaid(arguments.text("destination"), request)
 
     /**
      * Google Maps' directions link, which shows the route to check before starting (the
@@ -897,7 +841,7 @@ object MakeCall : Tool(
            "required": ["name"]}}
     """.trimIndent()
 
-    override fun grounded(arguments: Map<String, Any?>, request: String, time: FerbTime?) = Tools.mostlySaid(arguments.text("name"), request)
+    override fun grounded(arguments: Map<String, Any?>, request: String) = Tools.mostlySaid(arguments.text("name"), request)
 
     /** The dialer with [number] typed in (ACTION_DIAL needs no permission; the user presses call). */
     private fun dial(number: String?) = Intent(Intent.ACTION_DIAL, number?.let { Uri.fromParts("tel", it, null) })
@@ -967,7 +911,7 @@ object SendText : Tool(
            "required": ["name", "message"]}}
     """.trimIndent()
 
-    override fun grounded(arguments: Map<String, Any?>, request: String, time: FerbTime?) =
+    override fun grounded(arguments: Map<String, Any?>, request: String) =
         Tools.mostlySaid(arguments.text("name"), request) && Tools.mostlySaid(arguments.text("message"), request)
 
     /**

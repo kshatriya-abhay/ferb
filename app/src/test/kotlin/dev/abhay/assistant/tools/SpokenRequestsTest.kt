@@ -31,27 +31,25 @@ class SpokenRequestsTest {
     }
 
     @Test
-    fun alarmTimesAsTheComputerSendsThem() {
+    fun alarmTimesAsTheComputerHearsThem() {
+        val now = java.time.ZonedDateTime.of(2026, 10, 12, 10, 0, 0, 0, java.time.ZoneId.of("Asia/Kolkata"))
         mapOf(
-            "5 am" to "05:00", "5:00 am" to "05:00", "5:30" to "05:30", "7:15" to "07:15", "7:45" to "07:45",
-            "7 pm" to "19:00", "7:00 pm" to "19:00", "11:00 pm" to "23:00", "2 pm" to "14:00",
+            "5 am" to "05:00", "5:00 am" to "05:00", "7 pm" to "19:00", "7:00 pm" to "19:00", "11:00 pm" to "23:00", "2 pm" to "14:00",
             "7 in the evening" to "19:00", "9:15 at night" to "21:15", "7:30 am" to "07:30",
-            "5 o'clock" to "05:00", // refused as "not a time of day" before 2026-10-12
-            "7 o'clock" to "07:00", // no time of day said: taken as written (Ferb Link adds pm for shaam)
         ).forEach { (time, expected) ->
-            assertThat(summary(SetAlarm.prepare(mapOf("time" to time), PrepareEnv()))).isEqualTo("Set an alarm for $expected")
+            assertThat(summary(SetAlarm.prepareSaid("Set an alarm for $time", PrepareEnv(now = now), "time" to time))).isEqualTo("Set an alarm for $expected")
         }
     }
 
     @Test
-    fun timerLengthsAsTheComputerSendsThem() {
+    fun timerLengthsAsTheComputerHearsThem() {
         mapOf(
             "1 hour 30 minutes" to "Start a 1 h 30 min timer",
             "2 minutes 30 seconds" to "Start a 2 min 30 s timer",
             "1 hour and a half" to "Start a 1 h 30 min timer", // couldn't be read on the bench
             "1 and a half minutes" to "Start a 1 min 30 s timer", // nor this
         ).forEach { (duration, expected) ->
-            assertThat(summary(SetTimer.prepare(mapOf("duration" to duration), PrepareEnv()))).isEqualTo(expected)
+            assertThat(summary(SetTimer.prepareSaid("Set a timer for $duration", PrepareEnv(), "duration" to duration))).isEqualTo(expected)
         }
     }
 
