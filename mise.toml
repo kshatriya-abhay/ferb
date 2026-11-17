@@ -234,6 +234,9 @@ run = """
 set -euo pipefail
 ROOT="${FERB_LINK:-../ferb-link}"
 DST=app/src/test/resources/ferb-link-contract/v1
+# Nothing is deleted until there's a contract to copy, with fixtures in it (review P2-163).
+[ -d "$ROOT/contract/v1" ] || { echo "No contract at $ROOT/contract/v1 (set FERB_LINK)"; exit 1; }
+ls "$ROOT"/contract/v1/*.json > /dev/null 2>&1 || { echo "No fixtures in $ROOT/contract/v1"; exit 1; }
 rm -rf "$DST" && mkdir -p "$DST"
 cp -r "$ROOT/contract/v1/." "$DST/"
 git -C "$ROOT" log -1 --format='%h %cs %s' -- contract > "$DST/SOURCE"
