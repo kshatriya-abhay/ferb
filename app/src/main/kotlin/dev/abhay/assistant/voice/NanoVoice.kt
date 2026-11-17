@@ -279,3 +279,39 @@ the alarm woke the baby -> NONE"""
         return Rewritten(said, if (none) null else line)
     }
 }
+
+/**
+ * What Gemini Nano's setup offers now, in one order for the Gemini page and the line under the
+ * model choice (review P2-135: two tables in two orders disagreed, e.g. speech downloading with
+ * the rewrite unchecked).
+ */
+sealed interface GeminiOffer {
+    data object Ready : GeminiOffer
+    /** A check failed ([why]): check again. */
+    data class Unchecked(val why: String) : GeminiOffer
+    data object CantRun : GeminiOffer
+    /** Ferb waited for a download and gave up ([GeminiWatch.GaveUp]): check again. */
+    data object StillDownloading : GeminiOffer
+    data object Downloading : GeminiOffer
+    /** A download failed ([why]): set up again. */
+    data class Failed(val why: String) : GeminiOffer
+    data object SetUp : GeminiOffer
+    data object Checking : GeminiOffer
+
+    companion object {
+        fun of(setup: GeminiSetup, watch: GeminiWatch): GeminiOffer {
+            val unchecked = setup.parts.filterIsInstance<Part.Unchecked>().firstOrNull()
+            val failed = setup.parts.filterIsInstance<Part.Failed>().firstOrNull()
+            return when {
+                setup.ready -> Ready
+                unchecked != null -> Unchecked(unchecked.why)
+                setup.speech == Part.Unavailable -> CantRun
+                setup.downloading && watch == GeminiWatch.GaveUp -> StillDownloading
+                setup.downloading -> Downloading
+                failed != null -> Failed(failed.why)
+                setup.needsSetUp -> SetUp
+                else -> Checking
+            }
+        }
+    }
+}

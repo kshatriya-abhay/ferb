@@ -142,4 +142,18 @@ class NanoVoiceTest {
     fun theRewriteStaysShort() {
         assertThat(GeminiRewrite.MAX_TOKENS).isAtMost(48)
     }
+
+    @Test
+    fun oneOfferForTheGeminiPageAndTheModelChoice() {
+        // Review P2-135: two tables in two orders; speech downloading with the rewrite unchecked
+        // showed "Downloading" on one and "Couldn't check, Try again" on the other.
+        assertThat(GeminiOffer.of(GeminiSetup(Part.Downloading, Part.Unchecked("busy")), GeminiWatch.Watching)).isEqualTo(GeminiOffer.Unchecked("busy"))
+        assertThat(GeminiOffer.of(GeminiSetup(Part.Ready, Part.Ready), GeminiWatch.Off)).isEqualTo(GeminiOffer.Ready)
+        assertThat(GeminiOffer.of(GeminiSetup(Part.Unavailable, Part.Unavailable), GeminiWatch.Off)).isEqualTo(GeminiOffer.CantRun)
+        assertThat(GeminiOffer.of(GeminiSetup(Part.Ready, Part.Downloading), GeminiWatch.GaveUp)).isEqualTo(GeminiOffer.StillDownloading)
+        assertThat(GeminiOffer.of(GeminiSetup(Part.Ready, Part.Downloading), GeminiWatch.Watching)).isEqualTo(GeminiOffer.Downloading)
+        assertThat(GeminiOffer.of(GeminiSetup(Part.Ready, Part.Failed("no space")), GeminiWatch.Off)).isEqualTo(GeminiOffer.Failed("no space"))
+        assertThat(GeminiOffer.of(GeminiSetup(Part.Ready, Part.NeedsDownload), GeminiWatch.Off)).isEqualTo(GeminiOffer.SetUp)
+        assertThat(GeminiOffer.of(GeminiSetup(), GeminiWatch.Off)).isEqualTo(GeminiOffer.Checking)
+    }
 }

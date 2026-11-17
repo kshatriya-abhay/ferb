@@ -234,12 +234,15 @@ fun GeminiScreen(settings: SettingsViewModel, onBack: () -> Unit) {
                 { shapes -> PartRow("Writing it in English", setup.rewrite, R.drawable.ic_sms, shapes, onDownload = settings::setUpGeminiRewrite) },
             ))
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp), horizontalArrangement = Arrangement.End) {
-                when {
-                    setup.ready -> OutlinedButton(onClick = settings::checkGemini) { Text(stringResource(R.string.settings_check_again)) }
-                    setup.downloading && !setup.needsSetUp && watch == dev.abhay.assistant.voice.GeminiWatch.GaveUp -> OutlinedButton(onClick = settings::checkGemini) { Text(stringResource(R.string.settings_check_again)) }
-                    setup.downloading && !setup.needsSetUp -> Button(onClick = {}, enabled = false) { Text(stringResource(R.string.settings_downloading)) }
-                    setup.parts.any { it == Part.Unavailable || it is Part.Unchecked } -> OutlinedButton(onClick = settings::checkGemini) { Text(stringResource(R.string.settings_check_again)) }
-                    else -> Button(onClick = settings::setUpGemini, enabled = setup.parts.none { it == Part.Checking }) { Text(stringResource(R.string.settings_set_up)) }
+                // The same offer as under the model choice ([GeminiOffer], review P2-135).
+                when (dev.abhay.assistant.voice.GeminiOffer.of(setup, watch)) {
+                    dev.abhay.assistant.voice.GeminiOffer.Ready, is dev.abhay.assistant.voice.GeminiOffer.Unchecked,
+                    dev.abhay.assistant.voice.GeminiOffer.CantRun, dev.abhay.assistant.voice.GeminiOffer.StillDownloading ->
+                        OutlinedButton(onClick = settings::checkGemini) { Text(stringResource(R.string.settings_check_again)) }
+                    dev.abhay.assistant.voice.GeminiOffer.Downloading -> Button(onClick = {}, enabled = false) { Text(stringResource(R.string.settings_downloading)) }
+                    is dev.abhay.assistant.voice.GeminiOffer.Failed, dev.abhay.assistant.voice.GeminiOffer.SetUp ->
+                        Button(onClick = settings::setUpGemini) { Text(stringResource(R.string.settings_set_up)) }
+                    dev.abhay.assistant.voice.GeminiOffer.Checking -> Button(onClick = {}, enabled = false) { Text(stringResource(R.string.settings_set_up)) }
                 }
             }
             Text(

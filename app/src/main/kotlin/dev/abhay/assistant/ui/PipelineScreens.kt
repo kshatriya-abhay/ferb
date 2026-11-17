@@ -45,6 +45,7 @@ import dev.abhay.assistant.pipeline.Step
 import dev.abhay.assistant.pipeline.ModelChoice
 import dev.abhay.assistant.pipeline.RewriteStep
 import dev.abhay.assistant.pipeline.ToolStep
+import dev.abhay.assistant.voice.GeminiOffer
 import dev.abhay.assistant.voice.GeminiSetup
 import dev.abhay.assistant.voice.GeminiWatch
 import dev.abhay.assistant.voice.Part
@@ -257,40 +258,38 @@ internal fun ModelSection(settings: SettingsViewModel, onOpenAdvanced: () -> Uni
 @Composable
 internal fun GeminiSetUp(setup: GeminiSetup, onSetUp: () -> Unit, onCheckAgain: () -> Unit, showReady: Boolean = false, watch: GeminiWatch = GeminiWatch.Off,
                          brief: Boolean = false) {
-    val failed = setup.parts.filterIsInstance<Part.Failed>().firstOrNull()
-    val unchecked = setup.parts.filterIsInstance<Part.Unchecked>().firstOrNull()
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Column(Modifier.fillMaxWidth().padding(horizontal = 32.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        when {
-            setup.ready -> if (showReady || watch == GeminiWatch.Ready) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        when (val offer = GeminiOffer.of(setup, watch)) {
+            GeminiOffer.Ready -> if (showReady || watch == GeminiWatch.Ready) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(painterResource(R.drawable.ic_check), contentDescription = null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
                 Text(stringResource(R.string.ui_gemini_ready), style = MaterialTheme.typography.bodyMedium)
             }
-            unchecked != null -> {
-                Text(stringResource(R.string.ui_gemini_unchecked, unchecked.why), style = MaterialTheme.typography.bodyMedium, color = muted)
+            is GeminiOffer.Unchecked -> {
+                Text(stringResource(R.string.ui_gemini_unchecked, offer.why), style = MaterialTheme.typography.bodyMedium, color = muted)
                 OutlinedButton(onClick = onCheckAgain) { Text(stringResource(R.string.ui_try_again)) }
             }
-            setup.speech == Part.Unavailable -> Text(stringResource(R.string.ui_gemini_cant_run), style = MaterialTheme.typography.bodyMedium, color = muted)
-            setup.downloading && watch == GeminiWatch.GaveUp -> {
+            GeminiOffer.CantRun -> Text(stringResource(R.string.ui_gemini_cant_run), style = MaterialTheme.typography.bodyMedium, color = muted)
+            GeminiOffer.StillDownloading -> {
                 Text(stringResource(if (brief) R.string.ui_gemini_not_ready else R.string.ui_gemini_still_downloading), style = MaterialTheme.typography.bodyMedium, color = muted)
                 OutlinedButton(onClick = onCheckAgain) { Text(stringResource(R.string.ui_try_again)) }
             }
-            setup.downloading -> {
+            GeminiOffer.Downloading -> {
                 // No percentage: AICore's byte counts may be misleading (its model is shared across apps).
                 Text(stringResource(R.string.ui_gemini_downloading), style = MaterialTheme.typography.bodyMedium)
                 LinearProgressIndicator(Modifier.fillMaxWidth())
                 if (!brief) Text(stringResource(R.string.ui_gemini_meanwhile), style = MaterialTheme.typography.bodySmall, color = muted)
             }
-            failed != null -> {
-                Text(stringResource(R.string.ui_gemini_failed, failed.why), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+            is GeminiOffer.Failed -> {
+                Text(stringResource(R.string.ui_gemini_failed, offer.why), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
                 OutlinedButton(onClick = onSetUp) { Text(stringResource(R.string.ui_try_again)) }
             }
-            setup.needsSetUp -> if (!brief) {
+            GeminiOffer.SetUp -> if (!brief) {
                 Text(stringResource(R.string.ui_gemini_offer), style = MaterialTheme.typography.bodyMedium, color = muted)
                 FilledTonalButton(onClick = onSetUp) { Text(stringResource(SET_UP_GEMINI)) }
             }
-            setup.parts.any { it == Part.Checking } -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            GeminiOffer.Checking -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
                 Text(stringResource(R.string.ui_gemini_checking), style = MaterialTheme.typography.bodyMedium, color = muted)
             }
