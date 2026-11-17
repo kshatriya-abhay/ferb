@@ -110,7 +110,8 @@ def pull():
 def needle(on=None):
     """Needle 3's pass with no screen: on the bench's requests, or on [on]'s rewrites (needle3-on-[on].jsonl)."""
     extra = ["-e", "input", f"requests-{on}.jsonl", "-e", "output", f"needle3-on-{on}"] if on else []
-    subprocess.run(["adb", "shell", "am", "instrument", "-w", "-e", "class", f"{PACKAGE}.PhoneBenchTest", *extra,
+    # The one pass, by name: the class also holds the Whistle and Gemini Nano passes (review P2-172).
+    subprocess.run(["adb", "shell", "am", "instrument", "-w", "-e", "class", f"{PACKAGE}.PhoneBenchTest#needle3", "-e", "bench", "needle3", *extra,
                     f"{PACKAGE}.test/androidx.test.runner.AndroidJUnitRunner"], check=True)
 
 def answers(model):

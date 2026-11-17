@@ -23,6 +23,9 @@ class PhoneBenchTest {
     fun needle3() {
         // -e input requests-X.jsonl -e output needle3-X: Needle 3 on Gemini Nano's rewrites (phone.py).
         val args = InstrumentationRegistry.getArguments()
+        // Asked for by name (phone.py needle): files left on the phone don't run it in every
+        // device check, or beside the Whistle pass (review P2-172).
+        assumeTrue("-e bench needle3 for Needle 3's pass", args.getString("bench") == "needle3")
         val input = args.getString("input") ?: PhoneBench.REQUESTS
         val output = args.getString("output")
         val bench = PhoneBench(app)
@@ -63,6 +66,8 @@ class PhoneBenchTest {
      */
     @Test
     fun voiceWhistle() {
+        // Asked for by name: it rewrites whistle.jsonl and loads Whistle (review P2-172).
+        assumeTrue("-e bench whistle for the Whistle voice pass", InstrumentationRegistry.getArguments().getString("bench") == "whistle")
         val bench = dev.abhay.assistant.bench.VoiceBench(app)
         val entries = bench.entries()
         assumeTrue("no voice bench entries", entries.isNotEmpty())
