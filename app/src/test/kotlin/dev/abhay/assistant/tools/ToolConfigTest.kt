@@ -7,6 +7,20 @@ import org.junit.Test
 
 class ToolConfigTest {
     @Test
+    fun aSaveHoldsOnlyWhatTheUserChanged() {
+        // Review P2-87: every save wrote each tool's on/off, always-confirm and options, so a later
+        // release's default never reached anyone who had changed any setting.
+        val untouched = ToolConfig.defaults(SendText).toJson(SendText)
+        assertThat(untouched).doesNotContain("enabled")
+        assertThat(untouched).doesNotContain("always_confirm")
+        assertThat(ToolConfig.defaults(SetAlarm).toJson(SetAlarm)).doesNotContain("clock")
+        // What the user did change stays, and reads back.
+        val changed = ToolConfig.defaults(SendText).copy(enabled = !SendText.onByDefault, alwaysConfirm = !SendText.confirmByDefault)
+        assertThat(ToolConfig.fromJson(changed.toJson(SendText), SendText)).isEqualTo(changed)
+        assertThat(ToolConfig.fromJson(untouched, SendText)).isEqualTo(ToolConfig.defaults(SendText))
+    }
+
+    @Test
     fun configsSurviveTheirJson() {
         val config = ToolConfig(enabled = true, alwaysConfirm = true, runFrom = 0.55, options = mapOf("clock" to ClockProviders.SYSTEM_CLOCK),
             keywords = listOf("alarm", "rise and shine"))

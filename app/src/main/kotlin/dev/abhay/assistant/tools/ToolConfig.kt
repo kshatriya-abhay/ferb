@@ -29,15 +29,21 @@ data class ToolConfig(
     fun choice(option: ToolOption.Choice): String =
         options[option.key]?.takeIf { value -> option.items.any { it.id == value } } ?: option.default
 
-    /** Leaves out a bar and keywords at [tool]'s defaults, so a later change of the default reaches them. */
-    fun toJson(tool: Tool): String = JSONObject()
-        .put("v", VERSION)
-        .put("enabled", enabled)
-        .put("always_confirm", alwaysConfirm)
-        .apply { if (runFrom != tool.defaultRunFrom) put("run_from", runFrom) }
-        .apply { if (keywords != tool.keywords) put("keywords", JSONArray(keywords)) }
-        .put("options", JSONObject(options as Map<*, *>))
-        .toString()
+    /**
+     * Only what differs from [tool]'s defaults (on or off, always asking, the bar, keywords, each
+     * option), so a later change of a default reaches every value the user left alone (review P2-87).
+     */
+    fun toJson(tool: Tool): String {
+        val defaults = defaults(tool)
+        return JSONObject()
+            .put("v", VERSION)
+            .apply { if (enabled != defaults.enabled) put("enabled", enabled) }
+            .apply { if (alwaysConfirm != defaults.alwaysConfirm) put("always_confirm", alwaysConfirm) }
+            .apply { if (runFrom != tool.defaultRunFrom) put("run_from", runFrom) }
+            .apply { if (keywords != tool.keywords) put("keywords", JSONArray(keywords)) }
+            .put("options", JSONObject(options.filter { (key, value) -> defaults.options[key] != value } as Map<*, *>))
+            .toString()
+    }
 
     companion object {
         fun defaults(tool: Tool) = ToolConfig(
