@@ -45,8 +45,8 @@ class AssistantEngine(
     private val lock = Mutex()
     private var loadMs: Long? = null
     private var factsDate: LocalDate? = null
-    /** The tools last given to the model, to give them again with a new date. */
-    private var lastTools: Pair<List<String>, String>? = null
+    /** The tools' names last given to the model: another set, or a new day, re-initialises it. */
+    private var lastTools: List<String>? = null
 
     /** Loads the model if it isn't yet, then gives it [toolsJson] (the tools named [names]). */
     suspend fun configure(names: List<String>, toolsJson: String) = lock.withLock { configureLocked(names, toolsJson) }
@@ -69,7 +69,7 @@ class AssistantEngine(
                 val prefix = native.init(systemFacts(today), toolsJson)
                 factsDate = today
                 _state.value = State.Ready(loadMs!!, names, prefix, clock() - started)
-                lastTools = names to toolsJson
+                lastTools = names
             }
         } catch (e: CancellationException) {
             throw e
@@ -86,7 +86,7 @@ class AssistantEngine(
     suspend fun complete(request: String, names: List<String>, toolsJson: String): String = lock.withLock {
         // One lock section for the check, the re-init and the call: two screens' requests (the chat
         // and the assistant sheet) can't swap the tools between another's check and its call.
-        if (lastTools?.first != names || factsDate != LocalDate.now()) {
+        if (lastTools != names || factsDate != LocalDate.now()) {
             configureLocked(names, toolsJson)
             (_state.value as? State.Failed)?.let { throw IllegalStateException(it.message) }
         }

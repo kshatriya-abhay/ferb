@@ -36,8 +36,7 @@ class AnswerFlowDatesTest {
     }
 
     private fun reply(confidence: Double, calls: List<ToolCall> = emptyList(), held: List<ToolCall> = emptyList()) = NeedleReply(
-        calls = calls, suppressed = held, reasoning = "", confidence = confidence, ungrounded = emptyList(),
-        negation = false, prefillTps = 0.0, decodeTps = 0.0, peakRamMb = 0.0, error = null,
+        calls = calls, suppressed = held, reasoning = "", confidence = confidence, prefillTps = 0.0, decodeTps = 0.0, error = null,
     )
 
     private fun answer(said: String, command: String?, needle: NeedleReply): Answer = runBlocking {

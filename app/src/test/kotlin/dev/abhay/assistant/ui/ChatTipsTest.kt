@@ -17,8 +17,7 @@ import org.junit.Test
 class ChatTipsTest {
     private val torch = ToolCall("set_flashlight", mapOf("on" to true))
     private fun reply(vararg calls: ToolCall) = NeedleReply(
-        calls = calls.toList(), suppressed = emptyList(), reasoning = "", confidence = 0.9, ungrounded = emptyList(),
-        negation = false, prefillTps = 0.0, decodeTps = 0.0, peakRamMb = 0.0, error = null,
+        calls = calls.toList(), suppressed = emptyList(), reasoning = "", confidence = 0.9, prefillTps = 0.0, decodeTps = 0.0, error = null,
     )
     private fun exchange(id: Long, vararg calls: CallState, heard: String? = null, fellBack: Boolean = false, nothingAsked: Boolean = false) = Exchange(
         id, "request $id", reply(*calls.map { it.call }.toTypedArray()), Decision.Run, 0.5, false, false, false,

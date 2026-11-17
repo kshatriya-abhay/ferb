@@ -377,8 +377,7 @@ class AnswerFlow(
 
         /** The answer when no tool is on, Jev says none fits, or the rewrite says nothing is asked. */
         val NO_TOOL = NeedleReply(
-            calls = emptyList(), suppressed = emptyList(), reasoning = "", confidence = null, ungrounded = emptyList(),
-            negation = false, prefillTps = 0.0, decodeTps = 0.0, peakRamMb = 0.0, error = null,
+            calls = emptyList(), suppressed = emptyList(), reasoning = "", confidence = null, prefillTps = 0.0, decodeTps = 0.0, error = null,
         )
 
         /** Jev's pick for the path: "Alarm, 0.93", or "no tool, 0.80". */

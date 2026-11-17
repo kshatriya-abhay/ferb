@@ -21,8 +21,7 @@ class FerbLinkTest {
     private val configs = mapOf(SetAlarm.name to ToolConfig.defaults(SetAlarm), SetTimer.name to ToolConfig.defaults(SetTimer))
 
     private fun needle(confidence: Double?, vararg calls: ToolCall) = NeedleReply(
-        calls = calls.toList(), suppressed = emptyList(), reasoning = "", confidence = confidence, ungrounded = emptyList(),
-        negation = false, prefillTps = 0.0, decodeTps = 0.0, peakRamMb = 0.0, error = null,
+        calls = calls.toList(), suppressed = emptyList(), reasoning = "", confidence = confidence, prefillTps = 0.0, decodeTps = 0.0, error = null,
     )
 
     private fun alarm(time: String) = ToolCall(SetAlarm.name, mapOf("time" to time))

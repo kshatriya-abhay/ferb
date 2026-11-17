@@ -23,12 +23,8 @@ data class NeedleReply(
     val reasoning: String,
     /** 0..1, calibrated for the base model; null when the engine doesn't give one. */
     val confidence: Double?,
-    /** Arguments the engine found no evidence for in the request, as "tool.argument". */
-    val ungrounded: List<String>,
-    val negation: Boolean,
     val prefillTps: Double,
     val decodeTps: Double,
-    val peakRamMb: Double,
     /** Set when the engine reports a failure instead of an answer; for Ferb Link's, a few words that fit in the chat. */
     val error: String?,
 ) {
@@ -38,17 +34,13 @@ data class NeedleReply(
 
         /** [parse] on the engine's JSON already read. */
         internal fun parse(o: JSONObject): NeedleReply {
-            val validation = o.optJSONObject("validation")
             return NeedleReply(
                 calls = calls(o.optJSONArray("function_calls")),
                 suppressed = calls(o.optJSONArray("suppressed_calls")),
                 reasoning = o.text("reasoning").orEmpty(),
                 confidence = if (o.isNull("confidence")) null else o.optDouble("confidence"),
-                ungrounded = validation?.optJSONArray("ungrounded")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty(),
-                negation = validation?.optBoolean("negation") ?: false,
                 prefillTps = o.optDouble("prefill_tps", 0.0),
                 decodeTps = o.optDouble("decode_tps", 0.0),
-                peakRamMb = o.optDouble("peak_ram_mb", 0.0),
                 error = if (o.optBoolean("success", true)) null else o.text("error") ?: "Engine error",
             )
         }

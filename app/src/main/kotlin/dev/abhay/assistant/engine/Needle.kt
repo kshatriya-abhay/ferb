@@ -20,7 +20,10 @@ object Needle {
     }
 
     /** Loads the model bundled in the APK at [path] (an asset), beside a loaded model of the other kind. Call once per model and process. */
-    suspend fun loadAsset(assets: AssetManager, path: String) = withContext(engine) { nativeLoadAsset(assets, path) }
+    suspend fun loadAsset(assets: AssetManager, path: String) {
+        // It throws when the load fails; its count of loaded models isn't needed.
+        withContext(engine) { nativeLoadAsset(assets, path) }
+    }
 
     /**
      * Gives the model its system facts (e.g. "date: …") and tools (a JSON array of schemas),

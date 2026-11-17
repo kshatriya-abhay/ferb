@@ -38,17 +38,16 @@ class NeedleReplyTest {
         assertThat(reply.calls.map { it.signature() })
             .containsExactly("set_text_color(hex = \"#3F51B5\")", "set_text_size(size_sp = 48)").inOrder()
         assertThat(reply.confidence).isWithin(1e-9).of(0.8487)
-        assertThat(reply.peakRamMb).isWithin(1e-9).of(79.3)
+        assertThat(reply.decodeTps).isWithin(1e-9).of(723.8)
         assertThat(reply.error).isNull()
         assertThat(Decision.of(reply)).isEqualTo(Decision.Run)
     }
 
     @Test
-    fun suppressedCallsAndUngroundedArgumentsAreKept() {
+    fun suppressedCallsAreKept() {
         val reply = NeedleReply.parse(refused)
         assertThat(reply.calls).isEmpty()
         assertThat(reply.suppressed.single().name).isEqualTo("show_notification")
-        assertThat(reply.ungrounded).containsExactly("show_notification.message")
         assertThat(Decision.of(reply)).isEqualTo(Decision.Refuse)
     }
 
