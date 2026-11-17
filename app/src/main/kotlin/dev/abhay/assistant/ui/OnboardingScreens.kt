@@ -324,8 +324,10 @@ fun Onboarding(settings: SettingsViewModel, onDone: () -> Unit) {
     val page = rememberSaveable { mutableStateOf(Page.Welcome) }
     var stack by rememberSaveable(stateSaver = Screen.stackSaver(Screen.Page.Setup)) { mutableStateOf(listOf<Screen>(Screen.Page.Setup)) }
     val open = { screen: Screen -> stack = stack + screen }
-    val back = { stack = stack.dropLast(1) }
+    val back = { stack = stack.popped() }
     NavStack(stack, onBack = back) { screen ->
+        // A screen's own back pops only itself (review P2-130).
+        @Suppress("NAME_SHADOWING") val back = { stack = stack.popped(screen) }
         when (screen) {
             Screen.Page.Tools -> ToolsScreen(settings, onOpenTool = { open(Screen.Tool(it)) }, onBack = back)
             is Screen.Keywords -> KeywordsScreen(settings, screen.name, onBack = back)

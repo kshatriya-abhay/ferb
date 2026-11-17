@@ -49,4 +49,16 @@ class NavTest {
         assertThat(saver.restore(arrayListOf("assistant", "settings", "tools", "tool:no_such_tool", "keywords:no_such_tool")))
             .containsExactly(Screen.Page.Assistant, Screen.Page.Settings, Screen.Page.Tools).inOrder()
     }
+
+    @Test
+    fun aSecondBackFromALeavingScreenDoesNothing() {
+        // Review P2-130: a double tap on a screen's back at depth 2 emptied the stack, and deeper skipped a screen.
+        val two = listOf(Screen.Page.Assistant, Screen.Page.Settings)
+        val once = two.popped(Screen.Page.Settings)
+        assertThat(once).containsExactly(Screen.Page.Assistant)
+        assertThat(once.popped(Screen.Page.Settings)).isEqualTo(once)
+        assertThat(once.popped()).isEqualTo(once)
+        val three = listOf(Screen.Page.Assistant, Screen.Page.Settings, Screen.Page.Tools)
+        assertThat(three.popped(Screen.Page.Tools).popped(Screen.Page.Tools)).containsExactly(Screen.Page.Assistant, Screen.Page.Settings).inOrder()
+    }
 }

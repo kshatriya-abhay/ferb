@@ -12,6 +12,7 @@ import dev.abhay.assistant.ui.LicencesScreen
 import dev.abhay.assistant.ui.PrivacyScreen
 import dev.abhay.assistant.ui.GeminiScreen
 import dev.abhay.assistant.ui.NavStack
+import dev.abhay.assistant.ui.popped
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -126,8 +127,10 @@ class ChatActivity : ComponentActivity() {
                 // A reminder's notification, or a reply's "Reminders": the chat, then the Reminders tab over it.
                 val fromNotification by remindersOpened
                 LaunchedEffect(fromNotification) { if (fromNotification > 0 && stack.last() != Page.Reminders) stack = listOf(Page.Assistant, Page.Reminders) }
-                val back = { stack = stack.dropLast(1) }
+                val back = { stack = stack.popped() }
                 NavStack(stack, onBack = back) { screen ->
+                    // A screen's own back pops only itself (review P2-130).
+                    @Suppress("NAME_SHADOWING") val back = { stack = stack.popped(screen) }
                     when (screen) {
                         // Setup is onboarding's, not the chat's: its root here is the chat.
                         Page.Assistant, Page.Setup -> AssistantScreen(viewModel, onOpenSettings = { open(Page.Settings) },

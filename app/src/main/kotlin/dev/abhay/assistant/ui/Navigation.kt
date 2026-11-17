@@ -101,6 +101,13 @@ object Nav {
 }
 
 /**
+ * This stack with [from] popped: only while [from] is on top and isn't the root. A screen leaving
+ * on a back stays tappable through its transition, and a second tap emptied the stack (a crash on
+ * `last()`) or skipped the screen beneath (review P2-130).
+ */
+fun <T> List<T>.popped(from: T = last()): List<T> = if (size > 1 && last() == from) dropLast(1) else this
+
+/**
  * Ferb's screens, the top of [stack] shown, animated between ([Nav.transform]). Back (button or
  * gesture) pops the stack; the gesture seeks the transition as it's dragged, so the screen beneath
  * peeks (predictive back), and a cancelled swipe settles back. With one screen left, back goes to
