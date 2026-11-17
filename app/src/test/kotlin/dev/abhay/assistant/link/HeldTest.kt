@@ -9,9 +9,10 @@ class HeldTest {
 
     private val tasks = mutableListOf<Runnable>()
     private var made = 0
+    private val clients = mutableListOf<Client>()
     private var onAcquire: () -> Unit = {}
     private val held = Held(
-        acquire = { onAcquire(); Client(++made) },
+        acquire = { onAcquire(); Client(++made).also { clients += it } },
         close = { it.closed = true },
         background = { tasks += it },
     )
@@ -34,6 +35,8 @@ class HeldTest {
         runBackground()
         assertThat(held.current()).isNull()
         assertThat(made).isEqualTo(1)
+        // Review P2-170: the late client is closed, not left open with Ferb Link's process.
+        assertThat(clients.single().closed).isTrue()
     }
 
     @Test
@@ -45,6 +48,7 @@ class HeldTest {
         assertThat(dead.closed).isTrue()
         assertThat(held.current()).isNull()
         assertThat(made).isEqualTo(2)
+        assertThat(clients.last().closed).isTrue()
     }
 
     @Test
