@@ -61,8 +61,10 @@ class CreateNoteTest {
     fun namesAreWhatObsidianAllows() {
         assertThat(NoteStore.fileName("Ideas: 2026/10 #work?")).isEqualTo("Ideas 202610 work")
         assertThat(NoteStore.fileName("   ")).isEqualTo("Note")
-        val folder = MemoryNotes("Shopping" to "x")
-        assertThat(folder.create("Shopping", "y")!!.name).isEqualTo("Shopping 2")
+        // Review P2-180: the app's rule, not the fake's; a name that differs only by case is taken.
+        assertThat(NoteStore.freeName("Shopping", listOf("Shopping"))).isEqualTo("Shopping 2")
+        assertThat(NoteStore.freeName("shopping", listOf("Shopping", "Shopping 2"))).isEqualTo("shopping 3")
+        assertThat(NoteStore.freeName("Ideas", listOf("Shopping"))).isEqualTo("Ideas")
         assertThat(NoteStore.isNote("Shopping.sync-conflict-20261014-120000-ABC.md")).isFalse()
     }
 

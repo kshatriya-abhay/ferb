@@ -324,15 +324,6 @@ class LinkContractTest {
         }
     }
 
-    @Test
-    fun anOlderFerbLinkThrowsForMethodsItDoesntKnow() {
-        // FerbLink.check and transcribe take IllegalArgumentException as "too old" (check returns null,
-        // transcribe asks to update Ferb Link).
-        val unknown = cases.filter { it.result.has("throws") }
-        assertThat(unknown).isNotEmpty()
-        unknown.forEach { assertThat(it.result.getString("throws")).isEqualTo("IllegalArgumentException") }
-    }
-
     private companion object {
         const val LIMITS = "limits.json"
     }

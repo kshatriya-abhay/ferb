@@ -13,8 +13,7 @@ class MemoryNotes(vararg notes: Pair<String, String>, override val ready: Boolea
         return true
     }
     override fun create(name: String, text: String): NoteRef? {
-        val base = NoteStore.fileName(name)
-        val free = generateSequence(1) { it + 1 }.map { if (it == 1) base else "$base $it" }.first { it !in files }
+        val free = NoteStore.freeName(NoteStore.fileName(name), files.keys)
         files[free] = text
         return NoteRef(free, free, clock++)
     }

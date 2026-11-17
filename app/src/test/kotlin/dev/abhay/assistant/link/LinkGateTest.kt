@@ -78,4 +78,23 @@ class LinkGateTest {
         ).inOrder()
         assertThat(link.status()).isInstanceOf(LinkStatus.Ready::class.java)
     }
+
+    /** An older Ferb Link: the methods added after version 1 throw IllegalArgumentException (the contract's fixtures). */
+    private class OlderTransport : LinkTransport {
+        override fun call(method: String, extras: Map<String, Any>?): LinkResult? =
+            if (method == LinkContract.METHOD_STATUS) Transport().call(method, extras) else throw IllegalArgumentException("Unknown method: $method")
+        override fun hold() = Unit
+        override fun release() = Unit
+    }
+
+    @Test
+    fun anOlderFerbLinkIsToldToUpdate() = runBlocking {
+        // Review P2-180: the test of this ran no Ferb code (it read the fixtures' text); these are
+        // FerbLink's own "too old" branches.
+        val link = FerbLink(FakeApp.allocate(NoWifi::class.java), Packages(), OlderTransport(), clock = { 0L }, log = {})
+        assertThat(link.decide("call mum", "[]", 6_000).error).isEqualTo("update Ferb Link")
+        assertThat(link.rewrite("call mum", "Rewrite it.", 64, 10_000, null).error).isEqualTo("update Ferb Link")
+        assertThat(link.check()).isNull()
+        assertThat(link.transcribe(byteArrayOf(1), "audio/mp4").error).isEqualTo("Update Ferb Link to use your voice")
+    }
 }

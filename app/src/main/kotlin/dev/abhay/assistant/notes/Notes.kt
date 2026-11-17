@@ -33,6 +33,16 @@ interface NoteStore {
         /** A permission-like need: a request that needs the notes folder asks for it (see [dev.abhay.assistant.tools.Prepared]). */
         const val NEEDS_FOLDER = "ferb.notes-folder"
 
+        /**
+         * The first free name for [base] among [taken]: [base], then "[base] 2", and on. Compared
+         * ignoring case, as the phone's storage and Obsidian do (review P2-180: the in-memory store's
+         * copy of this rule compared case-sensitively).
+         */
+        fun freeName(base: String, taken: Collection<String>): String {
+            val lower = taken.map { it.lowercase() }.toSet()
+            return generateSequence(1) { it + 1 }.map { if (it == 1) base else "$base $it" }.first { it.lowercase() !in lower }
+        }
+
         /** A file name for [title]: what Obsidian allows, no more than 80 characters, "Note" when nothing's left. */
         fun fileName(title: String): String =
             title.replace(Regex("""[\\/:*?"<>|#^\[\]]"""), "").replace(Regex("""\s+"""), " ").trim()
@@ -160,9 +170,7 @@ class SafNotes(
 
     override fun create(name: String, text: String): NoteRef? {
         val tree = folder ?: return null
-        val taken = list().map { it.name.lowercase() }.toSet()
-        val base = NoteStore.fileName(name)
-        val free = generateSequence(1) { it + 1 }.map { if (it == 1) base else "$base $it" }.first { it.lowercase() !in taken }
+        val free = NoteStore.freeName(NoteStore.fileName(name), list().map { it.name })
         return try {
             val parent = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
             val uri = DocumentsContract.createDocument(context.contentResolver, parent, "text/markdown", "$free.md") ?: return null
