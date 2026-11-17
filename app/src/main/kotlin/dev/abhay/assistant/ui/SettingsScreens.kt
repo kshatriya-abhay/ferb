@@ -95,6 +95,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -778,14 +779,17 @@ private fun ChoiceSetting(option: ToolOption.Choice, chosen: String, enabled: Bo
 @Composable
 private fun CalendarSetting(option: ToolOption.Calendar, chosen: String, enabled: Boolean, onChoose: (String) -> Unit) {
     val context = LocalContext.current
-    var calendars by remember { mutableStateOf<List<CalendarInfo>?>(null) }
+    // Read off the main thread, on each resume (review P2-137: a provider query on Main).
+    var resumed by remember { mutableIntStateOf(0) }
     LifecycleResumeEffect(Unit) {
-        calendars = CalendarBook.from(context).calendars()
+        resumed++
         onPauseOrDispose { }
     }
-    val all = calendars
+    val all by produceState<List<CalendarInfo>?>(null, resumed) {
+        value = withContext(Dispatchers.IO) { CalendarBook.from(context).calendars() }
+    }
     val writable = all?.filter { it.writable }.orEmpty()
-    val current = all?.let { CalendarBook({ it }, { _, _ -> null }).target(chosen) }
+    val current = all?.let { CalendarBook.target(it, chosen) }
     var open by remember { mutableStateOf(false) }
     Spacer(Modifier.height(16.dp))
     Group(listOf { shapes ->

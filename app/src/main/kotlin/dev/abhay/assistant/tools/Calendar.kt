@@ -42,13 +42,7 @@ class CalendarBook(
      * Where a new event goes: the calendar [chosen] (its id, from the tool's settings) if it can
      * still take events, else the account's own (primary) one, else the first that can.
      */
-    fun target(chosen: String?): CalendarInfo? {
-        val writable = calendars()?.filter { it.writable } ?: return null
-        return writable.firstOrNull { it.id.toString() == chosen }
-            ?: writable.firstOrNull { it.primary }
-            ?: writable.firstOrNull { !it.local }
-            ?: writable.firstOrNull()
-    }
+    fun target(chosen: String?): CalendarInfo? = calendars()?.let { target(it, chosen) }
 
     /** The events on [day], all-day ones first, then by start; null without the permission. */
     fun day(day: LocalDate): List<CalendarEvent>? {
@@ -63,6 +57,15 @@ class CalendarBook(
         loadEvents(begin, end)?.filter { !it.allDay && it.begin < end && it.end > begin }?.sortedBy { it.begin }
 
     companion object {
+        /** [CalendarBook.target]'s rule on calendars already read: the settings' picker shows it (review P2-137). */
+        fun target(calendars: List<CalendarInfo>, chosen: String?): CalendarInfo? {
+            val writable = calendars.filter { it.writable }
+            return writable.firstOrNull { it.id.toString() == chosen }
+                ?: writable.firstOrNull { it.primary }
+                ?: writable.firstOrNull { !it.local }
+                ?: writable.firstOrNull()
+        }
+
         val NONE = CalendarBook({ null }, { _, _ -> null })
 
         fun canRead(context: Context) = context.checkSelfPermission(Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
