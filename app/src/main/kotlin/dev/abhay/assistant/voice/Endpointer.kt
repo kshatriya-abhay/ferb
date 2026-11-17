@@ -127,13 +127,20 @@ class EnergyVad(private val rate: Int = PcmRecorder.SAMPLE_RATE, val endpoint: E
 
     private fun frame(db: Double) {
         frames++
+        // Digital silence (a microphone not started yet, a gap in the stream) isn't the room: it
+        // neither calibrates nor lowers the floor, which would never rise again (review P2-97).
+        val room = db >= DIGITAL_SILENCE_DB
         if (frames * FRAME_MS <= CALIBRATE_MS) {
-            calibration += db
-            floor = calibration.sorted()[calibration.size / 2]
+            if (room) {
+                calibration += db
+                floor = calibration.sorted()[calibration.size / 2]
+            }
             return
         }
-        val on = maxOf(floor + ON_DB, MIN_SPEECH_DB)
-        val off = maxOf(floor + OFF_DB, MIN_SPEECH_DB - (ON_DB - OFF_DB))
+        // No room heard yet: the thresholds start at the speech floor.
+        val base = if (floor.isNaN()) MIN_SPEECH_DB - ON_DB else floor
+        val on = maxOf(base + ON_DB, MIN_SPEECH_DB)
+        val off = maxOf(base + OFF_DB, MIN_SPEECH_DB - (ON_DB - OFF_DB))
         inRun = if (inRun) db > off else db > on
         if (inRun) {
             runFrames++
@@ -143,7 +150,7 @@ class EnergyVad(private val rate: Int = PcmRecorder.SAMPLE_RATE, val endpoint: E
             runFrames = 0
             confirmed = false
             // The floor follows the room: down at once, up slowly, only on frames that aren't speech.
-            floor = if (db < floor) db else floor + FLOOR_RISE * (db - floor)
+            if (room) floor = if (floor.isNaN() || db < floor) db else floor + FLOOR_RISE * (db - floor)
         }
     }
 
@@ -157,6 +164,8 @@ class EnergyVad(private val rate: Int = PcmRecorder.SAMPLE_RATE, val endpoint: E
         const val RESUME_MS = 100
         /** Never speech below this (dBFS), however quiet the room: breathing, hiss. */
         const val MIN_SPEECH_DB = -50.0
+        /** Below this (dBFS) a frame is digital silence, not a room: no microphone is that quiet. */
+        const val DIGITAL_SILENCE_DB = -90.0
         private const val FLOOR_RISE = 0.05
 
         fun energyDb(frame: FloatArray): Double {

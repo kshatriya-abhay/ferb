@@ -143,4 +143,22 @@ class EndpointerTest {
         endpoint.speech(59_900)
         assertThat(endpoint.decide(60_000)).isEqualTo(Decision.Continue)
     }
+
+    @Test
+    fun aRecordingWithNoSpeechGivesUpEvenAfterAMomentOfDigitalSilence() {
+        // Review P2-97: 200 ms of zeros as the microphone starts set the floor at -120 dB for good, so
+        // a room at about -45 dBFS counted as speech and the recording never gave up.
+        val rate = 16_000
+        val random = java.util.Random(7)
+        val all = FloatArray(rate / 5) + FloatArray(rate * 9) { (random.nextFloat() - 0.5f) * 0.02f }
+        val vad = EnergyVad(rate)
+        var first: Endpoint.Decision? = null
+        var i = 0
+        while (i < all.size && first == null) {
+            val d = vad.feed(all, i, minOf(rate / 10, all.size - i))
+            i += rate / 10
+            if (d != Endpoint.Decision.Continue) first = d
+        }
+        assertThat(first).isEqualTo(Endpoint.Decision.NoSpeech)
+    }
 }
