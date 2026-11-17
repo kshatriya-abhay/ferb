@@ -3,8 +3,9 @@
 # the instrumented tests, then a list kept across a killed process, the permission fallbacks with
 # permissions revoked (and restored as they were, on any exit), a reminder firing after the process is killed,
 # and one rescheduled after a reinstall. Take /tmp/ferb-validate.lock first (shared with Ferb Link).
-# QUIET=1: only what runs in the background, for a phone in use: no notifications (they'd sound),
-# so the reminder-firing checks are left out. ANDROID_SERIAL picks the phone (e.g. wireless adb).
+# QUIET=1: only what runs in the background, for a phone in use: the tests marked @InFront (a
+# screen in front, a notification, the mic, a volume change) and the reminder-firing checks are
+# left out (review P2-171). ANDROID_SERIAL picks the phone (e.g. wireless adb).
 set -uo pipefail
 cd "$(dirname "$0")/.."
 APP=dev.abhay.assistant
@@ -49,8 +50,8 @@ trap restore EXIT
 trap 'exit 130' INT TERM
 adb shell pm grant $APP android.permission.POST_NOTIFICATIONS
 
-# 1. Every instrumented test (the special ones skip themselves); quiet: not the one that fires a notification.
-if [ "${QUIET:-0}" = 1 ]; then instrument -e notClass $T.RemindersDeviceTest#aReminderFiresDoneAndSnooze; else instrument; fi
+# 1. Every instrumented test (the special ones skip themselves); quiet: none the user would notice.
+if [ "${QUIET:-0}" = 1 ]; then instrument -e notAnnotation $T.InFront; else instrument; fi
 result $? "instrumented tests"
 
 # 2. A list across a killed process.
@@ -67,7 +68,7 @@ for p in $perms; do adb shell pm grant $APP $p; done
 instrument -e class $T.PermissionsDeviceTest; result $? "no fallbacks with permissions granted"
 # Notifications stay on for the reminder checks below; every grant is put back on exit.
 
-if [ "${QUIET:-0}" = 1 ]; then echo "$pass passed, $fail failed (quiet: reminder notifications left out)"; [ "$fail" = 0 ]; exit; fi
+if [ "${QUIET:-0}" = 1 ]; then echo "$pass passed, $fail failed (quiet: @InFront tests and reminder notifications left out)"; [ "$fail" = 0 ]; exit; fi
 
 # 4. A reminder fires after the process is killed.
 instrument -e class $T.RemindersDeviceTest#scheduleForLater -e later 1

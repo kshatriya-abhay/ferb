@@ -29,6 +29,7 @@ import org.junit.runner.RunWith
  * is scheduled. No note: nothing is written in the notes folder. Removed afterwards.
  */
 @RunWith(AndroidJUnit4::class)
+@InFront
 class ReminderToolDeviceTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context = instrumentation.targetContext

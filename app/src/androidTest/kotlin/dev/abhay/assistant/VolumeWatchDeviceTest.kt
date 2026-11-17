@@ -16,6 +16,7 @@ import org.junit.runner.RunWith
  * outside the watch (silently, no UI flag) reaches it, then the volume is put back as it was.
  */
 @RunWith(AndroidJUnit4::class)
+@InFront
 class VolumeWatchDeviceTest {
     @Test
     fun aVolumeChangeOutsideFerbReachesTheWatch() {

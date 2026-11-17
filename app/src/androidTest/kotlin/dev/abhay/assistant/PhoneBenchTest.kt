@@ -15,6 +15,7 @@ import org.junit.runner.RunWith
  * (-e class dev.abhay.assistant.PhoneBenchTest), never beside another model.
  */
 @RunWith(AndroidJUnit4::class)
+@InFront
 class PhoneBenchTest {
     private val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as AssistantApp
 

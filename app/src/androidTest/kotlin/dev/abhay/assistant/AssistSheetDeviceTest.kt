@@ -27,6 +27,7 @@ import org.junit.runner.RunWith
  * nothing is recorded; the user's own choice is put back after), and back dismisses it.
  */
 @RunWith(AndroidJUnit4::class)
+@InFront
 class AssistSheetDeviceTest {
     @get:Rule val compose = createEmptyComposeRule()
     private val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as AssistantApp

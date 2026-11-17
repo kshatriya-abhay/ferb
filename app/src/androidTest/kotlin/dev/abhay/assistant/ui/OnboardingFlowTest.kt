@@ -32,6 +32,7 @@ import org.junit.runner.RunWith
  * explanatory text on any page (that's in Settings) but the tools page's one line.
  */
 @RunWith(AndroidJUnit4::class)
+@dev.abhay.assistant.InFront
 class OnboardingFlowTest {
     @get:Rule val compose = createComposeRule()
 

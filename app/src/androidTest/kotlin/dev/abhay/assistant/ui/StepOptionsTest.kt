@@ -21,6 +21,7 @@ import org.junit.runner.RunWith
 
 /** A step's options in Settings (Compose, on the phone): the one in use, Ferb Link greyed with why, Gemini Nano's settings button, and those that can't ever work here left out. */
 @RunWith(AndroidJUnit4::class)
+@dev.abhay.assistant.InFront
 class StepOptionsTest {
     @get:Rule val compose = createComposeRule()
 

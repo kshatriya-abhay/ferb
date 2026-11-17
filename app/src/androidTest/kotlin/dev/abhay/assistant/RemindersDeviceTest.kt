@@ -44,6 +44,7 @@ class RemindersDeviceTest {
         assertThat(context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()).isTrue()
     }
 
+    @InFront
     @Test
     fun aReminderFiresDoneAndSnooze() {
         assumeTrue("POST_NOTIFICATIONS granted (the script grants it)",

@@ -13,6 +13,7 @@ import org.junit.runner.RunWith
 
 /** The recording's ✕ and ✓ (Compose, on the phone): ✓ stops and sends, ✕ discards, the live words show. */
 @RunWith(AndroidJUnit4::class)
+@dev.abhay.assistant.InFront
 class VoiceFieldTest {
     @get:Rule val compose = createComposeRule()
 
