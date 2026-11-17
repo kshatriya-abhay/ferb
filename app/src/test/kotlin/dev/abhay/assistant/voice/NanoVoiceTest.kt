@@ -127,14 +127,20 @@ class NanoVoiceTest {
     @Test
     fun noPromptExampleIsABenchOrHeldOutLine() {
         // The bench (and the held-out set) must measure the prompt, not recall its examples.
-        val bench = java.io.File("../tool-check").listFiles { f -> f.name.endsWith(".txt") }!!.flatMap { it.readLines() }
-            // The request is the last field (requests.txt: tool | request; the date sets: now | tool | expected | request).
-            .filter { "|" in it && !it.startsWith("#") }.map { it.substringAfterLast("|").trim().lowercase() }.toSet()
-        assertThat(bench).isNotEmpty()
+        // Named sets, open and closed (no glob, review P2-166). The request is the last field
+        // (requests.txt: tool | request; the date sets: now | tool | expected | request). A match is
+        // reported by file and line number only: a closed set's line is never printed.
+        val where = (dev.abhay.assistant.eval.EvalSets.OPEN + dev.abhay.assistant.eval.EvalSets.CLOSED).flatMap { name ->
+            dev.abhay.assistant.eval.EvalSets.file(name).readLines().mapIndexedNotNull { i, line ->
+                if ("|" in line && !line.startsWith("#")) line.substringAfterLast("|").trim().lowercase() to "$name:${i + 1}" else null
+            }
+        }.groupBy({ it.first }, { it.second })
+        assertThat(where).isNotEmpty()
         for (prompt in listOf(GeminiRewrite.PROMPT_V2, GeminiRewrite.PROMPT_R, GeminiRewrite.PROMPT_R2)) {
             val examples = prompt.substringAfter("Examples:\n").lines().map { it.substringBefore(" -> ").trim().lowercase() }
             assertThat(examples).isNotEmpty()
-            assertThat(examples.filter { it in bench }).isEmpty()
+            val leaked = examples.flatMap { where[it].orEmpty() }
+            if (leaked.isNotEmpty()) throw AssertionError("a prompt example is a set line at: ${leaked.joinToString()}")
         }
     }
 

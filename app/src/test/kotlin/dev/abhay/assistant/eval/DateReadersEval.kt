@@ -140,7 +140,7 @@ class DateReadersEval {
     @Test
     fun score() {
         assumeTrue("FERB_EVAL=1", System.getenv("FERB_EVAL") == "1")
-        val set = System.getenv("FERB_EVAL_SET") ?: "datetime-v2.txt"
+        val set = (System.getenv("FERB_EVAL_SET") ?: "datetime-v2.txt").also(EvalSets::requireOpen)
         val needleR = System.getenv("FERB_EVAL_NEEDLE_R")?.let(::File)
         assumeTrue("FERB_EVAL_NEEDLE_R", needleR?.exists() == true)
         val lines = File(repo, "tool-check/$set").readLines().filter { it.isNotBlank() && !it.startsWith("#") }.let { raws ->

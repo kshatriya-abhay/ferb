@@ -27,7 +27,7 @@ class DateTimeEval {
 
     private val repo = File("..").canonicalFile
 
-    private fun lines() = File(repo, "tool-check/" + (System.getenv("FERB_EVAL_SET") ?: "datetime.txt")).readLines().filter { it.isNotBlank() && !it.startsWith("#") }.mapIndexed { i, raw ->
+    private fun lines() = (System.getenv("FERB_EVAL_SET") ?: "datetime.txt").also(EvalSets::requireOpen).let(EvalSets::file).readLines().filter { it.isNotBlank() && !it.startsWith("#") }.mapIndexed { i, raw ->
         val (now, tool, expected, request) = raw.split("|", limit = 4).map { it.trim() }
         Line(i, LocalDateTime.parse(now.substringBefore(' ')), tool, expected, request)
     }
@@ -261,10 +261,11 @@ class DateTimeEval {
      */
     @Test
     fun timesTxt() {
-        assumeTrue("FERB_EVAL=1 to run the date and time eval", System.getenv("FERB_EVAL") == "1")
+        // Held out: its own flag, off by default, and counts only, never a line (review P2-178).
+        assumeTrue("FERB_EVAL_HELDOUT=1 to score the held-out times.txt (counts only)", System.getenv("FERB_EVAL_HELDOUT") == "1")
         var now = LocalDateTime.of(2026, 10, 16, 9, 0)
         val rows = mutableListOf<Triple<String, String, String>>()
-        File(repo, "tool-check/times.txt").readLines().forEach { raw ->
+        EvalSets.file("times.txt").readLines().forEach { raw ->
             Regex("""^# now=(\S+)""").find(raw)?.let { now = LocalDateTime.parse(it.groupValues[1]); return@forEach }
             if (raw.isBlank() || raw.startsWith("#")) return@forEach
             val parts = raw.split("|").map { it.trim() }
@@ -288,10 +289,7 @@ class DateTimeEval {
         }
         val report = StringBuilder("# A on tool-check/times.txt (no model)\n\n")
         report.append("Lines: ${rows.size}; A matches $right (${right * 100 / rows.size}%)\n")
-        wrong.groupBy { rule(it) }.forEach { (why, set) ->
-            report.append("\n## ${why ?: "Misses"} (${set.size})\n")
-            set.forEach { report.append("want ${it.first} | A ${it.second} | ${it.third}\n") }
-        }
+        wrong.groupBy { rule(it) }.forEach { (why, set) -> report.append("${why ?: "Misses"}: ${set.size}\n") }
         val out = File(repo, "build/datetime/score-times-txt.txt")
         out.parentFile.mkdirs()
         out.writeText(report.toString())
