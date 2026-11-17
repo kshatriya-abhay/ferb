@@ -80,9 +80,39 @@ class PhoneBench(private val app: AssistantApp) {
 
     private fun out(model: Model, output: String? = null) = File(dir, "${output ?: model.file}.jsonl")
 
-    /** The ids [model] has answered already (into [output], if not its own file). */
-    fun done(model: Model, output: String? = null): Set<String> = out(model, output).takeIf { it.exists() }?.readLines().orEmpty()
-        .filter { it.isNotBlank() }.mapNotNull { runCatching { JSONObject(it).getString("id") }.getOrNull() }.toSet()
+    /**
+     * The ids [model] has answered already (into [output], if not its own file), for [items] as
+     * they are now: an answer counts only for the same request with the same tools, and any other
+     * is dropped from the file. phone.py's ids are positions, so after a set edit or a routing
+     * change an id names another line, and its old answer was scored as the new one (review P2-173).
+     */
+    fun done(model: Model, items: List<Item> = items(model.input), output: String? = null): Set<String> =
+        current(model, items, output).map { JSONObject(it).getString("id") }.toSet()
+
+    /** [done]'s answer lines, as in the file. */
+    private fun current(model: Model, items: List<Item>, output: String?): List<String> {
+        val file = out(model, output).takeIf { it.exists() } ?: return emptyList()
+        val now = items.associateBy { it.id }
+        return file.readLines().filter { it.isNotBlank() }.filter { l ->
+            runCatching {
+                val o = JSONObject(l)
+                val item = now[o.getString("id")]
+                val tools = o.optJSONArray("tools")?.let { a -> (0 until a.length()).map(a::getString) }
+                item != null && o.optString("request") == item.request && tools == item.tools
+            }.getOrDefault(false)
+        }
+    }
+
+    /** Drops [model]'s answers that aren't for [items] as they are now ([done]), before a run adds to them. */
+    private fun prune(model: Model, items: List<Item>, output: String?) {
+        val file = out(model, output).takeIf { it.exists() } ?: return
+        val all = file.readLines().count { it.isNotBlank() }
+        val kept = current(model, items, output)
+        if (kept.size != all) {
+            Log.i(TAG, "${file.name}: ${all - kept.size} answers for other lines or tools dropped")
+            file.writeText(kept.joinToString("") { it + "\n" })
+        }
+    }
 
     /** Answers what's left (at most [limit]), calling [progress] with (done, total) after each; stops on a blocking error. */
     suspend fun run(model: Model, limit: Int = Int.MAX_VALUE, input: String = model.input, output: String? = null,
@@ -90,13 +120,14 @@ class PhoneBench(private val app: AssistantApp) {
         val items = items(input)
         require(items.isNotEmpty()) { "no requests: push files/bench/$input first (tool-check/phone.py)" }
         fun out(model: Model) = out(model, output)
-        val answered = done(model, output).toMutableSet()
+        prune(model, items, output)
+        val answered = done(model, items, output).toMutableSet()
         val todo = items.filter { it.id !in answered }.take(limit)
         Log.i(TAG, "${model.file}: ${todo.size} to go of ${items.size}")
         val gemini = if (model == Model.Needle3) null else gemini(model)
         try {
             for (item in todo) {
-                val line = JSONObject().put("id", item.id).put("request", item.request)
+                val line = JSONObject().put("id", item.id).put("request", item.request).put("tools", org.json.JSONArray(item.tools))
                 val started = SystemClock.elapsedRealtime()
                 try {
                     if (gemini == null) line.put("raw", needle(item))
