@@ -114,7 +114,9 @@ class CalendarToolsTest {
     @Test
     fun aDayWithoutATimeIsAtNineAndATimeWithoutADayTheNextOne() {
         fun summary(request: String, title: String) = (AddEvent.prepare(args(request, "title" to title, "when" to ""), env()) as Prepared.Ready).summary
-        assertThat(summary("add mum's birthday on 12 oct to my calendar", "Mum's birthday")).isEqualTo("Add \u201cMum's birthday\u201d \u00b7 Mon 12 Oct, 09:00–10:00")
+        // An event with a day and no time is all day (the user's decision, 2026-11-17, review P2-77).
+        assertThat(summary("add mum's birthday on 12 oct to my calendar", "Mum's birthday")).isEqualTo("Add \u201cMum's birthday\u201d \u00b7 Mon 12 Oct, all day")
+        assertThat(summary("add the team offsite today to my calendar", "Team offsite")).endsWith("all day")
         // 9 am has passed (it's 10:00): 9 pm.
         assertThat(summary("meeting at 9", "meeting")).isEqualTo("Add \u201cMeeting\u201d \u00b7 Thu 8 Oct, 21:00–22:00")
         assertThat(summary("meeting at 4", "meeting")).isEqualTo("Add \u201cMeeting\u201d \u00b7 Thu 8 Oct, 16:00–17:00")

@@ -113,6 +113,8 @@ object DateResolver {
             val otherDay = day.date != today || day.later != null
             val time = said?.let { if (kind == Kind.Alarm && otherDay) alarmClock(it) else clock(it, otherDay) } ?: day.tonight.takeIf { it }?.let { Part.Night.default }
             if (time == null) {
+                // An event with a day and no time is all day, today included (the user's decision, 2026-11-17, review P2-77).
+                if (kind == Kind.Event) return if (day.date.isBefore(today)) Resolved.Ask("That date has passed") else Resolved.Day(day.date)
                 // No time: a later day at 09:00; today, ask.
                 if (day.date == today && day.later == null) return Resolved.Ask("What time today?")
                 val at = day.date.atTime(DEFAULT_TIME).let { if (day.later != null && !it.isAfter(now)) day.later.atTime(DEFAULT_TIME) else it }

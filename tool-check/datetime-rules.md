@@ -5,7 +5,8 @@ existing sets are frozen with the rules in their own headers; don't change them.
 
 - A weekday, bare or with this/coming/next (agle), is the upcoming one: today only if its time is
   still ahead. "next <weekday>" said on that weekday is +7.
-- A weekday, a date, "tomorrow" or "in N days" with no time is 09:00. "Today" with no time asks.
+- A weekday, a date, "tomorrow" or "in N days" with no time is 09:00 for alarms and reminders. "Today" with
+  no time asks. An event with a day and no time is all day, today included (the user's decision, 2026-11-17).
 - Parts of the day with no hour: morning/subah 09:00, afternoon/dopahar 14:00, evening/shaam 18:00,
   night/raat and tonight 20:00. With an hour: subah is am; dopahar, shaam and raat are pm (raat
   12 is midnight; raat 1–4 is am).
