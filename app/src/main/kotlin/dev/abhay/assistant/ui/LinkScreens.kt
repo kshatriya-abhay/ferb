@@ -78,13 +78,14 @@ import kotlinx.coroutines.withContext
  * or installing it); until then, as last read ([FerbLink.last]).
  */
 @Composable
-internal fun rememberLinkStatus(link: FerbLink): LinkStatus {
+internal fun rememberLinkStatus(link: FerbLink): LinkStatus? {
     var resumed by remember { mutableIntStateOf(0) }
     LifecycleResumeEffect(Unit) {
         resumed++
         onPauseOrDispose { }
     }
-    val status by produceState(link.last ?: LinkStatus.Off, resumed) {
+    // Null until the first read: "not read yet" isn't Off, whose "Turn on" step it showed (review P2-120).
+    val status by produceState(link.last, resumed) {
         value = withContext(Dispatchers.IO) { link.status() }
     }
     return status
@@ -96,13 +97,14 @@ internal fun rememberLinkStatus(link: FerbLink): LinkStatus {
  * so then a check (2 s at most, without waking the model) asks the computer. Again on each resume.
  */
 @Composable
-internal fun rememberVoiceAvailable(link: FerbLink, active: Boolean): Boolean {
+internal fun rememberVoiceAvailable(link: FerbLink, active: Boolean): Boolean? {
     var resumed by remember { mutableIntStateOf(0) }
     LifecycleResumeEffect(Unit) {
         resumed++
         onPauseOrDispose { }
     }
-    val available by produceState(false, active, resumed) {
+    // Null until the first answer, as rememberLinkStatus (review P2-120).
+    val available by produceState<Boolean?>(null, active, resumed) {
         value = active && withContext(Dispatchers.IO) {
             val status = link.status()
             status is LinkStatus.Ready && (status.audio || link.check()?.audio == true)
@@ -126,6 +128,7 @@ fun LinkRow(settings: SettingsViewModel, onOpen: () -> Unit, shapes: ListItemSha
         supportingContent = {
             Text(
                 when {
+                    status == null -> CHECKING
                     !installed -> "A bigger model on your computer"
                     status == LinkStatus.NotSetUp -> "Not connected yet"
                     else -> describe(status)
@@ -184,7 +187,7 @@ private fun SetupChecklist(steps: List<SetupStep>, onOpenFerbLink: (() -> Unit)?
 fun LinkScreen(settings: SettingsViewModel, onBack: () -> Unit) {
     val context = LocalContext.current
     val status = rememberLinkStatus(settings.link)
-    val installed = status != LinkStatus.NotInstalled
+    val installed = status != null && status != LinkStatus.NotInstalled
     val scope = rememberCoroutineScope()
     var checking by remember { mutableStateOf(false) }
     var checked by remember { mutableStateOf<Reachability?>(null) }
@@ -203,15 +206,16 @@ fun LinkScreen(settings: SettingsViewModel, onBack: () -> Unit) {
     Scaffold(Modifier.nestedScroll(bar.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surfaceContainer, topBar = { TopBar(stringResource(R.string.link_ferb_link), onBack = onBack, scroll = bar) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(top = 8.dp, bottom = 24.dp)) {
             // Until it works: what it is and the steps, ticking themselves off (once a check has run, when Ferb Link is ready).
-            val steps = setupSteps(status, checked?.reachable)
+            val steps = status?.let { setupSteps(it, checked?.reachable) }.orEmpty()
             val openFerbLink = settings.link.openIntent()?.let { intent -> { context.startActivity(intent) } }
+            if (status == null) Text(CHECKING, Modifier.padding(horizontal = 32.dp, vertical = 12.dp), style = MaterialTheme.typography.bodyLarge)
             if (steps.isNotEmpty() && !(status is LinkStatus.Ready && checked == null)) {
                 AboutLink()
                 SetupChecklist(steps, openFerbLink)
             }
             if (installed) {
                 StatusCard(
-                    status, checked, checking,
+                    status!!, checked, checking,
                     onCheck = ::check,
                     onOpen = openFerbLink,
                 )
@@ -276,3 +280,6 @@ private fun StatusCard(status: LinkStatus, checked: Reachability?, checking: Boo
         }
     }
 }
+
+/** Ferb Link's status before its first read. */
+internal const val CHECKING = "Checking Ferb Link\u2026"

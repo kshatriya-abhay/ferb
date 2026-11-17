@@ -60,8 +60,9 @@ internal val ToolOptions = ToolStep.entries.map {
 }
 
 /** What each option needs now ([Availability]): Ferb Link's state, and Gemini Nano's setup. */
-internal fun availability(status: LinkStatus, computerHears: Boolean, setup: GeminiSetup) = Availability(
+internal fun availability(status: LinkStatus?, computerHears: Boolean?, setup: GeminiSetup) = Availability(
     link = when (status) {
+        null -> LinkAvailability.Unavailable(CHECKING)
         is LinkStatus.Ready -> LinkAvailability.Ready
         LinkStatus.NotInstalled -> LinkAvailability.NotInstalled
         LinkStatus.NotSetUp -> LinkAvailability.NotPaired
@@ -69,7 +70,7 @@ internal fun availability(status: LinkStatus, computerHears: Boolean, setup: Gem
     },
     geminiSpeech = setup.speech.let { if (it == Part.Checking) null else it != Part.Unavailable },
     geminiRewrite = setup.rewrite.let { if (it == Part.Checking) null else it != Part.Unavailable },
-    linkAudioReason = Availability.LINK_NO_AUDIO.takeUnless { computerHears },
+    linkAudioReason = when (computerHears) { true -> null; false -> Availability.LINK_NO_AUDIO; null -> CHECKING },
     jevReason = (status as? LinkStatus.Ready)?.let { if (it.jevCapped) Availability.JEV_CAPPED else if (!it.jev) Availability.JEV_OFF else null },
 )
 
@@ -215,7 +216,8 @@ internal fun rememberAbilities(settings: SettingsViewModel): Abilities {
     LaunchedEffect(Unit) { settings.checkGemini() }
     val status = rememberLinkStatus(settings.link)
     val hears = rememberVoiceAvailable(settings.link, active = status is LinkStatus.Ready)
-    LaunchedEffect(status, hears) { settings.linkChanged(status, hears.takeIf { it }) }
+    // Nothing to tell before the first read: Off would re-resolve the steps without Ferb Link (review P2-120).
+    LaunchedEffect(status, hears) { status?.let { settings.linkChanged(it, hears.takeIf { it == true }) } }
     val can by settings.abilities.collectAsStateWithLifecycle()
     return can
 }
