@@ -10,7 +10,6 @@ import dev.abhay.assistant.tools.Prepared
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 
@@ -77,13 +76,21 @@ class CallQueueTest {
     }
 
     @Test
-    fun twoRepliesBatchesDontInterleave() = runBlocking {
-        val q = queue()
-        val first = Exchange(ready("a1"), ready("a2"), ready("a3"))
-        val second = Exchange(ready("b1"), ready("b2"))
-        listOfNotNull(q.run(first.calls, first::set), q.run(second.calls, second::set)).joinAll()
-        // One batch, then the other, never mixed.
-        assertThat(ran.joinToString(" ")).isAnyOf("a1 a2 a3 b1 b2", "b1 b2 a1 a2 a3")
+    fun aBatchWaitingOnAnotherAppHoldsTheNextBack() = kotlinx.coroutines.test.runTest {
+        // The case the queue's lock is for (review P2-181): the first reply's call opens the clock
+        // app, and its batch waits for Ferb to come back; the second reply's calls wait their turn.
+        // Without the lock they ran in between ("a1 b1 a2"); on Dispatchers.Default the old test
+        // caught that about one run in four.
+        val scope = CoroutineScope(kotlinx.coroutines.test.StandardTestDispatcher(testScheduler))
+        val q = CallQueue(CallRunner(MutableStateFlow(true)), ::unusedContext, scope)
+        fun call(name: String, opens: Boolean) = CallState(ToolCall(name, emptyMap()),
+            Prepared.Ready(name, opensApp = opens) { synchronized(ran) { ran += name }; Outcome.Done(name) }, Status.Waiting)
+        val first = Exchange(call("a1", opens = true), call("a2", opens = false))
+        val second = Exchange(call("b1", opens = false))
+        q.run(first.calls, first::set)
+        q.run(second.calls, second::set)
+        testScheduler.advanceUntilIdle()
+        assertThat(ran.joinToString(" ")).isEqualTo("a1 a2 b1")
     }
 
     @Test
