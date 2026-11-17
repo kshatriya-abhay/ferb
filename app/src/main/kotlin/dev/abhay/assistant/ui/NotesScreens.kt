@@ -90,7 +90,10 @@ fun NotesScreen(viewModel: AssistantViewModel, onOpen: (NoteRef) -> Unit, onBack
         resumed++
         onPauseOrDispose { }
     }
+    // Each load waits for the first resume, which comes right after the first composition: started
+    // on both, the blocking folder reads ran twice per open (review P2-144).
     val list by produceState<List<NoteRef>?>(null, resumed) {
+        if (resumed == 0) return@produceState
         value = withContext(Dispatchers.IO) { if (notes.ready) NoteStore.ferbs(notes.list(), notes::read).sortedByDescending { it.modified } else null }
     }
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
@@ -101,6 +104,7 @@ fun NotesScreen(viewModel: AssistantViewModel, onOpen: (NoteRef) -> Unit, onBack
     }
     // A folder that isn't a vault's top folder: said above the notes, nothing blocked.
     val warning by produceState<String?>(null, resumed) {
+        if (resumed == 0) return@produceState
         value = withContext(Dispatchers.IO) { if (notes.ready) VaultCheck.warning(notes.vaultCheck()) else null }
     }
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -209,6 +213,7 @@ private fun RemindersTab(viewModel: AssistantViewModel, state: LazyListState, re
     val reminders = viewModel.reminders
     val changed by reminders.changes.collectAsStateWithLifecycle()
     val shown by produceState<Triple<List<Reminder>, List<RecentReminder>, LocalDateTime>?>(null, resumed, changed) {
+        if (resumed == 0) return@produceState
         value = withContext(Dispatchers.IO) { Triple(reminders.upcoming(), reminders.recent(), LocalDateTime.now()) }
     }
     val (allUpcoming, allRecent, now) = shown ?: return Loading()
