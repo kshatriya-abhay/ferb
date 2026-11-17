@@ -17,7 +17,9 @@ import org.junit.Test
  * heard as nothing (NoSpeech, the 8 s stop) or held to the 30 s cap (Limit): every clip holds a
  * request. The clips stop soon after the speech, so most run out before a silence window passes:
  * counted, not judged.
- * Each clip's decision goes to build/voice/endpoint-decisions.tsv, to diff a change against.
+ * Each clip's decision goes to build/voice/endpoint-decisions.tsv, to diff a change against. The
+ * default clips are the ones the endpoint's timings were tuned on: a regression gate, not evidence
+ * the timings hold for other speech (review P2-182).
  */
 class EndpointReplay {
     @Test
@@ -65,7 +67,7 @@ class EndpointReplay {
                 worstLate = maxOf(worstLate, endAt - speechBeforeEnd - window)
             }
         }
-        File(dir.parentFile, "endpoint-decisions.tsv").writeText(decisions.joinToString("\n", postfix = "\n"))
+        File("../build/voice").apply { mkdirs() }.resolve("endpoint-decisions.tsv").writeText(decisions.joinToString("\n", postfix = "\n"))
         println("EndpointReplay: ${clips.size} clips, $ended ended by silence, ${early.size} cut early, worst end ${worstLate} ms past the window, " +
             "${heardNothing.size} heard as nothing, ${capped.size} held to the cap, $ranOut ran out of audio first")
         (early + heardNothing + capped).forEach { println("  $it") }

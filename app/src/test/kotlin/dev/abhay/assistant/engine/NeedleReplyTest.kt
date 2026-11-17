@@ -17,9 +17,13 @@ class NeedleReplyTest {
         "reasoning":"No weather tool.","confidence":0.0396,"prefill_tps":1.0,"decode_tps":1.0,"peak_ram_mb":79.0,
         "validation":{"ungrounded":["show_notification.message"],"negation":false}}"""
 
-    /** org.json as Android has it: optString on a JSON null gives the text "null" (the JVM's gives ""). */
+    /**
+     * org.json as Android has it: optString on a JSON null gives the text "null" (the JVM's gives ""
+     * or the fallback), both overloads (review P2-182: only one was modelled).
+     */
     private class AndroidJson(json: String) : org.json.JSONObject(json) {
         override fun optString(name: String?): String = if (has(name) && isNull(name)) "null" else super.optString(name)
+        override fun optString(name: String?, fallback: String?): String? = if (has(name) && isNull(name)) "null" else super.optString(name, fallback)
     }
 
     @Test
