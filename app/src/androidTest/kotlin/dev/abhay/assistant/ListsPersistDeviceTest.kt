@@ -33,6 +33,9 @@ class ListsPersistDeviceTest {
     @Test
     fun readAfterKill() {
         val marker = File(context.cacheDir, "persist-pid")
+        // Run by the script after the kill, a missing marker means the write failed: a failure, not a
+        // skip, which the script read as "list kept" (review P2-175). Run alone, it skips.
+        if (InstrumentationRegistry.getArguments().getString("persist") == "read") assertThat(marker.exists()).isTrue()
         org.junit.Assume.assumeTrue("writeBeforeKill first", marker.exists())
         assertThat(marker.readText()).isNotEqualTo(android.os.Process.myPid().toString())
         val list = notes.list().single { it.name == "Persist" }

@@ -55,10 +55,12 @@ if [ "${QUIET:-0}" = 1 ]; then instrument -e notAnnotation $T.InFront; else inst
 result $? "instrumented tests"
 
 # 2. A list across a killed process.
-instrument -e class $T.ListsPersistDeviceTest#writeBeforeKill -e persist write
+# The write is checked, and the read fails without it (review P2-175: a failed write read as "kept").
+wrote=0; instrument -e class $T.ListsPersistDeviceTest#writeBeforeKill -e persist write || wrote=1
 not_in_use
 adb shell am force-stop $APP
-instrument -e class $T.ListsPersistDeviceTest#readAfterKill; result $? "list kept across a killed process"
+if [ "$wrote" = 0 ]; then instrument -e class $T.ListsPersistDeviceTest#readAfterKill -e persist read; result $? "list kept across a killed process"
+else result 1 "list written before the kill"; fi
 
 # 3. Permission fallbacks: revoked, then restored as they were.
 not_in_use
