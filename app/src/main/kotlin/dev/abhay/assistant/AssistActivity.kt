@@ -30,6 +30,8 @@ import dev.abhay.assistant.ui.AssistantViewModel
 class AssistActivity : ComponentActivity() {
     /** Each assist invocation, so the sheet listens again (or focuses its box). */
     private val opened = mutableIntStateOf(0)
+    /** Whether this invocation may listen at once: the system's trigger only ([AssistTrigger]). */
+    private val listen = androidx.compose.runtime.mutableStateOf(false)
 
     private var viewModel: AssistantViewModel? = null
 
@@ -40,14 +42,21 @@ class AssistActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        if (intent.action == Intent.ACTION_ASSIST) opened.intValue++
+        if (intent.action == Intent.ACTION_ASSIST) {
+            setIntent(intent)
+            listen.value = AssistTrigger.listens(this)
+            opened.intValue++
+        }
     }
 
     @OptIn(ExperimentalMaterial3ExpressiveApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        if (savedInstanceState == null) opened.intValue = 1
+        if (savedInstanceState == null) {
+            listen.value = AssistTrigger.listens(this)
+            opened.intValue = 1
+        }
         setContent {
             val context = LocalContext.current
             val colors = if (isSystemInDarkTheme()) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
@@ -57,6 +66,7 @@ class AssistActivity : ComponentActivity() {
                 AssistSheet(
                     viewModel,
                     opened = opened.intValue,
+                    listen = listen.value,
                     onOpenChat = {
                         startActivity(Intent(this, ChatActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
                         // This screen's request may still be on its way: it finishes once that's answered

@@ -79,7 +79,7 @@ private val DRAG_UP_TO_OPEN = 80.dp
  */
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun AssistSheet(viewModel: AssistantViewModel, opened: Int, onOpenChat: () -> Unit, onDismiss: () -> Unit) {
+fun AssistSheet(viewModel: AssistantViewModel, opened: Int, onOpenChat: () -> Unit, onDismiss: () -> Unit, listen: Boolean = true) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val engine by viewModel.engine.collectAsStateWithLifecycle()
     val pipeline by viewModel.pipeline.collectAsStateWithLifecycle()
@@ -99,6 +99,8 @@ fun AssistSheet(viewModel: AssistantViewModel, opened: Int, onOpenChat: () -> Un
         if (!ready || state.busy || state.voice != null) return@LaunchedEffect
         when {
             !Mic.shows(pipeline.audio) || BatterySaver.warns(powerSave, pipeline.audio) -> focus++
+            // Not the system's trigger, or Ferb can't tell: the box, not the mic (review P2-156).
+            !listen -> focus++
             // Opening the sheet never opens Android's settings: refused for good, the box.
             mic.step(micNeeds) == PermissionStep.OpenSettings -> focus++
             else -> mic.run(micNeeds)

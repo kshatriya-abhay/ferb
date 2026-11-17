@@ -74,13 +74,26 @@ class AssistSheetDeviceTest {
     @Test
     fun aRecordingGoesWhenTheSheetIsOutOfSight() {
         app.pipeline.setAudio(AudioStep.Whistle)
-        val intent = Intent(Intent.ACTION_ASSIST).setClass(app, AssistActivity::class.java)
+        // As MainActivity hands on the system's trigger (review P2-156).
+        val intent = Intent(Intent.ACTION_ASSIST).setClass(app, AssistActivity::class.java).putExtra(AssistTrigger.FROM_SYSTEM, true)
         ActivityScenario.launch<AssistActivity>(intent).use { scenario ->
             // Opened as the assistant, it starts listening at once.
             compose.waitUntil(5_000) { dev.abhay.assistant.ui.ChatSession.state.value.voice is dev.abhay.assistant.ui.AssistantViewModel.Voice.Recording }
             scenario.moveToState(Lifecycle.State.CREATED)
             compose.waitUntil(5_000) { dev.abhay.assistant.ui.ChatSession.state.value.voice == null }
             assertThat(dev.abhay.assistant.ui.ChatSession.state.value.busy).isFalse()
+        }
+    }
+
+    /** Review P2-156: opened by anything but the system's trigger, the sheet doesn't listen. */
+    @Test
+    fun theSheetOpenedByAnAppDoesNotListen() {
+        app.pipeline.setAudio(AudioStep.Whistle)
+        val intent = Intent(Intent.ACTION_ASSIST).setClass(app, AssistActivity::class.java).putExtra(AssistTrigger.FROM_SYSTEM, false)
+        ActivityScenario.launch<AssistActivity>(intent).use {
+            compose.waitForIdle()
+            Thread.sleep(1_000)
+            assertThat(dev.abhay.assistant.ui.ChatSession.state.value.voice).isNull()
         }
     }
 }

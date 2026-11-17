@@ -19,7 +19,10 @@ class MainActivity : Activity() {
             Routing.Sheet -> AssistActivity::class.java
             Routing.Chat -> ChatActivity::class.java
         }
-        startActivity(Intent(intent).setClass(this, target).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        val routed = Intent(intent).setClass(this, target).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        // Who asked, as Android recorded it: the sheet listens at once only for the system's trigger (review P2-156).
+        if (target == AssistActivity::class.java) routed.putExtra(AssistTrigger.FROM_SYSTEM, AssistTrigger.fromSystem(this))
+        startActivity(routed)
         finish()
         @Suppress("DEPRECATION") overridePendingTransition(0, 0)
     }
@@ -31,5 +34,38 @@ enum class Routing {
 
     companion object {
         fun of(action: String?) = if (action == Intent.ACTION_ASSIST) Sheet else Chat
+    }
+}
+
+/**
+ * Whether the assist trigger came from the system (the power button, the corner swipe), not from
+ * another app: only then does the sheet listen at once (review P2-156: any app in front could open
+ * it with ACTION_ASSIST and have it hear and run what that app played). The caller is the one
+ * Android recorded ([Activity.getReferrer]), unless the intent names one itself (EXTRA_REFERRER),
+ * which any app can: then Ferb can't tell, and the sheet opens with its box focused instead.
+ */
+object AssistTrigger {
+    /** On the intent [MainActivity] hands the sheet: its own verdict, trusted only from Ferb itself. */
+    const val FROM_SYSTEM = "dev.abhay.assistant.extra.ASSIST_FROM_SYSTEM"
+    /** The packages that start the assistant (SystemUI's assist gesture, the system server). */
+    val SYSTEM = setOf("android", "com.android.systemui")
+    const val TAG = "FerbAssist"
+
+    /** [caller]: the referrer's package, [named]: the intent names its own referrer. */
+    fun fromSystem(caller: String?, named: Boolean): Boolean = !named && caller in SYSTEM
+
+    fun fromSystem(activity: Activity): Boolean {
+        val intent = activity.intent
+        val named = intent.hasExtra(Intent.EXTRA_REFERRER) || intent.hasExtra(Intent.EXTRA_REFERRER_NAME)
+        val caller = activity.referrer?.host
+        return fromSystem(caller, named).also { android.util.Log.i(TAG, "assist from $caller${if (named) " (named by the intent)" else ""}: ${if (it) "listen" else "box"}") }
+    }
+
+    /** For [AssistActivity]: [MainActivity]'s verdict when Ferb itself handed it on, else its own. */
+    fun listens(activity: Activity): Boolean {
+        val intent = activity.intent
+        val named = intent.hasExtra(Intent.EXTRA_REFERRER) || intent.hasExtra(Intent.EXTRA_REFERRER_NAME)
+        return if (!named && activity.referrer?.host == activity.packageName) intent.getBooleanExtra(FROM_SYSTEM, false)
+        else fromSystem(activity)
     }
 }
