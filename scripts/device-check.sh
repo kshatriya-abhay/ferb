@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Ferb's component tests on the connected phone (debug build), in the order some of them need:
 # the instrumented tests, then a list kept across a killed process, the permission fallbacks with
-# permissions revoked (and restored as they were), a reminder firing after the process is killed,
+# permissions revoked (and restored as they were, on any exit), a reminder firing after the process is killed,
 # and one rescheduled after a reinstall. Take /tmp/ferb-validate.lock first (shared with Ferb Link).
 # QUIET=1: only what runs in the background, for a phone in use: no notifications (they'd sound),
 # so the reminder-firing checks are left out. ANDROID_SERIAL picks the phone (e.g. wireless adb).
@@ -30,6 +30,23 @@ notified() { adb shell dumpsys notification --noredact | grep -q "Ferb device te
 
 not_in_use
 ./gradlew --no-daemon -q :app:installDebug :app:installDebugAndroidTest || exit 1
+
+# The user's grants, read before anything changes them, and put back however the script ends
+# (review P2-167: notifications were granted before they were read, and Ctrl-C left grants revoked).
+# The dump is captured, then matched: piped into grep -q under pipefail, adb's SIGPIPE once grep had
+# matched counted a granted permission as not granted, and the restore revoked it (review P2-168).
+perms="android.permission.READ_CONTACTS android.permission.READ_CALENDAR android.permission.POST_NOTIFICATIONS"
+dump=$(adb shell dumpsys package $APP) || { echo "Couldn't read Ferb's permissions: stopping" >&2; exit 2; }
+grep -q "runtime permissions:" <<< "$dump" || { echo "No runtime permissions in Ferb's dump: stopping" >&2; exit 2; }
+had=""
+for p in $perms; do grep -q "$p: granted=true" <<< "$dump" && had="$had $p"; done
+restore() {
+  for p in $perms; do
+    case " $had " in *" $p "*) adb shell pm grant $APP $p ;; *) adb shell pm revoke $APP $p ;; esac
+  done
+}
+trap restore EXIT
+trap 'exit 130' INT TERM
 adb shell pm grant $APP android.permission.POST_NOTIFICATIONS
 
 # 1. Every instrumented test (the special ones skip themselves); quiet: not the one that fires a notification.
@@ -43,15 +60,12 @@ adb shell am force-stop $APP
 instrument -e class $T.ListsPersistDeviceTest#readAfterKill; result $? "list kept across a killed process"
 
 # 3. Permission fallbacks: revoked, then restored as they were.
-perms="android.permission.READ_CONTACTS android.permission.READ_CALENDAR android.permission.POST_NOTIFICATIONS"
-had=""
 not_in_use
-for p in $perms; do adb shell dumpsys package $APP | grep -q "$p: granted=true" && had="$had $p"; adb shell pm revoke $APP $p; done
+for p in $perms; do adb shell pm revoke $APP $p; done
 instrument -e class $T.PermissionsDeviceTest; result $? "fallbacks with permissions revoked"
 for p in $perms; do adb shell pm grant $APP $p; done
 instrument -e class $T.PermissionsDeviceTest; result $? "no fallbacks with permissions granted"
-for p in $perms; do case " $had " in *" $p "*) ;; *) adb shell pm revoke $APP $p ;; esac; done
-adb shell pm grant $APP android.permission.POST_NOTIFICATIONS
+# Notifications stay on for the reminder checks below; every grant is put back on exit.
 
 if [ "${QUIET:-0}" = 1 ]; then echo "$pass passed, $fail failed (quiet: reminder notifications left out)"; [ "$fail" = 0 ]; exit; fi
 
