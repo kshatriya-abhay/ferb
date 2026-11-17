@@ -70,4 +70,19 @@ class AssistantEngineDeviceTest {
         }
         Log.i("AssistantEngineDeviceTest", "jev mode, Needle 3 with one tool: median ${times.sorted()[times.size / 2]} ms, max ${times.max()} ms")
     }
+
+    /**
+     * Review P2-95: requests reach the engine through JNI's GetStringUTFChars, modified UTF-8, in
+     * which an emoji is two 3-byte surrogates, not UTF-8. A note with Devanagari and an emoji: what
+     * the engine heard comes back in the call's arguments, logged, and checked for both.
+     */
+    @Test
+    fun devanagariAndAnEmojiReachTheEngineIntact() = runBlocking<Unit> {
+        val note = listOf(dev.abhay.assistant.tools.CreateNote)
+        val reply = NeedleReply.parse(app.engine.complete("Take a note: दूध और ब्रेड लाना 🛒", note.map { it.name }, Tools.json(note)))
+        val args = reply.calls.joinToString { it.arguments.toString() }
+        Log.i("AssistantEngineDeviceTest", "note -> ${reply.calls.map { it.signature() }}")
+        assertThat(args).contains("दूध")
+        assertThat(args).contains("🛒")
+    }
 }
