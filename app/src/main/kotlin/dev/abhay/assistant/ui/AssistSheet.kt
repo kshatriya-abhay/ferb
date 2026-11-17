@@ -94,6 +94,7 @@ fun AssistSheet(viewModel: AssistantViewModel, opened: Int, onOpenChat: () -> Un
     val mic = rememberPermissionFlow { granted -> if (Manifest.permission.RECORD_AUDIO in granted) viewModel.startRecording() else focus++ }
     val micNeeds = listOf(Manifest.permission.RECORD_AUDIO)
     val ready = engine is AssistantEngine.State.Ready
+    HoldFerbLink(viewModel.link, pipeline.usesComputer)
     val powerSave = rememberPowerSave()
     // Each invocation: listen at once, or focus the box (and with Battery Saver stopping Gemini Nano, the box).
     LaunchedEffect(opened, ready) {

@@ -283,3 +283,17 @@ private fun StatusCard(status: LinkStatus, checked: Reachability?, checking: Boo
 
 /** Ferb Link's status before its first read. */
 internal const val CHECKING = "Checking Ferb Link\u2026"
+
+/**
+ * While a step uses the computer, keeps Ferb Link's process up, so a request doesn't wait about
+ * 250 ms for it to start. The chat and the assistant's sheet both hold it (review P2-128: the
+ * sheet, where speed matters most, didn't).
+ */
+@Composable
+internal fun HoldFerbLink(link: FerbLink, usesComputer: Boolean) {
+    androidx.compose.runtime.DisposableEffect(usesComputer) {
+        val holding = usesComputer
+        if (holding) link.hold()
+        onDispose { if (holding) link.release() }
+    }
+}

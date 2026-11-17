@@ -308,15 +308,15 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         // The step as last known (on resume, and before each typed request); read again for next time,
         // off the main thread. A Ferb Link gone meanwhile falls back to Whistle when the clip is sent.
         viewModelScope.launch { assistant.refreshLink() }
+        // Any step on the computer, not only its hearing: with Gemini hearing and the computer
+        // rewriting, the rewrite met a cold model and fell back (review P2-128).
+        if (pipeline.value.usesComputer) wakeComputer()
         when (pipeline.value.audio) {
             // Off: there's no mic, so this is only a guard.
             AudioStep.Off -> return
             AudioStep.Gemini -> startNano()
             AudioStep.Whistle -> startPhoneRecording()
-            AudioStep.Link -> {
-                startPhoneRecording()
-                wakeComputer()
-            }
+            AudioStep.Link -> startPhoneRecording()
         }
     }
 

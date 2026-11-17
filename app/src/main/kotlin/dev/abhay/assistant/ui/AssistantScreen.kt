@@ -265,12 +265,7 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
                         else -> null
                     })
             }
-            // While a step uses the computer, keep Ferb Link's process up, so a request doesn't wait for it to start.
-            DisposableEffect(usesComputer) {
-                val holding = usesComputer
-                if (holding) viewModel.link.hold()
-                onDispose { if (holding) viewModel.link.release() }
-            }
+            HoldFerbLink(viewModel.link, usesComputer)
             // Refused: typing still works. Once Android won't ask again, the mic opens Ferb's settings page.
             val mic = rememberPermissionFlow { granted ->
                 if (Manifest.permission.RECORD_AUDIO in granted) viewModel.startRecording() else viewModel.notify("Ferb needs the microphone.")
