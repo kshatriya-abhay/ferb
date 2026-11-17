@@ -78,7 +78,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
 
     /**
      * [runAt] is the confidence the reply needed to run without asking: the highest bar among the
-     * tools it calls. [alwaysConfirm] is set when one of them is set to always ask.
+     * tools it calls. [asks]: why it asks first whatever the confidence, null when only the bar decides.
      */
     data class Exchange(
         val id: Long,
@@ -86,11 +86,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
         val reply: NeedleReply,
         val decision: Decision,
         val runAt: Double,
-        val alwaysConfirm: Boolean,
-        /** Set when the request doesn't mention a tool it reached (see [dev.abhay.assistant.tools.ToolConfig.keywords]). */
-        val unmentioned: Boolean,
-        /** Set when a call has a value the request doesn't say (see [dev.abhay.assistant.tools.Tool.grounded]). */
-        val ungrounded: Boolean,
+        val asks: dev.abhay.assistant.tools.AskFirst?,
         /** The tools the request mentioned, which Needle 3 was given ([ToolRouter]); empty: none, so it got every tool turned on. */
         val routed: List<String>,
         val calls: List<CallState>,
@@ -274,7 +270,7 @@ class AssistantViewModel(private val app: Application) : AndroidViewModel(app) {
             val calls = withContext(Dispatchers.IO) { shown.calls.map { call -> CallState(call, prepare(call, text), Status.Waiting) } }
             val heldBack = withContext(Dispatchers.IO) { shown.suppressed.map { call -> (prepare(call, text) as? Prepared.Ready)?.summary } }
             val spoken = heardBy != null
-            val exchange = Exchange(ChatSession.exchangeIds.getAndIncrement(), if (spoken) text else said, shown, verdict.decision, verdict.runAt, verdict.alwaysConfirm, verdict.unmentioned, verdict.ungrounded,
+            val exchange = Exchange(ChatSession.exchangeIds.getAndIncrement(), if (spoken) text else said, shown, verdict.decision, verdict.runAt, verdict.asks,
                 answer.checked, calls, SystemClock.elapsedRealtime() - started,
                 heard = said.takeIf { spoken && answer.command != null },
                 understood = answer.command.takeIf { !spoken },

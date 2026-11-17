@@ -84,7 +84,7 @@ class AssistantViewModelTest {
         val opens = Prepared.Ready("Open the clock", opensApp = true) { ran++; Outcome.Done("Opened") }
         val call = ToolCall("set_alarm", emptyMap())
         val reply = NeedleReply(listOf(call, call), emptyList(), "", 0.9, 0.0, 0.0, null)
-        val exchange = AssistantViewModel.Exchange(7, "alarm at 7 and 8", reply, Decision.Run, 0.5, false, false, false, emptyList(),
+        val exchange = AssistantViewModel.Exchange(7, "alarm at 7 and 8", reply, Decision.Run, 0.5, null, emptyList(),
             listOf(CallState(call, opens, Status.Waiting), CallState(call, opens, Status.Waiting)), 0)
         ChatSession.state.value = AssistantViewModel.UiState(history = listOf(exchange))
         vm.run(7)

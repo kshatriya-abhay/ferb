@@ -704,9 +704,7 @@ internal fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () -
                     if (exchange.calls.isNotEmpty()) {
                         Text(
                             when {
-                                exchange.alwaysConfirm -> "Asked first: this tool always asks."
-                                exchange.unmentioned -> "Asked first: the request doesn't name this tool."
-                                exchange.ungrounded -> "Asked first: you didn't say these numbers."
+                                exchange.asks != null -> "Asked first: ${exchange.asks.why}."
                                 exchange.decision == Decision.Run -> String.format(Locale.US, "Ran without asking: needed %.2f.", exchange.runAt)
                                 else -> String.format(Locale.US, "Asked first: runs without asking from %.2f.", exchange.runAt)
                             },

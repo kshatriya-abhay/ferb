@@ -8,7 +8,7 @@ import org.junit.Test
 /** The assistant's sheet shows only what was asked since it opened, the newest few; the rest is in the full chat. */
 class SheetHistoryTest {
     private val none = NeedleReply(emptyList(), emptyList(), "", null, 0.0, 0.0, null)
-    private fun exchange(id: Long) = AssistantViewModel.Exchange(id, "request $id", none, Decision.Refuse, 0.5, false, false, false, emptyList(), emptyList(), 10)
+    private fun exchange(id: Long) = AssistantViewModel.Exchange(id, "request $id", none, Decision.Refuse, 0.5, null, emptyList(), emptyList(), 10)
 
     @Test
     fun onlySinceTheSheetOpenedAndTheNewestFew() {

@@ -151,7 +151,10 @@ data class Verdict(
     val runAt: Double,
     val alwaysConfirm: Boolean,
     val unmentioned: Boolean = false,
+    /** A call has a number the request doesn't say ([Tool.grounded]), or the rewrite brought one in. */
     val ungrounded: Boolean = false,
+    /** Why the calls ask first whatever the confidence; null when only the bar decides. */
+    val asks: AskFirst? = null,
 ) {
     companion object {
         fun of(reply: NeedleReply, configs: Map<String, ToolConfig>, request: String): Verdict {
@@ -161,13 +164,39 @@ data class Verdict(
             val alwaysConfirm = called.any { it?.alwaysConfirm == true }
             val unmentioned = called.any { it?.mentionedIn(request) == false }
             // A time Ferb asks about (the call's [dev.abhay.assistant.engine.ToolCall.time]) asks too.
-            val ungrounded = reply.calls.any { call -> call.time?.ask != null || Tools.byName(call.name)?.grounded(call.arguments, request) == false }
+            val timeAsk = reply.calls.firstNotNullOfOrNull { call -> call.time?.ask }
+            val ungrounded = reply.calls.any { call -> Tools.byName(call.name)?.grounded(call.arguments, request) == false }
+            val asks = when {
+                alwaysConfirm -> AskFirst.AlwaysAsks
+                unmentioned -> AskFirst.Unmentioned
+                timeAsk != null -> AskFirst.Time(timeAsk)
+                ungrounded -> AskFirst.NumbersNotSaid
+                else -> null
+            }
             val decision = when {
                 reply.error != null -> Decision.Refuse
-                (alwaysConfirm || unmentioned || ungrounded) && reply.calls.isNotEmpty() -> Decision.Confirm
+                asks != null && reply.calls.isNotEmpty() -> Decision.Confirm
                 else -> Decision.of(reply, runAt)
             }
-            return Verdict(decision, runAt, alwaysConfirm, unmentioned, ungrounded)
+            return Verdict(decision, runAt, alwaysConfirm, unmentioned, ungrounded, asks)
         }
     }
+}
+
+/**
+ * Why Ferb asks before running a reply's calls, whatever its confidence: the first reason that
+ * holds, as the Details sheet says it (review P2-121: one flag stood for four reasons, and Details
+ * told the user they hadn't said numbers they had).
+ */
+sealed interface AskFirst {
+    val why: String
+    data object AlwaysAsks : AskFirst { override val why = "this tool always asks" }
+    data object Unmentioned : AskFirst { override val why = "the request doesn't name this tool" }
+    /** Ferb's own question about the time ([dev.abhay.assistant.tools.FerbTime.ask]): "How long?", "That date has passed". */
+    data class Time(val question: String) : AskFirst {
+        override val why get() = "the time needs a word from you" + (question.trimEnd('?', '.').takeIf { it.isNotBlank() }?.let { " ($it)" } ?: "")
+    }
+    data object NumbersNotSaid : AskFirst { override val why = "you didn't say these numbers" }
+    /** One of the request's guards ([dev.abhay.assistant.request.AnswerFlow.Guard]), in its words. */
+    data class Guard(override val why: String) : AskFirst
 }

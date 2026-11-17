@@ -11,7 +11,7 @@ internal const val SUGGEST_LINK_AFTER = 3
 
 /** Needle 3 found no tool, or wasn't sure enough to run (not because the tool always asks or the request didn't name it). */
 private fun Exchange.struggled() = reply.error == null && !nothingAsked &&
-    (calls.isEmpty() || (decision == Decision.Confirm && !alwaysConfirm && !unmentioned && !ungrounded))
+    (calls.isEmpty() || (decision == Decision.Confirm && asks == null))
 
 /** Where a tip shows in the chat: under a reply ([exchange], its id), or by the input box (null). */
 internal data class TipPlace(val tip: Tip, val exchange: Long?)

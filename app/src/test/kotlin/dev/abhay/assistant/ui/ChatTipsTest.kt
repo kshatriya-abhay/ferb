@@ -20,7 +20,7 @@ class ChatTipsTest {
         calls = calls.toList(), suppressed = emptyList(), reasoning = "", confidence = 0.9, prefillTps = 0.0, decodeTps = 0.0, error = null,
     )
     private fun exchange(id: Long, vararg calls: CallState, heard: String? = null, fellBack: Boolean = false, nothingAsked: Boolean = false) = Exchange(
-        id, "request $id", reply(*calls.map { it.call }.toTypedArray()), Decision.Run, 0.5, false, false, false,
+        id, "request $id", reply(*calls.map { it.call }.toTypedArray()), Decision.Run, 0.5, null,
         emptyList(), calls.toList(), 100, heard = heard, nothingAsked = nothingAsked,
         fallbacks = if (fellBack) listOf(dev.abhay.assistant.pipeline.Fallback("Rewrite", "Gemini Nano", "Ferb Link: timed out")) else emptyList(),
     )

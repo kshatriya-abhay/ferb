@@ -49,7 +49,7 @@ class SettingsDraftTest {
     /** ChatActivity makes both view models when it opens; the user then taps "Turn on" under a reply. */
     private fun turnOnFromTheChat(app: AssistantApp, tool: String) {
         val reply = NeedleReply(emptyList(), emptyList(), "", 0.0, 0.0, 0.0, null)
-        val exchange = AssistantViewModel.Exchange(7, "call mum", reply, Decision.Run, 0.0, false, false, false, emptyList(),
+        val exchange = AssistantViewModel.Exchange(7, "call mum", reply, Decision.Run, 0.0, null, emptyList(),
             emptyList(), 0, turnOn = listOf(tool))
         ChatSession.state.value = AssistantViewModel.UiState(history = listOf(exchange))
         chat(app).turnOn(7, tool)

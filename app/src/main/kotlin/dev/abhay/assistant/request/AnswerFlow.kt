@@ -18,6 +18,7 @@ import dev.abhay.assistant.tools.ContentMap
 import dev.abhay.assistant.tools.DateGate
 import dev.abhay.assistant.tools.SaidNumbers
 import dev.abhay.assistant.tools.Tool
+import dev.abhay.assistant.tools.AskFirst
 import dev.abhay.assistant.tools.ToolConfig
 import dev.abhay.assistant.tools.ToolRouter
 import dev.abhay.assistant.tools.Tools
@@ -351,14 +352,14 @@ class AnswerFlow(
         val v = Verdict.of(shown, configs, if (command == null) text else "$text\n$said")
         return when {
             v.decision == Decision.Refuse || shown.calls.isEmpty() -> v
-            guarded.asks.isNotEmpty() -> v.copy(decision = Decision.Confirm, ungrounded = true)
-            guarded.otherTool -> v.copy(decision = Decision.Confirm, ungrounded = true)
+            guarded.asks.isNotEmpty() -> v.copy(decision = Decision.Confirm, asks = v.asks ?: AskFirst.Guard(guarded.asks.first().why))
+            guarded.otherTool -> v.copy(decision = Decision.Confirm, asks = v.asks ?: AskFirst.Guard(Guard.OtherTool.why))
             // A number the rewrite brought in that the request never said ("wake me up early" as
             // "6 am"): its calls ask first, as a value the request doesn't say does.
-            command != null && SaidNumbers.invents(command, said) -> v.copy(decision = Decision.Confirm, ungrounded = true)
+            command != null && SaidNumbers.invents(command, said) -> v.copy(decision = Decision.Confirm, ungrounded = true, asks = v.asks ?: AskFirst.NumbersNotSaid)
             // Timed calls whose two readings agree run, whatever Needle 3's confidence (gate E),
             // unless the tool always asks or the request doesn't mention it.
-            guarded.gated.all { it?.agreed == true } && !v.alwaysConfirm && !v.unmentioned && !v.ungrounded -> v.copy(decision = Decision.Run)
+            guarded.gated.all { it?.agreed == true } && v.asks == null -> v.copy(decision = Decision.Run)
             else -> v
         }
     }

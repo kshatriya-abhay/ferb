@@ -143,8 +143,8 @@ class ToolConfigTest {
         fun alarm(time: String, request: String) = Verdict.of(NeedleReply.parse(
             """{"success":true,"function_calls":[],"confidence":0.63}""",
         ).copy(calls = listOf(SetAlarm.gatedCall(request, now, "time" to time))), configs, request)
-        // Needle 3 took 6:45 from the tool's example; Ferb reads no time in the words.
-        assertThat(alarm("6:45", "I hate alarms").let { it.decision to it.ungrounded }).isEqualTo(Decision.Confirm to true)
+        // Needle 3 took 6:45 from the tool's example; Ferb reads no time in the words, and asks about it.
+        assertThat(alarm("6:45", "I hate alarms").let { it.decision to (it.asks is AskFirst.Time) }).isEqualTo(Decision.Confirm to true)
         assertThat(alarm("6:30", "wake me at half past six").decision).isEqualTo(Decision.Run)
         assertThat(alarm("23:30", "alarm at 11:30 at night").decision).isEqualTo(Decision.Run)
     }
