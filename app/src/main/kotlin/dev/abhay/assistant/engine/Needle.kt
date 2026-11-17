@@ -45,3 +45,19 @@ object Needle {
     private external fun nativeComplete(input: String, maxNewTokens: Int): ByteArray
     private external fun nativeTranscribe(pcm: FloatArray, language: String?): ByteArray
 }
+
+/** What [AssistantEngine] asks of the native engine: a seam, so the engine's own rules run in JVM tests. */
+interface EngineCalls {
+    suspend fun load(asset: String)
+    suspend fun init(systemFacts: String, toolsJson: String): Int
+    suspend fun complete(request: String): String
+    suspend fun transcribe(pcm: FloatArray, language: String?): String
+}
+
+/** [EngineCalls] through JNI ([Needle]), the models read from [context]'s assets. */
+class NeedleCalls(private val context: android.content.Context) : EngineCalls {
+    override suspend fun load(asset: String) { Needle.loadAsset(context.assets, asset) }
+    override suspend fun init(systemFacts: String, toolsJson: String) = Needle.init(systemFacts, toolsJson)
+    override suspend fun complete(request: String) = Needle.complete(request)
+    override suspend fun transcribe(pcm: FloatArray, language: String?) = Needle.transcribe(pcm, language)
+}

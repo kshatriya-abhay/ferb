@@ -2,6 +2,9 @@ package dev.abhay.assistant.engine
 
 import android.content.Context
 import android.os.SystemClock
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,7 +26,12 @@ import java.util.Locale
  * Whistle (Phone-mode voice) loads beside it on the first spoken request and stays loaded too: the
  * engine holds one text and one speech model, and has no unload.
  */
-class AssistantEngine(private val context: Context) {
+class AssistantEngine(
+    private val context: Context,
+    /** The native engine; [NeedleCalls] (JNI) in the app, a fake in tests. */
+    private val native: EngineCalls = NeedleCalls(context),
+    private val clock: () -> Long = SystemClock::elapsedRealtime,
+) {
     sealed interface State {
         data object Loading : State
         /** [tools] are the names Needle 3 has now; [prefixTokens] the length of facts plus schemas. */
@@ -46,18 +54,25 @@ class AssistantEngine(private val context: Context) {
     /** [configure]'s work, with [lock] held. */
     private suspend fun configureLocked(names: List<String>, toolsJson: String) {
         try {
-            if (loadMs == null) {
-                _state.value = State.Loading
-                val started = SystemClock.elapsedRealtime()
-                Needle.loadAsset(context.assets, MODEL_ASSET)
-                loadMs = SystemClock.elapsedRealtime() - started
+            // The native load and init, and what records them, finish together even if the screen
+            // that asked closes meanwhile: otherwise the model is loaded but not known to be, the next
+            // configure loads it again, and every screen reads the cancel as a failure (review P2-89).
+            withContext(NonCancellable) {
+                if (loadMs == null) {
+                    _state.value = State.Loading
+                    val started = clock()
+                    native.load(MODEL_ASSET)
+                    loadMs = clock() - started
+                }
+                val started = clock()
+                val today = LocalDate.now()
+                val prefix = native.init(systemFacts(today), toolsJson)
+                factsDate = today
+                _state.value = State.Ready(loadMs!!, names, prefix, clock() - started)
+                lastTools = names to toolsJson
             }
-            val started = SystemClock.elapsedRealtime()
-            val today = LocalDate.now()
-            val prefix = Needle.init(systemFacts(today), toolsJson)
-            factsDate = today
-            _state.value = State.Ready(loadMs!!, names, prefix, SystemClock.elapsedRealtime() - started)
-            lastTools = names to toolsJson
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             _state.value = State.Failed(e.message ?: e.toString())
         }
@@ -75,7 +90,7 @@ class AssistantEngine(private val context: Context) {
             configureLocked(names, toolsJson)
             (_state.value as? State.Failed)?.let { throw IllegalStateException(it.message) }
         }
-        Needle.complete(request)
+        native.complete(request)
     }
 
     private var whistleLoadMs: Long? = null
@@ -88,14 +103,15 @@ class AssistantEngine(private val context: Context) {
      * are English, and Hindi or Hinglish speech goes to the computer. Loads Whistle the first time.
      */
     suspend fun transcribe(pcm: FloatArray): Heard = lock.withLock {
-        if (whistleLoadMs == null) {
-            val started = SystemClock.elapsedRealtime()
-            Needle.loadAsset(context.assets, WHISTLE_ASSET)
-            whistleLoadMs = SystemClock.elapsedRealtime() - started
+        if (whistleLoadMs == null) withContext(NonCancellable) {
+            // As Needle 3's load: finished and recorded together, so a cancel never loads it twice.
+            val started = clock()
+            native.load(WHISTLE_ASSET)
+            whistleLoadMs = clock() - started
         }
-        val started = SystemClock.elapsedRealtime()
-        val json = Needle.transcribe(pcm, "en")
-        Heard.parse(json, SystemClock.elapsedRealtime() - started, pcm.size * 1000L / PcmRecorder.SAMPLE_RATE)
+        val started = clock()
+        val json = native.transcribe(pcm, "en")
+        Heard.parse(json, clock() - started, pcm.size * 1000L / PcmRecorder.SAMPLE_RATE)
     }
 
     companion object {
