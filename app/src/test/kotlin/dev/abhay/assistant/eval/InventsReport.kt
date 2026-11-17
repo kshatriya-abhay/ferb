@@ -9,8 +9,10 @@ import org.junit.Test
 class InventsReport {
     @Test
     fun report() {
+        // Behind FERB_EVAL=1 as every eval here (review P2-184).
+        assumeTrue("FERB_EVAL=1", System.getenv("FERB_EVAL") == "1")
         val path = System.getenv("FERB_EVAL_INVENTS")
-        assumeTrue(path != null)
+        assumeTrue("FERB_EVAL_INVENTS", path != null)
         val pairs = File(path!!).readLines().filter { '\t' in it }.map { it.substringBefore('\t') to it.substringAfter('\t') }
         val flagged = pairs.filter { (said, command) -> SaidNumbers.invents(command, said) }
         println("INVENTS ${flagged.size} of ${pairs.size}")

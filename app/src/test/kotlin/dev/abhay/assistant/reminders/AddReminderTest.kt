@@ -18,12 +18,6 @@ import org.junit.Test
 
 class AddReminderTest {
     private val now = LocalDateTime.of(2026, 10, 14, 13, 0)
-    private class MemoryStore : ReminderStore {
-        var saved = emptyList<Reminder>()
-        override fun load() = saved
-        override fun save(reminders: List<Reminder>) { saved = reminders }
-    }
-
     private fun env(notes: MemoryNotes = MemoryNotes(ready = false), store: MemoryStore = MemoryStore(), granted: Boolean = true, changed: () -> Unit = {}) =
         PrepareEnv(now = now.atZone(ZoneId.of("Asia/Kolkata")), notes = notes, reminders = ReminderBook(store) { now },
             remindersChanged = changed, granted = { granted })

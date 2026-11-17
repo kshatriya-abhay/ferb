@@ -6,12 +6,6 @@ import org.junit.Test
 
 /** Repeats keep their day, and a snooze isn't lost to a launch or a boot (review P2-53, P2-54, P2-55). */
 class ReminderRepeatTest {
-    private class MemoryStore : ReminderStore {
-        var saved = emptyList<Reminder>()
-        override fun load() = saved
-        override fun save(reminders: List<Reminder>) { saved = reminders }
-    }
-
     private var now = LocalDateTime.of(2026, 11, 16, 9, 0)
     private val book = ReminderBook(MemoryStore()) { now }
 

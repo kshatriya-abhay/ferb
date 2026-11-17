@@ -8,12 +8,6 @@ import org.junit.Test
 class ClearReminderTest {
     private val now = LocalDateTime.of(2026, 10, 14, 13, 0)
 
-    private class MemoryStore : ReminderStore {
-        var saved = emptyList<Reminder>()
-        override fun load() = saved
-        override fun save(reminders: List<Reminder>) { saved = reminders }
-    }
-
     @Test
     fun aRepeatIsClearedEntirelyAndUndoBringsItBackAsItWas() {
         val store = MemoryStore()

@@ -42,8 +42,8 @@ import org.json.JSONObject
  * Debug builds only: the voice bench (2026-10-29), an observation tool for the user, not a scored
  * test. For a scenario card ([VoiceCards]) the user speaks in their own words; each entry keeps the
  * audio (files/bench/voice-study/<id>.wav, 16 kHz mono 16-bit), what Gemini Nano's speech heard
- * (the shipped en-US recogniser, the clip played to it at real-time pace, with each partial
- * result's time), then the shipped answer: the rewrite (prompt R), Needle 3's call and DateGate's
+ * (the shipped en-US recogniser, given the clip one-shot first, with each partial result's time:
+ * processing time, not live), then the shipped answer: the rewrite (prompt R), Needle 3's call and DateGate's
  * reading, read-only (nothing runs), with R2's rewrite alongside. Entries in entries.jsonl.
  */
 class VoiceBench(private val app: AssistantApp) {
@@ -87,9 +87,9 @@ class VoiceBench(private val app: AssistantApp) {
     }
 
     /**
-     * Gemini Nano's speech on the clip, played at real-time pace: partials [[ms, text]], heard, and
-     * how long after the audio ended. AudioSource.fromPfd's modes are tried in turn (streaming,
-     * one-shot, its defaults) and the one that worked is kept ("speech_mode").
+     * Gemini Nano's speech on the clip: partials [[ms, text]], heard, and how long after the audio
+     * ended. AudioSource.fromPfd's modes are tried in turn (one-shot, its defaults, then streaming,
+     * paced) and the one that worked is kept ("speech_mode").
      */
     private suspend fun hear(pcm16: ByteArray, entry: JSONObject) {
         val format = AudioFormat.Builder().setEncoding(AudioFormat.ENCODING_PCM_16BIT).setSampleRate(PcmRecorder.SAMPLE_RATE)

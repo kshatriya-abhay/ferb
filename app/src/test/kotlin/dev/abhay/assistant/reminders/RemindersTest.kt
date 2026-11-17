@@ -1,23 +1,16 @@
 package dev.abhay.assistant.reminders
 
 import com.google.common.truth.Truth.assertThat
-import dev.abhay.assistant.notes.MemoryNotes
 import java.time.LocalDateTime
 import org.junit.Test
 
 class RemindersTest {
     private val now = LocalDateTime.of(2026, 10, 14, 13, 0) // a Wednesday afternoon
 
-    private class MemoryStore : ReminderStore {
-        var saved = emptyList<Reminder>()
-        override fun load() = saved
-        override fun save(reminders: List<Reminder>) { saved = reminders }
-    }
-
     private fun book(store: MemoryStore = MemoryStore()) = ReminderBook(store) { now }
 
     @Test
-    fun theNotesRemindKey() {
+    fun repeatsAreReadFromTheirWords() {
         assertThat(Repeat.of("weekly")).isEqualTo(Repeat.Weekly)
         assertThat(Repeat.of("every month")).isEqualTo(Repeat.Monthly)
     }

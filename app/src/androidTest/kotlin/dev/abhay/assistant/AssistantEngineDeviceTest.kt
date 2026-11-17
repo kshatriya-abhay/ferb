@@ -52,7 +52,7 @@ class AssistantEngineDeviceTest {
      * it costs money, and device tests make no live Jev calls.
      */
     @Test
-    fun jevModesPhoneSideIsQuick() = runBlocking<Unit> {
+    fun jevModesPhoneSideCallsTheOneTool() = runBlocking<Unit> {
         val picks = listOf("set_alarm" to "wake me up at 6:30", "set_timer" to "timer for 10 minutes",
             "set_volume" to "volume to 40 percent", "control_media" to "pause the music", "open_app" to "open spotify")
         // The model loaded first, as it is in the chat; only the re-init and the call are timed.

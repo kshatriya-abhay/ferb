@@ -14,12 +14,6 @@ import org.junit.Test
 class ReminderFireTest {
     private val now = LocalDateTime.of(2026, 11, 16, 9, 0)
 
-    private class MemoryStore : ReminderStore {
-        @Volatile var saved = emptyList<Reminder>()
-        override fun load() = saved
-        override fun save(reminders: List<Reminder>) { saved = reminders }
-    }
-
     private fun bookWithOneDueNow(): Pair<ReminderBook, String> {
         val book = ReminderBook(MemoryStore()) { now }
         return book to book.add("Call the plumber", now).id
@@ -93,13 +87,13 @@ class ReminderFireTest {
     }
 
     @Test
-    fun alarmsAreScheduledFromTheBookInsideItsLock() {
-        // Review P2-56: callers read upcoming() under the lock but scheduled outside it.
-        val (book, id) = bookWithOneDueNow()
+    fun scheduleGetsTheUpcomingReminders() {
+        // Review P2-56: callers read upcoming() under the lock but scheduled outside it; schedule
+        // now hands the scheduler what's upcoming (the lock itself isn't visible from here).
+        val (book, _) = bookWithOneDueNow()
         val scheduled = mutableListOf<List<String>>()
         book.add("Later", now.plusHours(1))
         book.schedule { upcoming -> scheduled += upcoming.map { it.title } }
         assertThat(scheduled).containsExactly(listOf("Later"))
-        assertThat(id).isNotEmpty()
     }
 }

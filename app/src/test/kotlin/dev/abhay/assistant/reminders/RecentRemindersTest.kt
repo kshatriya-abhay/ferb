@@ -8,12 +8,6 @@ import org.junit.Test
 class RecentRemindersTest {
     private var now = LocalDateTime.of(2026, 10, 14, 13, 0) // a Wednesday
 
-    private class MemoryStore : ReminderStore {
-        var saved = emptyList<Reminder>()
-        override fun load() = saved
-        override fun save(reminders: List<Reminder>) { saved = reminders }
-    }
-
     private val store = MemoryStore()
     private val book = ReminderBook(store) { now }
 

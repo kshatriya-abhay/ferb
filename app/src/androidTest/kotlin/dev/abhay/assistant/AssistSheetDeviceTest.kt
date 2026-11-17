@@ -23,8 +23,9 @@ import org.junit.runner.RunWith
 
 /**
  * The assistant's sheet (on the phone; run only when the phone is free): ACTION_ASSIST opens it
- * over whatever is in front, with the box ready to type (audio processing off for the test, so
- * nothing is recorded; the user's own choice is put back after), and back dismisses it.
+ * over whatever is in front, with the box ready to type, and back dismisses it; opened by the
+ * system's trigger it records briefly with Whistle and discards the clip once out of sight; opened
+ * by anything else it doesn't listen. The user's audio choice is put back after.
  */
 @RunWith(AndroidJUnit4::class)
 @InFront

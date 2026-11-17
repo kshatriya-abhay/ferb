@@ -20,7 +20,7 @@ import org.junit.runner.RunWith
 
 /**
  * Reminders on the phone: exact alarms are allowed, a reminder's notification fires on time, Done
- * and Snooze work from it, and a reminder on a note writes its frontmatter through the real folder.
+ * and Snooze work from it.
  * Test reminders are titled [TITLE] and removed afterwards.
  */
 @RunWith(AndroidJUnit4::class)
@@ -31,11 +31,10 @@ class RemindersDeviceTest {
 
     @After
     fun clean() {
-        // A reminder left for the script to see fire later; it cleans up with "cleanup=1".
+        // A reminder left for the script to see fire later; the script cleans up by running exactAlarmsAreAllowed, whose @After removes it.
         if (InstrumentationRegistry.getArguments().getString("later") == "1") return
         app.reminders.all().filter { it.title == TITLE }.forEach { app.reminders.remove(it.id); notifications.cancel(it.id.hashCode()) }
         app.alarms.sync(app.reminders.all().filter { it.due.isAfter(LocalDateTime.now()) })
-        File(context.cacheDir, "testdocs").deleteRecursively()
     }
 
     @Test

@@ -20,7 +20,9 @@ class ContentTimeEval {
     @Test
     fun times() {
         assumeTrue("FERB_EVAL=1", System.getenv("FERB_EVAL") == "1")
-        val input = File(System.getenv("FERB_EVAL_TIMES_IN") ?: return)
+        // Skipped, not passed, with no input (review P2-184).
+        assumeTrue("FERB_EVAL_TIMES_IN", System.getenv("FERB_EVAL_TIMES_IN") != null)
+        val input = File(System.getenv("FERB_EVAL_TIMES_IN")!!)
         val out = StringBuilder()
         for (line in input.readLines().filter { it.isNotBlank() }) {
             val o = JSONObject(line)

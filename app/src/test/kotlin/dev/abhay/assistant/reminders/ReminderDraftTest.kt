@@ -10,12 +10,6 @@ import org.junit.Test
 class ReminderDraftTest {
     private val now = LocalDateTime.of(2026, 10, 14, 13, 20) // a Wednesday
 
-    private class MemoryStore : ReminderStore {
-        var saved = emptyList<Reminder>()
-        override fun load() = saved
-        override fun save(reminders: List<Reminder>) { saved = reminders }
-    }
-
     @Test
     fun itStartsAtTheNextWholeHour() {
         assertThat(ReminderDraft.new(now).at).isEqualTo(LocalDateTime.of(2026, 10, 14, 14, 0))

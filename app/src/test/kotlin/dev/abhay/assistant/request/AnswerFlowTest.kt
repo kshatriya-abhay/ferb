@@ -198,7 +198,6 @@ class AnswerFlowTest {
         val early = answer("wake me up early tomorrow", pipeline = steps(RewriteStep.Gemini))
         assertThat(early.verdict.decision).isEqualTo(Decision.Confirm)
         assertThat(early.verdict.ungrounded).isTrue()
-        val flow = AnswerFlow(FakeLink(), needle(), geminiSays(null))
         assertThat(SaidNumbers.invents("Set an alarm for 5:30", "saade paanch baje ka alarm")).isFalse()
         assertThat(SaidNumbers.invents("Set a timer for 1 hour 30 minutes", "dedh ghante ka timer")).isFalse()
         assertThat(SaidNumbers.invents("Set a timer for 10 minutes", "das minute ka timer")).isFalse()

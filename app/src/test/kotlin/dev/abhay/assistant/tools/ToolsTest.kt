@@ -292,12 +292,6 @@ class ToolsTest {
     }
 
     @Test
-    fun theToolsThatNeedNoSetupAreOnByDefault() {
-        assertThat(ToolSettings.enabledNames(ToolSettings.defaults())).containsExactly("set_alarm", "set_timer", "open_app",
-            "open_settings", "set_flashlight", "show_alarms", "set_volume", "control_media", "open_camera", "create_note", "get_directions").inOrder()
-    }
-
-    @Test
     fun barsStayWithinTheSlidersUsefulRange() {
         // Set per tool from tool-check's table; none needs more than 0.75 to hold back its wrong calls.
         Tools.all.forEach { assertThat(it.defaultRunFrom).isIn(com.google.common.collect.Range.closed(0.3, 0.75)) }

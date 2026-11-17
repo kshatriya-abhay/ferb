@@ -98,7 +98,7 @@ class OnboardingFlowTest {
     }
 
     @Test
-    fun gemmaNeedsFerbLinkAndAsksToPairIt() {
+    fun gemmaSaysItNeedsFerbLinkAndSavesNothing() {
         show(can = gemini)
         compose.onNodeWithText(str(PageText.START)).performClick()
         compose.onNodeWithText(ModelChoice.NEEDS_LINK).assertExists()
