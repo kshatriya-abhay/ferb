@@ -7,6 +7,25 @@ import org.junit.Test
 /** Gemini Nano as the phone's voice (POC): the settings, its setup, its fallback, the live text and the rewrite. */
 class NanoVoiceTest {
     @Test
+    fun aPartAsCheckedAgainstHowItStood() {
+        // Review P2-106: the setup's merge rule, pure. AICore's word wins...
+        assertThat(Part.merged(was = Part.Downloading, now = Part.Ready, downloading = true)).isEqualTo(Part.Ready)
+        assertThat(Part.merged(was = Part.Failed("no space"), now = Part.Unavailable, downloading = false)).isEqualTo(Part.Unavailable)
+        // ...except that a failed download stays failed while AICore only offers it again,
+        assertThat(Part.merged(was = Part.Failed("no space"), now = Part.NeedsDownload, downloading = false)).isEqualTo(Part.Failed("no space"))
+        // and one Ferb is downloading stays downloading; once it isn't, AICore's word (P2-103).
+        assertThat(Part.merged(was = Part.Downloading, now = Part.NeedsDownload, downloading = true)).isEqualTo(Part.Downloading)
+        assertThat(Part.merged(was = Part.Downloading, now = Part.NeedsDownload, downloading = false)).isEqualTo(Part.NeedsDownload)
+    }
+
+    @Test
+    fun aDownloadIsOfferedForAPartOfferedOrFailedOnly() {
+        // Review P2-107: setUp also re-downloaded a part AICore was already fetching (Checking, Downloading).
+        assertThat(listOf(Part.NeedsDownload, Part.Failed("x")).all { it.needsDownload }).isTrue()
+        assertThat(listOf(Part.Checking, Part.Downloading, Part.Ready, Part.Unavailable, Part.Unchecked("x")).none { it.needsDownload }).isTrue()
+    }
+
+    @Test
     fun r2IsRWithTheEventRule() {
         assertThat(GeminiRewrite.PROMPT_R2).contains("is an event for the calendar")
         assertThat(GeminiRewrite.PROMPT_R2).contains("badminton saturday 6 baje -> Add badminton")

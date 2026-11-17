@@ -47,7 +47,22 @@ sealed interface Part {
         is Unchecked -> "Couldn't check: $why"
     }
 
+    /** Needs a download the user can start: offered, or one that failed (review P2-107, one rule for setUp, the setup state and the row). */
+    val needsDownload: Boolean get() = this == NeedsDownload || this is Failed
+
     companion object {
+        /**
+         * A part as just checked ([now]) against how it stood ([was]): what AICore says wins, except
+         * that a failed download stays failed while AICore only offers it again, and one Ferb is still
+         * [downloading] stays downloading (review P2-106: the rule, pure and tested).
+         */
+        fun merged(was: Part, now: Part, downloading: Boolean): Part = when {
+            now != NeedsDownload -> now
+            was is Failed -> was
+            downloading -> Downloading
+            else -> now
+        }
+
         /** What checkStatus() says. DOWNLOADING without numbers: Android is fetching it; Set up follows it. */
         fun of(status: Int): Part = when (status) {
             FeatureStatus.AVAILABLE -> Ready
@@ -64,7 +79,7 @@ data class GeminiSetup(val speech: Part = Part.Checking, val rewrite: Part = Par
     val ready get() = speech == Part.Ready && rewrite == Part.Ready
     val parts get() = listOf(speech, rewrite)
     /** Something to fetch: Set up downloads it. */
-    val needsSetUp get() = parts.any { it == Part.NeedsDownload || it is Part.Failed }
+    val needsSetUp get() = parts.any { it.needsDownload }
     val downloading get() = parts.any { it == Part.Downloading }
 
     companion object {

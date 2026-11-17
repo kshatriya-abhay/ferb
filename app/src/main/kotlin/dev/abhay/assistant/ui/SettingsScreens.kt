@@ -261,7 +261,7 @@ fun GeminiScreen(settings: SettingsViewModel, onBack: () -> Unit) {
 @Composable
 private fun PartRow(title: String, part: Part, @DrawableRes icon: Int, shapes: ListItemShapes, onDownload: () -> Unit) {
     val context = LocalContext.current
-    val canDownload = part == Part.NeedsDownload || part is Part.Failed
+    val canDownload = part.needsDownload
     val leading: @Composable () -> Unit = { IconBadge(if (part == Part.Ready) R.drawable.ic_check else icon, active = part == Part.Ready) }
     val supporting: @Composable () -> Unit = {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
