@@ -45,25 +45,9 @@ class PhoneBench(private val app: AssistantApp) {
         val command: Boolean = true,
     ) {
         Needle3("needle3"),
-        Rewrite("rewrites-${GeminiRewrite.VERSION}-gemini-full", prompt = { GeminiRewrite.PROMPT }),
-        // The date and time lines (tool-check/datetime-v2.txt, pushed as dates.jsonl, each with its "now").
-        DatesRewrite("dates-rewrites-v2", DATES, prompt = { GeminiRewrite.PROMPT_V2 }),
-        DatesCalendar("dates-calendar", DATES, prompt = { DatePrompts.calendarPrompt(it.now!!) }, maxTokens = GeminiRewrite.MAX_TOKENS + 20),
-        DatesSlots("dates-slots", DATES, prompt = { DatePrompts.SLOTS }, maxTokens = DatePrompts.SLOTS_MAX_TOKENS, command = false),
-        // The blind round (2026-10-24): prompt R on datetime-v2 and the blind set, and v2 on the blind set.
-        DatesR("dates-r", DATES, prompt = { GeminiRewrite.PROMPT_R }, maxTokens = R_MAX_TOKENS),
-        BlindR("blind-r", BLIND, prompt = { GeminiRewrite.PROMPT_R }, maxTokens = R_MAX_TOKENS),
-        BlindRewrite("blind-rewrites-v2", BLIND, prompt = { GeminiRewrite.PROMPT_V2 }),
-        // The shipped prompt (R) on the second blind set (2026-10-29): the baseline before the date fixes.
-        Blind2R("blind2-r", BLIND2, prompt = { GeminiRewrite.PROMPT }, maxTokens = GeminiRewrite.MAX_TOKENS),
-        // R2 (the event rule) on blind-2, and on datetime-v2 to check it costs nothing there.
-        Blind2R2("blind2-r2", BLIND2, prompt = { GeminiRewrite.PROMPT_R2 }, maxTokens = GeminiRewrite.MAX_TOKENS),
-        DatesR2("dates-r2", DATES, prompt = { GeminiRewrite.PROMPT_R2 }, maxTokens = GeminiRewrite.MAX_TOKENS);
-
-        companion object {
-            val dates = listOf(DatesRewrite, DatesCalendar, DatesSlots)
-            val blind = listOf(BlindR, DatesR, BlindRewrite)
-        }
+        Rewrite("rewrites-${GeminiRewrite.VERSION}-gemini-full", prompt = { GeminiRewrite.PROMPT });
+        // The date rounds' passes (2026-10-24 to 10-29: datetime-v2, the blind sets) went with the
+        // rounds (review P2-183): a one-tap rerun of a spent blind set invites tuning on it.
     }
 
     /** [now]: the clock the request is said at, for the date lines. */
@@ -213,11 +197,6 @@ class PhoneBench(private val app: AssistantApp) {
     companion object {
         const val TAG = "FerbBench"
         const val REQUESTS = "requests.jsonl"
-        const val DATES = "dates.jsonl"
-        const val BLIND = "dates-blind.jsonl"
-        const val BLIND2 = "dates-blind-2.jsonl"
-        /** R says times in words ("in 3 days at 7 pm"): a little more room than v2's. */
-        const val R_MAX_TOKENS = 48
         /** At most about 2 requests a second to AICore. */
         const val GAP_MS = 500L
     }
