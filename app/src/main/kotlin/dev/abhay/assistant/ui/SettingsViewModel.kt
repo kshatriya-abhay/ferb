@@ -14,7 +14,9 @@ import dev.abhay.assistant.AssistantApp
 import dev.abhay.assistant.tools.ToolConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 
 /**
@@ -69,25 +71,33 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     val notes = (app as AssistantApp).notes
 
 
-    private val _draft = MutableStateFlow(saved.value)
-    val draft: StateFlow<Map<String, ToolConfig>> = _draft.asStateFlow()
+    /**
+     * The user's unsaved edits, by tool. The draft is the saved set with these over it, so a tool
+     * turned on elsewhere (the chat's "Turn on") shows here at once and isn't an unsaved change, and
+     * Save doesn't write a stale copy over it (review P2-133).
+     */
+    private val edits = MutableStateFlow(emptyMap<String, ToolConfig>())
+    val draft: StateFlow<Map<String, ToolConfig>> =
+        combine(saved, edits) { s, e -> s + e }.stateIn(viewModelScope, SharingStarted.Eagerly, saved.value)
 
     fun update(name: String, change: (ToolConfig) -> ToolConfig) =
-        _draft.update { d -> d + (name to change(d.getValue(name))) }
+        edits.update { e -> e + (name to change(e[name] ?: saved.value.getValue(name))) }
 
-    fun save() = settings.save(_draft.value)
+    fun save() {
+        settings.save(saved.value + edits.value)
+        edits.value = emptyMap()
+    }
 
     /**
      * Turns these tools on or off and saves that at once, outside the draft (setup's tools page):
      * the draft's other unsaved changes stay unsaved.
      */
     fun setEnabled(names: Collection<String>, on: Boolean) {
-        fun change(configs: Map<String, ToolConfig>) = configs + names.associateWith { configs.getValue(it).copy(enabled = on) }
-        settings.save(change(saved.value))
-        _draft.update(::change)
+        settings.save(saved.value + names.associateWith { saved.value.getValue(it).copy(enabled = on) })
+        edits.update { e -> e.mapValues { (name, c) -> if (name in names) c.copy(enabled = on) else c } }
     }
 
     fun discard() {
-        _draft.value = saved.value
+        edits.value = emptyMap()
     }
 }
