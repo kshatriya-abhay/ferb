@@ -166,6 +166,17 @@ class ChatActivity : ComponentActivity() {
         private const val EXTRA_NOTE_ID = "note_id"
         private const val EXTRA_NOTE_NAME = "note_name"
 
+        /**
+         * Ferb's own extras from an intent that came through the front door ([MainActivity]),
+         * checked, onto [to]: nothing else another app put on it reaches the chat (review P2-157).
+         */
+        fun forward(from: Intent, to: Intent): Intent {
+            val extras = ChatExtras.of(from.getBooleanExtra(EXTRA_REMINDERS, false), from.getStringExtra(EXTRA_NOTE_ID), from.getStringExtra(EXTRA_NOTE_NAME))
+            if (extras.reminders) to.putExtra(EXTRA_REMINDERS, true)
+            extras.note?.let { (id, name) -> to.putExtra(EXTRA_NOTE_ID, id).putExtra(EXTRA_NOTE_NAME, name) }
+            return to
+        }
+
         /** Opens Ferb on the Reminders tab (a reminder's notification). */
         fun openReminders(context: Context): Intent = Intent(context, ChatActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -175,5 +186,20 @@ class ChatActivity : ComponentActivity() {
         fun openNote(context: Context, note: NoteRef): Intent = Intent(context, ChatActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             .putExtra(EXTRA_NOTE_ID, note.id).putExtra(EXTRA_NOTE_NAME, note.name)
+    }
+}
+
+/** The chat's extras, as checked ([ChatActivity.forward]): the Reminders tab, or a note to open by id. */
+internal data class ChatExtras(val reminders: Boolean, val note: Pair<String, String>?) {
+    companion object {
+        private const val MAX_ID = 1024
+        private const val MAX_NAME = 256
+
+        fun of(reminders: Boolean, noteId: String?, noteName: String?) = ChatExtras(
+            reminders = reminders,
+            note = noteId?.takeIf { plain(it, MAX_ID) }?.let { it to (noteName?.takeIf { name -> plain(name, MAX_NAME) } ?: "") },
+        )
+
+        private fun plain(s: String, max: Int) = s.isNotBlank() && s.length <= max && s.none { it.isISOControl() }
     }
 }

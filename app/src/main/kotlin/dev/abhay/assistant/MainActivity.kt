@@ -19,9 +19,12 @@ class MainActivity : Activity() {
             Routing.Sheet -> AssistActivity::class.java
             Routing.Chat -> ChatActivity::class.java
         }
-        val routed = Intent(intent).setClass(this, target).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        // A new intent with the action only: any app can start this exported door, so nothing else it
+        // put on the intent is handed on, but Ferb's own extras, checked (review P2-157).
+        val routed = Intent(intent?.action).setClass(this, target).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         // Who asked, as Android recorded it: the sheet listens at once only for the system's trigger (review P2-156).
         if (target == AssistActivity::class.java) routed.putExtra(AssistTrigger.FROM_SYSTEM, AssistTrigger.fromSystem(this))
+        else intent?.let { ChatActivity.forward(it, routed) }
         startActivity(routed)
         finish()
         @Suppress("DEPRECATION") overridePendingTransition(0, 0)
