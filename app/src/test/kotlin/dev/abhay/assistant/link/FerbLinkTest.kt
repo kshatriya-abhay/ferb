@@ -1,30 +1,15 @@
 package dev.abhay.assistant.link
 
 import com.google.common.truth.Truth.assertThat
-import dev.abhay.assistant.engine.Decision
-import dev.abhay.assistant.engine.NeedleReply
-import dev.abhay.assistant.engine.ToolCall
-import dev.abhay.assistant.tools.SetAlarm
-import dev.abhay.assistant.tools.SetTimer
-import dev.abhay.assistant.tools.ToolConfig
-import dev.abhay.assistant.tools.Verdict
 import org.junit.Test
 
 class FerbLinkTest {
-    /** Ferb Link's reply as its `Reply.toJson` writes it. */
-    private val laptopAlarm = """{"success":true,"function_calls":[{"name":"set_alarm","arguments":{"time":"6:45 am"}}],
-        "confidence":0.0213,"first":0.99994,"mean":0.91,"text":"","model":"gemma-4-E2B-it-Q4_K_M","ms":1480,"source":"laptop"}"""
-
-    private val laptopFailed = """{"success":false,"function_calls":[],"confidence":0.0,"first":0.0,"mean":0.0,"text":"",
-        "model":"","ms":3002,"source":"laptop","error":"The laptop took too long to answer","error_kind":"timeout"}"""
-
-    private val configs = mapOf(SetAlarm.name to ToolConfig.defaults(SetAlarm), SetTimer.name to ToolConfig.defaults(SetTimer))
-
-    private fun needle(confidence: Double?, vararg calls: ToolCall) = NeedleReply(
-        calls = calls.toList(), suppressed = emptyList(), reasoning = "", confidence = confidence, prefillTps = 0.0, decodeTps = 0.0, error = null,
-    )
-
-    private fun alarm(time: String) = ToolCall(SetAlarm.name, mapOf("time" to time))
+    @Test
+    fun aTranscriptThatFailedWithoutWordsIsStillAFailure() {
+        // Review P2-118: Transcript.parse ignored success, unlike Jev's and the rewrite's replies.
+        assertThat(Transcript.parse("""{"success":false,"heard":"","text":""}""").error).isEqualTo("transcription failed")
+        assertThat(Transcript.parse("""{"success":true,"heard":"","text":""}""").error).isNull()
+    }
 
     @Test
     fun aTranscriptHasWhatWasHeardAndTheEnglishCommand() {
@@ -47,8 +32,8 @@ class FerbLinkTest {
         // Loaded, or an older Ferb Link that doesn't say: the normal timeouts.
         assertThat((FerbLink.statusOf(LinkResult { mapOf("version" to 1, "enabled" to true, "configured" to true, "model_state" to "loaded")[it] }) as LinkStatus.Ready).asleep).isFalse()
         assertThat((FerbLink.statusOf(LinkResult { mapOf("version" to 1, "enabled" to true, "configured" to true)[it] }) as LinkStatus.Ready).asleep).isFalse()
-        assertThat(FerbLink.timeout(FerbLink.TIMEOUT_MS, waking = false)).isEqualTo(10_000)
-        assertThat(FerbLink.timeout(FerbLink.TIMEOUT_MS, waking = true)).isEqualTo(60_000)
+        assertThat(FerbLink.timeout(FerbLink.REWRITE_TIMEOUT_MS, waking = false)).isEqualTo(10_000)
+        assertThat(FerbLink.timeout(FerbLink.REWRITE_TIMEOUT_MS, waking = true)).isEqualTo(60_000)
         assertThat(FerbLink.timeout(FerbLink.TRANSCRIBE_TIMEOUT_MS, waking = true)).isEqualTo(60_000)
     }
 }

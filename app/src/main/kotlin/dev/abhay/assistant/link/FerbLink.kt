@@ -10,8 +10,6 @@ import android.os.DeadObjectException
 import android.os.SystemClock
 import android.util.Log
 import androidx.core.os.bundleOf
-import dev.abhay.assistant.engine.NeedleReply
-import dev.abhay.assistant.engine.ToolCall
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -69,8 +67,6 @@ object LinkContract {
     /** For `transcribe`: the recording (byte[], at most 30 s and about 512 KB) and its type. */
     const val EXTRA_AUDIO = "audio"
     const val EXTRA_AUDIO_MIME = "audio_mime"
-    /** Reserved for names that help transcription (a string array); unused: they'd leave the phone. */
-    const val EXTRA_HINTS = "hints"
 
     const val RESULT_VERSION = "version"
     const val RESULT_ENABLED = "enabled"
@@ -112,10 +108,12 @@ sealed interface LinkStatus {
     data object Off : LinkStatus
     /** No server address and key entered in Ferb Link yet. */
     data object NotSetUp : LinkStatus
-    /** [model]: the computer's model as Ferb Link last saw it, when it says; [audio]: whether it takes voice. */
-    /** [asleep]: the computer's model isn't loaded (asleep or unloaded, as last seen), so the next request waits for it to load. */
-    /** [jev]: Jev is on in Ferb Link ([LinkContract.METHOD_DECIDE]); [jevCapped]: it turned itself off at its spending limit. */
-    /** [jsonSchema]: its rewrite takes a JSON schema ([LinkContract.EXTRA_JSON_SCHEMA]). */
+    /**
+     * [model]: the computer's model as Ferb Link last saw it, when it says; [audio]: whether it takes voice.
+     * [asleep]: the computer's model isn't loaded (asleep or unloaded, as last seen), so the next request waits for it to load.
+     * [jev]: Jev is on in Ferb Link ([LinkContract.METHOD_DECIDE]); [jevCapped]: it turned itself off at its spending limit.
+     * [jsonSchema]: its rewrite takes a JSON schema ([LinkContract.EXTRA_JSON_SCHEMA]).
+     */
     data class Ready(
         val model: String? = null,
         val audio: Boolean = false,
@@ -509,12 +507,6 @@ class FerbLink(
         /** After a wake (the box tapped, the mic started), how long Wi-Fi stays low latency for the request to come. */
         private const val WAKE_LOW_LATENCY_MS = 30_000L
 
-        /**
-         * How long Ferb waits for the computer: Gemma 4 E2B takes 0.26 s (median) and 0.54 s (90th
-         * percentile) per request on the laptop's GPU, and about 2 s waking after 5 idle minutes. A
-         * load from a cold disk (10–30 s) times out; Needle 3 answers that one, and the next is fast.
-         */
-        const val TIMEOUT_MS = 10_000
 
         /**
          * How long Ferb waits for a transcription: Gemma 4 E2B took 0.5–1 s for up to 11 s of
@@ -600,7 +592,9 @@ data class Transcript(val heard: String, val text: String, val model: String? = 
     companion object {
         fun parse(json: String): Transcript = try {
             val o = JSONObject(json)
+            // A failure without its words is still a failure, as Jev's and the rewrite's replies read it.
             val error = o.optString("error").ifBlank { null }
+                ?: "transcription failed".takeIf { o.has("success") && !o.optBoolean("success") }
             Transcript(
                 heard = o.optString("heard").trim(),
                 text = o.optString("text").trim(),

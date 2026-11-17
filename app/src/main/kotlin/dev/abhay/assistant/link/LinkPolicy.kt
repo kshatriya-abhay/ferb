@@ -53,15 +53,11 @@ object LinkPolicy {
 
     /** [short], one of Ferb Link's few words, with Jev's name once: "Jev off" and "can't reach Jev" as they are, "timed out" as "Jev timed out". */
     private fun named(short: String) = if (Regex("""(?i)\bjev\b""").containsMatchIn(short)) short else "Jev $short"
-
-    // Spoken requests follow the same rules as typed ones. From 2026-10-12 until the same day,
-    // spoken alarms and timers asked first while the computer misheard Hindi times; after Ferb
-    // Link's fixes the alarm lines were 12/12 typed and right for real Hindi and clean English.
 }
 
 /** What happens after Jev answers ([LinkPolicy.select]). */
 sealed interface JevPick {
-    /** The answering model makes the call with only [name]; the computer also gets [also]. */
+    /** The answering model makes the call with only [name]. */
     data class Tool(val name: String) : JevPick
     /** Jev says no tool fits. */
     data object NoTool : JevPick
