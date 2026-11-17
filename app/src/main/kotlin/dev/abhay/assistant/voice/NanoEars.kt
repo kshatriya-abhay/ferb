@@ -25,7 +25,6 @@ import com.google.mlkit.genai.speechrecognition.SpeechRecognizerOptions
 import com.google.mlkit.genai.speechrecognition.SpeechRecognizerResponse
 import com.google.mlkit.genai.speechrecognition.speechRecognizerOptions
 import com.google.mlkit.genai.speechrecognition.speechRecognizerRequest
-import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -46,7 +45,6 @@ import kotlinx.coroutines.launch
  * anything: Ferb has no INTERNET permission.
  */
 class NanoEars(inFront: StateFlow<Boolean>, private val now: () -> Long = SystemClock::elapsedRealtime) {
-    private val listeners = mutableMapOf<Locale, SpeechRecognizer>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     /** Ferb's own downloads, by part: read and changed only under their own lock (review P2-104). */
     private val downloads = mutableMapOf<String, Job>()
@@ -64,14 +62,13 @@ class NanoEars(inFront: StateFlow<Boolean>, private val now: () -> Long = System
     private val pacing = kotlinx.coroutines.sync.Mutex()
     private var lastCheck = Long.MIN_VALUE / 2
 
-    @Synchronized
-    // Called from the main thread and from the downloads' background ones: one client per locale.
-    private fun listener(locale: Locale): SpeechRecognizer = synchronized(listeners) { listeners.getOrPut(locale) {
+    /** Speech recognition in [NanoSpeech.LOCALE], made once: Ferb has no language setting (review P2-108). */
+    private val listener: SpeechRecognizer by lazy {
         SpeechRecognition.getClient(speechRecognizerOptions {
-            this.locale = locale
+            this.locale = NanoSpeech.LOCALE
             preferredMode = SpeechRecognizerOptions.Mode.MODE_ADVANCED
         })
-    } }
+    }
 
     /** The rewriting model: FAST (the smaller one, quicker to answer) unless only FULL is there. */
     @Volatile private var writer: GenerativeModel? = null
@@ -103,7 +100,7 @@ class NanoEars(inFront: StateFlow<Boolean>, private val now: () -> Long = System
      * Unchecked) and kept in [setup], so the mic and the screens read one state (review P2-102, P2-105).
      */
     suspend fun speech(): Part {
-        val now = part(SPEECH) { listener(NanoSpeech.LOCALE).checkStatus() }
+        val now = part(SPEECH) { listener.checkStatus() }
         return _setup.updateAndGet { it.copy(speech = checked(SPEECH, it.speech, now)) }.speech
     }
 
@@ -114,7 +111,7 @@ class NanoEars(inFront: StateFlow<Boolean>, private val now: () -> Long = System
      */
     suspend fun refresh() {
         _setup.update { s -> s.copy(speech = s.speech.takeIf { it !is Part.Unchecked } ?: Part.Checking, rewrite = s.rewrite.takeIf { it !is Part.Unchecked } ?: Part.Checking) }
-        val speech = part(SPEECH) { listener(NanoSpeech.LOCALE).checkStatus() }
+        val speech = part(SPEECH) { listener.checkStatus() }
         val rewrite = part(REWRITE) { writer().checkStatus() }
         _setup.update { GeminiSetup(speech = checked(SPEECH, it.speech, speech), rewrite = checked(REWRITE, it.rewrite, rewrite)) }
         // Downloading (Android fetching it): waited for, never a download of Ferb's started again from
@@ -177,7 +174,7 @@ class NanoEars(inFront: StateFlow<Boolean>, private val now: () -> Long = System
         // The callbacks' bytes are only logged, to see what AICore reports: when it's done is
         // AICore's checkStatus, asked by readyWatch (the model is shared across apps).
         try {
-            val steps = if (part == SPEECH) listener(NanoSpeech.LOCALE).download() else writer().download()
+            val steps = if (part == SPEECH) listener.download() else writer().download()
             kotlinx.coroutines.withTimeoutOrNull(DOWNLOAD_LIMIT_MS) { steps.collect { step ->
                 when (step) {
                     is DownloadStatus.DownloadStarted -> {
@@ -215,10 +212,10 @@ class NanoEars(inFront: StateFlow<Boolean>, private val now: () -> Long = System
 
     /** Listens on the microphone until [stop] (or ML Kit ends it), streaming what it hears. */
     fun listen(): Flow<SpeechRecognizerResponse> =
-        listener(NanoSpeech.LOCALE).startRecognition(speechRecognizerRequest { audioSource = AudioSource.fromMic() })
+        listener.startRecognition(speechRecognizerRequest { audioSource = AudioSource.fromMic() })
             .takeWhile { it !is SpeechRecognizerResponse.CompletedResponse }
 
-    suspend fun stop() = listener(NanoSpeech.LOCALE).stopRecognition()
+    suspend fun stop() = listener.stopRecognition()
 
     /**
      * [said] (typed or heard) as one English command for Needle 3, the words to keep quoted in it,

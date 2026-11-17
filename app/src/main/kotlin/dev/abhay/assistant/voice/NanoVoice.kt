@@ -1,7 +1,6 @@
 package dev.abhay.assistant.voice
 
 import com.google.mlkit.genai.common.FeatureStatus
-import org.json.JSONObject
 import java.util.Locale
 
 /**
@@ -74,7 +73,10 @@ sealed interface Part {
     }
 }
 
-/** Gemini Nano's whole setup: what it needs to hear [language] and to write it in English. */
+/** What the pipeline needs from Gemini Nano's setup: [speech] and [rewrite] ready now, and whether it can run [here] at all (review P2-109). */
+data class GeminiAbilities(val speech: Boolean, val rewrite: Boolean, val here: Boolean)
+
+/** Gemini Nano's whole setup: what it needs to hear a request and to write it in English. */
 data class GeminiSetup(val speech: Part = Part.Checking, val rewrite: Part = Part.Checking) {
     val ready get() = speech == Part.Ready && rewrite == Part.Ready
     val parts get() = listOf(speech, rewrite)
@@ -84,7 +86,7 @@ data class GeminiSetup(val speech: Part = Part.Checking, val rewrite: Part = Par
 
     companion object {
         /** For the steps: speech ready, rewrite ready, and whether Gemini Nano can run here at all. */
-        fun abilities(s: GeminiSetup) = Triple(s.speech == Part.Ready, s.rewrite == Part.Ready, s.speech != Part.Unavailable)
+        fun abilities(s: GeminiSetup) = GeminiAbilities(speech = s.speech == Part.Ready, rewrite = s.rewrite == Part.Ready, here = s.speech != Part.Unavailable)
     }
 
     /** The Settings row's line under "Gemini Nano". */

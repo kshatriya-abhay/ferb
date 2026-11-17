@@ -32,12 +32,12 @@ object SpeechCheck {
 }
 
 /** What Whistle heard: [text] (empty for silence or steady noise), and how long it took. */
-data class Heard(val text: String, val language: String?, val ms: Long, val audioMs: Long) {
+data class Heard(val text: String, val ms: Long, val audioMs: Long) {
     companion object {
         /** The engine's transcription JSON: {"text", "language", "ttft_ms", "decode_tps"}. */
         fun parse(json: String, ms: Long, audioMs: Long): Heard {
             val o = JSONObject(json)
-            return Heard(o.optString("text").trim(), o.optString("language").ifEmpty { null }, ms, audioMs)
+            return Heard(o.optString("text").trim(), ms, audioMs)
         }
     }
 }

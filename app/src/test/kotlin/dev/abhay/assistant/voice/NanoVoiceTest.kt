@@ -72,7 +72,7 @@ class NanoVoiceTest {
         assertThat(speech).isFalse()
         assertThat(rewrite).isFalse()
         assertThat(here).isTrue()
-        assertThat(GeminiSetup.abilities(GeminiSetup(Part.Unavailable, Part.Unavailable)).third).isFalse()
+        assertThat(GeminiSetup.abilities(GeminiSetup(Part.Unavailable, Part.Unavailable)).here).isFalse()
         assertThat(Part.Unchecked("x").label()).isEqualTo("Couldn't check: x")
     }
 

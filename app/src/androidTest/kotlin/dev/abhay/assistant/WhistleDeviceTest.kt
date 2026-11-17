@@ -47,7 +47,7 @@ class WhistleDeviceTest {
         val first = app.engine.transcribe(clip)
         val both = memory()
         val runs = (1..3).map { app.engine.transcribe(clip).ms }.sorted()
-        Log.i(TAG, "heard '${first.text}' (${first.language}); ${first.audioMs} ms of audio: first ${first.ms} ms, then ${runs.joinToString()} ms; Whistle load ${app.engine.whistleLoaded} ms")
+        Log.i(TAG, "heard '${first.text}'; ${first.audioMs} ms of audio: first ${first.ms} ms, then ${runs.joinToString()} ms; Whistle load ${app.engine.whistleLoaded} ms")
         assertThat(first.text.lowercase()).contains("timer")
 
         // The longest a phone recording can be: 30 s, the request then silence.

@@ -46,11 +46,9 @@ class SpeechTest {
     fun whistlesJsonAndWhatFollows() {
         val heard = Heard.parse("""{"text":" Set a timer for ten minutes. ","language":"en","ttft_ms":40.0,"decode_tps":90.0}""", ms = 300, audioMs = 2000)
         assertThat(heard.text).isEqualTo("Set a timer for ten minutes.")
-        assertThat(heard.language).isEqualTo("en")
         assertThat(PhoneVoice.of(Result.success(heard))).isEqualTo(PhoneVoice.Request("Set a timer for ten minutes."))
 
         val nothing = Heard.parse("""{"text":"","language":"","ttft_ms":0.0,"decode_tps":0.0}""", 100, 1000)
-        assertThat(nothing.language).isNull()
         assertThat(PhoneVoice.of(Result.success(nothing))).isEqualTo(PhoneVoice.Failed(PhoneVoice.NO_WORDS, keepClip = false))
 
         // The engine failing keeps the clip, to send again.
