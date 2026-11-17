@@ -130,12 +130,40 @@ sealed interface LinkStatus {
 }
 
 /**
- * Ferb Link, the companion app that holds the INTERNET permission Ferb must never have and passes
- * requests to a bigger model on the user's own computer (over Tailscale). Ferb talks to it through
- * one `ContentResolver.call`, so Ferb itself stays offline; Needle 3 answers whenever Ferb Link
- * can't.
+ * The packages behind Ferb Link's provider, as Android reports them: a seam, so the gate that
+ * decides whether Ferb sends anything runs on the JVM (review P2-113).
  */
-class FerbLink(private val context: Context) : LinkCalls {
+interface LinkPackages {
+    fun installed(): Boolean
+    /** The package that holds [LinkContract.AUTHORITY]; null when none does. */
+    fun providerPackage(): String?
+    /** Whether [LinkContract.PACKAGE] is signed with Ferb's own key: debug with debug, release with release. */
+    fun sameKey(): Boolean
+}
+
+class AndroidPackages(private val context: Context) : LinkPackages {
+    override fun installed(): Boolean = try {
+        context.packageManager.getPackageInfo(LinkContract.PACKAGE, 0)
+        true
+    } catch (e: PackageManager.NameNotFoundException) {
+        false
+    }
+
+    override fun providerPackage(): String? = context.packageManager.resolveContentProvider(LinkContract.AUTHORITY, 0)?.packageName
+
+    override fun sameKey(): Boolean =
+        context.packageManager.checkSignatures(context.packageName, LinkContract.PACKAGE) == PackageManager.SIGNATURE_MATCH
+}
+
+/** One call into Ferb Link's provider, its extras and its result as plain values. */
+interface LinkTransport {
+    fun call(method: String, extras: Map<String, Any>?): LinkResult?
+    /** Keeps Ferb Link's process up until a matching [release]. */
+    fun hold()
+    fun release()
+}
+
+class ProviderTransport(private val context: Context) : LinkTransport {
     /**
      * Held while a step uses the computer ([hold]): Android then keeps Ferb Link's process
      * at Ferb's importance instead of killing it, which cost about 250 ms on the next call (twice
@@ -144,30 +172,64 @@ class FerbLink(private val context: Context) : LinkCalls {
     @Volatile private var client: ContentProviderClient? = null
     private var holders = 0
 
-    /** Keeps Ferb Link's process up until a matching [release]. Main thread. */
-    fun hold() {
-        if (holders++ == 0 && installed()) client = context.contentResolver.acquireUnstableContentProviderClient(LinkContract.AUTHORITY)
+    /** Main thread. */
+    override fun hold() {
+        if (holders++ == 0) client = context.contentResolver.acquireUnstableContentProviderClient(LinkContract.AUTHORITY)
     }
 
-    fun release() {
+    override fun release() {
         if (holders > 0 && --holders == 0) {
             client?.close()
             client = null
         }
     }
 
-    /** Calls Ferb Link through the held client when there is one, else as usual. */
-    private fun provider(method: String, arg: String?, extras: Bundle?): Bundle? {
+    /** Through the held client when there is one, else as usual. */
+    override fun call(method: String, extras: Map<String, Any>?): LinkResult? {
+        val bundle = extras?.bundle()
         client?.let { held ->
             try {
-                return held.call(method, arg, extras)
+                return held.call(method, null, bundle)?.values()
             } catch (e: DeadObjectException) {
                 // Ferb Link died since: drop the client and call it afresh, which restarts it.
                 held.close()
                 client = context.contentResolver.acquireUnstableContentProviderClient(LinkContract.AUTHORITY)
             }
         }
-        return context.contentResolver.call(LinkContract.AUTHORITY, method, arg, extras)
+        return context.contentResolver.call(LinkContract.AUTHORITY, method, null, bundle)?.values()
+    }
+}
+
+/**
+ * Ferb Link, the companion app that holds the INTERNET permission Ferb must never have and passes
+ * requests to a bigger model on the user's own computer (over Tailscale). Ferb talks to it through
+ * one `ContentResolver.call`, so Ferb itself stays offline; Needle 3 answers whenever Ferb Link
+ * can't.
+ */
+class FerbLink(
+    private val context: Context,
+    private val packages: LinkPackages = AndroidPackages(context),
+    private val transport: LinkTransport = ProviderTransport(context),
+    private val clock: () -> Long = SystemClock::elapsedRealtime,
+    private val log: (String) -> Unit = { Log.i(TAG, it) },
+) : LinkCalls {
+    /** Keeps Ferb Link's process up until a matching [release]. Main thread. */
+    fun hold() {
+        if (packages.installed()) transport.hold()
+    }
+
+    fun release() = transport.release()
+
+    /**
+     * Every call to Ferb Link goes through here. Ferb sends nothing (no request, no tool list, no
+     * audio) unless the provider is Ferb Link's and Ferb Link is signed with Ferb's key, as Ferb
+     * Link checks Ferb: an app with another key in its place would get every request (review
+     * P2-113). Otherwise a [SecurityException], which every caller shows as "not allowed".
+     */
+    private fun provider(method: String, extras: Map<String, Any>? = null): LinkResult? {
+        if (packages.providerPackage() != LinkContract.PACKAGE || !packages.sameKey())
+            throw SecurityException("Ferb Link isn't signed with Ferb's key")
+        return transport.call(method, extras)
     }
 
     /**
@@ -198,12 +260,7 @@ class FerbLink(private val context: Context) : LinkCalls {
         try { lock.acquire() } catch (e: Exception) { return }
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ try { if (lock.isHeld) lock.release() } catch (e: Exception) { } }, ms)
     }
-    fun installed(): Boolean = try {
-        context.packageManager.getPackageInfo(LinkContract.PACKAGE, 0)
-        true
-    } catch (e: PackageManager.NameNotFoundException) {
-        false
-    }
+    fun installed(): Boolean = packages.installed()
 
     /** The status as last read, for a screen to show while it reads it again; null before the first read. */
     @Volatile
@@ -219,13 +276,13 @@ class FerbLink(private val context: Context) : LinkCalls {
     private fun read(): LinkStatus {
         if (!installed()) return LinkStatus.NotInstalled
         val result = try {
-            timed(LinkContract.METHOD_STATUS) { provider(LinkContract.METHOD_STATUS, null, null) }
+            timed(LinkContract.METHOD_STATUS) { provider(LinkContract.METHOD_STATUS) }
         } catch (e: SecurityException) {
             return LinkStatus.NotAllowed
         } catch (e: Exception) {
             return LinkStatus.Failed(e.message ?: e.toString())
         } ?: return LinkStatus.Failed("Ferb Link didn't answer")
-        return statusOf(result.values())
+        return statusOf(result)
     }
 
     /**
@@ -236,7 +293,7 @@ class FerbLink(private val context: Context) : LinkCalls {
     override suspend fun decide(request: String, toolsJson: String, timeoutMs: Int): JevReply = withContext(Dispatchers.IO) {
         val result = try {
             lowLatency { timed(LinkContract.METHOD_DECIDE) {
-                provider(LinkContract.METHOD_DECIDE, null, decideExtras(request, toolsJson, timeoutMs).bundle())
+                provider(LinkContract.METHOD_DECIDE, decideExtras(request, toolsJson, timeoutMs))
             } }
         } catch (e: IllegalArgumentException) {
             return@withContext JevReply.failed("update Ferb Link", "This Ferb Link is too old for Jev")
@@ -245,7 +302,7 @@ class FerbLink(private val context: Context) : LinkCalls {
         } catch (e: Exception) {
             return@withContext JevReply.failed("Ferb Link failed", "Ferb Link failed: ${e.message ?: e}")
         } ?: return@withContext JevReply.failed("no answer", "Ferb Link didn't answer")
-        decisionOf(result.values())
+        decisionOf(result)
     }
 
     /**
@@ -260,7 +317,7 @@ class FerbLink(private val context: Context) : LinkCalls {
     override suspend fun rewrite(request: String, instructions: String, maxTokens: Int, timeoutMs: Int, jsonSchema: String?): RewriteReply = withContext(Dispatchers.IO) {
         val result = try {
             lowLatency { timed(LinkContract.METHOD_REWRITE) {
-                provider(LinkContract.METHOD_REWRITE, null, rewriteExtras(request, instructions, maxTokens, timeoutMs, jsonSchema).bundle())
+                provider(LinkContract.METHOD_REWRITE, rewriteExtras(request, instructions, maxTokens, timeoutMs, jsonSchema))
             } }
         } catch (e: IllegalArgumentException) {
             return@withContext RewriteReply.failed("update Ferb Link", "This Ferb Link is too old to rewrite requests")
@@ -269,7 +326,7 @@ class FerbLink(private val context: Context) : LinkCalls {
         } catch (e: Exception) {
             return@withContext RewriteReply.failed("Ferb Link failed", "Ferb Link failed: ${e.message ?: e}")
         } ?: return@withContext RewriteReply.failed("no answer", "Ferb Link didn't answer")
-        rewriteOf(result.values())
+        rewriteOf(result)
     }
 
     /**
@@ -278,7 +335,7 @@ class FerbLink(private val context: Context) : LinkCalls {
      */
     suspend fun check(): Reachability? = withContext(Dispatchers.IO) {
         val result = try {
-            provider(LinkContract.METHOD_CHECK, null, null)
+            provider(LinkContract.METHOD_CHECK)
         } catch (e: IllegalArgumentException) {
             return@withContext null
         } catch (e: SecurityException) {
@@ -286,7 +343,7 @@ class FerbLink(private val context: Context) : LinkCalls {
         } catch (e: Exception) {
             return@withContext Reachability(false, null, e.message ?: e.toString())
         } ?: return@withContext Reachability(false, null, "Ferb Link didn't answer")
-        reachabilityOf(result.values())
+        reachabilityOf(result)
     }
 
     /**
@@ -299,7 +356,7 @@ class FerbLink(private val context: Context) : LinkCalls {
         withContext(Dispatchers.IO) {
             try {
                 lowLatencyFor(WAKE_LOW_LATENCY_MS)
-                provider(LinkContract.METHOD_WAKE, null, null)
+                provider(LinkContract.METHOD_WAKE)
             } catch (e: Exception) {
                 // An older Ferb Link, or none: the transcription just waits for the wake.
             }
@@ -314,7 +371,7 @@ class FerbLink(private val context: Context) : LinkCalls {
     suspend fun transcribe(audio: ByteArray, mime: String, waking: Boolean = false): Transcript = withContext(Dispatchers.IO) {
         val result = try {
             lowLatency { timed(LinkContract.METHOD_TRANSCRIBE) {
-                provider(LinkContract.METHOD_TRANSCRIBE, null, transcribeExtras(audio, mime, timeout(TRANSCRIBE_TIMEOUT_MS, waking)).bundle())
+                provider(LinkContract.METHOD_TRANSCRIBE, transcribeExtras(audio, mime, timeout(TRANSCRIBE_TIMEOUT_MS, waking)))
             } }
         } catch (e: IllegalArgumentException) {
             return@withContext Transcript.failed("Update Ferb Link to use your voice")
@@ -323,7 +380,7 @@ class FerbLink(private val context: Context) : LinkCalls {
         } catch (e: Exception) {
             return@withContext Transcript.failed("Ferb Link failed: ${e.message ?: e}")
         } ?: return@withContext Transcript.failed("Ferb Link didn't answer")
-        transcriptOf(result.values())
+        transcriptOf(result)
     }
 
     /**
@@ -331,12 +388,12 @@ class FerbLink(private val context: Context) : LinkCalls {
      * timestamps to line up with Ferb Link's and the server's logs.
      */
     private inline fun <T> timed(method: String, call: () -> T): T {
-        val started = SystemClock.elapsedRealtime()
-        Log.i(TAG, "$method: start")
+        val started = clock()
+        log("$method: start")
         try {
             return call()
         } finally {
-            Log.i(TAG, "$method: ${SystemClock.elapsedRealtime() - started} ms")
+            log("$method: ${clock() - started} ms")
         }
     }
 
