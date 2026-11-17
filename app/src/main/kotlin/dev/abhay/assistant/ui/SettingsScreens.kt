@@ -452,11 +452,16 @@ fun ToolConfigScreen(settings: SettingsViewModel, name: String, onOpenKeywords: 
                 }
             }
 
-            // Sends the example from the chat; only once the tool is on and saved, so it can answer.
+            // Sends the example from the chat; only once the tool is on and this page's changes are
+            // saved, so it runs as the page shows (review P2-136: it ran the saved config, and
+            // jumped past "Save changes?").
             // Not during setup (onTry null): it would end setup before the assistant page.
             if (onTry != null) {
                 SectionTitle("Try it")
-                val usable = saved.getValue(name).enabled
+                val unsaved = draft.getValue(name) != saved.getValue(name)
+                val usable = saved.getValue(name).enabled && !unsaved
+                if (unsaved) Text("Save your changes to try them.", Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     tool.examples.forEach { example ->
                         SuggestionChip(
