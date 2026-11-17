@@ -31,6 +31,43 @@ class ListToolsTest {
     }
 
     @Test
+    fun anItemNotOnTheListTicksNothing() {
+        // Review P2-73: a blank task ("- [ ] ", left by Enter) was "contained" in every item, so it got ticked.
+        val notes = MemoryNotes("Shopping" to "- [ ] milk\n- [ ] \n- [ ] steak\n")
+        assertThat(CheckOff.prepare(mapOf("list" to "shopping", "item" to "eggs"), PrepareEnv(notes = notes))).isInstanceOf(Prepared.Invalid::class.java)
+        // Whole words: "tea" isn't in "steak".
+        assertThat(CheckOff.prepare(mapOf("list" to "shopping", "item" to "tea"), PrepareEnv(notes = notes))).isInstanceOf(Prepared.Invalid::class.java)
+        assertThat((CheckOff.prepare(mapOf("list" to "shopping", "item" to "milk"), PrepareEnv(notes = notes)) as Prepared.Ready).summary).isEqualTo("Tick “milk” on Shopping")
+    }
+
+    @Test
+    fun withNoListNamedTheBestMatchWins() {
+        // Review P2-74: the first note with any match won, so "oat milk" on Groceries beat "milk" on Shopping.
+        val notes = MemoryNotes("Groceries" to "- [ ] oat milk\n", "Shopping" to "- [ ] milk\n")
+        assertThat((CheckOff.prepare(mapOf("item" to "milk"), PrepareEnv(notes = notes)) as Prepared.Ready).summary).isEqualTo("Tick “milk” on Shopping")
+        // As good a match on two lists: which one?
+        val two = MemoryNotes("Groceries" to "- [ ] milk\n", "Shopping" to "- [ ] milk\n")
+        assertThat((CheckOff.prepare(mapOf("item" to "milk"), PrepareEnv(notes = two)) as Prepared.Invalid).reason).contains("which list")
+    }
+
+    @Test
+    fun aListIsFoundByTheNameItWasMadeWith() {
+        // Review P2-75: "My Shopping List" made a note find() couldn't match to "the shopping list", so a second one was made.
+        val notes = MemoryNotes()
+        run(AddToList.prepare(mapOf("list" to "My Shopping List", "items" to "bread"), PrepareEnv(notes = notes)))
+        run(AddToList.prepare(mapOf("list" to "the shopping list", "items" to "tea"), PrepareEnv(notes = notes)))
+        assertThat(notes.files.keys).containsExactly("Shopping")
+    }
+
+    @Test
+    fun oneMoreIsOneItem() {
+        // Review P2-76: "ek aur doodh" (one more milk) split into "ek" and "doodh".
+        assertThat(dev.abhay.assistant.tools.Lists.items("ek aur doodh")).containsExactly("ek aur doodh")
+        assertThat(dev.abhay.assistant.tools.Lists.items("2 aur ande")).containsExactly("2 aur ande")
+        assertThat(dev.abhay.assistant.tools.Lists.items("chawal aur dal")).containsExactly("chawal", "dal").inOrder()
+    }
+
+    @Test
     fun addingAppendsTasksToTheListFoundByName() {
         val notes = folder()
         val done = run(AddToList.prepare(mapOf("list" to "the shopping list", "items" to "bread, tea and rice"), PrepareEnv(notes = notes))) as Outcome.Done

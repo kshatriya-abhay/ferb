@@ -37,12 +37,19 @@ interface NoteStore {
         fun fileName(title: String): String =
             title.replace(Regex("""[\\/:*?"<>|#^\[\]]"""), "").replace(Regex("""\s+"""), " ").trim().take(80).trim().ifEmpty { "Note" }
 
+        /**
+         * A list's name without "my", "the" and " list", case kept: "My Shopping List" and "the shopping
+         * list" are both "Shopping". The one rule for naming a list and finding it (review P2-75).
+         */
+        fun listName(raw: String): String =
+            raw.trim().replace(Regex("""(?i)^(?:(?:my|the)\s+)+"""), "").replace(Regex("""(?i)\s+list$"""), "").trim()
+
         /** The best note named like [query] (case aside, then by spelling or sound, as contacts are), or null. */
         fun find(query: String, notes: List<NoteRef>): NoteRef? {
-            val q = query.trim().lowercase().removeSuffix(" list").removePrefix("my ").removePrefix("the ").trim()
+            val q = listName(query).lowercase()
             if (q.isEmpty()) return null
-            notes.firstOrNull { it.name.lowercase() == q || it.name.lowercase() == "$q list" }?.let { return it }
-            return notes.map { it to dev.abhay.assistant.tools.ContactMatch.word(q.replace(" ", ""), it.name.lowercase().removeSuffix(" list").replace(" ", "")) }
+            notes.firstOrNull { listName(it.name).lowercase() == q }?.let { return it }
+            return notes.map { it to dev.abhay.assistant.tools.ContactMatch.word(q.replace(" ", ""), listName(it.name).lowercase().replace(" ", "")) }
                 .filter { it.second >= 0.8 }.maxByOrNull { it.second }?.first
         }
 

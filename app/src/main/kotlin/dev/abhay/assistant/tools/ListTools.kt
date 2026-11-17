@@ -19,11 +19,16 @@ internal object Lists {
      * (the content fix), so Hindi's "and" separates them too: "chawal aur dal", "चावल और दाल".
      */
     fun items(text: String): List<String> =
-        text.split(Regex(""",|;|\b(?:and|aur)\b|(?<![\p{L}\p{M}])और(?![\p{L}\p{M}])|\n""")).map { it.trim().trim('.', '"').trim() }.filter { it.isNotEmpty() }
+        // "ek aur doodh" is one more milk, one item: "aur" after a count doesn't separate (review P2-76).
+        text.replace(ONE_MORE) { it.value.replace(Regex("""aur|और"""), KEEP) }
+            .split(Regex(""",|;|\b(?:and|aur)\b|(?<![\p{L}\p{M}])और(?![\p{L}\p{M}])|\n"""))
+            .map { it.replace(KEEP, "aur").trim().trim('.', '"').trim() }.filter { it.isNotEmpty() }
+
+    private val ONE_MORE = Regex("""(?i)(?:\b(?:ek|\d+)|(?<![\p{L}\p{M}])एक)\s+(?:aur\b|और(?![\p{L}\p{M}]))""")
+    private const val KEEP = "\uE000"
 
     /** A list's name as a note's: "the shopping list" → "Shopping". */
-    fun title(list: String): String =
-        list.trim().removePrefix("my ").removePrefix("the ").removeSuffix(" list").trim().replaceFirstChar { it.uppercase() }
+    fun title(list: String): String = NoteStore.listName(list).replaceFirstChar { it.uppercase() }
 
     fun needsFolder() = Prepared.Invalid(NO_FOLDER, needs = listOf(NoteStore.NEEDS_FOLDER))
 
@@ -48,13 +53,22 @@ internal object Lists {
     }
 
     /** The unticked task in [text] that best matches [item] (as said or by sound), or null. */
-    fun match(text: String, item: String): NoteText.Task? {
-        val open = NoteText.tasks(text).filter { !it.checked }
+    fun match(text: String, item: String): NoteText.Task? = best(text, item)?.first
+
+    /**
+     * [match] and how well: 3 the same, 2 all the words of one in the other ("milk" in "oat milk"),
+     * 1 by sound. Blank tasks never match, and words are whole: "tea" isn't in "steak" (review P2-73).
+     */
+    fun best(text: String, item: String): Pair<NoteText.Task, Int>? {
+        val open = NoteText.tasks(text).filter { !it.checked && it.text.isNotBlank() }
         val q = item.trim().lowercase()
-        open.firstOrNull { it.text.lowercase() == q }?.let { return it }
-        open.firstOrNull { it.text.lowercase().contains(q) || q.contains(it.text.lowercase()) }?.let { return it }
+        if (q.isEmpty()) return null
+        fun words(s: String) = s.lowercase().split(Regex("""\s+""")).filter { it.isNotEmpty() }.toSet()
+        val said = words(q)
+        open.firstOrNull { it.text.trim().lowercase() == q }?.let { return it to 3 }
+        open.firstOrNull { words(it.text).let { w -> w.containsAll(said) || said.containsAll(w) } }?.let { return it to 2 }
         return open.map { it to ContactMatch.word(q.replace(" ", ""), it.text.lowercase().replace(" ", "")) }
-            .filter { it.second >= 0.8 }.maxByOrNull { it.second }?.first
+            .filter { it.second >= 0.8 }.maxByOrNull { it.second }?.first?.let { it to 1 }
     }
 }
 
@@ -158,11 +172,17 @@ object CheckOff : Tool(
         val item = arguments.text("item") ?: return Prepared.Invalid("Which item?")
         if (!env.notes.ready) return Lists.needsFolder()
         val notes = env.notes.list()
-        // The named list, else the one list with that item unticked.
-        val note = arguments.text("list")?.let { NoteStore.find(it, notes) }
-            ?: notes.firstOrNull { n -> env.notes.read(n)?.let { Lists.match(it, item) } != null }
-            ?: return Prepared.Invalid("No list has “$item” to tick")
-        val task = env.notes.read(note)?.let { Lists.match(it, item) } ?: return Prepared.Invalid("“$item” isn't on ${note.name}, or is ticked already")
+        val named = arguments.text("list")?.let { NoteStore.find(it, notes) }
+        val (note, task) = if (named != null) {
+            named to (env.notes.read(named)?.let { Lists.match(it, item) } ?: return Prepared.Invalid("“$item” isn't on ${named.name}, or is ticked already"))
+        } else {
+            // No list named: the list where the item matches best; as good on two, which? (review P2-74).
+            val found = notes.mapNotNull { n -> env.notes.read(n)?.let { Lists.best(it, item) }?.let { (task, how) -> Triple(n, task, how) } }
+            val top = found.maxOfOrNull { it.third } ?: return Prepared.Invalid("No list has “$item” to tick")
+            val best = found.filter { it.third == top }
+            if (best.size > 1) return Prepared.Invalid("“$item” is on ${best.joinToString(" and ") { it.first.name }}: which list?")
+            best.single().first to best.single().second
+        }
         return Prepared.Ready("Tick “${task.text}” on ${note.name}", opensApp = false) { _ ->
             fun toggle(checked: Boolean) = env.notes.update(note) { now ->
                 NoteText.tasks(now).firstOrNull { it.checked == checked && it.text == task.text }?.let { NoteText.flip(now, it.mark) } ?: now
