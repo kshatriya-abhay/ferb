@@ -41,4 +41,12 @@ class NavTest {
         assertThat(saver.restore(arrayListOf("gone"))).containsExactly(Screen.Page.Assistant)
         assertThat(Screen.of("tool:")).isNull()
     }
+
+    @Test
+    fun aSavedPageForAToolNoLongerInFerbIsDropped() {
+        // Review P2-132: restored, the page threw on draft.getValue(name).
+        val saver = Screen.stackSaver(Screen.Page.Assistant)
+        assertThat(saver.restore(arrayListOf("assistant", "settings", "tools", "tool:no_such_tool", "keywords:no_such_tool")))
+            .containsExactly(Screen.Page.Assistant, Screen.Page.Settings, Screen.Page.Tools).inOrder()
+    }
 }

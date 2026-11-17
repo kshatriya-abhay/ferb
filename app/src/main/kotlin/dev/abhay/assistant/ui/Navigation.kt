@@ -47,8 +47,11 @@ sealed interface Screen {
 
     companion object {
         fun of(key: String): Screen? = Page.entries.firstOrNull { it.key == key }
-            ?: key.removePrefix("tool:").takeIf { it != key && it.isNotEmpty() }?.let(::Tool)
-            ?: key.removePrefix("keywords:").takeIf { it != key && it.isNotEmpty() }?.let(::Keywords)
+            ?: key.removePrefix("tool:").takeIf { it != key && known(it) }?.let(::Tool)
+            ?: key.removePrefix("keywords:").takeIf { it != key && known(it) }?.let(::Keywords)
+
+        /** A tool Ferb still has: a page for one an update renamed is dropped, not opened (review P2-132). */
+        private fun known(name: String) = dev.abhay.assistant.tools.Tools.byName(name) != null
 
         /** A back stack saved as keys; unknown ones dropped, and [root] if nothing's left. */
         fun stackSaver(root: Screen) = androidx.compose.runtime.saveable.Saver<List<Screen>, ArrayList<String>>(
