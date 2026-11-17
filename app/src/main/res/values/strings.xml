@@ -111,6 +111,8 @@
     <string name="onboarding_all_tools">All tools</string>
     <string name="onboarding_not_allowed">Not allowed</string>
     <string name="onboarding_open_settings">Open settings</string>
+    <string name="onboarding_permission_removed">Permission removed: Allow</string>
+    <string name="onboarding_no_folder">No notes folder: pick one</string>
     <string name="onboarding_assistant_title">Make Ferb your assistant</string>
     <string name="onboarding_start">Start</string>
     <string name="onboarding_skip">Skip</string>

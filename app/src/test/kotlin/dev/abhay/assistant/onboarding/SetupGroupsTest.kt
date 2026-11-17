@@ -2,9 +2,6 @@ package dev.abhay.assistant.onboarding
 
 import android.Manifest
 import com.google.common.truth.Truth.assertThat
-import dev.abhay.assistant.tools.AddReminder
-import dev.abhay.assistant.tools.MakeCall
-import dev.abhay.assistant.tools.SendText
 import dev.abhay.assistant.tools.ToolSettings
 import dev.abhay.assistant.tools.Tools
 import org.junit.Test
@@ -27,29 +24,28 @@ class SetupGroupsTest {
         assertThat(SetupGroup.Lists.needsFolder).isTrue()
     }
 
-    @Test fun onlyTheToolsWhosePermissionsWereAllowedCanRun() {
-        val contactsOnly = { p: String -> p == Manifest.permission.READ_CONTACTS }
-        assertThat(SetupGroup.CallsAndMessages.usable(contactsOnly, folder = false)).containsExactly(SendText)
-        assertThat(SetupGroup.CallsAndMessages.usable({ true }, folder = false)).containsExactly(MakeCall, SendText)
-        assertThat(SetupGroup.Reminders.usable({ false }, folder = true)).isEmpty()
-        assertThat(SetupGroup.Reminders.usable({ true }, folder = false)).containsExactly(AddReminder)
+    private val defaults = ToolSettings.defaults()
+    private fun on(group: SetupGroup, vararg tools: dev.abhay.assistant.tools.Tool) =
+        defaults + (tools.ifEmpty { group.tools.toTypedArray() }).associate { it.name to defaults.getValue(it.name).copy(enabled = true) }
+    private val contactsOnly = { p: String -> p == Manifest.permission.READ_CONTACTS }
+
+    @Test fun theSwitchMeansFerbCanDoThisNow() {
+        // Review P2-148: on is the tools on with their permissions granted.
+        val calls = SetupGroup.CallsAndMessages
+        assertThat(calls.state(defaults, { true }, folder = false)).isEqualTo(RowState.Off)
+        assertThat(calls.state(on(calls), { true }, folder = false)).isEqualTo(RowState.On)
+        // Taken back since: not On (it was, before), but Missing, so the row says so and offers Allow.
+        assertThat(calls.state(on(calls), { false }, folder = false)).isEqualTo(RowState.Missing)
+        // Contacts allowed, calls refused: not On (it was, before, with "call mum" reaching no tool).
+        assertThat(calls.state(on(calls), contactsOnly, folder = false)).isEqualTo(RowState.Missing)
+        // Off whatever's granted while none of its tools is on.
+        assertThat(SetupGroup.Reminders.state(defaults, { false }, folder = false)).isEqualTo(RowState.Off)
+        assertThat(SetupGroup.Reminders.state(on(SetupGroup.Reminders), { true }, folder = false)).isEqualTo(RowState.On)
     }
 
     @Test fun listsNeedAFolderPicked() {
-        assertThat(SetupGroup.Lists.usable({ true }, folder = false)).isEmpty()
-        assertThat(SetupGroup.Lists.usable({ true }, folder = true)).isEqualTo(SetupGroup.Lists.tools)
-    }
-
-    @Test fun aRowIsOnOnceSetUpAndItsUsableToolsAreOn() {
-        val defaults = ToolSettings.defaults()
-        val on = defaults + SetupGroup.CallsAndMessages.tools.associate { it.name to defaults.getValue(it.name).copy(enabled = true) }
-        // Off at first, allowed or not.
-        assertThat(SetupGroup.CallsAndMessages.on(defaults, { true }, folder = false)).isFalse()
-        assertThat(SetupGroup.CallsAndMessages.on(on, { true }, folder = false)).isTrue()
-        // On, but the permissions were taken back since: off.
-        assertThat(SetupGroup.CallsAndMessages.on(on, { false }, folder = false)).isFalse()
-        // Contacts only: on with Messages alone.
-        val messages = defaults + (SendText.name to defaults.getValue(SendText.name).copy(enabled = true))
-        assertThat(SetupGroup.CallsAndMessages.on(messages, { it == Manifest.permission.READ_CONTACTS }, folder = false)).isTrue()
+        val lists = SetupGroup.Lists
+        assertThat(lists.state(on(lists), { true }, folder = false)).isEqualTo(RowState.Missing)
+        assertThat(lists.state(on(lists), { true }, folder = true)).isEqualTo(RowState.On)
     }
 }

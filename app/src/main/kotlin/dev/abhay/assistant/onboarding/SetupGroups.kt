@@ -27,13 +27,17 @@ enum class SetupGroup(val title: String, val tools: List<Tool>, val needsFolder:
     val permissions: List<String> get() = tools.flatMap { it.permissions }.distinct()
 
     /**
-     * Its tools that can run now: the ones whose permissions are all [granted], and only with a
-     * notes folder picked if it [needsFolder]. E.g. contacts allowed but not calls: Messages only.
+     * The row as setup shows it: the switch means "Ferb can do this now" (review P2-148,
+     * ferb-manager's call). On: a tool of the group is on, with every permission granted (and the notes
+     * folder picked, for Lists). Missing: on, but a permission or the folder isn't there (refused,
+     * or taken back since): requests still reach the tools, which say what's missing and offer
+     * Allow. Off: none of its tools is on.
      */
-    fun usable(granted: (String) -> Boolean, folder: Boolean): List<Tool> =
-        if (needsFolder && !folder) emptyList() else tools.filter { it.permissions.all(granted) }
-
-    /** The row's switch: on once something is set up and all that can run is on. */
-    fun on(configs: Map<String, ToolConfig>, granted: (String) -> Boolean, folder: Boolean): Boolean =
-        usable(granted, folder).let { usable -> usable.isNotEmpty() && usable.all { configs[it.name]?.enabled == true } }
+    fun state(configs: Map<String, ToolConfig>, granted: (String) -> Boolean, folder: Boolean): RowState = when {
+        tools.none { configs[it.name]?.enabled == true } -> RowState.Off
+        permissions.all(granted) && (!needsFolder || folder) -> RowState.On
+        else -> RowState.Missing
+    }
 }
+
+enum class RowState { On, Missing, Off }

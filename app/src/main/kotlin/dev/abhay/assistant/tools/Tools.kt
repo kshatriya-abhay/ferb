@@ -872,7 +872,7 @@ object MakeCall : Tool(
         if (context.checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
             Tools.start(context, Intent(Intent.ACTION_CALL, Uri.fromParts("tel", number, null)), "Calling $who")
         } else {
-            Tools.start(context, dial(number), "Opened the dialer for $who: press call (allow calls on this tool's page to skip this)")
+            Tools.start(context, dial(number), "Opened the dialer for $who: press call (Allow calls to skip this)")
         }
 
     /** Without asking (the user turned that off), the best match only goes to the dialer: nobody is rung unpicked. */
@@ -881,13 +881,15 @@ object MakeCall : Tool(
 
     override fun prepare(arguments: Map<String, Any?>, env: PrepareEnv): Prepared {
         val name = arguments.text("name") ?: return Prepared.Invalid("No one to call")
+        // Without the call permission a call goes to the dialer: the reply offers Allow (review P2-148).
+        val callNeeds = listOfNotNull(Manifest.permission.CALL_PHONE.takeUnless(env.granted))
         return when (val to = Recipient.of(name, env.contacts)) {
             is Recipient.Number -> Prepared.Ready("Call ${to.number}?", choices = listOf(Choice(to.number) { call(it, to.number, to.number) }), other = openDialer,
-                cancel = "Cancel", run = dialOnly(to.number, to.number))
+                cancel = "Cancel", needs = callNeeds, run = dialOnly(to.number, to.number))
             // The best match only, one tap to call; anyone else is found in the dialer.
             is Recipient.Person -> Prepared.Ready("Call \u201c$name\u201d?", choices = listOf(Choice(to.contact.name,
                 listOfNotNull(to.contact.kind, to.contact.number).joinToString(" \u00b7 ")) { call(it, to.contact.number, to.contact.name) }),
-                other = openDialer, cancel = "Cancel", run = dialOnly(to.contact.number, to.contact.name))
+                other = openDialer, cancel = "Cancel", needs = callNeeds, run = dialOnly(to.contact.number, to.contact.name))
             // Without the contacts: the dialer, to find them there.
             Recipient.NoAccess -> Prepared.Ready("Call \u201c$name\u201d from the dialer", detail = NO_CONTACTS,
                 confirm = "Open dialer", cancel = "Cancel", needs = listOf(Manifest.permission.READ_CONTACTS), run = openDialer.run)

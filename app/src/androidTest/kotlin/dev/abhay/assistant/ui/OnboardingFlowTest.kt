@@ -13,6 +13,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.common.truth.Truth.assertThat
 import dev.abhay.assistant.R
+import dev.abhay.assistant.onboarding.RowState
 import dev.abhay.assistant.onboarding.SetupGroup
 import dev.abhay.assistant.pipeline.Abilities
 import dev.abhay.assistant.pipeline.ModelChoice
@@ -238,10 +239,10 @@ class OnboardingFlowTest {
         val toggled = mutableListOf<String>()
         var settings = 0
         val rows = listOf(
-            SetupRow(SetupGroup.CallsAndMessages, on = true),
-            SetupRow(SetupGroup.AgendaAndCalendar, on = false, refused = true),
-            SetupRow(SetupGroup.Reminders, on = false, refused = true, askAgain = false),
-            SetupRow(SetupGroup.Lists, on = false),
+            SetupRow(SetupGroup.CallsAndMessages, RowState.On),
+            SetupRow(SetupGroup.AgendaAndCalendar, RowState.Missing, refused = true),
+            SetupRow(SetupGroup.Reminders, RowState.Missing, refused = true, askAgain = false),
+            SetupRow(SetupGroup.Lists, RowState.Off),
         )
         compose.setContent { SetupToolRows(rows, onToggle = { group, on -> toggled += "${group.name} $on" }, onOpenAppSettings = { settings++ }) }
         SetupGroup.entries.forEach { compose.onNodeWithText(it.title).assertExists() }

@@ -23,6 +23,17 @@ class PermissionNeedsTest {
     }
 
     @Test
+    fun aCallWithoutTheCallPermissionOffersToAllowIt() {
+        // Review P2-148: with calls refused or taken back, the reply says so and offers Allow, rather
+        // than only a hint to the tool's page.
+        val contacts = ContactBook { listOf(Contact("Priya", "+91 98765 43210")) }
+        val without = MakeCall.prepare(mapOf("name" to "Priya"), PrepareEnv(contacts = contacts, granted = { it != Manifest.permission.CALL_PHONE })) as Prepared.Ready
+        assertThat(without.needs).containsExactly(Manifest.permission.CALL_PHONE)
+        val with = MakeCall.prepare(mapOf("name" to "Priya"), PrepareEnv(contacts = contacts)) as Prepared.Ready
+        assertThat(with.needs).isEmpty()
+    }
+
+    @Test
     fun theCalendarToolsWithoutTheCalendarUseTheCalendarApp() {
         val agenda = ShowAgenda.prepareSaid("what's on today", noAccess, "day" to "today") as Prepared.Ready
         assertThat(agenda.confirm).isEqualTo("Open calendar")

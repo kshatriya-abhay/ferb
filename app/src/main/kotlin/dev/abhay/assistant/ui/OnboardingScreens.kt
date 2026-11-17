@@ -61,6 +61,7 @@ import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Switch
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import dev.abhay.assistant.onboarding.RowState
 import dev.abhay.assistant.onboarding.SetupGroup
 import dev.abhay.assistant.onboarding.Page
 import dev.abhay.assistant.pipeline.Abilities
@@ -76,6 +77,8 @@ internal object PageText {
     val ALL_TOOLS = R.string.onboarding_all_tools
     val NOT_ALLOWED = R.string.onboarding_not_allowed
     val OPEN_SETTINGS = R.string.onboarding_open_settings
+    val PERMISSION_REMOVED = R.string.onboarding_permission_removed
+    val NO_FOLDER = R.string.onboarding_no_folder
     val ASSISTANT_TITLE = R.string.onboarding_assistant_title
     val START = R.string.onboarding_start
     val SKIP = R.string.onboarding_skip
@@ -246,7 +249,14 @@ internal fun openAssistantSettings(context: Context) {
  * said no, shown as "Not allowed"; when Android won't ask again ([askAgain] false), the switch
  * gives way to a button to Ferb's page in Android's settings.
  */
-internal data class SetupRow(val group: SetupGroup, val on: Boolean, val refused: Boolean = false, val askAgain: Boolean = true)
+/**
+ * A row of setup's tools page ([SetupGroup.state]). [refused]: Android just refused what it asked
+ * ("Not allowed"); else a [RowState.Missing] row's permission was taken back since ("Permission
+ * removed: Allow"). [askAgain]: Android will still show its dialog; if not, the row opens settings.
+ */
+internal data class SetupRow(val group: SetupGroup, val state: RowState, val refused: Boolean = false, val askAgain: Boolean = true) {
+    val on get() = state == RowState.On
+}
 
 /** The rows: the name and a switch (the whole row toggles), and the short status when refused. */
 @OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
@@ -254,11 +264,20 @@ internal data class SetupRow(val group: SetupGroup, val on: Boolean, val refused
 internal fun SetupToolRows(rows: List<SetupRow>, onToggle: (SetupGroup, Boolean) -> Unit, onOpenAppSettings: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
         rows.forEachIndexed { i, row ->
-            val settingsOnly = row.refused && !row.askAgain
+            val missing = row.state == RowState.Missing
+            // Android won't show its dialog again after a refusal: only its settings can grant it.
+            val settingsOnly = missing && row.refused && !row.askAgain
+            val why = when {
+                !missing -> null
+                row.refused -> stringResource(PageText.NOT_ALLOWED)
+                row.group.needsFolder -> stringResource(PageText.NO_FOLDER)
+                else -> stringResource(PageText.PERMISSION_REMOVED)
+            }
             SegmentedListItem(
+                // A row that's missing something asks for it (or opens settings); else the switch flips.
                 onClick = { if (settingsOnly) onOpenAppSettings() else onToggle(row.group, !row.on) },
                 shapes = ListItemDefaults.segmentedShapes(i, rows.size),
-                supportingContent = if (row.refused) { { Text(stringResource(PageText.NOT_ALLOWED), color = MaterialTheme.colorScheme.error) } } else null,
+                supportingContent = why?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
                 trailingContent = {
                     if (settingsOnly) TextButton(onClick = onOpenAppSettings) { Text(stringResource(PageText.OPEN_SETTINGS)) }
                     else Switch(checked = row.on, onCheckedChange = null)
@@ -287,10 +306,11 @@ private fun SetupTools(settings: SettingsViewModel) {
     var refused by rememberSaveable { mutableStateOf(emptyList<String>()) }
     var pending by rememberSaveable { mutableStateOf<String?>(null) }
     fun granted(permission: String) = context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
+    // On is what the user asked for: the group's tools go on whatever Android said, and a request
+    // for one says what's missing and offers Allow (review P2-148).
     fun turnOn(group: SetupGroup) {
-        val usable = group.usable(::granted, settings.notes.ready)
-        settings.setEnabled(usable.map { it.name }, true)
-        refused = if (usable.isEmpty() && !group.needsFolder) refused + group.name else refused - group.name
+        settings.setEnabled(group.tools.map { it.name }, true)
+        refused = if (group.permissions.all(::granted)) refused - group.name else refused + group.name
         looked++
     }
     val ask = rememberPermissionsAsk { _ -> pending?.let { SetupGroup.valueOf(it) }?.let(::turnOn); pending = null }
@@ -300,7 +320,7 @@ private fun SetupTools(settings: SettingsViewModel) {
         val missing = group.permissions.filterNot(::granted)
         SetupRow(
             group,
-            on = group.on(saved, ::granted, settings.notes.ready),
+            group.state(saved, ::granted, settings.notes.ready),
             refused = group.name in refused && missing.isNotEmpty(),
             askAgain = activity == null || missing.any { activity.shouldShowRequestPermissionRationale(it) },
         )
