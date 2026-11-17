@@ -21,9 +21,13 @@ object AacEncoder {
 
     fun encode(pcm: FloatArray, rate: Int, cacheDir: File): ByteArray {
         val file = File.createTempFile("voice", ".m4a", cacheDir)
-        val codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC)
-        val muxer = MediaMuxer(file.path, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+        // Everything made after the file is released in finally, the file deleted, whatever fails first
+        // (review P2-96: a codec that couldn't be made left the file in the cache).
+        var codec: MediaCodec? = null
+        var muxer: MediaMuxer? = null
         try {
+            val codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC).also { codec = it }
+            val muxer = MediaMuxer(file.path, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4).also { muxer = it }
             codec.configure(MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, rate, 1).apply {
                 setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC)
                 setInteger(MediaFormat.KEY_BIT_RATE, BIT_RATE)
@@ -64,8 +68,8 @@ object AacEncoder {
             muxer.stop()
             return file.readBytes()
         } finally {
-            runCatching { codec.release() }
-            runCatching { muxer.release() }
+            codec?.let { runCatching { it.release() } }
+            muxer?.let { runCatching { it.release() } }
             file.delete()
         }
     }
