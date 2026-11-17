@@ -2,15 +2,12 @@ package dev.abhay.assistant.notes
 
 /**
  * Small, exact edits to a note's Markdown, as Ferb makes them in files the user also edits in
- * Obsidian (synced by Syncthing): a frontmatter key set or removed, lines appended, one checkbox
- * ticked. Everything else stays byte for byte: other frontmatter lines, the body, line endings
+ * Obsidian (synced by Syncthing): a frontmatter key read, lines appended, one checkbox ticked. Everything else stays byte for byte: other frontmatter lines, the body, line endings
  * (LF or CRLF, as the file has them), and a missing final newline.
  */
 object NoteText {
-    /** Ferb's frontmatter keys: the note's id (kept across renames), a reminder time, its repeat. */
+    /** Ferb's frontmatter key: the note's id, kept across renames. */
     const val ID = "ferb-id"
-    const val REMIND = "remind"
-    const val REPEAT = "repeat"
 
     /** The file's line ending: CRLF when its first line ends so, else LF. */
     fun newline(text: String) = if (text.indexOf('\n').let { it > 0 && text[it - 1] == '\r' }) "\r\n" else "\n"
@@ -32,34 +29,10 @@ object NoteText {
         return null
     }
 
-    /** The note without its frontmatter: what the viewer shows and the editor edits. */
-    fun body(text: String): String = frontmatter(text)?.let { text.substring(it.end) } ?: text
-
-    /** The frontmatter block as it is, empty without one: kept apart while the body is edited. */
-    fun head(text: String): String = frontmatter(text)?.let { text.substring(0, it.end) } ?: ""
-
     /** A simple `key: value` from the frontmatter (quotes trimmed), or null. */
     fun get(text: String, key: String): String? {
         val block = frontmatter(text) ?: return null
         return keyLines(text, block).firstOrNull { it.key == key }?.value
-    }
-
-    /**
-     * [text] with frontmatter [key] set to [value] (or removed, when null): that line replaced in
-     * place, or added before the closing `---`, or a new frontmatter block at the top. Nothing else
-     * changes.
-     */
-    fun set(text: String, key: String, value: String?): String {
-        val nl = newline(text)
-        val block = frontmatter(text)
-        if (block == null) return if (value == null) text else "---$nl$key: $value$nl---$nl$text"
-        val line = keyLines(text, block).firstOrNull { it.key == key }
-        return when {
-            line != null && value == null -> text.removeRange(line.start, line.next)
-            line != null -> text.replaceRange(line.start, line.end, "$key: $value")
-            value == null -> text
-            else -> text.substring(0, block.innerEnd) + "$key: $value$nl" + text.substring(block.innerEnd)
-        }
     }
 
     /** [text] with [lines] added at the end, each on its own line, in the file's line ending. */
@@ -71,7 +44,7 @@ object NoteText {
     }
 
     /** A Markdown task: its text, whether it's ticked, and where its mark (the space or x) is. */
-    data class Task(val text: String, val checked: Boolean, val mark: Int, val line: Int)
+    data class Task(val text: String, val checked: Boolean, val mark: Int)
 
     private val TASK = Regex("""^[ \t]*[-*+][ \t]+\[([ xX])\][ \t]+(.*)$""")
 
@@ -80,13 +53,11 @@ object NoteText {
         val from = frontmatter(text)?.end ?: 0
         val out = mutableListOf<Task>()
         var at = from
-        var n = 0
         while (at < text.length) {
             val (end, next) = lineEnd(text, at)
             val line = text.substring(at, end).trimEnd('\r')
-            TASK.find(line)?.let { m -> out += Task(m.groupValues[2].trim(), m.groupValues[1] != " ", at + m.groups[1]!!.range.first, n) }
+            TASK.find(line)?.let { m -> out += Task(m.groupValues[2].trim(), m.groupValues[1] != " ", at + m.groups[1]!!.range.first) }
             at = next
-            n++
         }
         return out
     }

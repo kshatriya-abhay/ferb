@@ -31,7 +31,7 @@ class CreateNoteTest {
         assertThat(done.message).isEqualTo("Saved “the car is parked on level” in your notes")
         val text = folder.files.getValue("the car is parked on level")
         assertThat(NoteText.get(text, NoteText.ID)).isNotEmpty()
-        assertThat(NoteText.body(text)).isEqualTo("the car is parked on level 3\n")
+        assertThat(text).endsWith("---\nthe car is parked on level 3\n")
         // Undo removes it, as Ferb wrote it.
         val undo = runBlocking { done.actions.first { it.label == "Undo" }.run(FollowUpEnv(unusedContext()) { true }) }
         assertThat(undo).isInstanceOf(Outcome.Done::class.java)

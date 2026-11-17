@@ -20,8 +20,8 @@ import kotlin.concurrent.thread
 
 /**
  * Schedules the reminders' notifications with exact alarms (`USE_EXACT_ALARM`, granted with the
- * app on Android 13+ for reminders), one per reminder, cancelling those that went; and a daily
- * rescan of the notes folder. All local: no network.
+ * app on Android 13+ for reminders), one per reminder, cancelling those that went. All local:
+ * no network.
  */
 class ReminderAlarms(private val context: Context) {
     private val alarms = context.getSystemService(AlarmManager::class.java)
@@ -37,8 +37,6 @@ class ReminderAlarms(private val context: Context) {
             else alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent)
         }
         prefs.edit().putStringSet(SCHEDULED, reminders.map { it.id }.toSet()).apply()
-        // The daily rescan of the notes folder, set until reminders left notes (2026-10-23): gone.
-        alarms.cancel(pending(context, ReminderReceiver.RESCAN, "scan"))
     }
 
     companion object {
@@ -53,7 +51,7 @@ class ReminderAlarms(private val context: Context) {
     }
 }
 
-/** Fires a reminder's notification, and handles its Done and Snooze, a reboot, and the daily rescan. */
+/** Fires a reminder's notification, and handles its Done and Snooze, and a reboot or an update. */
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val app = context.applicationContext as AssistantApp
@@ -69,7 +67,6 @@ class ReminderReceiver : BroadcastReceiver() {
                     SNOOZE -> id?.let { app.reminders.snooze(it); cancel(context, it) }
                     else -> {
                         // Boot, update: what was missed meanwhile, then every alarm again, from the store.
-                        app.migrateReminders()
                         app.reminders.catchUp()
                         showMissed(context, app)
                     }
@@ -90,7 +87,6 @@ class ReminderReceiver : BroadcastReceiver() {
         const val FIRE = "dev.abhay.assistant.reminder.FIRE"
         const val DONE = "dev.abhay.assistant.reminder.DONE"
         const val SNOOZE = "dev.abhay.assistant.reminder.SNOOZE"
-        const val RESCAN = "dev.abhay.assistant.reminder.RESCAN"
 
         /**
          * One-offs due while the phone was off (or Ferb's alarms were cleared): shown now, late,

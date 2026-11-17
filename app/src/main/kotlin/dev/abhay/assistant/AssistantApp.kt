@@ -88,25 +88,12 @@ class AssistantApp : Application() {
     /** The reminders scheduled from Ferb's store: on launch, and after any change. */
     fun syncReminders() {
         kotlin.concurrent.thread {
-            migrateReminders()
             dev.abhay.assistant.reminders.ReminderReceiver.showMissed(this, this)
             reminders.catchUp()
             reminders.prune()
             reminders.schedule(alarms::sync)
         }
     }
-    /**
-     * Once, silently: reminders that lived on notes (until 2026-10-23) read into Ferb's store
-     * ([dev.abhay.assistant.reminders.ReminderMigration]). The notes are only read. Blocking.
-     */
-    @Synchronized
-    fun migrateReminders() {
-        val prefs = getSharedPreferences("reminders", MODE_PRIVATE)
-        if (prefs.getBoolean(FROM_NOTES, false)) return
-        reminders.import(dev.abhay.assistant.reminders.ReminderMigration.fromNotes(notes, java.time.LocalDateTime.now()))
-        prefs.edit().putBoolean(FROM_NOTES, true).commit()
-    }
-
     /** Clears a reminder (the Reminders tab): out of the store, its alarm cancelled and its notification taken down. Blocking. */
     fun clearReminder(id: String): dev.abhay.assistant.reminders.Reminder? = reminders.clear(id)?.also {
         dev.abhay.assistant.reminders.ReminderReceiver.cancel(this, id)
@@ -135,4 +122,3 @@ class AssistantApp : Application() {
     }
 }
 
-private const val FROM_NOTES = "imported_from_notes"

@@ -105,13 +105,6 @@ object ReminderTime {
         }
         return (if (entry.done) "Done " else "Was due ") + day + time
     }
-
-    /** A `remind:` value: a date and time, or a date (09:00); null if it's neither. */
-    fun parse(value: String): LocalDateTime? {
-        val v = value.trim().trim('"', '\'').replace('T', ' ')
-        return runCatching { LocalDateTime.parse(v.take(16), FORMAT) }.getOrNull()
-            ?: runCatching { java.time.LocalDate.parse(v.take(10)).atTime(DEFAULT_TIME) }.getOrNull()
-    }
 }
 
 /** Where reminders are kept: Ferb's own file ([FileReminderStore]), or memory in tests. */
@@ -209,14 +202,6 @@ class ReminderBook(store: ReminderStore, private val now: () -> LocalDateTime) {
     /** Undoes [clear]: the reminder back as it was (time, repeat, snooze). */
     @Synchronized
     fun restore(reminder: Reminder) = store.save(store.load().filter { it.id != reminder.id } + reminder)
-
-    /** Adds reminders kept elsewhere before (the notes' frontmatter, read once: [ReminderMigration]), keeping those already here. */
-    @Synchronized
-    fun import(reminders: List<Reminder>) {
-        val kept = store.load()
-        val new = reminders.filter { r -> kept.none { it.id == r.id } }
-        if (new.isNotEmpty()) store.save(kept + new)
-    }
 
     /**
      * Done: a repeat moves to its next time after now, unless it already has ([fired]), when only
@@ -320,27 +305,6 @@ class ReminderBook(store: ReminderStore, private val now: () -> LocalDateTime) {
 }
 
 /**
- * Until 2026-10-23 a reminder could live on a note, in its frontmatter (`ferb-id`, `remind`,
- * `repeat`), and one added there in Obsidian became a reminder. Read once, on the first start
- * after that ended: each such reminder not already in Ferb's store, as a plain one. The notes are
- * only read, never written; their keys stay as harmless leftovers.
- */
-object ReminderMigration {
-    fun fromNotes(notes: NoteStore, now: LocalDateTime): List<Reminder> {
-        if (!notes.ready) return emptyList()
-        return notes.list().mapNotNull { note ->
-            val text = notes.read(note) ?: return@mapNotNull null
-            val at = NoteText.get(text, NoteText.REMIND)?.let(ReminderTime::parse) ?: return@mapNotNull null
-            // Its id was the note's ferb-id; a note without one never reached the store.
-            val id = NoteText.get(text, NoteText.ID) ?: NoteStore.newId()
-            // One gone by counts as shown, so nothing old turns up late.
-            Reminder(id, note.name, at, Repeat.of(NoteText.get(text, NoteText.REPEAT)), fired = !at.isAfter(now))
-        }
-    }
-}
-
-/** Reminders in Ferb's own storage, as JSON: id, title, at, repeat, note id, snoozed. */
-/**
  * Reminders as JSON in Ferb's own files. What it can't read it keeps (review P2-57): an entry it can't
  * parse is skipped on load and written back as it was on the next save; a file that isn't JSON at all
  * is moved aside (reminders.json.bad) before anything is written over it. A save goes to a temp file,
@@ -380,9 +344,7 @@ class FileReminderStore(private val file: java.io.File) : ReminderStore {
 
     private fun reminder(o: JSONObject): Reminder {
         val at = LocalDateTime.parse(o.getString("at"))
-        // Saved before "fired" was kept (2026-10-23): one already past counts as shown, so nothing old shows late.
-        val fired = if (o.has("fired")) o.getBoolean("fired") else !at.isAfter(LocalDateTime.now())
-        // A "note" key (a reminder on a note, until 2026-10-23) is dropped: it's a plain reminder now.
+        val fired = o.optBoolean("fired")
         fun time(key: String) = o.optString(key).ifEmpty { null }?.let(LocalDateTime::parse)
         return Reminder(o.getString("id"), o.getString("title"), at, Repeat.of(o.optString("repeat").ifEmpty { null }),
             time("snoozed"), fired, time("firedAt"), time("doneAt"), time("start"))

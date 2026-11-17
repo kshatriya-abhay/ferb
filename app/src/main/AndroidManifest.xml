@@ -106,7 +106,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
-        <!-- A reminder's notification, its Done and Snooze, a reboot, the daily rescan of the notes folder. -->
+        <!-- A reminder's notification, its Done and Snooze, a reboot or an update. -->
         <receiver
             android:name=".reminders.ReminderReceiver"
             android:exported="false">

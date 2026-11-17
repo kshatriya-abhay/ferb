@@ -9,7 +9,6 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.google.common.truth.Truth.assertThat
 import dev.abhay.assistant.reminders.Reminder
 import dev.abhay.assistant.reminders.ReminderAlarms
-import dev.abhay.assistant.reminders.ReminderMigration
 import dev.abhay.assistant.reminders.Repeat
 import dev.abhay.assistant.reminders.ReminderReceiver
 import java.io.File
@@ -67,18 +66,6 @@ class RemindersDeviceTest {
         app.reminders.remove(reminder.id)
     }
 
-    @Test
-    fun aReminderThatLivedOnANoteIsReadWithoutWritingTheNote() {
-        val notes = NotesDeviceTest.testNotes(context)
-        val original = "---\nferb-id: dt1\nremind: 2030-01-01 09:00\nrepeat: yearly\n---\nPay by transfer.\n"
-        val note = notes.create("Rent", original)!!
-        val found = ReminderMigration.fromNotes(notes, LocalDateTime.now()).single { it.id == "dt1" }
-        assertThat(found).isEqualTo(Reminder("dt1", "Rent", LocalDateTime.of(2030, 1, 1, 9, 0), Repeat.Yearly))
-        assertThat(notes.read(note)).isEqualTo(original)
-        notes.delete(note)
-    }
-
-    /** For the script: a reminder in a minute and a half, to fire after the process is killed or the app reinstalled. */
     @Test
     fun scheduleForLater() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("later") == "1")

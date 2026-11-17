@@ -57,8 +57,8 @@ class NotesDeviceTest {
     fun aShorterSaveLeavesNoTailAndOnlyTheKeyChanges() {
         val text = "---\ntags: [test]\n---\nA long body that will get shorter.\n"
         val note = notes.create("Plans", text)!!
-        assertThat(notes.update(note) { NoteText.set(it, NoteText.REMIND, "2026-10-20 09:00") }).isTrue()
-        assertThat(notes.read(note)).isEqualTo(NoteText.set(text, NoteText.REMIND, "2026-10-20 09:00"))
+        assertThat(notes.update(note) { it.replace("tags: [test]", "tags: [test, kept]") }).isTrue()
+        assertThat(notes.read(note)).isEqualTo(text.replace("tags: [test]", "tags: [test, kept]"))
         notes.update(note) { "short\n" }
         assertThat(File(dir, "Plans.md").readText()).isEqualTo("short\n")
         assertThat(notes.delete(note)).isTrue()
