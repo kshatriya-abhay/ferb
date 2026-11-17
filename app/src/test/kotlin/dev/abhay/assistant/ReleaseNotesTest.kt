@@ -8,8 +8,8 @@ import org.junit.Test
 class ReleaseNotesTest {
     private val repo = File("..").canonicalFile
 
-    private fun section(version: String): Pair<Int, String> {
-        val p = ProcessBuilder("bash", "scripts/changelog-section.sh", version).directory(repo).redirectErrorStream(true).start()
+    private fun section(version: String, file: File? = null): Pair<Int, String> {
+        val p = ProcessBuilder(listOfNotNull("bash", "scripts/changelog-section.sh", version, file?.path)).directory(repo).redirectErrorStream(true).start()
         val out = p.inputStream.bufferedReader().readText()
         return p.waitFor() to out
     }
@@ -28,5 +28,18 @@ class ReleaseNotesTest {
     @Test
     fun aVersionWithNoSectionIsRefused() {
         assertThat(section("9.9.9").first).isNotEqualTo(0)
+    }
+
+    @Test
+    fun theSectionsEdges() {
+        // As Ferb Link's tests have them (its release/changelog-section.sh reads the same way).
+        val sample = File.createTempFile("changelog", ".md").apply {
+            deleteOnExit()
+            writeText("# Changelog\n\n## 0.10\n\n- ten\n\n## 0.3\n## 0.2\n\n### Group\n\n- two\n\n\n## 0.1\n\n- one\n")
+        }
+        assertThat(section("0.2", sample)).isEqualTo(0 to "### Group\n\n- two\n")
+        assertThat(section("0.1", sample)).isEqualTo(0 to "- one\n") // the last runs to the end; not "## 0.10"
+        assertThat(section("0.3", sample).first).isNotEqualTo(0) // empty
+        assertThat(section("0.4", sample).first).isNotEqualTo(0) // missing
     }
 }

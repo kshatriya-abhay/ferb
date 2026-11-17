@@ -2,7 +2,7 @@
 # The release notes for a version: CHANGELOG.md's "## <version>" section, its heading left out, up to
 # the next "## " (### subheadings stay in), blank lines trimmed at both ends. Fails if there's none.
 #   scripts/changelog-section.sh <version> [CHANGELOG.md]
-# Ferb Link's scripts/changelog-section.sh reads its changelog the same way.
+# Ferb Link's release/changelog-section.sh reads its changelog the same way.
 set -euo pipefail
 VERSION=${1:?version}
 FILE=${2:-$(dirname "$0")/../CHANGELOG.md}
