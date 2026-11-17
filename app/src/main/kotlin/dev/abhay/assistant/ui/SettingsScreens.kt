@@ -37,7 +37,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -87,11 +86,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -121,9 +118,6 @@ import dev.abhay.assistant.tools.ToolConfig
 import dev.abhay.assistant.tools.ToolOption
 import dev.abhay.assistant.tools.ToolSettings
 import dev.abhay.assistant.tools.Tools
-import dev.abhay.assistant.pipeline.AudioStep
-import dev.abhay.assistant.pipeline.RewriteStep
-import dev.abhay.assistant.pipeline.ToolStep
 import dev.abhay.assistant.voice.Part
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -313,7 +307,7 @@ fun ToolsScreen(settings: SettingsViewModel, onOpenTool: (String) -> Unit, onBac
     Scaffold(
         Modifier.nestedScroll(bar.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        topBar = { TopBar(stringResource(R.string.settings_tools), subtitle = "$on of ${Tools.all.size} on", onBack = back, scroll = bar) },
+        topBar = { TopBar(stringResource(R.string.settings_tools), subtitle = stringResource(R.string.settings_s_of_s_on, on, Tools.all.size), onBack = back, scroll = bar) },
         bottomBar = { SaveBar(settings) },
     ) { padding ->
         LazyColumn(

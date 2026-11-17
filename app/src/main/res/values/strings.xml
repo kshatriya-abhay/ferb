@@ -42,6 +42,14 @@
     <string name="newreminder_ok">OK</string>
     <string name="notes_pick_a_notes_folder">Pick a notes folder</string>
     <string name="notes_clear_reminder">Clear reminder</string>
+    <string name="notes_notes">Notes</string>
+    <string name="notes_reminders">Reminders</string>
+    <string name="notes_no_notes_yet">No notes yet</string>
+    <string name="notes_upcoming">Upcoming</string>
+    <string name="notes_recent">Recent</string>
+    <string name="notes_couldn_t_clear_it">Couldn\'t clear it</string>
+    <string name="notes_reminder_cleared">Reminder cleared</string>
+    <string name="notes_undo">Undo</string>
     <string name="onboarding_page_s_of_s">Page %1$s of %2$s</string>
     <string name="pipeline_each_step_one_by_one">Each step, one by one</string>
     <string name="settings_s_of_s_on">%1$s of %2$s on</string>

@@ -8,7 +8,6 @@ import dev.abhay.assistant.request.AnswerFlow
 import dev.abhay.assistant.request.Step
 import android.annotation.SuppressLint
 import android.app.Application
-import android.content.Context
 import android.os.SystemClock
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
@@ -26,18 +25,15 @@ import dev.abhay.assistant.pipeline.AudioStep
 import dev.abhay.assistant.pipeline.Fallback
 import dev.abhay.assistant.pipeline.Pipeline
 import dev.abhay.assistant.pipeline.RewriteStep
-import dev.abhay.assistant.pipeline.ToolStep
 import dev.abhay.assistant.voice.AacEncoder
 import dev.abhay.assistant.voice.EnergyVad
 import dev.abhay.assistant.voice.BatterySaver
 import dev.abhay.assistant.voice.Endpoint
 import dev.abhay.assistant.voice.Part
 import dev.abhay.assistant.link.Transcript
-import dev.abhay.assistant.tools.CallRunner
 import dev.abhay.assistant.tools.Choice
 import dev.abhay.assistant.tools.FollowUp
 import dev.abhay.assistant.tools.of
-import dev.abhay.assistant.tools.FollowUpEnv
 import dev.abhay.assistant.tools.Outcome
 import dev.abhay.assistant.tools.PrepareEnv
 import dev.abhay.assistant.tools.Prepared
@@ -63,7 +59,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**

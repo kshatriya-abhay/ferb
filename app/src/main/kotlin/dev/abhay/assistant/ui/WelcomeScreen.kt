@@ -1,20 +1,12 @@
 package dev.abhay.assistant.ui
 
 import androidx.compose.ui.res.stringResource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialShapes
@@ -32,8 +24,8 @@ import dev.abhay.assistant.R
 
 /**
  * The first page of the first launch ([OnboardingFlow]): what Ferb is (not a chatbot: it does
- * things), the two headline lines alone. It asks for nothing; permissions come when a tool or the mic
- * needs them. Which tools are on comes on the tools page ([Page.Tools]), then [Tip.Switches].
+ * things), the two headline lines alone. It asks for nothing: the tools page ([Page.Tools]) asks for
+ * what each group needs as it's turned on, then [Tip.Switches].
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable

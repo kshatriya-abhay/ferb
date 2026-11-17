@@ -561,6 +561,9 @@ private fun Map<String, Any>.bundle(): Bundle = bundleOf(*toList().toTypedArray(
 /** What Ferb Link's `check` found: whether the computer answers, its model, or why not. */
 data class Reachability(val reachable: Boolean, val model: String?, val error: String?, val audio: Boolean = false, val errorDetail: String? = null)
 
+/** Ferb Link ready, before the model's name. */
+const val CONNECTED = "Connected"
+
 /** [status] in a few words, for the settings page and for notes under answers. */
 fun describe(status: LinkStatus): String = when (status) {
     LinkStatus.NotInstalled -> "Ferb Link isn't installed"
@@ -568,7 +571,7 @@ fun describe(status: LinkStatus): String = when (status) {
     LinkStatus.NotAllowed -> "Install Ferb and Ferb Link from the same place"
     LinkStatus.Off -> "Turned off: switch on “Answer Ferb's requests” in Ferb Link"
     LinkStatus.NotSetUp -> "Not connected to your computer yet"
-    is LinkStatus.Ready -> status.model?.let { "Connected \u00b7 $it" } ?: "Connected"
+    is LinkStatus.Ready -> status.model?.let { "$CONNECTED \u00b7 $it" } ?: CONNECTED
     is LinkStatus.Failed -> "Ferb Link failed: ${status.reason}"
 }
 

@@ -28,13 +28,12 @@ class ChatTipsTest {
     private val waiting = CallState(torch, ready, Status.Waiting)
     private val withUndo = CallState(torch, ready, Status.Finished(Outcome.Done("On", actions = listOf(FollowUp("Turn off") { Outcome.Done("Off") }))))
 
-    private fun tips(history: List<Exchange>, start: Boolean = false, mic: Boolean = false) =
-        chatTips(history, start, mic)
+    private fun tips(history: List<Exchange>, mic: Boolean = false) = chatTips(history, mic)
 
     @Test
-    fun theStartScreenSuggestsTryingAnExample() {
-        // The start screen explains nothing: its examples speak for themselves.
-        assertThat(tips(emptyList(), start = true)).isEmpty()
+    fun anEmptyChatWithoutTheMicHasNoTips() {
+        // Review P2-151: named for the start screen, whose parameter chatTips never read.
+        assertThat(tips(emptyList())).isEmpty()
     }
 
     @Test
@@ -58,16 +57,16 @@ class ChatTipsTest {
     fun nothingAskedIsNotStruggling() {
         // NONE from the rewrite is an answer, not Needle 3 failing: no Ferb Link suggestion for it.
         val none = (1L..3L).map { exchange(it, nothingAsked = true) }
-        assertThat(chatTips(none, false, false, linkOff = true).map { it.tip }).doesNotContain(Tip.SuggestLink)
+        assertThat(chatTips(none, false, linkOff = true).map { it.tip }).doesNotContain(Tip.SuggestLink)
     }
 
     @Test
     fun ferbLinkIsSuggestedAfterAFewRepliesWithNoToolWhileItsOff() {
         val noTool = (1L..3L).map { exchange(it) }
-        assertThat(chatTips(noTool, false, false, linkOff = true).map { it.tip }).contains(Tip.SuggestLink)
+        assertThat(chatTips(noTool, false, linkOff = true).map { it.tip }).contains(Tip.SuggestLink)
         // Not while Ferb Link is in use, nor before a few such replies, nor after replies that worked.
-        assertThat(chatTips(noTool, false, false, linkOff = false).map { it.tip }).doesNotContain(Tip.SuggestLink)
-        assertThat(chatTips(noTool.take(2), false, false, linkOff = true).map { it.tip }).doesNotContain(Tip.SuggestLink)
-        assertThat(chatTips((1L..5L).map { exchange(it, withUndo) }, false, false, linkOff = true).map { it.tip }).doesNotContain(Tip.SuggestLink)
+        assertThat(chatTips(noTool, false, linkOff = false).map { it.tip }).doesNotContain(Tip.SuggestLink)
+        assertThat(chatTips(noTool.take(2), false, linkOff = true).map { it.tip }).doesNotContain(Tip.SuggestLink)
+        assertThat(chatTips((1L..5L).map { exchange(it, withUndo) }, false, linkOff = true).map { it.tip }).doesNotContain(Tip.SuggestLink)
     }
 }

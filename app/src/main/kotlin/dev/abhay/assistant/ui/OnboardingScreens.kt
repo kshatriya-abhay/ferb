@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -67,7 +66,6 @@ import dev.abhay.assistant.onboarding.Page
 import dev.abhay.assistant.pipeline.Abilities
 import dev.abhay.assistant.pipeline.ModelChoice
 import dev.abhay.assistant.voice.GeminiSetup
-import dev.abhay.assistant.voice.Part
 
 /** Each page in plain words (string resources). */
 internal object PageText {
@@ -179,7 +177,8 @@ internal fun OnboardingFlow(
             }
             Dots(pages, page)
             Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Page.previous(page, assistantHeld)?.let { previous ->
+                // The pages as at the start, as the back gesture reads them (review P2-149).
+                Page.previous(page, heldAtStart)?.let { previous ->
                     OutlinedButton(onClick = { page = previous }, Modifier.height(56.dp)) { Text(stringResource(PageText.BACK)) }
                 }
                 Button(onClick = ::next, Modifier.weight(1f).height(56.dp), contentPadding = ButtonDefaults.MediumContentPadding) {

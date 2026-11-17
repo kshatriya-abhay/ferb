@@ -5,7 +5,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 import dev.abhay.assistant.voice.GeminiSetup
-import dev.abhay.assistant.voice.Part
 import dev.abhay.assistant.pipeline.AudioStep
 import dev.abhay.assistant.pipeline.Pipeline
 import dev.abhay.assistant.pipeline.RewriteStep

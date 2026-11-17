@@ -5,21 +5,14 @@ import dev.abhay.assistant.request.Step
 import android.Manifest
 import androidx.compose.runtime.saveable.rememberSaveable
 import android.provider.Settings
-import android.net.Uri
-import android.content.Intent
 import android.app.Activity
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.MaterialShapes
-import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.toShape
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import dev.abhay.assistant.tools.Flashlight
@@ -89,7 +82,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -108,6 +100,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -145,9 +139,6 @@ import java.util.Locale
 import kotlinx.coroutines.delay
 import dev.abhay.assistant.tools.LevelWatch
 import dev.abhay.assistant.voice.Mic
-import dev.abhay.assistant.pipeline.AudioStep
-import dev.abhay.assistant.pipeline.RewriteStep
-import dev.abhay.assistant.pipeline.ToolStep
 import androidx.compose.runtime.rememberUpdatedState
 
 /**
@@ -169,12 +160,20 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
     LaunchedEffect(state.notice?.id) { state.notice?.let { snackbar.showSnackbar(it.text); viewModel.noticeShown(it.id) } }
     val onboarding by viewModel.onboarding.state.collectAsStateWithLifecycle()
     val linkStatus = rememberLinkStatus(viewModel.link)
+    // Whether there's a notes folder: a binder call, so on each resume and after a pick, not at every
+    // recomposition of the top bar, which is each word Gemini Nano hears (review P2-126).
+    var notesLooked by remember { mutableIntStateOf(0) }
+    LifecycleResumeEffect(Unit) {
+        notesLooked++
+        onPauseOrDispose { }
+    }
+    val notesReady = remember(notesLooked) { viewModel.notes.ready }
     val usesComputer = pipeline.usesComputer
     // The mic, unless audio processing is off (Settings → How Ferb understands you).
     val micAvailable = Mic.shows(pipeline.audio)
     // The one tip to show, if any, among those whose thing is on screen.
     val startScreen = engine is AssistantEngine.State.Ready && state.history.isEmpty() && state.pending == null
-    val places = chatTips(state.history, startScreen, micShown = state.voice == null && micAvailable,
+    val places = chatTips(state.history, micShown = state.voice == null && micAvailable,
         linkOff = linkStatus == LinkStatus.NotInstalled || linkStatus == LinkStatus.NotSetUp)
     val tip = Tip.next(places.map { it.tip }, onboarding.seen)?.let { t -> places.first { it.tip == t } }
     val seen = viewModel.onboarding::seen
@@ -192,6 +191,7 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
         val request = state.history.firstOrNull { it.id == allowing }?.request
         if (tree != null) {
             viewModel.pickNotesFolder(tree)
+            notesLooked++
             if (request != null) viewModel.send(request)
         }
         allowing = null
@@ -207,10 +207,10 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.app_name)) },
-                subtitle = { Text(subtitle(engine, usesComputer)) },
+                subtitle = { Text(subtitle(engine, usesComputer, stringResource(R.string.assistant_couldn_t_start))) },
                 actions = {
                     // Notes, once there's a folder for them.
-                    if (viewModel.notes.ready) IconButton(onClick = onOpenNotes) { Icon(painterResource(R.drawable.ic_note), contentDescription = stringResource(R.string.assistant_notes)) }
+                    if (notesReady) IconButton(onClick = onOpenNotes) { Icon(painterResource(R.drawable.ic_note), contentDescription = stringResource(R.string.assistant_notes)) }
                     IconButton(onClick = onOpenSettings) { Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.assistant_settings)) }
                     var menu by remember { mutableStateOf(false) }
                     Box {
@@ -270,7 +270,7 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
             val mic = rememberPermissionFlow { granted ->
                 if (Manifest.permission.RECORD_AUDIO in granted) viewModel.startRecording() else viewModel.notify("Ferb needs the microphone.")
             }
-            InputBar(state, ready = engine is AssistantEngine.State.Ready, focus = 0, onChange = viewModel::onInputChange, onSend = { viewModel.send() },
+            InputBar(state, ready = engine is AssistantEngine.State.Ready, onChange = viewModel::onInputChange, onSend = { viewModel.send() },
                 // While a step uses the computer, a tap on the box wakes its model while the request is typed.
                 onFocus = { if (usesComputer) viewModel.wakeComputer() },
                 mic = micAvailable,
@@ -285,9 +285,9 @@ fun AssistantScreen(viewModel: AssistantViewModel, onOpenSettings: () -> Unit, o
     details?.let { DetailsSheet(it, onDismiss = { details = null }) }
 }
 
-private fun subtitle(engine: AssistantEngine.State, usesComputer: Boolean) = when (engine) {
+private fun subtitle(engine: AssistantEngine.State, usesComputer: Boolean, couldntStart: String) = when (engine) {
     AssistantEngine.State.Loading -> "Getting ready…"
-    is AssistantEngine.State.Failed -> "Couldn't start"
+    is AssistantEngine.State.Failed -> couldntStart
     is AssistantEngine.State.Ready -> if (usesComputer) "On this phone · your computer helps" else "On this phone · offline"
 }
 
@@ -495,8 +495,8 @@ internal fun ReplyBubble(
             offered?.let { tool -> Button(onClick = { onTurnOn(tool.name) }) { Text(stringResource(R.string.assistant_turn_on)) } }
             if (asking) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (!choosing) Button(onClick = onRun) { Text(only?.confirm ?: "Do it") }
-                    TextButton(onClick = onSkip) { Text(only?.cancel ?: "Not now") }
+                    if (!choosing) Button(onClick = onRun) { Text(only?.confirm ?: Prepared.Ready.CONFIRM) }
+                    TextButton(onClick = onSkip) { Text(only?.cancel ?: Prepared.Ready.CANCEL) }
                 }
             }
         }
@@ -751,8 +751,6 @@ internal fun DetailsSheet(exchange: AssistantViewModel.Exchange, onDismiss: () -
 private fun InputBar(
     state: AssistantViewModel.UiState,
     ready: Boolean,
-    /** Bumped to focus the box and bring the keyboard up (Ferb opened as the assistant). */
-    focus: Int = 0,
     onChange: (String) -> Unit,
     onSend: () -> Unit,
     onFocus: () -> Unit = {},
@@ -776,7 +774,7 @@ private fun InputBar(
             label = "voice",
         ) { kind ->
             val clip = state.voice
-            if (kind == VoiceKind.None || clip == null) InputField(state, ready, onChange, onSend, onMic.takeIf { mic }, onFocus, focus)
+            if (kind == VoiceKind.None || clip == null) InputField(state, ready, onChange, onSend, onMic.takeIf { mic }, onFocus)
             else VoiceField(clip, onFinish, onDiscard, onSend)
         }
     }

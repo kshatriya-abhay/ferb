@@ -80,11 +80,17 @@ sealed interface Prepared {
         val detail: String? = null,
         val choices: List<Choice> = emptyList(),
         val other: Choice? = null,
-        val confirm: String = "Do it",
-        val cancel: String = "Not now",
+        val confirm: String = CONFIRM,
+        val cancel: String = CANCEL,
         val needs: List<String> = emptyList(),
         val run: (Context) -> Outcome,
     ) : Prepared {
+        companion object {
+            /** A reply's buttons unless the tool names them; the bubble falls back to these too (review P2-127). */
+            const val CONFIRM = "Do it"
+            const val CANCEL = "Not now"
+        }
+
         /** This with [reason], why Ferb asks first, on its own line above [detail]; as it is when there's none or it's there already. */
         fun withReason(reason: String?): Ready {
             if (reason.isNullOrBlank() || detail?.contains(reason, ignoreCase = true) == true) return this

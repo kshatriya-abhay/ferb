@@ -79,7 +79,7 @@ internal fun availability(status: LinkStatus?, computerHears: Boolean?, setup: G
 @Composable
 internal fun rememberAvailability(link: FerbLink, gemini: GeminiSetup): Availability {
     val status = rememberLinkStatus(link)
-    val hears = rememberVoiceAvailable(link, active = status is LinkStatus.Ready)
+    val hears = rememberVoiceAvailable(link, status)
     return availability(status, hears, gemini)
 }
 
@@ -201,11 +201,15 @@ internal fun ModelOptions(
 
 internal val OPEN_FERB_LINK = R.string.link_open_ferb_link
 
-/** Opens Ferb Link, or null when it isn't installed. */
+/**
+ * Opens Ferb Link, or null when it isn't installed: looked up once per [status] (an install is
+ * seen), not on every recomposition, which asked PackageManager on Main each time (review P2-140).
+ */
 @Composable
-internal fun rememberOpenLink(link: FerbLink): (() -> Unit)? {
+internal fun rememberOpenLink(link: FerbLink, status: LinkStatus? = link.last): (() -> Unit)? {
     val context = androidx.compose.ui.platform.LocalContext.current
-    return link.openIntent()?.let { intent -> { context.startActivity(intent) } }
+    val intent = androidx.compose.runtime.remember(status) { link.openIntent() }
+    return intent?.let { { context.startActivity(it) } }
 }
 
 /**
@@ -216,7 +220,7 @@ internal fun rememberOpenLink(link: FerbLink): (() -> Unit)? {
 internal fun rememberAbilities(settings: SettingsViewModel): Abilities {
     LaunchedEffect(Unit) { settings.checkGemini() }
     val status = rememberLinkStatus(settings.link)
-    val hears = rememberVoiceAvailable(settings.link, active = status is LinkStatus.Ready)
+    val hears = rememberVoiceAvailable(settings.link, status)
     // Nothing to tell before the first read: Off would re-resolve the steps without Ferb Link (review P2-120).
     LaunchedEffect(status, hears) { status?.let { settings.linkChanged(it, hears.takeIf { it == true }) } }
     val can by settings.abilities.collectAsStateWithLifecycle()

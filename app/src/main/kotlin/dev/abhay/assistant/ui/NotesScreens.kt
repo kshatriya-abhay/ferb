@@ -112,6 +112,9 @@ fun NotesScreen(viewModel: AssistantViewModel, onOpen: (NoteRef) -> Unit, onBack
     val scope = rememberCoroutineScope()
     val motion = MaterialTheme.motionScheme
     val snackbar = remember { SnackbarHostState() }
+    val couldntClear = stringResource(R.string.notes_couldn_t_clear_it)
+    val clearedLine = stringResource(R.string.notes_reminder_cleared)
+    val undoLabel = stringResource(R.string.notes_undo)
     // Reminders cleared here, hidden at once while the store catches up (and shown again on Undo).
     var hidden by remember { mutableStateOf(emptySet<String>()) }
     // Upcoming's clear removes the reminder (a repeat entirely); Recent's takes the entry off Recent.
@@ -124,10 +127,10 @@ fun NotesScreen(viewModel: AssistantViewModel, onOpen: (NoteRef) -> Unit, onBack
             }
             if (cleared == null) {
                 hidden = hidden - key
-                snackbar.showSnackbar("Couldn't clear it")
+                snackbar.showSnackbar(couldntClear)
                 return@launch
             }
-            val undo = snackbar.showSnackbar("Reminder cleared", actionLabel = "Undo", withDismissAction = true, duration = SnackbarDuration.Long)
+            val undo = snackbar.showSnackbar(clearedLine, actionLabel = undoLabel, withDismissAction = true, duration = SnackbarDuration.Long)
             if (undo == SnackbarResult.ActionPerformed) {
                 withContext(Dispatchers.IO) { viewModel.restoreReminder(cleared) }
                 hidden = hidden - key
@@ -158,7 +161,7 @@ fun NotesScreen(viewModel: AssistantViewModel, onOpen: (NoteRef) -> Unit, onBack
                 // a tap moves the pager with the theme's spatial spring, as the screens move.
                 PrimaryTabRow(selectedTabIndex = pager.currentPage, containerColor = MaterialTheme.colorScheme.surfaceContainer) {
                     NotesTab.entries.forEach { tab ->
-                        Tab(selected = pager.currentPage == tab.ordinal, text = { Text(tab.title) },
+                        Tab(selected = pager.currentPage == tab.ordinal, text = { Text(stringResource(tab.title)) },
                             onClick = { scope.launch { pager.animateScrollToPage(tab.ordinal, animationSpec = motion.defaultSpatialSpec()) } })
                     }
                 }
@@ -166,17 +169,17 @@ fun NotesScreen(viewModel: AssistantViewModel, onOpen: (NoteRef) -> Unit, onBack
         }) { padding ->
         HorizontalPager(pager, Modifier.padding(padding).fillMaxSize(), verticalAlignment = Alignment.Top) { page ->
             when (NotesTab.entries[page]) {
-                NotesTab.Notes -> NotesTab(notes, list, warning, onPick = { pick.launch(null) }, onOpen = onOpen)
+                NotesTab.Notes -> NotesList(notes, list, warning, onPick = { pick.launch(null) }, onOpen = onOpen)
                 NotesTab.Reminders -> RemindersTab(viewModel, reminderList, resumed, hidden, onClear = clear)
             }
         }
     }
 }
 
-enum class NotesTab(val title: String) { Notes("Notes"), Reminders("Reminders") }
+enum class NotesTab(@androidx.annotation.StringRes val title: Int) { Notes(R.string.notes_notes), Reminders(R.string.notes_reminders) }
 
 @Composable
-private fun NotesTab(notes: SafNotes, shown: List<NoteRef>?, warning: String?, onPick: () -> Unit, onOpen: (NoteRef) -> Unit) {
+private fun NotesList(notes: SafNotes, shown: List<NoteRef>?, warning: String?, onPick: () -> Unit, onOpen: (NoteRef) -> Unit) {
     Column(Modifier.fillMaxSize()) {
         warning?.let {
             Text(it, Modifier.padding(horizontal = 24.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
@@ -186,7 +189,7 @@ private fun NotesTab(notes: SafNotes, shown: List<NoteRef>?, warning: String?, o
                 Button(onClick = onPick) { Text(stringResource(R.string.notes_pick_a_notes_folder)) }
             }
             shown == null -> Loading()
-            shown.isEmpty() -> Empty("No notes yet")
+            shown.isEmpty() -> Empty(stringResource(R.string.notes_no_notes_yet))
             else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = LIST_PADDING, verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
                 itemsIndexed(shown, key = { _, n -> n.id }) { i, note ->
                     SegmentedListItem(
@@ -236,7 +239,7 @@ private fun RemindersTab(viewModel: AssistantViewModel, state: LazyListState, re
     LazyColumn(Modifier.fillMaxSize(), state = state, contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
         if (upcoming.isNotEmpty()) {
-            item(key = "upcoming") { SectionHeader("Upcoming", Modifier.animateItem()) }
+            item(key = "upcoming") { SectionHeader(stringResource(R.string.notes_upcoming), Modifier.animateItem()) }
             itemsIndexed(upcoming, key = { _, r -> rowKey(r, recent = false) }) { i, reminder ->
                 val supporting = listOfNotNull(ReminderTime.next(reminder.due, now), ReminderTime.repeat(reminder)).joinToString(" · ")
                 SegmentedListItem(shapes = ListItemDefaults.segmentedShapes(i, upcoming.size), modifier = Modifier.animateItem(),
@@ -246,7 +249,7 @@ private fun RemindersTab(viewModel: AssistantViewModel, state: LazyListState, re
             }
         }
         if (recent.isNotEmpty()) {
-            item(key = "recent") { SectionHeader("Recent", Modifier.animateItem().padding(top = if (upcoming.isEmpty()) 0.dp else 16.dp)) }
+            item(key = "recent") { SectionHeader(stringResource(R.string.notes_recent), Modifier.animateItem().padding(top = if (upcoming.isEmpty()) 0.dp else 16.dp)) }
             itemsIndexed(recent, key = { _, e -> rowKey(e.reminder, recent = true) }) { i, entry ->
                 // Quieter: a muted badge with a tick, and the secondary text colour.
                 val quiet = MaterialTheme.colorScheme.onSurfaceVariant

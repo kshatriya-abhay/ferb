@@ -17,6 +17,9 @@ object AddReminder : Tool(
     defaultRunFrom = 0.3,
     examples = listOf("Remind me in 20 minutes to check the oven", "Remind me on Friday to pay the rent"),
 ) {
+    /** Why a reminder can't be set without notifications: the chat's reply and the New reminder form say it alike (review P2-147). */
+    const val NEEDS_NOTIFICATIONS = "Ferb needs to show notifications to remind you"
+
     // Hindi's "yaad dilana" too (2026-10-29): the words as said then name reminders, so a rewrite
     // that makes an alarm of one asks (DateGate's gate H), and Needle 3 sees the tool.
     override val keywords = listOf("remind me", "reminder", "remind", "yaad dilana", "yaad dila", "yaad dilao", "yaad dilaana", "yaad karana", "याद दिलाना", "याद दिला", "याद दिलाओ")
@@ -55,7 +58,7 @@ object AddReminder : Tool(
         val repeat = ferb.repeat
         // Without notifications a reminder can't remind: ask first, then the request runs again.
         if (!env.granted(Manifest.permission.POST_NOTIFICATIONS)) {
-            return Prepared.Invalid("Ferb needs to show notifications to remind you", needs = listOf(Manifest.permission.POST_NOTIFICATIONS))
+            return Prepared.Invalid(NEEDS_NOTIFICATIONS, needs = listOf(Manifest.permission.POST_NOTIFICATIONS))
         }
         val summary = "Remind you: “$text” · ${describe(at, now)}" + (repeat?.let { ", ${it.key}" } ?: "")
         return Prepared.Ready(summary, opensApp = false) { _ ->

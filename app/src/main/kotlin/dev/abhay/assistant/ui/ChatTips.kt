@@ -18,17 +18,16 @@ internal data class TipPlace(val tip: Tip, val exchange: Long?)
 
 /**
  * The chat's tips whose thing is on screen, each at the newest reply that shows it: the replies
- * ([history], oldest first), the start screen's examples, the mic. [Tip.next] then picks the one
- * to show. [linkOff]: Ferb Link isn't installed and paired.
+ * ([history], oldest first) and the mic. [Tip.next] then picks the one to show. [linkOff]: Ferb
+ * Link isn't installed and paired. (The start screen has none: its examples speak for themselves.)
  */
-internal fun chatTips(history: List<Exchange>, startScreen: Boolean, micShown: Boolean, linkOff: Boolean = false, micTip: Boolean = micShown): List<TipPlace> {
+internal fun chatTips(history: List<Exchange>, micShown: Boolean, linkOff: Boolean = false): List<TipPlace> {
     val newest = history.asReversed()
     fun at(tip: Tip, shows: (Exchange) -> Boolean) = newest.firstOrNull(shows)?.let { TipPlace(tip, it.id) }
-    val done = { e: Exchange -> e.calls.mapNotNull { (it.status as? Status.Finished)?.outcome as? Outcome.Done } }
     return listOfNotNull(
         newest.firstOrNull()?.let { TipPlace(Tip.Details, it.id) },
         at(Tip.Fallback) { it.fallbacks.isNotEmpty() },
-        TipPlace(Tip.Mic, null).takeIf { micShown && micTip },
+        TipPlace(Tip.Mic, null).takeIf { micShown },
         // Ferb Link, once: when it's off and Needle 3 has found no tool, or been unsure, a few times.
         TipPlace(Tip.SuggestLink, null).takeIf { linkOff && history.count { it.struggled() } >= SUGGEST_LINK_AFTER },
     )

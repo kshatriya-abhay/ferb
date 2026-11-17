@@ -14,7 +14,7 @@ class MicTest {
     }
 
     @Test fun theMicTipOnlyWhenTheMicShows() {
-        fun tips(mic: Boolean) = chatTips(emptyList(), startScreen = false, micShown = mic).map { it.tip }
+        fun tips(mic: Boolean) = chatTips(emptyList(), micShown = mic).map { it.tip }
         assertThat(tips(Mic.shows(AudioStep.Off))).doesNotContain(Tip.Mic)
         assertThat(tips(Mic.shows(AudioStep.Gemini))).contains(Tip.Mic)
     }

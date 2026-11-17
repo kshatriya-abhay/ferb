@@ -2,11 +2,9 @@
 
 package dev.abhay.assistant.ui
 
+import dev.abhay.assistant.tools.AddReminder
 import androidx.compose.ui.res.stringResource
 import android.Manifest
-import android.content.pm.PackageManager
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,7 +49,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.LaunchedEffect
@@ -96,11 +93,11 @@ fun NewReminderScreen(viewModel: AssistantViewModel, onDone: () -> Unit) {
             if (saved) onDone() else problem = "That time has passed"
         }
     }
-    val notifications = listOf(Manifest.permission.POST_NOTIFICATIONS)
-    val allow = rememberPermissionFlow { granted -> if (granted.isNotEmpty()) save() else problem = NEEDS_NOTIFICATIONS }
+    val notifications = AddReminder.permissions
+    val allow = rememberPermissionFlow { granted -> if (granted.isNotEmpty()) save() else problem = AddReminder.NEEDS_NOTIFICATIONS }
     // Refused for good, Save opens Ferb's page in Android's settings, where it can be allowed (review P2-146).
     val onSave = {
-        if (allow.step(notifications) == PermissionStep.OpenSettings) problem = "$NEEDS_NOTIFICATIONS: allow them in Android's settings, then Save"
+        if (allow.step(notifications) == PermissionStep.OpenSettings) problem = "${AddReminder.NEEDS_NOTIFICATIONS}: allow them in Android's settings, then Save"
         allow.run(notifications)
     }
     var picking by remember { mutableStateOf<Picker?>(null) }
@@ -165,4 +162,3 @@ fun NewReminderScreen(viewModel: AssistantViewModel, onDone: () -> Unit) {
 
 private enum class Picker { Date, Time, Repeat }
 
-const val NEEDS_NOTIFICATIONS = "Ferb needs notifications to remind you"

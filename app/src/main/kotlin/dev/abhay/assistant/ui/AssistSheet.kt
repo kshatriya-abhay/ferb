@@ -2,9 +2,6 @@ package dev.abhay.assistant.ui
 
 import androidx.compose.ui.res.stringResource
 import android.Manifest
-import android.content.pm.PackageManager
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -51,7 +48,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.abhay.assistant.R
 import dev.abhay.assistant.engine.AssistantEngine
-import dev.abhay.assistant.pipeline.AudioStep
 import dev.abhay.assistant.voice.BatterySaver
 import dev.abhay.assistant.voice.Mic
 
@@ -111,7 +107,8 @@ fun AssistSheet(viewModel: AssistantViewModel, opened: Int, onOpenChat: () -> Un
     // Sized to its content (the header, the latest exchange, the box or recording bar), so the bar
     // is on screen from the start (2026-10-24: at half height it was below the fold).
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var opening by remember { mutableStateOf(false) }
+    // Once per invocation: a kept clip left the sheet waiting, and the next invocation's open was dead (review P2-129).
+    var opening by remember(opened) { mutableStateOf(false) }
     fun openChat() {
         if (opening) return
         opening = true

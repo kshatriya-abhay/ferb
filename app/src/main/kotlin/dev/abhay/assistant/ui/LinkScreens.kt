@@ -7,8 +7,6 @@ import dev.abhay.assistant.link.setupSteps
 import dev.abhay.assistant.link.SetupStep
 import dev.abhay.assistant.link.SetupAction
 import androidx.compose.material.icons.filled.CheckCircle
-import android.net.Uri
-import android.content.Intent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,30 +19,22 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.Switch
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import dev.abhay.assistant.link.Reachability
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -55,14 +45,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.abhay.assistant.R
 import dev.abhay.assistant.link.FerbLink
 import dev.abhay.assistant.link.LinkStatus
@@ -70,8 +58,6 @@ import dev.abhay.assistant.link.describe
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-/** Each way to use Ferb Link, in words: its name and what it does. */
 
 /**
  * Ferb Link's status, read off the main thread whenever the screen comes back (e.g. from Ferb Link
@@ -86,29 +72,30 @@ internal fun rememberLinkStatus(link: FerbLink): LinkStatus? {
     }
     // Null until the first read: "not read yet" isn't Off, whose "Turn on" step it showed (review P2-120).
     val status by produceState(link.last, resumed) {
+        // The first resume comes right after the first composition: one read, not two (review P2-141).
+        if (resumed == 0) return@produceState
         value = withContext(Dispatchers.IO) { link.status() }
     }
     return status
 }
 
 /**
- * Whether to offer voice: Ferb Link is ready and the computer's model takes audio. Status keeps
- * the last value Ferb Link saw, false until it has checked once (e.g. after its server restarted),
- * so then a check (2 s at most, without waking the model) asks the computer. Again on each resume.
+ * Whether to offer voice: Ferb Link is [status] Ready and the computer's model takes audio. Status
+ * keeps the last value Ferb Link saw, false until it has checked once (e.g. after its server
+ * restarted), so then a check (2 s at most, without waking the model) asks the computer. Again on
+ * each resume. [status] is the caller's read: it read Ferb Link's status a second time (review P2-141).
  */
 @Composable
-internal fun rememberVoiceAvailable(link: FerbLink, active: Boolean): Boolean? {
+internal fun rememberVoiceAvailable(link: FerbLink, status: LinkStatus?): Boolean? {
     var resumed by remember { mutableIntStateOf(0) }
     LifecycleResumeEffect(Unit) {
         resumed++
         onPauseOrDispose { }
     }
     // Null until the first answer, as rememberLinkStatus (review P2-120).
-    val available by produceState<Boolean?>(null, active, resumed) {
-        value = active && withContext(Dispatchers.IO) {
-            val status = link.status()
-            status is LinkStatus.Ready && (status.audio || link.check()?.audio == true)
-        }
+    val available by produceState<Boolean?>(null, status, resumed) {
+        if (status == null || resumed == 0) return@produceState
+        value = status is LinkStatus.Ready && (status.audio || withContext(Dispatchers.IO) { link.check()?.audio == true })
     }
     return available
 }
@@ -214,7 +201,7 @@ fun LinkScreen(settings: SettingsViewModel, onBack: () -> Unit) {
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(top = 8.dp, bottom = 24.dp)) {
             // Until it works: what it is and the steps, ticking themselves off (once a check has run, when Ferb Link is ready).
             val steps = status?.let { setupSteps(it, checked?.reachable) }.orEmpty()
-            val openFerbLink = settings.link.openIntent()?.let { intent -> { context.startActivity(intent) } }
+            val openFerbLink = rememberOpenLink(settings.link, status)
             if (status == null) Text(CHECKING, Modifier.padding(horizontal = 32.dp, vertical = 12.dp), style = MaterialTheme.typography.bodyLarge)
             if (steps.isNotEmpty() && !(status is LinkStatus.Ready && checked == null)) {
                 AboutLink()
@@ -229,7 +216,8 @@ fun LinkScreen(settings: SettingsViewModel, onBack: () -> Unit) {
             }
 
             Text(
-                "Choose Gemma 4 in Settings \u2192 Choose your preferred model to use your computer.",
+                // From the names the settings show, so a rename can't leave this pointing at nothing (review P2-143).
+                "Choose ${dev.abhay.assistant.pipeline.ModelChoice.Gemma.title} in Settings \u2192 ${dev.abhay.assistant.pipeline.ModelChoice.TITLE} to use your computer.",
                 Modifier.padding(horizontal = 32.dp, vertical = 12.dp),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -256,7 +244,7 @@ private fun StatusCard(status: LinkStatus, checked: Reachability?, checking: Boo
     val title = when {
         !ready -> describe(status)
         checked?.reachable == false -> "Your computer doesn't answer"
-        else -> describe(LinkStatus.Ready(null))
+        else -> dev.abhay.assistant.link.CONNECTED
     }
     // Under the title: why the computer doesn't answer, or its model.
     val detail = when {
