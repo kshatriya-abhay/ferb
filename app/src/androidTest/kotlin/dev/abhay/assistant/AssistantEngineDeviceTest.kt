@@ -36,7 +36,8 @@ class AssistantEngineDeviceTest {
         val ready = app.engine.state.value as AssistantEngine.State.Ready
         Log.i("AssistantEngineDeviceTest", "loaded in ${ready.loadMs} ms; ${ready.tools.size} tools, ${ready.prefixTokens} tokens in ${ready.initMs} ms")
         assertThat(calls("Torch off", defaults)).containsExactly("set_flashlight")
-        assertThat(calls("Set the media volume to 30 percent", defaults)).isEmpty()
+        // Without its tool, nothing (Set volume is on by default since this was written: left out here).
+        assertThat(calls("Set the media volume to 30 percent", defaults - SetVolume)).isEmpty()
 
         assertThat(calls("Set the media volume to 30 percent", listOf(SetVolume))).containsExactly("set_volume")
         val again = app.engine.state.value as AssistantEngine.State.Ready
