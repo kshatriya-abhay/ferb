@@ -405,9 +405,11 @@ object OpenSettings : Tool(
     """.trimIndent()
 
     override fun prepare(arguments: Map<String, Any?>, env: PrepareEnv): Prepared {
-        val page = arguments.text("page")?.let(::pageFor) ?: arguments.text("page")
-        val action = PAGES[page] ?: return Prepared.Invalid("\"$page\" isn't a settings page this assistant knows")
-        val name = page!!.replace('_', ' ')
+        val said = arguments.text("page")
+        val page = said?.let(::pageFor)?.takeIf { it in PAGES } ?: said?.takeIf { it in PAGES }
+            ?: return Prepared.Invalid("\"$said\" isn't a settings page this assistant knows")
+        val action = PAGES.getValue(page)
+        val name = page.replace('_', ' ')
         if (page == "main") return Prepared.Ready("Open Settings") { context -> Tools.start(context, Intent(action), "Opened Settings").again(Intent(action)) }
         return Prepared.Ready("Open the $name settings") { context ->
             val intent = Intent(action)
@@ -578,9 +580,9 @@ object MediaControl : Tool(
     """.trimIndent()
 
     override fun prepare(arguments: Map<String, Any?>, env: PrepareEnv): Prepared {
-        val action = arguments.text("action")?.lowercase()
-        val key = ACTIONS[action] ?: return Prepared.Invalid("\"$action\" isn't one of ${ACTIONS.keys.joinToString()}")
-        return Prepared.Ready("Media: $action", opensApp = false) { context -> press(context, action!!) }
+        val action = arguments.text("action")?.lowercase()?.takeIf { it in ACTIONS }
+            ?: return Prepared.Invalid("\"${arguments.text("action")}\" isn't one of ${ACTIONS.keys.joinToString()}")
+        return Prepared.Ready("Media: $action", opensApp = false) { context -> press(context, action) }
     }
 
     // Resuming is play, whatever Needle 3 says: on tool-check (2026-10-24) "resume" was pause at

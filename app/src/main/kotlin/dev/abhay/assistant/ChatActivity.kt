@@ -112,7 +112,9 @@ class ChatActivity : ComponentActivity() {
                 // A note opens in Obsidian (Ferb has no viewer of its own); without it, a short message.
                 val showNote = { note: NoteRef ->
                     if (!Obsidian.open(this@ChatActivity, note)) {
-                        Toast.makeText(this@ChatActivity, Obsidian.NOT_INSTALLED, Toast.LENGTH_SHORT).show()
+                        // Installed but it still couldn't (no path in a vault): say that, not "Install Obsidian" (review P2-52).
+                        val why = if (Obsidian.installed(this@ChatActivity)) Obsidian.CANT_OPEN else Obsidian.NOT_INSTALLED
+                        Toast.makeText(this@ChatActivity, why, Toast.LENGTH_SHORT).show()
                     }
                 }
                 // "Open" on a list or note in the chat (or a reminder's notification): that note.

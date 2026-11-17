@@ -22,8 +22,10 @@ sealed interface Outcome {
     data class Failed(val reason: String, val needs: List<String> = emptyList()) : Outcome
 }
 
-/** One line of a result's list: [lead] (e.g. a time) beside [text], [detail] under it; tapping it starts [open]'s intent, if any. */
-/** One line of a result's list: [lead] in a column of its own (a time), [open] when tapped; with [tick], a checkbox that does it (a list's item). */
+/**
+ * One line of a result's list: [lead] in a column of its own (a time) beside [text], [detail] under
+ * it; tapping it starts [open]'s intent, if any; with [tick], a checkbox that does it (a list's item).
+ */
 class Line(val lead: String, val text: String, val detail: String? = null, val open: (() -> Intent)? = null, val tick: FollowUp? = null)
 
 /**

@@ -9,7 +9,8 @@ package dev.abhay.assistant.notes
  * Obsidian's "Copy Obsidian URL" makes (https://obsidian.md/help/Extending+Obsidian/Obsidian+URI).
  * Obsidian names a vault after its folder, so this fits when the picked folder is the vault. Checked
  * on the Pixel 11 (2026-10-19): it opens the note. `path=<absolute path>` opens Obsidian but not the
- * note on Android (as https://forum.obsidian.md/t/80640 reports), so it isn't used. Null: Ferb's viewer.
+ * note on Android (as https://forum.obsidian.md/t/80640 reports), so it isn't used. Null when the
+ * note has no path in a vault (the storage root itself was picked as the folder).
  */
 object ObsidianLink {
     fun of(documentUri: String, noteName: String): String? {

@@ -13,6 +13,7 @@ import android.net.Uri
  */
 object Obsidian {
     const val NOT_INSTALLED = "Install Obsidian to open this note"
+    const val CANT_OPEN = "Obsidian can't open this note: pick a folder inside your vault in Settings → Notes"
 
 
     fun installed(context: Context): Boolean =

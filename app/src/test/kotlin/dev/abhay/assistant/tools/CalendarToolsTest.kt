@@ -24,7 +24,7 @@ class CalendarToolsTest {
         CalendarInfo(9, "me@example.com", "me@example.com", writable = true, primary = true),
     )
     private val events = listOf(
-        CalendarEvent(1, "Dussehra", utcMidnight(9), utcMidnight(10), allDay = true, calendar = "Holidays in India"),
+        CalendarEvent(1, "Dussehra", utcMidnight(9), utcMidnight(10), allDay = true),
         CalendarEvent(2, "Standup", at(9, 10), at(9, 10, 30)),
         CalendarEvent(3, "Gym", at(9, 17, 30), at(9, 18, 30), location = "Cult, HSR"),
         CalendarEvent(4, "Night train", at(8, 22), at(9, 6)),

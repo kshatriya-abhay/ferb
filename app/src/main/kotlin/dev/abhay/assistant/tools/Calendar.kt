@@ -23,7 +23,7 @@ import java.time.ZoneOffset
 data class CalendarInfo(val id: Long, val name: String, val account: String, val writable: Boolean, val primary: Boolean = false, val local: Boolean = false)
 
 /** One occurrence of an event (a repeating event has one per day it's on), times in epoch milliseconds. */
-data class CalendarEvent(val id: Long, val title: String, val begin: Long, val end: Long, val allDay: Boolean = false, val calendar: String = "", val location: String? = null)
+data class CalendarEvent(val id: Long, val title: String, val begin: Long, val end: Long, val allDay: Boolean = false, val location: String? = null)
 
 /**
  * The phone's calendars and their events, as Android's calendar provider has them (synced by
@@ -115,7 +115,7 @@ class CalendarBook(
             val uri = Instances.CONTENT_URI.buildUpon().also { ContentUris.appendId(it, from); ContentUris.appendId(it, to) }.build()
             val columns = arrayOf(
                 Instances.EVENT_ID, Instances.TITLE, Instances.BEGIN, Instances.END, Instances.ALL_DAY,
-                Instances.CALENDAR_DISPLAY_NAME, Instances.EVENT_LOCATION,
+                Instances.EVENT_LOCATION,
             )
             // Shown calendars only, and not the events the user declined or that were cancelled
             // (either may be unset, which SQL's != would also leave out).
@@ -128,7 +128,7 @@ class CalendarBook(
                     found += CalendarEvent(
                         id = c.getLong(0), title = c.getString(1)?.ifBlank { null } ?: "(No title)",
                         begin = c.getLong(2), end = c.getLong(3), allDay = c.getInt(4) == 1,
-                        calendar = c.getString(5).orEmpty(), location = c.getString(6)?.ifBlank { null },
+                        location = c.getString(5)?.ifBlank { null },
                     )
                 }
             }
